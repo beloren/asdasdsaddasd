@@ -45,12 +45,17 @@ Theme.Fonts = {
 	-- (референс «Ice Man» / «Sensei Moro Final»).
 	Serif = Font.new("rbxasset://fonts/families/Merriweather.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal),
 	SerifBody = Font.new("rbxasset://fonts/families/Merriweather.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
+	-- v20.6: курсивные варианты для подсказок (трекер квестов слева).
+	SerifItalic = Font.new("rbxasset://fonts/families/Merriweather.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic),
+	SerifBodyItalic = Font.new("rbxasset://fonts/families/Merriweather.json", Enum.FontWeight.Regular, Enum.FontStyle.Italic),
 }
 
 -- Толщина тёмной обводки текста по стилю.
 Theme.TextStroke = {
 	Serif = 1.6,
 	SerifBody = 1.2,
+	SerifItalic = 1.6,
+	SerifBodyItalic = 1.2,
 	Title = 2.5,
 	Heading = 1.8,
 	Body = 1.4,

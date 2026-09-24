@@ -56,10 +56,10 @@ local function buildTemplates(gui)
 	local diamond = header.Icon:FindFirstChild("Emoji")
 	if diamond then
 		diamond.TextColor3 = Theme.Accents.Gold.Main
-		diamond.FontFace = Theme.Fonts.Serif
+		diamond.FontFace = Theme.Fonts.SerifItalic
 	end
 	UiKit.Text(header, "Title", "Quest", {
-		_Style = "Serif",
+		_Style = "SerifItalic",
 		_MaxTextSize = 22,
 		Position = UDim2.fromOffset(32, 0),
 		Size = UDim2.new(1, -56, 1, -4),
@@ -68,7 +68,7 @@ local function buildTemplates(gui)
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	})
 	UiKit.Text(header, "Caret", "^", {
-		_Style = "SerifBody",
+		_Style = "SerifBodyItalic",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, 0, 0.5, 2),
 		Size = UDim2.fromOffset(20, 20),
@@ -84,7 +84,7 @@ local function buildTemplates(gui)
 	UiKit.Gradient(line, Color3.new(1, 1, 1), Color3.new(1, 1, 1), 0, "Fade").Transparency = UiKit.NSeq(0, 0.85)
 
 	local desc = UiKit.Text(row, "Why", "Find the rarest ores to the forge!", {
-		_Style = "SerifBody",
+		_Style = "SerifBodyItalic",
 		Size = UDim2.new(1, 0, 0, 20),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -96,12 +96,12 @@ local function buildTemplates(gui)
 	-- Строка цели: «◇ - Get Fireite: 0/3». Progress — число справа в той же строке.
 	local objective = UiKit.Group(row, "Objective", { Size = UDim2.new(1, 0, 0, 22), LayoutOrder = 3 })
 	UiKit.Text(objective, "Bullet", "◇", {
-		_Style = "SerifBody",
+		_Style = "SerifBodyItalic",
 		Position = UDim2.fromOffset(4, 0),
 		Size = UDim2.fromOffset(18, 22),
 	})
 	local objText = UiKit.Text(objective, "Text", "- Get Fireite:", {
-		_Style = "SerifBody",
+		_Style = "SerifBodyItalic",
 		Position = UDim2.fromOffset(28, 0),
 		Size = UDim2.new(1, -28, 1, 0),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -112,9 +112,9 @@ local function buildTemplates(gui)
 	objText.TextSize = 16
 	-- Контракт клиента: Title/Progress/Why/Cycle/Bar — оставлены (Progress и
 	-- Cycle теперь просто подписи, Bar скрыт: на референсе полоски нет).
-	local progress = UiKit.Text(row, "Progress", "0/1", { _Style = "SerifBody", Visible = false, Size = UDim2.fromOffset(0, 0) })
+	local progress = UiKit.Text(row, "Progress", "0/1", { _Style = "SerifBodyItalic", Visible = false, Size = UDim2.fromOffset(0, 0) })
 	progress.LayoutOrder = 9
-	UiKit.Text(row, "Cycle", "", { _Style = "SerifBody", Visible = false, Size = UDim2.fromOffset(0, 0), LayoutOrder = 10 })
+	UiKit.Text(row, "Cycle", "", { _Style = "SerifBodyItalic", Visible = false, Size = UDim2.fromOffset(0, 0), LayoutOrder = 10 })
 	local _, fill = UiKit.Bar(row, "Bar", "Gold", { Size = UDim2.fromOffset(0, 0), Visible = false })
 	fill.Visible = false
 	UiKit.Group(row, "Gap", { Size = UDim2.new(1, 0, 0, 8), LayoutOrder = 20 })
@@ -292,6 +292,7 @@ function Builder.Build()
 	})
 	UiKit.List(list, { Padding = UDim.new(0, 8), HorizontalAlignment = Enum.HorizontalAlignment.Center })
 	UiKit.Padding(list, 4, 0, 6, 10)
+	gui:SetAttribute("UiKitVersion", 22) -- v20.6: курсивный трекер
 	modal:SetAttribute("BaseWidth", 640)
 	modal:SetAttribute("BaseHeight", 480)
 
