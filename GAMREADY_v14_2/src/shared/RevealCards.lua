@@ -140,6 +140,7 @@ end
 local function buildCard(item, index, count)
 	local color = rarityColor(item.Rarity)
 	local slot = cardTemplate:Clone()
+	slot.Visible = true -- шаблоны в Templates скрыты
 	slot.Name = "Card" .. index
 	local x = (index - (count + 1) / 2) * (CARD_W + GAP)
 	slot.Position = UDim2.new(0.5, x, 0.5, 0)

@@ -111,6 +111,7 @@ backButton:WaitForChild("Caption").Text = "◀ " .. tr("BACK")
 --------------------------------------------------------------------------------
 local function makeCardVisual(parent, width, height)
 	local card = templates:WaitForChild("Card"):Clone()
+	card.Visible = true -- шаблоны в Templates скрыты
 	card.Size = UDim2.fromOffset(width, height or width)
 	card.Parent = parent
 	return {
@@ -239,6 +240,7 @@ local function renderDetail()
 	perksHeader.Text = tr("WHAT YOU GET:")
 	for index, perk in entry.Perks or {} do
 		local line = templates:WaitForChild("PerkLine"):Clone()
+		line.Visible = true -- шаблоны в Templates скрыты
 		line.Text = '<font color="#6CFF9A">✔</font>  ' .. tr(perk)
 		line.LayoutOrder = index
 		line.Parent = perksList
@@ -250,6 +252,7 @@ local function renderDetail()
 		end
 		for level = 1, smelter.MaxLevel do
 			local pip = templates:WaitForChild("Pip"):Clone()
+			pip.Visible = true -- шаблоны в Templates скрыты
 			pip.LayoutOrder = level
 			local reached = level <= smelter.Level
 			pip.BackgroundColor3 = reached and UiKit.Theme.Accents.Gold.Main or UiKit.Theme.Skins.Slot.Color

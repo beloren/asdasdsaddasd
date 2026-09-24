@@ -92,6 +92,7 @@ local icons = {}
 
 local function makeIcon(id, spec, order)
 	local button = iconTemplate:Clone()
+	button.Visible = true -- шаблоны в Templates скрыты
 	button.Name = "Buff_" .. id
 	button.LayoutOrder = order
 	button.Parent = bar

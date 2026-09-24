@@ -191,6 +191,7 @@ end
 local function buildRow(row, order)
 	local color = rarityColor(row.Rarity)
 	local b = rowTemplate:Clone()
+	b.Visible = true -- шаблоны в Templates скрыты
 	b.Name = "Row"
 	b:SetAttribute("RowId", row.Id)
 	b.LayoutOrder = order
@@ -263,6 +264,7 @@ renderChips = function()
 		local info = currentSource == "Geode" and Config.Geodes.Types[id] or Config.Chests.Types[id]
 		local selected = id == currentId
 		local chip = chipTemplate:Clone()
+		chip.Visible = true -- шаблоны в Templates скрыты
 		chip.Name = "Chip_" .. tostring(id)
 		chip.LayoutOrder = index
 		setCaption(chip, (currentSource == "Geode" and id or info.DisplayName:gsub(" Chest", "")):upper())

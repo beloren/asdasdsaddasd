@@ -172,6 +172,31 @@ for _, entry in UiRegistry.Entries do
 	end
 end
 
+-- Аудит: шаблоны не должны быть видны (папка Folder в Roblox НЕ прячет GUI).
+local function shown(inst, root)
+	local node = inst
+	while node and node ~= root do
+		if node:IsA("GuiObject") and not node.Visible then return false end
+		node = node.Parent
+	end
+	return true
+end
+for _, gui in built do
+	for _, d in gui:GetDescendants() do
+		if d:IsA("GuiObject") and (string.find(d.Name, "Template") or (d.Parent and d.Parent.Name == "Templates")) and shown(d, gui) then
+			failed += 1
+			print("✘ видимый шаблон: " .. d:GetFullName())
+		end
+	end
+	if gui.Enabled then
+		local list = {}
+		for _, c in gui:GetChildren() do
+			if c:IsA("GuiObject") and c.Visible then table.insert(list, c.Name) end
+		end
+		if #list > 0 then print(("  [на экране сразу] %s: %s"):format(gui.Name, table.concat(list, ", "))) end
+	end
+end
+
 if #built > 0 then
 	fs.writeFile("StarterGui_UI.rbxm", roblox.serializeModel(built))
 	print(("Сохранено: StarterGui_UI.rbxm (%d экранов)"):format(#built))

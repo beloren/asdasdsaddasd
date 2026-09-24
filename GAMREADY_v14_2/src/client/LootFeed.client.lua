@@ -81,6 +81,7 @@ local function pushCard(item, delaySeconds)
 		order -= 1
 		local color = typeof(item.Color) == "Color3" and item.Color or rarityColor(item.Rarity)
 		local card = cardTemplate:Clone()
+		card.Visible = true -- шаблоны в Templates скрыты
 		card.Name = "Card"
 		card.LayoutOrder = order
 		card.Size = UDim2.fromOffset(290, item.Sub and 58 or 48)

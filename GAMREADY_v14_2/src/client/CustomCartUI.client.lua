@@ -5940,6 +5940,7 @@ task.spawn(function()
 	-- улучшений и дерева перков). Контракт имён тот же, что и раньше.
 	if rebirthGui then rebirthGui:Destroy() end
 	rebirthGui = require(ReplicatedStorage.Shared.PrestigeUiBuilder).Build()
+	require(ReplicatedStorage.Shared.UiRegistry).HideTemplates(rebirthGui)
 	rebirthGui.Parent = playerGui
 	panel = rebirthGui:WaitForChild("Panel")
 	closeButton = panel:FindFirstChild("CancelButton")

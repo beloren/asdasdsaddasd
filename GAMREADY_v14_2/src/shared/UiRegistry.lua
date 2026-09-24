@@ -95,6 +95,22 @@ local function resolveModule(path)
 	return node
 end
 
+-- Папка не прячет интерфейс: всё, что лежит в Folder "Templates" внутри
+-- ScreenGui, Roblox рисует на экране. Поэтому шаблоны всегда выключены,
+-- а клиент включает клон (clone.Visible = true).
+local function hideTemplates(root)
+	for _, folder in root:GetDescendants() do
+		if folder:IsA("Folder") and folder.Name == "Templates" then
+			for _, child in folder:GetChildren() do
+				if child:IsA("GuiObject") then
+					child.Visible = false
+				end
+			end
+		end
+	end
+end
+UiRegistry.HideTemplates = hideTemplates
+
 -- Собирает ScreenGui (без родителя). Ошибка билдера → error с понятным текстом.
 function UiRegistry.Build(name)
 	local entry = byName[name]
@@ -105,6 +121,7 @@ function UiRegistry.Build(name)
 	local fn = builder[entry.Fn or "Build"]
 	assert(type(fn) == "function", "[UiRegistry] У Shared." .. entry.Module .. " нет функции " .. (entry.Fn or "Build"))
 	local gui = fn()
+	hideTemplates(gui)
 	gui.Name = name
 	gui:SetAttribute("UiKitVersion", gui:GetAttribute("UiKitVersion") or entry.MinVersion or 0)
 	return gui
@@ -130,6 +147,7 @@ function UiRegistry.Get(name, timeout)
 		gui = nil
 	end
 	if gui then
+		hideTemplates(gui)
 		return gui, false
 	end
 	if not entry then
