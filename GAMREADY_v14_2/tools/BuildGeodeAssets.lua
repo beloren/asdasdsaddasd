@@ -164,7 +164,7 @@ end
 
 -- v20: окно жеод собирает общий билдер (Shared.GeodeUiBuilder через
 -- UiRegistry) — тот же, что и tools/BuildAllUI.lua, в едином стиле UiKit.
-local UiRegistry = require(game:GetService("ReplicatedStorage").Shared.UiRegistry)
+local UiRegistry = require(game:GetService("ReplicatedStorage").Shared:Clone().UiRegistry) -- свежая копия модулей
 for _, line in UiRegistry.BuildAll(StarterGui, { GeodeUi = true }) do print("[BuildGeodeAssets] " .. line) end
 
 print("[BuildGeodeAssets] Geode world assets and StarterGui/GeodeUi created (incl. BUY GEODES button/panel). Only geode-owned targets were replaced.")

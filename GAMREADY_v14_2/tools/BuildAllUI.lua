@@ -30,7 +30,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local shared = ReplicatedStorage:FindFirstChild("Shared")
 assert(shared and shared:FindFirstChild("UiRegistry"), "[BuildAllUI] Нет ReplicatedStorage.Shared.UiRegistry — сначала синхронизируй проект через Rojo.")
-local UiRegistry = require(shared.UiRegistry)
+-- Command Bar запоминает однажды загруженные модули и после синхронизации
+-- Rojo может отдать СТАРУЮ версию билдеров. Поэтому грузим свежую копию
+-- папки Shared (require у клона всегда читает актуальный код).
+local freshShared = shared:Clone()
+local UiRegistry = require(freshShared.UiRegistry)
 
 -- Устаревшие экраны прошлых версий (заменены новыми или больше не нужны).
 local LEGACY = {
@@ -71,9 +75,22 @@ print("[BuildAllUI] Готово (" .. #report .. "):\n  " .. table.concat(repor
 
 -- Шаблоны (Templates/*) во ВСЕХ экранах StarterGui — выключены: папка GUI не
 -- прячет, а включаются они только клонами, когда реально нужны.
+-- Цикл встроен сюда (а не вызов модуля): Command Bar может держать в памяти
+-- старую версию UiRegistry, в которой этой функции ещё нет.
+local hidden = 0
 for _, gui in StarterGui:GetChildren() do
 	if gui:IsA("ScreenGui") then
-		UiRegistry.HideTemplates(gui)
+		for _, folder in gui:GetDescendants() do
+			if folder:IsA("Folder") and folder.Name == "Templates" then
+				for _, child in folder:GetChildren() do
+					if child:IsA("GuiObject") and child.Visible then
+						child.Visible = false
+						hidden += 1
+					end
+				end
+			end
+		end
 	end
 end
-print("[BuildAllUI] Шаблоны во всех экранах StarterGui скрыты.")
+print(("[BuildAllUI] Шаблоны во всех экранах StarterGui скрыты (выключено сейчас: %d)."):format(hidden))
+freshShared:Destroy()

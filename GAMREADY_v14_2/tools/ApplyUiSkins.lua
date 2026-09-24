@@ -18,7 +18,9 @@ local FULL = false
 
 local StarterGui = game:GetService("StarterGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiKit"))
+-- Свежая копия Shared: Command Bar может держать в памяти старую версию модулей.
+local freshShared = ReplicatedStorage:WaitForChild("Shared"):Clone()
+local UiKit = require(freshShared.UiKit)
 
 local total = 0
 for _, gui in StarterGui:GetChildren() do
