@@ -99,15 +99,7 @@ end
 -- ScreenGui, Roblox рисует на экране. Поэтому шаблоны всегда выключены,
 -- а клиент включает клон (clone.Visible = true).
 local function hideTemplates(root)
-	for _, folder in root:GetDescendants() do
-		if folder:IsA("Folder") and folder.Name == "Templates" then
-			for _, child in folder:GetChildren() do
-				if child:IsA("GuiObject") then
-					child.Visible = false
-				end
-			end
-		end
-	end
+	return require(Shared.UiKit).HideTemplates(root)
 end
 UiRegistry.HideTemplates = hideTemplates
 

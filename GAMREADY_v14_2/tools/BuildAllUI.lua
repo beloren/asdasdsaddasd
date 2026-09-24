@@ -68,3 +68,12 @@ end
 
 local report = UiRegistry.BuildAll(StarterGui, filter)
 print("[BuildAllUI] Готово (" .. #report .. "):\n  " .. table.concat(report, "\n  "))
+
+-- Шаблоны (Templates/*) во ВСЕХ экранах StarterGui — выключены: папка GUI не
+-- прячет, а включаются они только клонами, когда реально нужны.
+for _, gui in StarterGui:GetChildren() do
+	if gui:IsA("ScreenGui") then
+		UiRegistry.HideTemplates(gui)
+	end
+end
+print("[BuildAllUI] Шаблоны во всех экранах StarterGui скрыты.")

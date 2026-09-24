@@ -109,6 +109,7 @@ function Builder.Build()
 		Rotation = 12,
 		ZIndex = 3,
 	})
+	UiKit.HideTemplates(gui) -- шаблоны выключены с рождения
 	return gui
 end
 

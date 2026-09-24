@@ -205,6 +205,7 @@ function Builder.Build()
 		ZIndex = 4,
 	})
 	chip.LayoutOrder = 0
+	UiKit.HideTemplates(gui) -- шаблоны выключены с рождения
 	return gui
 end
 

@@ -262,6 +262,7 @@ function Builder.BuildSatchel()
 	templates.Name = "Templates"
 	templates.Parent = gui
 	Builder.BuildCell(templates).Visible = false
+	UiKit.HideTemplates(gui) -- шаблоны выключены с рождения
 	return gui
 end
 

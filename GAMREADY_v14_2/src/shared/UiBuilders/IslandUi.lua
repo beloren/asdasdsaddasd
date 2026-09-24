@@ -322,6 +322,7 @@ function Builder.Build()
 		ZIndex = 6,
 	})
 	Builder.BuildLabel().Parent = templates
+	UiKit.HideTemplates(gui) -- шаблоны выключены с рождения
 	return gui
 end
 

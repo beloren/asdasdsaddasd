@@ -45,6 +45,7 @@ function Builder.Build()
 	chevron.AlwaysOnTop = false
 	chevron.Parent = templates
 	glyphPair(chevron, "▲", 0)
+	UiKit.HideTemplates(gui) -- шаблоны выключены с рождения
 	return gui
 end
 

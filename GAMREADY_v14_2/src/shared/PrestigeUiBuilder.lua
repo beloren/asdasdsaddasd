@@ -149,6 +149,7 @@ function Builder.Build()
 	templates.Name = "Templates"
 	templates.Parent = gui
 	requirementRow(templates).Visible = false
+	UiKit.HideTemplates(gui) -- шаблоны выключены с рождения
 	return gui
 end
 

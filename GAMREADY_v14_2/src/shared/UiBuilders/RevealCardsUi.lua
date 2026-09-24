@@ -156,6 +156,7 @@ function Builder.Build()
 	templates.Name = "Templates"
 	templates.Parent = gui
 	Builder.BuildCard(templates)
+	UiKit.HideTemplates(gui) -- шаблоны выключены с рождения
 	return gui
 end
 

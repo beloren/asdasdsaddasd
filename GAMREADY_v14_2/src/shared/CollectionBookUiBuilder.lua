@@ -188,6 +188,7 @@ function Builder.BuildPanel()
 		TextColor3 = Theme.Colors.MutedText,
 		ZIndex = 9,
 	})
+	UiKit.HideTemplates(panel) -- шаблоны выключены с рождения
 	return panel
 end
 
@@ -197,6 +198,7 @@ function Builder.Install(collectionGui)
 	if existing then existing:Destroy() end
 	local panel = Builder.BuildPanel()
 	panel.Parent = collectionGui
+	UiKit.HideTemplates(panel) -- шаблоны выключены с рождения
 	return panel
 end
 

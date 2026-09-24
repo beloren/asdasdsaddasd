@@ -88,6 +88,7 @@ function Builder.Build()
 		Size = UDim2.new(1, -4, 0, 13),
 		ZIndex = 3,
 	})
+	UiKit.HideTemplates(gui) -- шаблоны выключены с рождения
 	return gui
 end
 

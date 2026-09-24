@@ -934,6 +934,21 @@ function UiKit.HudButton(parent, name, label, icon, props)
 	return b
 end
 
+-- Выключает все шаблоны (прямые дети папок "Templates") — папка в Roblox
+-- GUI НЕ прячет. Клиент включает только клон, когда он реально нужен.
+function UiKit.HideTemplates(root)
+	for _, folder in root:GetDescendants() do
+		if folder:IsA("Folder") and folder.Name == "Templates" then
+			for _, child in folder:GetChildren() do
+				if child:IsA("GuiObject") then
+					child.Visible = false
+				end
+			end
+		end
+	end
+	return root
+end
+
 -- Полноэкранная ScreenGui.
 function UiKit.Screen(name, props)
 	local gui = Instance.new("ScreenGui")

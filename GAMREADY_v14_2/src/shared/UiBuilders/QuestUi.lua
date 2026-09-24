@@ -249,6 +249,7 @@ function Builder.Build()
 	modal:SetAttribute("BaseHeight", 480)
 
 	buildTemplates(gui)
+	UiKit.HideTemplates(gui) -- шаблоны выключены с рождения
 	return gui
 end
 
