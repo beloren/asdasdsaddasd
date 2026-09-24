@@ -5389,6 +5389,55 @@ Config.Shop = {
 	HintImageId = 0, -- изображение вместо знака вопроса у кнопки магазина
 }
 
+-- v20: заголовок окна, акценты секций и короткие описания карточек магазина
+-- (строка под названием товара, как «+200 Meteor Shards!» на референсе).
+Config.Shop.WindowTitle = "Prospector's Shop"
+Config.Shop.TabAccents = { Boosts = "Gold", Passes = "Purple", Cash = "Green", Events = "Red", Deals = "Blue" }
+Config.Shop.Descriptions = {
+	DoubleCashPass = "x2 money from every sale!",
+	DoubleLuckPass = "x2 mutation luck, rarer ore!",
+	OreMagnetPass = "Ore flies to you on its own!",
+	ExtraPouchPass = "+12 backpack slots!",
+	GeodeMasterPass = "Open 3/5 geodes at once!",
+	DemolitionExpertPass = "Faster dynamite + 1 free daily!",
+	CartGuardPass = "Longer cart shield!",
+	FastSmelterPass = "x2 faster furnace, +1 slot!",
+	RocketPickaxePass = "The fastest pickaxe!",
+	DoubleSafePass = "x2 safe income!",
+	DoubleDropsPass = "x2 geode rewards!",
+	FillSafeDeal = "Fill your safe instantly!",
+	LuckPotionDeal = "x2 luck for 15 minutes!",
+	ServerLuck2Deal = "x2 luck for the whole server!",
+	ServerLuck3Deal = "x3 luck for the whole server!",
+	MoneyRushDeal = "x2 money for 5 minutes!",
+	MineRushDeal = "Next 3 digs give x2!",
+	PerfectStrikeDeal = "Guaranteed perfect boulder!",
+	DynamiteSmallDeal = "+5 small dynamite!",
+	DynamiteMediumDeal = "+5 dynamite bundles!",
+	DynamiteMegaDeal = "+3 mega TNT!",
+	SmeltNowDeal = "Finish smelting right now!",
+	WeatherNightDeal = "Start Nightfall for everyone!",
+	WeatherRainDeal = "Start a Rainstorm for everyone!",
+	WeatherThunderstormDeal = "Start a Thunderstorm for everyone!",
+	WeatherBloodMoonDeal = "Start a Blood Moon for everyone!",
+	WeatherSolarEclipseDeal = "Start a Solar Eclipse for everyone!",
+	MoneyPackSmallDeal = "Instant cash!",
+	MoneyPackMediumDeal = "Instant cash! Popular!",
+	MoneyPackLargeDeal = "Instant cash! Best value!",
+	ShieldExtensionDeal = "Extend your shield!",
+	StarterPackDeal = "One-time bundle!",
+	StoneGeodeDeal = "+1 Stone Geode!",
+	CrystalGeodeDeal = "+1 Crystal Geode!",
+	AmberGeodeDeal = "+1 Amber Geode!",
+	TopazGeodeDeal = "+1 Topaz Geode!",
+	JadeGeodeDeal = "+1 Jade Geode!",
+	OnyxGeodeDeal = "+1 Onyx Geode!",
+	AuroraGeodeDeal = "+1 Aurora Geode!",
+	NebulaGeodeDeal = "+1 Nebula Geode!",
+	QuasarGeodeDeal = "+1 Quasar Geode!",
+	SingularityGeodeDeal = "+1 Singularity Geode!",
+}
+
 --------------------------------------------------------------------------------
 -- КНОПКИ БЫСТРОГО ДОСТУПА К ГЕЙМПАССАМ (ScreenGui "GamepassQuickBar", см.
 -- tools/BuildUIAssets.lua) — маленький ряд иконок рядом с хотбаром/

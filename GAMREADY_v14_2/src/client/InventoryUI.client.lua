@@ -42,9 +42,11 @@ local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local hotbarGui = playerGui:WaitForChild("HotbarUi", 10)
+local UiRegistry = require(ReplicatedStorage.Shared.UiRegistry)
+local UiKit = require(ReplicatedStorage.Shared.UiKit)
+local hotbarGui = UiRegistry.Get("HotbarUi")
 if not hotbarGui then
-	warn("[InventoryUI] StarterGui/HotbarUi is missing. Run tools/BuildInventoryUI.lua.")
+	warn("[InventoryUI] StarterGui/HotbarUi is missing. Run tools/BuildAllUI.lua.")
 	return
 end
 
@@ -137,7 +139,7 @@ if legacyEntry then legacyEntry:Destroy() end
 local ICON_SIZE = 60
 local ICON_BUFFER = 5
 local INVENTORY_HEADER_SIZE = 40
-local INVENTORY_TABS_SIZE = 30 -- v14: полоса вкладок сортировки под шапкой
+local INVENTORY_TABS_SIZE = 32 -- v14: полоса вкладок сортировки под шапкой
 local INVENTORY_ROWS_FULL = 4
 local INVENTORY_ROWS_MINI = 2
 local HOTBAR_SLOTS_WIDTH_CUTOFF = 1024
@@ -421,90 +423,19 @@ end
 --------------------------------------------------------------------------------
 -- ПОСТРОЕНИЕ ПАНЕЛИ SATCHEL
 --------------------------------------------------------------------------------
-local gui = Instance.new("ScreenGui")
-gui.Name = "SatchelInventory"
-gui.DisplayOrder = 20 -- ниже модальных окон магазина/жеод, выше мира
-gui.IgnoreGuiInset = true
+-- v20: панель собирается билдером (Shared.UiBuilders.InventoryUi →
+-- StarterGui/SatchelInventory), здесь только логика.
+local gui = UiRegistry.Get("SatchelInventory")
 gui.ResetOnSpawn = false
 gui.Enabled = false
-gui.Parent = playerGui
 
-local inventoryFrame = Instance.new("Frame")
-inventoryFrame.Name = "InventoryFrame"
-inventoryFrame.BackgroundColor3 = BACKGROUND_COLOR
-inventoryFrame.BackgroundTransparency = BACKGROUND_FADE
-inventoryFrame.BorderSizePixel = 0
-inventoryFrame.Parent = gui
-local inventoryCorner = Instance.new("UICorner")
-inventoryCorner.CornerRadius = BACKGROUND_CORNER_RADIUS
-inventoryCorner.Parent = inventoryFrame
-
--- ШАПКА: слева счётчик занятых слотов, справа поиск — как в Satchel.
-local header = Instance.new("Frame")
-header.Name = "Header"
-header.Size = UDim2.new(1, 0, 0, INVENTORY_HEADER_SIZE)
-header.BackgroundTransparency = 1
-header.Parent = inventoryFrame
-
-local countLabel = Instance.new("TextLabel")
-countLabel.Name = "CountLabel"
-countLabel.AnchorPoint = Vector2.new(0, 0.5)
-countLabel.Position = UDim2.new(0, ICON_BUFFER + SEARCH_BUFFER, 0.5, 0)
-countLabel.Size = UDim2.new(0, 160, 0, 24)
-countLabel.BackgroundTransparency = 1
-countLabel.Font = Enum.Font.GothamMedium
-countLabel.TextSize = FONT_SIZE
-countLabel.TextColor3 = TEXT_COLOR
-countLabel.TextStrokeColor3 = TEXT_FADE_COLOR
-countLabel.TextStrokeTransparency = TEXT_FADE
-countLabel.TextXAlignment = Enum.TextXAlignment.Left
-countLabel.Text = "0/24"
-countLabel.Parent = header
-
-local searchFrame = Instance.new("Frame")
-searchFrame.Name = "SearchFrame"
-searchFrame.AnchorPoint = Vector2.new(1, 0.5)
-searchFrame.Position = UDim2.new(1, -(ICON_BUFFER + SEARCH_BUFFER), 0.5, 0)
-searchFrame.Size = UDim2.new(0, SEARCH_WIDTH, 0, INVENTORY_HEADER_SIZE - SEARCH_BUFFER * 2)
-searchFrame.BackgroundColor3 = SEARCH_BACKGROUND_COLOR
-searchFrame.BackgroundTransparency = SEARCH_BACKGROUND_FADE
-searchFrame.BorderSizePixel = 0
-searchFrame.Parent = header
-local searchCorner = Instance.new("UICorner")
-searchCorner.CornerRadius = SEARCH_CORNER_RADIUS
-searchCorner.Parent = searchFrame
-local searchStroke = Instance.new("UIStroke")
-searchStroke.Color = SEARCH_BORDER_COLOR
-searchStroke.Transparency = SEARCH_BORDER_FADE
-searchStroke.Thickness = SEARCH_BORDER_THICKNESS
-searchStroke.Parent = searchFrame
-
-local searchBox = Instance.new("TextBox")
-searchBox.Name = "SearchBox"
-searchBox.Size = UDim2.new(1, -30, 1, 0)
-searchBox.Position = UDim2.fromOffset(8, 0)
-searchBox.BackgroundTransparency = 1
-searchBox.Font = Enum.Font.GothamMedium
-searchBox.TextSize = FONT_SIZE
-searchBox.TextColor3 = TEXT_COLOR
-searchBox.PlaceholderText = "Search"
-searchBox.Text = ""
-searchBox.ClearTextOnFocus = false
-searchBox.TextXAlignment = Enum.TextXAlignment.Left
-searchBox.Parent = searchFrame
-
-local searchClear = Instance.new("TextButton")
-searchClear.Name = "SearchClear"
-searchClear.AnchorPoint = Vector2.new(1, 0.5)
-searchClear.Position = UDim2.new(1, -6, 0.5, 0)
-searchClear.Size = UDim2.fromOffset(18, 18)
-searchClear.BackgroundTransparency = 1
-searchClear.Font = Enum.Font.GothamBold
-searchClear.TextSize = FONT_SIZE
-searchClear.TextColor3 = TEXT_COLOR
-searchClear.Text = "X"
+local inventoryFrame = gui:WaitForChild("InventoryFrame")
+local header = inventoryFrame:WaitForChild("Header")
+local countLabel = header:WaitForChild("CountLabel")
+local searchFrame = header:WaitForChild("SearchFrame")
+local searchBox = searchFrame:WaitForChild("SearchBox")
+local searchClear = searchFrame:WaitForChild("SearchClear")
 searchClear.Visible = false
-searchClear.Parent = searchFrame
 
 --------------------------------------------------------------------------------
 -- v14: ВКЛАДКИ СОРТИРОВКИ — ALL / ORES / TOOLS / TOTEMS / DECOR / RELICS.
@@ -516,50 +447,34 @@ local INVENTORY_FILTERS = {
 }
 local currentFilter = "All"
 local filterButtons = {}
-local tabsStrip = Instance.new("ScrollingFrame")
-tabsStrip.Name = "FilterTabs"
-tabsStrip.Position = UDim2.fromOffset(ICON_BUFFER, INVENTORY_HEADER_SIZE)
-tabsStrip.Size = UDim2.new(1, -ICON_BUFFER * 2, 0, INVENTORY_TABS_SIZE - 4)
-tabsStrip.BackgroundTransparency = 1
-tabsStrip.BorderSizePixel = 0
-tabsStrip.ScrollBarThickness = 0
-tabsStrip.ScrollingDirection = Enum.ScrollingDirection.X
-tabsStrip.AutomaticCanvasSize = Enum.AutomaticSize.X
-tabsStrip.CanvasSize = UDim2.new()
-tabsStrip.Parent = inventoryFrame
-local tabsLayout = Instance.new("UIListLayout")
-tabsLayout.FillDirection = Enum.FillDirection.Horizontal
-tabsLayout.Padding = UDim.new(0, 6)
-tabsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-tabsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-tabsLayout.Parent = tabsStrip
+local tabsStrip = inventoryFrame:WaitForChild("FilterTabs")
 local function paintFilterTabs()
 	for id, button in filterButtons do
 		local active = id == currentFilter
-		button.BackgroundColor3 = active and Color3.fromRGB(90, 160, 255) or SEARCH_BACKGROUND_COLOR
-		button.BackgroundTransparency = active and 0.1 or SEARCH_BACKGROUND_FADE
-		button.TextColor3 = active and Color3.new(1, 1, 1) or TEXT_COLOR
+		if button:GetAttribute("UiSkin") then
+			UiKit.ApplySkin(button, active and "TabActive" or "Tab")
+			local caption = button:FindFirstChild("Caption")
+			if caption then caption.TextColor3 = active and Color3.new(1, 1, 1) or UiKit.Theme.Skins.Tab.TextColor end
+		else
+			button.BackgroundColor3 = active and Color3.fromRGB(90, 160, 255) or SEARCH_BACKGROUND_COLOR
+			button.BackgroundTransparency = active and 0.1 or SEARCH_BACKGROUND_FADE
+		end
 	end
 end
 for index, filter in INVENTORY_FILTERS do
-	local button = Instance.new("TextButton")
-	button.Name = filter.Id
-	button.LayoutOrder = index
-	button.AutomaticSize = Enum.AutomaticSize.X
-	button.Size = UDim2.new(0, 0, 1, 0)
-	button.Font = Enum.Font.GothamBold
-	button.TextSize = FONT_SIZE - 2
-	button.Text = filter.Label
-	button.AutoButtonColor = true
-	button.BorderSizePixel = 0
-	button.Parent = tabsStrip
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = button
-	local padding = Instance.new("UIPadding")
-	padding.PaddingLeft = UDim.new(0, 10)
-	padding.PaddingRight = UDim.new(0, 10)
-	padding.Parent = button
+	local button = tabsStrip:FindFirstChild(filter.Id)
+	if not button then
+		button = Instance.new("TextButton")
+		button.Name = filter.Id
+		button.LayoutOrder = index
+		button.AutomaticSize = Enum.AutomaticSize.X
+		button.Size = UDim2.new(0, 0, 1, 0)
+		button.Font = Enum.Font.GothamBold
+		button.TextSize = FONT_SIZE - 2
+		button.Text = filter.Label
+		button.BorderSizePixel = 0
+		button.Parent = tabsStrip
+	end
 	filterButtons[filter.Id] = button
 	button.Activated:Connect(function()
 		currentFilter = filter.Id
@@ -569,55 +484,16 @@ for index, filter in INVENTORY_FILTERS do
 end
 paintFilterTabs()
 
-local scrollingFrame = Instance.new("ScrollingFrame")
-scrollingFrame.Name = "ScrollingFrame"
-scrollingFrame.Position = UDim2.fromOffset(0, INVENTORY_HEADER_SIZE + INVENTORY_TABS_SIZE)
-scrollingFrame.BackgroundTransparency = 1
-scrollingFrame.BorderSizePixel = 0
-scrollingFrame.ScrollBarThickness = 6
-scrollingFrame.ScrollBarImageColor3 = Color3.new(1, 1, 1)
-scrollingFrame.ScrollBarImageTransparency = 0.6
-scrollingFrame.CanvasSize = UDim2.new()
-scrollingFrame.ClipsDescendants = true
-scrollingFrame.Parent = inventoryFrame
+local scrollingFrame = inventoryFrame:WaitForChild("ScrollingFrame")
+local gridFrame = scrollingFrame:WaitForChild("UIGridFrame")
 
-local gridFrame = Instance.new("Frame")
-gridFrame.Name = "UIGridFrame"
-gridFrame.Size = UDim2.fromScale(1, 1)
-gridFrame.BackgroundTransparency = 1
-gridFrame.Parent = scrollingFrame
-
-local gridLayout = Instance.new("UIGridLayout")
-gridLayout.CellSize = UDim2.fromOffset(ICON_SIZE, ICON_SIZE)
-gridLayout.CellPadding = UDim2.fromOffset(ICON_BUFFER, ICON_BUFFER)
-gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
-gridLayout.Parent = gridFrame
-
-local gridPadding = Instance.new("UIPadding")
-gridPadding.PaddingTop = UDim.new(0, ICON_BUFFER)
-gridPadding.PaddingLeft = UDim.new(0, ICON_BUFFER)
-gridPadding.Parent = gridFrame
-
--- Слой перетаскивания: "оторванная" ячейка едет ЗДЕСЬ, поверх всего и вне
--- ScrollingFrame — иначе ClipsDescendants обрезал бы её по краю сетки
--- ровно в тот момент, когда игрок тащит её к хотбару.
-local dragLayer = Instance.new("Frame")
-dragLayer.Name = "DragLayer"
-dragLayer.Size = UDim2.fromScale(1, 1)
-dragLayer.BackgroundTransparency = 1
-dragLayer.ZIndex = 50
-dragLayer.Visible = false
--- Слой перетаскивания — в ОТДЕЛЬНОМ, всегда включённом ScreenGui. Панель
--- инвентаря выключается (Enabled = false), когда закрыта, и призрак
--- вместе с ней стал бы невидимым: перенос между слотами хотбара при
--- закрытом инвентаре выглядел бы как "ничего не происходит".
-local overlayGui = Instance.new("ScreenGui")
-overlayGui.Name = "InventoryDragOverlay"
-overlayGui.DisplayOrder = 30
-overlayGui.IgnoreGuiInset = true
+-- Слой перетаскивания — в ОТДЕЛЬНОМ, всегда включённом ScreenGui
+-- (InventoryDragOverlay): панель инвентаря выключается, когда закрыта, и
+-- «призрак» ячейки вместе с ней стал бы невидимым.
+local overlayGui = UiRegistry.Get("InventoryDragOverlay")
 overlayGui.ResetOnSpawn = false
-overlayGui.Parent = playerGui
-dragLayer.Parent = overlayGui
+local dragLayer = overlayGui:WaitForChild("DragLayer")
+dragLayer.Visible = false
 
 --------------------------------------------------------------------------------
 -- РАЗМЕТКА: панель всегда ровно над фактическим хотбаром
@@ -668,67 +544,10 @@ updateLayout()
 --------------------------------------------------------------------------------
 -- ЯЧЕЙКА
 --------------------------------------------------------------------------------
+local cellTemplate = gui:WaitForChild("Templates"):WaitForChild("Slot")
 local function makeCell()
-	local cell = Instance.new("ImageButton")
-	cell.Name = "Slot"
-	cell.Size = UDim2.fromOffset(ICON_SIZE, ICON_SIZE)
-	cell.BackgroundColor3 = BACKGROUND_COLOR
-	cell.BackgroundTransparency = SLOT_FADE_LOCKED
-	cell.BorderSizePixel = 0
-	cell.AutoButtonColor = false
-	cell.Image = ""
-	cell.ClipsDescendants = false
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = SLOT_CORNER_RADIUS
-	corner.Parent = cell
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Name = "Highlight"
-	stroke.Color = SLOT_EQUIP_COLOR
-	stroke.Thickness = 0
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = cell
-
-	local preview = Instance.new("ImageLabel")
-	preview.Name = "Preview"
-	preview.AnchorPoint = Vector2.new(0.5, 0.5)
-	preview.Position = UDim2.fromScale(0.5, 0.5)
-	preview.Size = UDim2.new(1, -10, 1, -10)
-	preview.BackgroundTransparency = 1
-	preview.ScaleType = Enum.ScaleType.Fit
-	preview.Image = ""
-	preview.Parent = cell
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Name = "ToolName"
-	nameLabel.Size = UDim2.new(1, -6, 0, 14)
-	nameLabel.Position = UDim2.fromOffset(3, 2)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Font = Enum.Font.GothamMedium
-	nameLabel.TextSize = 11
-	nameLabel.TextColor3 = TEXT_COLOR
-	nameLabel.TextStrokeColor3 = TEXT_FADE_COLOR
-	nameLabel.TextStrokeTransparency = TEXT_FADE
-	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	nameLabel.Text = ""
-	nameLabel.Parent = cell
-
-	local countText = Instance.new("TextLabel")
-	countText.Name = "CountLabel"
-	countText.AnchorPoint = Vector2.new(1, 1)
-	countText.Position = UDim2.new(1, -4, 1, -2)
-	countText.Size = UDim2.fromOffset(40, 16)
-	countText.BackgroundTransparency = 1
-	countText.Font = Enum.Font.GothamBold
-	countText.TextSize = 12
-	countText.TextColor3 = TEXT_COLOR
-	countText.TextStrokeColor3 = TEXT_FADE_COLOR
-	countText.TextStrokeTransparency = TEXT_FADE
-	countText.TextXAlignment = Enum.TextXAlignment.Right
-	countText.Text = ""
-	countText.Parent = cell
-
+	local cell = cellTemplate:Clone()
+	cell.Visible = true
 	return cell
 end
 

@@ -12,7 +12,6 @@
 -- как раньше; меняются только родитель, размер и вид (тёмный круг, как у
 -- кнопок Roblox).
 --------------------------------------------------------------------------------
-local Players = game:GetService("Players")
 local GuiService = game:GetService("GuiService")
 
 local TopbarDock = {}
@@ -23,17 +22,8 @@ local row
 
 local function ensureRow()
 	if row and row.Parent then return row end
-	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-	local gui = playerGui:FindFirstChild("TopbarDock")
-	if not gui then
-		gui = Instance.new("ScreenGui")
-		gui.Name = "TopbarDock"
-		gui.ResetOnSpawn = false
-		gui.IgnoreGuiInset = true
-		gui.ScreenInsets = Enum.ScreenInsets.None
-		gui.DisplayOrder = 1250
-		gui.Parent = playerGui
-	end
+	-- v20: контейнер ряда собирается билдером (StarterGui/TopbarDock).
+	local gui = require(script.Parent.UiRegistry).Get("TopbarDock")
 	row = gui:FindFirstChild("Row")
 	if not row then
 		row = Instance.new("Frame")
@@ -94,6 +84,12 @@ function TopbarDock.Add(button, order)
 	button.Position = UDim2.new()
 	button.Size = UDim2.fromOffset(size, size)
 	button.LayoutOrder = order or 10
+	-- v20: кнопки, собранные билдером (атрибут UiSkin), уже в стиле темы и
+	-- правятся в StarterGui — их вид не трогаем, только место и размер.
+	if button:GetAttribute("UiSkin") then
+		button.Parent = parent
+		return
+	end
 	-- Вид штатных кнопок Roblox: тёмный полупрозрачный круг.
 	button.BackgroundColor3 = Color3.fromRGB(18, 18, 21)
 	button.BackgroundTransparency = 0.3

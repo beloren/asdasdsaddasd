@@ -73,15 +73,8 @@ function HudService:SetupPlayer(player)
 			return nil
 		end
 		gui.ResetOnSpawn = false -- чтобы этот клон не уничтожался на будущих респавнах
-		parts.MoneyPill.AutomaticSize = Enum.AutomaticSize.None
-		parts.RebirthPill.AutomaticSize = Enum.AutomaticSize.None
-		parts.MoneyLabel.TextScaled = false
-		parts.MoneyLabel.TextSize = 28
-		parts.MoneyLabel.AutomaticSize = Enum.AutomaticSize.None
-		parts.MoneyLabel.TextYAlignment = Enum.TextYAlignment.Center
-		parts.RebirthLabel.TextScaled = false
-		parts.RebirthLabel.TextSize = 28
-		parts.RebirthLabel.AutomaticSize = Enum.AutomaticSize.None
+		-- v20: размер/шрифт текста задаёт билдер (StarterGui/Hud) — сервер
+		-- его больше не перезаписывает, правки в Studio сохраняются.
 
 		local function refreshMoney()
 			parts.MoneyLabel.Text = "$" .. money.Value

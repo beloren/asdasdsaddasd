@@ -82,23 +82,6 @@ local activateProtection = nil
 local playUiClick = nil
 
 
-local function configureCloseButton(button)
-	local imageId = Config.UI and Config.UI.CloseButtonImageId or 0
-	button.Image = imageId ~= 0 and ("rbxassetid://" .. imageId) or ""
-	button.ScaleType = Enum.ScaleType.Fit
-	if imageId == 0 then
-		local caption = Instance.new("TextLabel")
-		caption.Name = "Caption"
-		caption.Size = UDim2.fromScale(1, 1)
-		caption.BackgroundTransparency = 1
-		caption.Font = Enum.Font.FredokaOne
-		caption.TextScaled = true
-		caption.TextColor3 = Color3.new(1, 1, 1)
-		caption.Text = "X"
-		caption.Parent = button
-	end
-end
-
 -- Окна билдера рассчитаны на desktop-размеры. На узком экране уменьшаем
 -- только крупные панели, а основные touch-кнопки слегка увеличиваем.
 local LARGE_UI = {
@@ -599,6 +582,11 @@ local MODAL_GUI_NAMES = {
 	PerkUi = { "Panel" }, -- v8: чемоданчик перков престижа
 	StarterPackOffer = { "Details" },
 	UpgradeShopCards = { "Panel", "UpgradePanel", "Cards" },
+	UpgradeShopUi = { "Panel" },
+	MerchantUi = { "Panel" },
+	IslandUi = { "Panel" },
+	DropPreviewUi = { "Panel" },
+	InventoryUi = { "Panel" },
 	SettingsMenu = { "Panel" },
 	ReturnScreenUi = { "Panel" },
 	RebirthDialogButtons = { "Panel" },
@@ -890,292 +878,9 @@ local function connectClick(instance, callback, soundName)
 	end
 end
 
-local THEME = {
-	panel = Color3.fromRGB(35, 33, 42),
-	panelStroke = Color3.fromRGB(20, 20, 25),
-	header = Color3.fromRGB(60, 110, 200),
-	headerStroke = Color3.fromRGB(35, 70, 145),
-	row = Color3.fromRGB(55, 52, 68),
-	rowStroke = Color3.fromRGB(20, 20, 25),
-	on = Color3.fromRGB(70, 195, 85),
-	off = Color3.fromRGB(190, 70, 70),
-	subtitle = Color3.fromRGB(190, 200, 225),
-	input = Color3.fromRGB(45, 43, 55),
-}
-
-local function addCorner(inst, radius)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = radius or UDim.new(0, 10)
-	c.Parent = inst
-	return c
-end
-
-local function addStroke(inst, color, thickness)
-	local s = Instance.new("UIStroke")
-	s.Color = color
-	s.Thickness = thickness or 2
-	s.Parent = inst
-	return s
-end
-
--- Плейсхолдер в стиле магазина: синяя шапка и тёмные карточки.
-local function buildSettingsPlaceholder()
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "SettingsMenu"
-
-	-- Шестерёнка слева по центру — открывает/закрывает панель.
-	local gearButton = Instance.new("TextButton")
-	gearButton.Name = "GearButton"
-	gearButton.AnchorPoint = Vector2.new(0, 0.5)
-	gearButton.Position = UDim2.new(0, 14, 0.5, -26)
-	gearButton.Size = UDim2.fromOffset(44, 44)
-	gearButton.BackgroundColor3 = Color3.fromRGB(30, 28, 35)
-	gearButton.BorderSizePixel = 0
-	gearButton.Text = ""
-	gearButton.AutoButtonColor = false
-	gearButton.Parent = gui
-	addCorner(gearButton, UDim.new(0.5, 0))
-	addStroke(gearButton, Color3.fromRGB(220, 220, 220), 2)
-
-	local gearIcon = Instance.new("ImageLabel")
-	gearIcon.Name = "Icon"
-	gearIcon.BackgroundTransparency = 1
-	gearIcon.AnchorPoint = Vector2.new(0.5, 0.5)
-	gearIcon.Position = UDim2.fromScale(0.5, 0.5)
-	gearIcon.Size = UDim2.fromScale(0.65, 0.65)
-	local settingsIconId = Config.Icons.Settings
-	gearIcon.Image = settingsIconId and settingsIconId ~= 0 and ("rbxassetid://" .. settingsIconId) or ""
-	gearIcon.ScaleType = Enum.ScaleType.Fit
-	gearIcon.Parent = gearButton
-
-	-- Тёмная карточка настроек по центру экрана
-	local panel = Instance.new("Frame")
-	panel.Name = "Panel"
-	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UDim2.fromOffset(320, 430)
-	panel.BackgroundColor3 = THEME.panel
-	panel.BorderSizePixel = 0
-	panel.ClipsDescendants = true
-	panel.Visible = false
-	panel.Parent = gui
-	addCorner(panel, UDim.new(0, 14))
-	addStroke(panel, THEME.panelStroke, 3)
-
-	-- Синяя шапка в стиле магазина
-	local header = Instance.new("Frame")
-	header.Name = "Header"
-	header.Size = UDim2.new(1, 0, 0, 56)
-	header.BackgroundColor3 = THEME.header
-	header.BorderSizePixel = 0
-	header.ZIndex = 2
-	header.Parent = panel
-
-	local headerBottom = Instance.new("Frame")
-	headerBottom.BackgroundColor3 = THEME.headerStroke
-	headerBottom.BorderSizePixel = 0
-	headerBottom.Size = UDim2.new(1, 0, 0, 3)
-	headerBottom.Position = UDim2.new(0, 0, 1, -3)
-	headerBottom.ZIndex = 2
-	headerBottom.Parent = header
-
-	local title = Instance.new("TextLabel")
-	title.Name = "Title"
-	title.BackgroundTransparency = 1
-	title.Position = UDim2.new(0, 14, 0, 0)
-	title.Size = UDim2.new(1, -60, 1, 0)
-	title.Font = Enum.Font.FredokaOne
-	title.TextScaled = true
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.TextColor3 = Color3.new(1, 1, 1)
-	title.Text = "Settings"
-	title.ZIndex = 3
-	title.Parent = header
-
-	local closeButton = Instance.new("ImageButton")
-	closeButton.Name = "CloseButton"
-	closeButton.AnchorPoint = Vector2.new(1, 0.5)
-	closeButton.Position = UDim2.new(1, -8, 0.5, 0)
-	closeButton.Size = UDim2.fromOffset(26, 26)
-	closeButton.BackgroundColor3 = Color3.fromRGB(190, 70, 70)
-	closeButton.AutoButtonColor = false
-	closeButton.ZIndex = 3
-	closeButton.Parent = header
-	configureCloseButton(closeButton)
-	addCorner(closeButton, UDim.new(0, 6))
-
-	-- Тело панели со строками настроек
-	local body = Instance.new("Frame")
-	body.Name = "Body"
-	body.BackgroundTransparency = 1
-	body.Position = UDim2.new(0, 10, 0, 66)
-	body.Size = UDim2.new(1, -20, 1, -76)
-	body.Parent = panel
-
-	local layout = Instance.new("UIListLayout")
-	layout.FillDirection = Enum.FillDirection.Vertical
-	layout.Padding = UDim.new(0, 8)
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = body
-
-	local function buildToggleRow(name, label, subtitle, order)
-		local row = Instance.new("Frame")
-		row.Name = name
-		row.BackgroundColor3 = THEME.row
-		row.BorderSizePixel = 0
-		row.Size = UDim2.new(1, 0, 0, 58)
-		row.LayoutOrder = order
-		row.Parent = body
-		addCorner(row, UDim.new(0, 10))
-		addStroke(row, THEME.rowStroke, 2)
-
-		local rowTitle = Instance.new("TextLabel")
-		rowTitle.BackgroundTransparency = 1
-		rowTitle.Position = UDim2.new(0, 12, 0, 6)
-		rowTitle.Size = UDim2.new(1, -100, 0, 22)
-		rowTitle.Font = Enum.Font.FredokaOne
-		rowTitle.TextScaled = true
-		rowTitle.TextXAlignment = Enum.TextXAlignment.Left
-		rowTitle.TextColor3 = Color3.new(1, 1, 1)
-		rowTitle.Text = label
-		rowTitle.Parent = row
-
-		local rowSubtitle = Instance.new("TextLabel")
-		rowSubtitle.BackgroundTransparency = 1
-		rowSubtitle.Position = UDim2.new(0, 12, 0, 30)
-		rowSubtitle.Size = UDim2.new(1, -100, 0, 20)
-		rowSubtitle.Font = Enum.Font.FredokaOne
-		rowSubtitle.TextScaled = true
-		rowSubtitle.TextXAlignment = Enum.TextXAlignment.Left
-		rowSubtitle.TextColor3 = THEME.subtitle
-		rowSubtitle.Text = subtitle
-		rowSubtitle.Parent = row
-
-		local toggle = Instance.new("TextButton")
-		toggle.Name = name .. "Toggle"
-		toggle.AnchorPoint = Vector2.new(1, 0.5)
-		toggle.Position = UDim2.new(1, -12, 0.5, 0)
-		toggle.Size = UDim2.fromOffset(64, 30)
-		toggle.BackgroundColor3 = THEME.on
-		toggle.Font = Enum.Font.FredokaOne
-		toggle.TextScaled = true
-		toggle.TextColor3 = Color3.new(1, 1, 1)
-		toggle.AutoButtonColor = false
-		toggle.Text = "On"
-		toggle.Parent = row
-		addCorner(toggle, UDim.new(0.5, 0))
-
-		return row, toggle
-	end
-
-	local _, soundToggle = buildToggleRow("Audio", "Audio", "Toggle your audio", 1)
-	soundToggle.Name = "SoundToggle"
-
-	-- Строка редима промокодов
-	local redeemRow = Instance.new("Frame")
-	redeemRow.Name = "RedeemRow"
-	redeemRow.BackgroundColor3 = THEME.row
-	redeemRow.BorderSizePixel = 0
-	redeemRow.Size = UDim2.new(1, 0, 0, 96)
-	redeemRow.LayoutOrder = 2
-	redeemRow.Parent = body
-	addCorner(redeemRow, UDim.new(0, 10))
-	addStroke(redeemRow, THEME.rowStroke, 2)
-
-	local redeemTitle = Instance.new("TextLabel")
-	redeemTitle.BackgroundTransparency = 1
-	redeemTitle.Position = UDim2.new(0, 12, 0, 6)
-	redeemTitle.Size = UDim2.new(1, -24, 0, 22)
-	redeemTitle.Font = Enum.Font.FredokaOne
-	redeemTitle.TextScaled = true
-	redeemTitle.TextXAlignment = Enum.TextXAlignment.Left
-	redeemTitle.TextColor3 = Color3.new(1, 1, 1)
-	redeemTitle.Text = "Redeem Codes"
-	redeemTitle.Parent = redeemRow
-
-	local redeemSubtitle = Instance.new("TextLabel")
-	redeemSubtitle.BackgroundTransparency = 1
-	redeemSubtitle.Position = UDim2.new(0, 12, 0, 30)
-	redeemSubtitle.Size = UDim2.new(1, -24, 0, 18)
-	redeemSubtitle.Font = Enum.Font.FredokaOne
-	redeemSubtitle.TextScaled = true
-	redeemSubtitle.TextXAlignment = Enum.TextXAlignment.Left
-	redeemSubtitle.TextColor3 = THEME.subtitle
-	redeemSubtitle.Text = "Look for codes on developer's socials!"
-	redeemSubtitle.Parent = redeemRow
-
-	local codeInput = Instance.new("TextBox")
-	codeInput.Name = "CodeInput"
-	codeInput.Position = UDim2.new(0, 12, 0, 54)
-	codeInput.Size = UDim2.new(1, -100, 0, 32)
-	codeInput.BackgroundColor3 = THEME.input
-	codeInput.Font = Enum.Font.FredokaOne
-	codeInput.TextScaled = true
-	codeInput.TextColor3 = Color3.new(1, 1, 1)
-	codeInput.PlaceholderText = "Type code here.."
-	codeInput.ClearTextOnFocus = false
-	codeInput.Text = ""
-	codeInput.Parent = redeemRow
-	addCorner(codeInput, UDim.new(0, 8))
-
-	local redeemButton = Instance.new("TextButton")
-	redeemButton.Name = "RedeemButton"
-	redeemButton.AnchorPoint = Vector2.new(1, 0)
-	redeemButton.Position = UDim2.new(1, -12, 0, 54)
-	redeemButton.Size = UDim2.fromOffset(76, 32)
-	redeemButton.BackgroundColor3 = THEME.on
-	redeemButton.Font = Enum.Font.FredokaOne
-	redeemButton.TextScaled = true
-	redeemButton.TextColor3 = Color3.new(1, 1, 1)
-	redeemButton.AutoButtonColor = false
-	redeemButton.Text = "Claim"
-	redeemButton.Parent = redeemRow
-	addCorner(redeemButton, UDim.new(0, 8))
-
-	local resultText = Instance.new("TextLabel")
-	resultText.Name = "ResultText"
-	resultText.BackgroundTransparency = 1
-	resultText.Position = UDim2.new(0, 12, 0, 88)
-	resultText.Size = UDim2.new(1, -24, 0, 6)
-	resultText.Font = Enum.Font.FredokaOne
-	resultText.TextScaled = true
-	resultText.TextColor3 = Color3.fromRGB(255, 220, 150)
-	resultText.Text = ""
-	resultText.ZIndex = 2
-	resultText.Parent = redeemRow
-
-	return gui
-end
-
--- ВАЖНО (реальная причина "гир не открывается"): Roblox клонирует
--- содержимое StarterGui в PlayerGui АСИНХРОННО и без гарантии порядка
--- относительно LocalScript'ов — это официально известный gotcha
--- (см. https://devforum.roblox.com/t/1443888). Один разовый
--- FindFirstChild сразу после WaitForChild("PlayerGui") мог выполниться
--- ДО того, как реальный SettingsMenu (собранный в Studio через
--- BuildUIAssets) успевал склонироваться — тогда код не находил его,
--- строил свой ПЛЕЙСХОЛДЕР и вешал клик на НЕГО, а настоящий SettingsMenu
--- прилетал чуть позже и просто повисал рядом никем не управляемый —
--- визуально вы видели готовый интерфейс, но клик по шестерёнке дёргал
--- невидимый дубликат. WaitForChild с таймаутом ждёт реальный клон,
--- а не полагается на удачное совпадение по времени.
-local settingsGui = playerGui:WaitForChild("SettingsMenu", 5)
-local settingsValid = settingsGui
-	and settingsGui:FindFirstChild("GearButton", true)
-	and settingsGui:FindFirstChild("Panel", true)
-	and settingsGui:FindFirstChild("SoundToggle", true)
-	and settingsGui:FindFirstChild("CodeInput", true)
-	and settingsGui:FindFirstChild("RedeemButton", true)
-	and settingsGui:FindFirstChild("ResultText", true)
-if settingsGui and not settingsValid then
-	warn("[CustomCartUI] StarterGui/SettingsMenu найден, но не хватает частей (GearButton/Panel/SoundToggle/CodeInput/RedeemButton/ResultText) — использую плейсхолдер")
-	settingsGui:Destroy()
-	settingsGui = nil
-end
-if not settingsGui then
-	settingsGui = buildSettingsPlaceholder()
-	settingsGui.Parent = playerGui
-end
+-- v20: окно настроек собирается билдером (Shared.UiBuilders.SettingsUi →
+-- StarterGui/SettingsMenu). Нет в StarterGui — соберётся тем же билдером.
+local settingsGui = require(ReplicatedStorage.Shared.UiRegistry).Get("SettingsMenu")
 settingsGui.ResetOnSpawn = false
 settingsGui.IgnoreGuiInset = true
 settingsGui.DisplayOrder = 40 -- поверх книжки, квестов и остальных игровых UI
@@ -1188,77 +893,9 @@ local redeemButton = settingsGui:FindFirstChild("RedeemButton", true)
 local resultText = settingsGui:FindFirstChild("ResultText", true)
 local closeButton = settingsGui:FindFirstChild("CloseButton", true) -- необязателен, клика по шестерёнке достаточно
 
-local settingsBody = settingsPanel:FindFirstChild("Body", true) or settingsPanel
-local redeemRow = settingsPanel:FindFirstChild("RedeemRow", true)
-if redeemRow then
-	redeemRow.LayoutOrder = 6
-	redeemRow.Size = UDim2.new(1, 0, 0, 110)
-	local redeemResult = redeemRow:FindFirstChild("ResultText", true)
-	if redeemResult then
-		redeemResult.Size = UDim2.new(1, -24, 0, 18)
-	end
-end
-
-local function ensureSlider(name, labelText, order)
-	local row = settingsPanel:FindFirstChild(name .. "Row", true)
-	if row then
-		return row
-	end
-	row = Instance.new("Frame")
-	row.Name = name .. "Row"
-	row.Size = UDim2.new(1, 0, 0, 50)
-	row.BackgroundColor3 = THEME.row
-	row.BorderSizePixel = 0
-	row.LayoutOrder = order
-	row.Parent = settingsBody
-	local label = Instance.new("TextLabel")
-	label.Name = "Label"
-	label.Position = UDim2.fromOffset(12, 4)
-	label.Size = UDim2.new(1, -70, 0, 20)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
-	label.TextSize = 16
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.Text = labelText
-	label.Parent = row
-	local valueLabel = Instance.new("TextLabel")
-	valueLabel.Name = "Value"
-	valueLabel.AnchorPoint = Vector2.new(1, 0)
-	valueLabel.Position = UDim2.new(1, -12, 0, 4)
-	valueLabel.Size = UDim2.fromOffset(48, 20)
-	valueLabel.BackgroundTransparency = 1
-	valueLabel.Font = Enum.Font.GothamBold
-	valueLabel.TextSize = 14
-	valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-	valueLabel.TextColor3 = THEME.subtitle
-	valueLabel.Parent = row
-	local track = Instance.new("Frame")
-	track.Name = "Track"
-	track.Position = UDim2.new(0, 12, 1, -17)
-	track.Size = UDim2.new(1, -24, 0, 8)
-	track.BackgroundColor3 = THEME.input
-	track.BorderSizePixel = 0
-	track.Active = true
-	track.Parent = row
-	local fill = Instance.new("Frame")
-	fill.Name = "Fill"
-	fill.BackgroundColor3 = THEME.on
-	fill.BorderSizePixel = 0
-	fill.Parent = track
-	local thumb = Instance.new("ImageButton")
-	thumb.Name = "Thumb"
-	thumb.AnchorPoint = Vector2.new(0.5, 0.5)
-	thumb.Size = UDim2.fromOffset(20, 20)
-	thumb.BackgroundColor3 = Color3.new(1, 1, 1)
-	thumb.BorderSizePixel = 0
-	thumb.AutoButtonColor = false
-	if Config.Icons.SliderThumb and Config.Icons.SliderThumb ~= 0 then
-		thumb.Image = "rbxassetid://" .. Config.Icons.SliderThumb
-		thumb.ScaleType = Enum.ScaleType.Fit
-	end
-	thumb.Parent = track
-	return row
+-- Строки ползунков собирает билдер; нет строки — ползунок просто не работает.
+local function ensureSlider(name)
+	return settingsPanel:FindFirstChild(name .. "Row", true)
 end
 
 local sfxSlider = ensureSlider("SfxSlider", "WORLD SOUNDS", 2)
@@ -1317,6 +954,9 @@ connectClick(closeButton, function()
 end)
 
 local function bindSlider(row, initialValue, onChanged)
+	if not row then
+		return function() end
+	end
 	local track = row:FindFirstChild("Track")
 	local fill = track and track:FindFirstChild("Fill")
 	local thumb = track and track:FindFirstChild("Thumb")
@@ -1465,6 +1105,11 @@ task.spawn(function()
 	-- реально ли поставлена картинка (.Image непустой): есть — тонируем её
 	-- через ImageColor3, нет — красим BackgroundColor3, как раньше.
 	local function paintToggle(instance, color)
+		if instance:GetAttribute("UiSkin") then
+			-- Кнопка темы: включено — зелёная, выключено — красная.
+			require(ReplicatedStorage.Shared.UiKit).ApplySkin(instance, audioMuted and "Button_Red" or "Button_Green")
+			return
+		end
 		if (instance:IsA("ImageButton") or instance:IsA("ImageLabel")) and instance.Image ~= "" then
 			instance.ImageColor3 = color
 		else
@@ -3416,7 +3061,6 @@ end
 	local SHOP_ORDER = { "Mine", "Cart", "Pickaxe", "Supplies", "Soon1", "Soon2", "Soon3" }
 	local MAIN_KIND = "Mine"
 	local SOON_KINDS = { Soon1 = true, Soon2 = true, Soon3 = true }
-	local PANEL_SIZE = Vector2.new(720, 430)
 	local CARD_W, CARD_H = 130, 212
 	local MAIN_CARD_W, MAIN_CARD_H = 210, 300   -- v10: главная ветка (шахта)
 	local SMALL_CARD_W, SMALL_CARD_H = 140, 144 -- v10: квадратные карточки справа
@@ -3462,211 +3106,88 @@ end
 		gearStates[dynamiteKey] = { Count = 0, Price = 0, Max = Config.Dynamite.MaxStack or 50 }
 	end
 
-	local function corner(parent, radius)
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(0, radius or 12)
-		c.Parent = parent
-		return c
-	end
-	local function stroke(parent, color, thickness, transparency, contextual)
-		local s = Instance.new("UIStroke")
-		s.Color = color or COLORS.Outline
-		s.Thickness = thickness or 2
-		s.Transparency = transparency or 0
-		s.ApplyStrokeMode = contextual and Enum.ApplyStrokeMode.Contextual or Enum.ApplyStrokeMode.Border
-		s.LineJoinMode = Enum.LineJoinMode.Round
-		s.Parent = parent
-		return s
-	end
-	local function gradient(parent, top, bottom, rotation)
-		local g = Instance.new("UIGradient")
-		g.Color = ColorSequence.new(top, bottom)
-		g.Rotation = rotation or 90
-		g.Parent = parent
-		return g
-	end
-	local function label(parent, props)
-		local text = Instance.new("TextLabel")
-		text.Name = props.Name or "Label"
-		text.BackgroundTransparency = 1
-		text.Font = props.Font or Enum.Font.GothamBold
-		text.TextColor3 = props.Color or COLORS.Text
-		text.TextScaled = true
-		text.TextWrapped = true
-		text.RichText = true
-		text.Text = props.Text or ""
-		text.Size = props.Size or UDim2.fromScale(1, 1)
-		text.Position = props.Position or UDim2.new()
-		text.AnchorPoint = props.AnchorPoint or Vector2.zero
-		text.TextXAlignment = props.AlignX or Enum.TextXAlignment.Center
-		text.TextYAlignment = props.AlignY or Enum.TextYAlignment.Center
-		text.ZIndex = props.ZIndex or 3
-		text.LayoutOrder = props.LayoutOrder or 0
-		text.Parent = parent
-		if props.MaxTextSize then
-			local constraint = Instance.new("UITextSizeConstraint")
-			constraint.MaxTextSize = props.MaxTextSize
-			constraint.Parent = text
-		end
-		if props.Outline then
-			stroke(text, COLORS.Outline, props.Outline, 0, true)
-		end
-		return text
-	end
-	local function button(parent, props)
-		local b = Instance.new("TextButton")
-		b.Name = props.Name or "Button"
-		b.AutoButtonColor = false
-		b.Text = ""
-		b.BackgroundColor3 = props.Color or COLORS.Buy
-		b.Size = props.Size
-		b.Position = props.Position or UDim2.new()
-		b.AnchorPoint = props.AnchorPoint or Vector2.zero
-		b.ZIndex = props.ZIndex or 4
-		b.Parent = parent
-		corner(b, props.Radius or 10)
-		local rim = stroke(b, COLORS.Outline, 3)
-		gradient(b, Color3.new(1, 1, 1), Color3.fromRGB(190, 190, 190))
-		local scale = Instance.new("UIScale")
-		scale.Parent = b
-		local text = label(b, {
-			Name = "Text", Text = props.Text or "", Font = Enum.Font.FredokaOne,
-			Size = UDim2.new(1, -12, 1, -10), Position = UDim2.fromOffset(6, 5),
-			ZIndex = (props.ZIndex or 4) + 1, Outline = 2, MaxTextSize = props.MaxTextSize or 26,
-		})
-		b.MouseEnter:Connect(function() TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1.05 }):Play() end)
-		b.MouseLeave:Connect(function() TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1 }):Play() end)
-		b.MouseButton1Down:Connect(function() TweenService:Create(scale, TweenInfo.new(0.06), { Scale = 0.93 }):Play() end)
-		b.MouseButton1Up:Connect(function() TweenService:Create(scale, TweenInfo.new(0.14, Enum.EasingStyle.Back), { Scale = 1 }):Play() end)
-		return b, text, rim
-	end
+	-- v20: окно собирается билдером (Shared.UiBuilders.UpgradeShopUi →
+	-- StarterGui/UpgradeShopUi), здесь только логика.
+	local ShopBuilder = require(ReplicatedStorage.Shared.UiBuilders.UpgradeShopUi)
+	local UiRegistry = require(ReplicatedStorage.Shared.UiRegistry)
+	local UiKit = require(ReplicatedStorage.Shared.UiKit)
+	local PANEL_SIZE = ShopBuilder.PANEL_SIZE
 
-	-- Старый ScreenGui билдера (если он ещё лежит в StarterGui) — выключаем,
-	-- чтобы два окна не открывались поверх друг друга.
+	-- Старые экраны прошлых версий — выключаем, чтобы два окна не открывались разом.
 	local function disableLegacy(child)
-		if child.Name == "UpgradeShopCards" and child:IsA("ScreenGui") then
+		if (child.Name == "UpgradeShopCards" or child.Name == "UpgradeShopV3") and child:IsA("ScreenGui") then
 			child.Enabled = false
 		end
 	end
 	for _, child in playerGui:GetChildren() do disableLegacy(child) end
 	playerGui.ChildAdded:Connect(disableLegacy)
 
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "UpgradeShopV3"
+	local gui = UiRegistry.Get("UpgradeShopUi")
 	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
-	gui.DisplayOrder = 30
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.Enabled = false
-	gui.Parent = playerGui
-
-	local panel = Instance.new("Frame")
-	panel.Name = "Panel"
-	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Position = UDim2.fromScale(0.5, 0.54)
-	panel.Size = UDim2.fromOffset(PANEL_SIZE.X, PANEL_SIZE.Y)
-	panel.BackgroundColor3 = COLORS.Panel
-	panel.BackgroundTransparency = 0.06
+	local panel = gui:WaitForChild("Panel")
 	panel.Visible = false
-	panel.ZIndex = 2
-	panel.Parent = gui
-	corner(panel, 14)
-	stroke(panel, COLORS.Outline, 5)
-	local panelScale = Instance.new("UIScale")
+	local panelScale = panel:FindFirstChild("PanelScale") or Instance.new("UIScale")
+	panelScale.Name = "PanelScale"
 	panelScale.Parent = panel
-	local innerFrame = Instance.new("Frame")
-	innerFrame.BackgroundTransparency = 1
-	innerFrame.Position = UDim2.fromOffset(4, 4)
-	innerFrame.Size = UDim2.new(1, -8, 1, -8)
-	innerFrame.ZIndex = 2
-	innerFrame.Parent = panel
-	corner(innerFrame, 11)
-	stroke(innerFrame, COLORS.Frame, 3)
+	local subtitle = panel:FindFirstChild("Subtitle", true)
+	local closeButton = panel:FindFirstChild("Close", true) or panel:FindFirstChild("CloseButton", true)
+	local toast = panel:FindFirstChild("Toast", true)
+	local content = panel:FindFirstChild("Content", true)
+	local templates = gui:WaitForChild("Templates")
 
-	local tab = Instance.new("Frame")
-	tab.Position = UDim2.fromOffset(-12, -24)
-	tab.Size = UDim2.fromOffset(250, 48)
-	tab.BackgroundColor3 = Color3.new(1, 1, 1)
-	tab.ZIndex = 6
-	tab.Parent = panel
-	corner(tab, 8)
-	stroke(tab, COLORS.Outline, 3)
-	gradient(tab, COLORS.TabA, COLORS.TabB, 0)
-	label(tab, {
-		Text = tr("Upgrades"), Font = Enum.Font.FredokaOne,
-		Size = UDim2.new(1, -24, 1, -10), Position = UDim2.fromOffset(16, 5),
-		AlignX = Enum.TextXAlignment.Left, ZIndex = 7, Outline = 3, MaxTextSize = 32,
-	})
-	local subtitle = label(panel, {
-		Text = "", Font = Enum.Font.GothamBlack,
-		Size = UDim2.fromOffset(330, 20), AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -52, 0, 14), AlignX = Enum.TextXAlignment.Right,
-		Outline = 2, MaxTextSize = 16, ZIndex = 4,
-	})
-	local closeButton = button(panel, {
-		Name = "Close", Color = COLORS.Close, Size = UDim2.fromOffset(46, 46),
-		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -4, 0, 4),
-		Text = "X", ZIndex = 8, MaxTextSize = 30,
-	})
-	closeButton:FindFirstChildOfClass("UIStroke").Color = Color3.fromRGB(245, 245, 250)
-
-	local content = Instance.new("Frame")
-	content.Name = "Content"
-	content.BackgroundTransparency = 1
-	content.Position = UDim2.fromOffset(16, 44)
-	content.Size = UDim2.new(1, -32, 1, -60)
-	content.ClipsDescendants = true
-	content.ZIndex = 3
-	content.Parent = panel
-
-	local toast = label(panel, {
-		Size = UDim2.new(1, -40, 0, 24), AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 1, 10), Font = Enum.Font.GothamBlack,
-		MaxTextSize = 20, Outline = 2, ZIndex = 9,
-	})
-	toast.TextTransparency = 1
-
-	-- КАРТОЧКА (вертикальная, как у островов).
-	local function makeCard(parent, width, height)
-		local card = Instance.new("TextButton")
-		card.Name = "Card"
-		card.Text = ""
-		card.AutoButtonColor = false
-		card.Size = UDim2.fromOffset(width, height)
-		card.BackgroundColor3 = Color3.new(1, 1, 1)
-		card.ZIndex = 4
-		card.Parent = parent
-		corner(card, 14)
-		local rim = stroke(card, COLORS.Outline, 4)
-		local grad = gradient(card, Color3.new(1, 1, 1), Color3.new(1, 1, 1))
-		local scale = Instance.new("UIScale")
-		scale.Parent = card
-		local shine = Instance.new("Frame")
-		shine.BackgroundColor3 = Color3.new(1, 1, 1)
-		shine.BackgroundTransparency = 0.85
-		shine.Size = UDim2.new(1, -12, 0.3, 0)
-		shine.Position = UDim2.fromOffset(6, 6)
-		shine.ZIndex = 5
-		shine.Parent = card
-		corner(shine, 10)
-		local icon = label(card, { Name = "Icon", Font = Enum.Font.FredokaOne, Size = UDim2.fromScale(0.72, 0.32), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.08), ZIndex = 6, Outline = 3 })
-		local title = label(card, { Name = "Title", Font = Enum.Font.FredokaOne, Size = UDim2.new(1, -14, 0.13, 0), Position = UDim2.new(0, 7, 0.42, 0), ZIndex = 6, Outline = 2 })
-		local level = label(card, { Name = "Level", Font = Enum.Font.GothamBlack, Size = UDim2.new(1, -14, 0.1, 0), Position = UDim2.new(0, 7, 0.56, 0), ZIndex = 6, Outline = 2 })
-		local hintLine = label(card, { Name = "Hint", Font = Enum.Font.GothamBold, Size = UDim2.new(1, -16, 0.1, 0), Position = UDim2.new(0, 8, 0.67, 0), ZIndex = 6, Outline = 1, MaxTextSize = 13 })
-		local chip = Instance.new("Frame")
-		chip.AnchorPoint = Vector2.new(0.5, 1)
-		chip.Position = UDim2.new(0.5, 0, 1, -8)
-		chip.Size = UDim2.new(1, -16, 0.14, 0)
-		chip.BackgroundColor3 = COLORS.Outline
-		chip.BackgroundTransparency = 0.25
-		chip.ZIndex = 6
-		chip.Parent = card
-		corner(chip, 8)
-		local chipText = label(chip, { Name = "Text", Font = Enum.Font.GothamBlack, Size = UDim2.new(1, -10, 1, -6), Position = UDim2.fromOffset(5, 3), ZIndex = 7, Outline = 2 })
-		local lock = label(card, { Name = "Lock", Text = "🔒", Font = Enum.Font.GothamBlack, Size = UDim2.fromOffset(30, 30), Position = UDim2.fromOffset(8, 8), ZIndex = 8 })
-		return { Card = card, Rim = rim, Gradient = grad, Scale = scale, Icon = icon, Title = title, Level = level, Hint = hintLine, ChipText = chipText, Lock = lock, Shine = shine }
+	-- Перекраска кнопки в вариант темы (Green/Yellow/Dark/Blue/Red).
+	local function paintButton(button, variant)
+		UiKit.ApplySkin(button, "Button_" .. variant)
+		local skin = UiKit.Theme.Skins["Button_" .. variant]
+		local caption = button:FindFirstChild("Caption")
+		if caption and skin then
+			caption.TextColor3 = skin.TextColor or Color3.new(1, 1, 1)
+			local textStroke = caption:FindFirstChild("TextStroke")
+			if textStroke and skin.TextStroke then textStroke.Color = skin.TextStroke end
+		end
+	end
+	local function variantFor(color)
+		if color == COLORS.Buy then return "Green" end
+		if color == COLORS.Poor or color == COLORS.Gold then return "Yellow" end
+		if color == COLORS.Back then return "Blue" end
+		if color == COLORS.Close then return "Red" end
+		return "Dark"
 	end
 
+	-- КАРТОЧКА — клон шаблона Templates/Card.
+	local function makeCard(parent, width, height)
+		local card = templates:WaitForChild("Card"):Clone()
+		card.Visible = true
+		card.Size = UDim2.fromOffset(width, height)
+		card.Parent = parent
+		local scale = card:FindFirstChild("HoverScale") or Instance.new("UIScale")
+		scale.Parent = card
+		local chip = card:FindFirstChild("Chip")
+		return {
+			Card = card, Rim = card:FindFirstChild("SkinStroke"), Scale = scale,
+			Icon = card:FindFirstChild("Icon"), Title = card:FindFirstChild("Title"), Level = card:FindFirstChild("Level"),
+			Hint = card:FindFirstChild("Hint"), ChipText = chip and chip:FindFirstChild("Text"), Lock = card:FindFirstChild("Lock"),
+			Shine = card:FindFirstChild("Shine"),
+		}
+	end
+	-- Цвет рамки карточки = цвет ветки; тусклая — у недоступных.
+	local function paintCard(visual, color, dim)
+		if visual.Rim then visual.Rim.Color = color end
+		visual.Card:SetAttribute("UiAccent", color)
+		if visual.Card.Image ~= "" then
+			visual.Card.ImageColor3 = dim and Color3.fromRGB(150, 150, 150) or Color3.new(1, 1, 1)
+		end
+		visual.Title.TextColor3 = dim and COLORS.Muted or color:Lerp(Color3.new(1, 1, 1), 0.45)
+	end
+	local function statLine(parent, text, order)
+		local line = templates:WaitForChild("StatLine"):Clone()
+		line.Visible = true
+		line.Text = text
+		line.LayoutOrder = order
+		line.Parent = parent
+		return line
+	end
 	local latestStatuses = {}
 	local selectedKind = nil
 	local dialogOpen = false
@@ -3721,8 +3242,7 @@ end
 		visual.Level.TextColor3 = COLORS.Gold
 		if SOON_KINDS[kind] then
 			-- v10: пустые чёрные карточки-заглушки под будущие ветки.
-			visual.Card.BackgroundColor3 = view.Color
-			visual.Gradient.Color = ColorSequence.new(Color3.fromRGB(120, 120, 130), Color3.fromRGB(60, 60, 70))
+			paintCard(visual, Color3.fromRGB(85, 85, 95), true)
 			visual.Shine.Visible = false
 			visual.Icon.Text = "❔"
 			visual.Icon.TextTransparency = 0.45
@@ -3738,15 +3258,14 @@ end
 			for _, dynamiteKey in Config.Dynamite.Order do
 				total += (gearStates[dynamiteKey] or {}).Count or 0
 			end
-			visual.Card.BackgroundColor3 = view.Color
-			visual.Gradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 150, 150))
+			paintCard(visual, view.Color, false)
 			visual.Level.Text = "x" .. tostring(total)
 			visual.Hint.Text = tr("Small · Medium · Mega")
 			visual.ChipText.Text = '<font color="#FFE27A">' .. money((gearStates.Dynamite or {}).Price or 0) .. "</font>"
 			return
 		end
 		if not status then
-			visual.Card.BackgroundColor3 = COLORS.Grey
+			paintCard(visual, COLORS.Grey, true)
 			visual.ChipText.Text = "..."
 			visual.Level.Text = ""
 			visual.Hint.Text = ""
@@ -3756,22 +3275,19 @@ end
 		visual.Level.Text = tr("LV {tier}/{max}", { tier = status.Tier, max = maxTier })
 		visual.Hint.Text = cardHint(kind, status)
 		if status.State == "Maxed" then
-			visual.Card.BackgroundColor3 = COLORS.Grey
-			visual.Gradient.Color = ColorSequence.new(Color3.fromRGB(150, 150, 158), Color3.fromRGB(95, 96, 104))
+			paintCard(visual, COLORS.Grey, true)
 			visual.Icon.TextTransparency = 0.35
 			visual.Shine.Visible = false
 			visual.ChipText.Text = '<font color="#9CFFB4">✔ ' .. tr("MAX") .. "</font>"
 		elseif status.State == "NeedRebirth" then
-			visual.Card.BackgroundColor3 = Color3.fromRGB(45, 46, 54)
-			visual.Gradient.Color = ColorSequence.new(Color3.fromRGB(110, 110, 118), Color3.fromRGB(60, 60, 66))
+			paintCard(visual, COLORS.Grey, true)
 			visual.Icon.TextTransparency = 0.6
 			visual.Title.TextColor3 = COLORS.Muted
 			visual.Lock.Visible = true
 			visual.Hint.Text = tr("Cave {cap} is the limit for now", { cap = status.Cap or status.Tier })
 			visual.ChipText.Text = '<font color="#8CD2FF">' .. tr("PRESTIGE") .. "</font>"
 		elseif status.Repair then
-			visual.Card.BackgroundColor3 = view.Color
-			visual.Gradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 150, 150))
+			paintCard(visual, view.Color, false)
 			visual.ChipText.Text = ((status.Cost or 0) <= 0)
 				and ('<font color="#9CFFB4">' .. tr("FREE REPAIR") .. "</font>")
 				or ('<font color="#FFC846">' .. tr("REPAIR") .. "</font>")
@@ -3779,123 +3295,45 @@ end
 			-- v12: бесплатная первая тележка — ценник "$0" выглядел бы как
 			-- ошибка, поэтому на карточке прямым текстом написано, что она
 			-- бесплатная.
-			visual.Card.BackgroundColor3 = view.Color
-			visual.Gradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 150, 150))
+			paintCard(visual, view.Color, false)
 			visual.ChipText.Text = '<font color="#9CFFB4">' .. tr("GET IT FREE") .. "</font>"
 		else
-			visual.Card.BackgroundColor3 = view.Color
-			visual.Gradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 150, 150))
+			paintCard(visual, view.Color, false)
 			visual.ChipText.Text = status.CanAfford
 				and ('<font color="#FFE27A">' .. money(status.Cost) .. "</font>")
 				or ('<font color="#FF9E6A">' .. money(status.Cost) .. "</font>")
 		end
 	end
 
-	-- ЭКРАН 1: СЕТКА
-	local gridView = Instance.new("CanvasGroup")
-	gridView.Name = "GridView"
-	gridView.BackgroundTransparency = 1
-	gridView.Size = UDim2.fromScale(1, 1)
-	gridView.ZIndex = 3
-	gridView.Parent = content
-	-- v10: слева ОДНА большая карточка (шахта), справа сетка квадратных
-	-- (тележка, кирка, динамит и три «COMING SOON»).
-	local row = Instance.new("Frame")
-	row.Name = "CardRow"
-	row.BackgroundTransparency = 1
-	row.AnchorPoint = Vector2.new(0.5, 0.5)
-	row.Position = UDim2.fromScale(0.5, 0.46)
-	row.Size = UDim2.new(1, -24, 0, MAIN_CARD_H + 10)
-	row.ZIndex = 3
-	row.Parent = gridView
-	local sideGrid = Instance.new("Frame")
-	sideGrid.Name = "SideGrid"
-	sideGrid.BackgroundTransparency = 1
-	sideGrid.AnchorPoint = Vector2.new(1, 0.5)
-	sideGrid.Position = UDim2.new(1, 0, 0.5, 0)
-	sideGrid.Size = UDim2.fromOffset(SMALL_CARD_W * 3 + 24, SMALL_CARD_H * 2 + 12)
-	sideGrid.ZIndex = 3
-	sideGrid.Parent = row
-	local sideLayout = Instance.new("UIGridLayout")
-	sideLayout.CellSize = UDim2.fromOffset(SMALL_CARD_W, SMALL_CARD_H)
-	sideLayout.CellPadding = UDim2.fromOffset(12, 12)
-	sideLayout.FillDirectionMaxCells = 3
-	sideLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	sideLayout.Parent = sideGrid
-	local gridHint = label(gridView, {
-		Text = tr("Tap a card to see what it gives"),
-		Size = UDim2.new(1, -20, 0, 18), AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -30), Font = Enum.Font.GothamBold,
-		Color = COLORS.Muted, MaxTextSize = 14,
-	})
-	local gridFooter = label(gridView, {
-		Size = UDim2.new(1, -20, 0, 22), AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -4), Font = Enum.Font.GothamBlack,
-		MaxTextSize = 16, Outline = 2,
-	})
+	-- ЭКРАН 1: СЕТКА (слева большая карточка шахты, справа сетка квадратных).
+	local gridView = content:WaitForChild("GridView")
+	local row = gridView:WaitForChild("CardRow")
+	local sideGrid = row:WaitForChild("SideGrid")
+	local gridHint = gridView:WaitForChild("GridHint")
+	local gridFooter = gridView:WaitForChild("GridFooter")
 	gridHint.Visible = true
 
 	-- ЭКРАН 2: ВЫБРАННАЯ ВЕТКА
-	local detailView = Instance.new("CanvasGroup")
-	detailView.Name = "DetailView"
-	detailView.BackgroundTransparency = 1
-	detailView.Size = UDim2.fromScale(1, 1)
+	local detailView = content:WaitForChild("DetailView")
 	detailView.Visible = false
-	detailView.ZIndex = 3
-	detailView.Parent = content
-	local backButton = button(detailView, {
-		Name = "Back", Color = COLORS.Back, Text = "◀ " .. tr("BACK"),
-		Size = UDim2.fromOffset(110, 38), Position = UDim2.fromOffset(4, 4), MaxTextSize = 20,
-	})
-	local previewHolder = Instance.new("Frame")
-	previewHolder.BackgroundTransparency = 1
-	previewHolder.Position = UDim2.fromOffset(28, 50)
-	previewHolder.Size = UDim2.fromOffset(150, 226)
-	previewHolder.ZIndex = 3
-	previewHolder.Parent = detailView
-	local preview = makeCard(previewHolder, 150, 226)
+	local backButton = detailView:WaitForChild("Back")
+	local previewHolder = detailView:WaitForChild("PreviewHolder")
+	local preview = makeCard(previewHolder, previewHolder.Size.X.Offset > 0 and previewHolder.Size.X.Offset or 150, previewHolder.Size.Y.Offset > 0 and previewHolder.Size.Y.Offset or 226)
 	preview.Card.Active = false
-
-	local info = Instance.new("Frame")
-	info.BackgroundTransparency = 1
-	info.Position = UDim2.fromOffset(212, 4)
-	info.Size = UDim2.new(1, -216, 1, -72)
-	info.ZIndex = 3
-	info.Parent = detailView
-	local infoLayout = Instance.new("UIListLayout")
-	infoLayout.Padding = UDim.new(0, 5)
-	infoLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	infoLayout.Parent = info
-	local detailTitle = label(info, { Font = Enum.Font.FredokaOne, Size = UDim2.new(1, 0, 0, 34), AlignX = Enum.TextXAlignment.Left, Outline = 3, MaxTextSize = 30, LayoutOrder = 1 })
-	local detailDesc = label(info, { Font = Enum.Font.GothamBold, Color = COLORS.Muted, Size = UDim2.new(1, 0, 0, 36), AlignX = Enum.TextXAlignment.Left, AlignY = Enum.TextYAlignment.Top, MaxTextSize = 14, LayoutOrder = 2 })
-	local statsHeader = label(info, { Font = Enum.Font.GothamBlack, Color = COLORS.Gold, Size = UDim2.new(1, 0, 0, 20), AlignX = Enum.TextXAlignment.Left, Outline = 2, MaxTextSize = 16, LayoutOrder = 3 })
-	local statsList = Instance.new("Frame")
-	statsList.BackgroundTransparency = 1
-	statsList.Size = UDim2.new(1, 0, 0, 0)
-	statsList.AutomaticSize = Enum.AutomaticSize.Y
-	statsList.LayoutOrder = 4
-	statsList.ZIndex = 3
-	statsList.Parent = info
-	local statsLayout = Instance.new("UIListLayout")
-	statsLayout.Padding = UDim.new(0, 4)
-	statsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	statsLayout.Parent = statsList
-
-	local priceLabel = label(detailView, {
-		Font = Enum.Font.FredokaOne, Size = UDim2.fromOffset(190, 26),
-		Position = UDim2.new(0, 8, 1, -54), Outline = 2, MaxTextSize = 22,
-	})
+	local info = detailView:WaitForChild("Info")
+	local detailTitle = info:WaitForChild("DetailTitle")
+	local detailDesc = info:WaitForChild("DetailDesc")
+	local statsHeader = info:WaitForChild("StatsHeader")
+	local statsList = info:WaitForChild("StatsList")
+	local priceLabel = detailView:WaitForChild("PriceLabel")
 	-- v9: цена показывается ТОЛЬКО на кнопке — отдельная строка скрыта.
 	priceLabel.Visible = false
-	local actionButton, actionText = button(detailView, {
-		Name = "Action", Color = COLORS.Buy, Size = UDim2.new(1, -236, 0, 50),
-		AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -4, 1, -6), MaxTextSize = 28,
-	})
-	-- v8: вторая кнопка — только во вкладке SUPPLIES («BUY x5»).
-	local actionButton2, actionText2 = button(detailView, {
-		Name = "Action2", Color = COLORS.Buy, Size = UDim2.new(0.5, -122, 0, 50),
-		AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -4, 1, -6), MaxTextSize = 26,
-	})
+	local actionButton = detailView:WaitForChild("Action")
+	local actionText = actionButton:WaitForChild("Caption")
+	-- v8: вторая кнопка — только во вкладке SUPPLIES («BUY x5») и для скипа.
+	local actionButton2 = detailView:WaitForChild("Action2")
+	local actionText2 = actionButton2:WaitForChild("Caption")
+	local actionBaseSize, actionBasePosition = actionButton.Size, actionButton.Position
 	actionButton2.Visible = false
 
 	-- Строки «было → станет» по ветке. Оценки — до бонусов ребёрта/пассов.
@@ -3937,37 +3375,33 @@ end
 		return tr(descriptions[kind] or "")
 	end
 
+	local lastActionColor = COLORS.Buy
 	local function setAction(text, color, enabled)
 		actionText.Text = text
-		actionButton.BackgroundColor3 = color
+		lastActionColor = color
+		paintButton(actionButton, variantFor(color))
 		actionButton.Active = enabled
 	end
 
 	-- v10: ДИНАМИТ — одна категория, внутри три вида. Сверху ряд вкладок
 	-- SMALL / MEDIUM / MEGA (закрытые — «🔒 CAVE N»), ниже статы выбранного
 	-- и две кнопки покупки x1 / x5.
-	local supplyTabs = Instance.new("Frame")
-	supplyTabs.Name = "SupplyTabs"
-	supplyTabs.BackgroundTransparency = 1
-	supplyTabs.Position = UDim2.fromOffset(212, 44)
-	supplyTabs.Size = UDim2.new(1, -220, 0, 46)
+	-- v10: ДИНАМИТ — одна категория, внутри три вида: вкладки SMALL / MEDIUM / MEGA.
+	local supplyTabs = detailView:WaitForChild("SupplyTabs")
 	supplyTabs.Visible = false
-	supplyTabs.ZIndex = 4
-	supplyTabs.Parent = detailView
-	local supplyTabsLayout = Instance.new("UIListLayout")
-	supplyTabsLayout.FillDirection = Enum.FillDirection.Horizontal
-	supplyTabsLayout.Padding = UDim.new(0, 8)
-	supplyTabsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	supplyTabsLayout.Parent = supplyTabs
 
 	local renderSupplies
 	local supplyTabButtons = {}
 	for index, dynamiteKey in Config.Dynamite.Order do
 		local info = Config.Dynamite.Types[dynamiteKey]
-		local tabButton, tabText = button(supplyTabs, {
-			Name = "Tab_" .. dynamiteKey, Color = info.Color, Text = info.ShortName or info.DisplayName,
-			Size = UDim2.new(1 / #Config.Dynamite.Order, -6, 1, 0), MaxTextSize = 18,
-		})
+		local tabButton = templates:WaitForChild("SupplyTab"):Clone()
+		tabButton.Name = "Tab_" .. dynamiteKey
+		tabButton.Visible = true
+		tabButton.Size = UDim2.new(1 / #Config.Dynamite.Order, -6, 1, 0)
+		tabButton.BackgroundColor3 = info.Color
+		tabButton.Parent = supplyTabs
+		local tabText = tabButton:WaitForChild("Caption")
+		tabText.Text = info.ShortName or info.DisplayName
 		tabButton.LayoutOrder = index
 		supplyTabButtons[dynamiteKey] = { Button = tabButton, Text = tabText, Info = info }
 		tabButton.Activated:Connect(function()
@@ -4013,7 +3447,7 @@ end
 			"⏱ " .. tr("Cooldown {n}s", { n = info.Cooldown }),
 		}
 		for index, line in rows do
-			label(statsList, { Text = line, Font = Enum.Font.GothamBold, Size = UDim2.new(1, 0, 0, 20), AlignX = Enum.TextXAlignment.Left, MaxTextSize = 15, LayoutOrder = index })
+			statLine(statsList, line, index)
 		end
 		priceLabel.Text = highlightCost(gearState.Price)
 		local full = gearState.Count >= gearState.Max
@@ -4029,7 +3463,7 @@ end
 		setAction(full and tr("BAG FULL") or ("x1 · " .. money(gearState.Price)), full and COLORS.Grey or COLORS.Buy, not full)
 		actionText2.Text = "x5 · " .. money((gearState.Price or 0) * 5)
 		local canFive = gearState.Count + 5 <= gearState.Max
-		actionButton2.BackgroundColor3 = canFive and COLORS.Buy or COLORS.Grey
+		paintButton(actionButton2, canFive and "Green" or "Dark")
 		actionButton2.Active = canFive
 	end
 
@@ -4052,14 +3486,14 @@ end
 				if child:IsA("TextLabel") then child:Destroy() end
 			end
 			actionButton2.Visible = false
-			actionButton.Size = UDim2.new(1, -236, 0, 50)
-			actionButton.Position = UDim2.new(1, -4, 1, -6)
+			actionButton.Size = actionBaseSize
+			actionButton.Position = actionBasePosition
 			setAction(tr("SOON"), COLORS.Grey, false)
 			return
 		end
 		actionButton2.Visible = false
-		actionButton.Size = UDim2.new(1, -236, 0, 50)
-		actionButton.Position = UDim2.new(1, -4, 1, -6)
+		actionButton.Size = actionBaseSize
+		actionButton.Position = actionBasePosition
 		local status = latestStatuses[kind]
 		applyCard(preview, kind, status)
 		local view = KIND_VIEW[kind]
@@ -4089,10 +3523,7 @@ end
 				text = ('%s: <font color="#C8CCDA">%s</font>'):format(rowInfo.Name, before)
 			end
 			if text then
-				label(statsList, {
-					Text = text, Font = Enum.Font.GothamBold, Size = UDim2.new(1, 0, 0, 20),
-					AlignX = Enum.TextXAlignment.Left, MaxTextSize = 15, LayoutOrder = index,
-				})
+				statLine(statsList, text, index)
 			end
 		end
 
@@ -4131,11 +3562,11 @@ end
 				actionButton.Position = UDim2.new(0.5, 110, 1, -6)
 				actionButton2.Visible = true
 				actionButton2.Active = true
-				actionButton2.BackgroundColor3 = Color3.fromRGB(255, 190, 40)
+				paintButton(actionButton2, "Yellow")
 				actionText2.Text = ("⚡ SKIP R$%d"):format(status.SkipRobux or 0)
 			end
 		end
-		if pendingBuy then setAction("...", actionButton.BackgroundColor3, false) end
+		if pendingBuy then setAction("...", lastActionColor, false) end
 	end
 
 	local gridCards = {}
@@ -4144,11 +3575,10 @@ end
 		playUiClick()
 		gridView.Visible = false
 		detailView.Visible = true
-		detailView.GroupTransparency = 1
 		detailView.Position = UDim2.fromOffset(40, 0)
 		renderDetail()
 		TweenService:Create(detailView, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			GroupTransparency = 0, Position = UDim2.new(),
+			Position = UDim2.new(),
 		}):Play()
 	end
 	local function showGrid(animated)
@@ -4156,13 +3586,11 @@ end
 		detailView.Visible = false
 		gridView.Visible = true
 		if animated then
-			gridView.GroupTransparency = 1
 			gridView.Position = UDim2.fromOffset(-40, 0)
 			TweenService:Create(gridView, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				GroupTransparency = 0, Position = UDim2.new(),
+				Position = UDim2.new(),
 			}):Play()
 		else
-			gridView.GroupTransparency = 0
 			gridView.Position = UDim2.new()
 		end
 	end
@@ -4814,9 +4242,9 @@ end)()
 -- нет — прогресс просто не будет анимироваться, остальное работает.
 --------------------------------------------------------------------------------
 
-local screenGui = playerGui:WaitForChild("CartInteractionUi", 10)
+local screenGui = require(ReplicatedStorage.Shared.UiRegistry).Get("CartInteractionUi")
 if not screenGui then
-	warn("[CustomCartUI] CartInteractionUi is missing. Run tools/BuildUIAssets.lua.")
+	warn("[CustomCartUI] CartInteractionUi is missing. Run tools/BuildAllUI.lua.")
 	return
 end
 screenGui.ResetOnSpawn = false -- на случай, если в Studio забыли снять галочку
@@ -4847,8 +4275,20 @@ end
 -- анимируется (dummy-заглушка, чтобы не плодить проверки на nil ниже).
 local fillOverlay = promptFrame:FindFirstChild("FillOverlay", true)
 local talkFillOverlay = talkPromptFrame:FindFirstChild("FillOverlay", true)
-local promptBaseColor = promptFrame.BackgroundColor3
-local talkPromptBaseColor = talkPromptFrame.BackgroundColor3
+-- v20: цвет плашки — это цвет её рамки (скин темы), фон остаётся тёмным.
+local function promptAccentStroke(frame)
+	return frame:FindFirstChild("SkinStroke") or frame:FindFirstChildOfClass("UIStroke")
+end
+local promptBaseColor = promptAccentStroke(promptFrame) and promptAccentStroke(promptFrame).Color or promptFrame.BackgroundColor3
+local talkPromptBaseColor = promptAccentStroke(talkPromptFrame) and promptAccentStroke(talkPromptFrame).Color or talkPromptFrame.BackgroundColor3
+local function paintPromptFrame(frame, color)
+	local accentStroke = promptAccentStroke(frame)
+	if accentStroke and frame:GetAttribute("UiSkin") then
+		accentStroke.Color = color
+	else
+		frame.BackgroundColor3 = color
+	end
+end
 local promptTextLayouts = {
 	[promptText] = { Position = promptText.Position, Size = promptText.Size },
 	[talkPromptText] = { Position = talkPromptText.Position, Size = talkPromptText.Size },
@@ -4906,21 +4346,24 @@ end
 -- только для гайда над тележкой — расширено на все такие кнопки в игре,
 -- потому что на телефоне не всегда очевидно, что кнопку нужно ИМЕННО
 -- удерживать, а не один раз тапнуть.
-local holdHint = Instance.new("TextLabel")
-holdHint.Name = "HoldHint"
-holdHint.AnchorPoint = Vector2.new(0.5, 1)
-holdHint.Position = UDim2.new(0.5, 0, 0, -6)
-holdHint.Size = UDim2.fromOffset(150, 34)
-holdHint.BackgroundTransparency = 1
-holdHint.Font = Enum.Font.Arcade
-holdHint.TextSize = 22
-holdHint.TextColor3 = Color3.fromRGB(255, 235, 90)
-holdHint.TextStrokeColor3 = Color3.new(0, 0, 0)
-holdHint.TextStrokeTransparency = 0
+local holdHint = promptFrame:FindFirstChild("HoldHint")
+if not holdHint then
+	holdHint = Instance.new("TextLabel")
+	holdHint.Name = "HoldHint"
+	holdHint.AnchorPoint = Vector2.new(0.5, 1)
+	holdHint.Position = UDim2.new(0.5, 0, 0, -6)
+	holdHint.Size = UDim2.fromOffset(150, 34)
+	holdHint.BackgroundTransparency = 1
+	holdHint.Font = Enum.Font.FredokaOne
+	holdHint.TextSize = 22
+	holdHint.TextColor3 = Color3.fromRGB(255, 235, 90)
+	holdHint.TextStrokeColor3 = Color3.new(0, 0, 0)
+	holdHint.TextStrokeTransparency = 0
+	holdHint.ZIndex = 25
+	holdHint.Parent = promptFrame
+end
 holdHint.Text = tr("HOLD!")
 holdHint.Visible = false
-holdHint.ZIndex = 25
-holdHint.Parent = promptFrame
 
 -- Лёгкое непрерывное покачивание (поворот туда-сюда), пока подсказка
 -- видна — чтобы взгляд сам цеплялся за неё, а не терялась статичным
@@ -5062,12 +4505,11 @@ local function refreshActivePrompt()
 		local objectText = tr(bestPrompt.ObjectText)
 		local actionText = tr(bestPrompt.ActionText)
 		if bestPrompt:GetAttribute("PromptColor") == "Blue" then
-			frame.BackgroundColor3 = Color3.fromRGB(45, 105, 190)
-			if text:IsA("TextLabel") then text.Font = Enum.Font.Arcade end
+			paintPromptFrame(frame, Color3.fromRGB(70, 150, 255))
 		elseif frame == talkPromptFrame then
-			frame.BackgroundColor3 = talkPromptBaseColor
+			paintPromptFrame(frame, talkPromptBaseColor)
 		else
-			frame.BackgroundColor3 = promptBaseColor
+			paintPromptFrame(frame, promptBaseColor)
 		end
 		if objectText == "" then
 			text.Text = actionText
@@ -5806,11 +5248,13 @@ local openShopToTab = function(_tabName) end -- используется Toast'�
 -- выше по файлу, и он переполняется ("Out of local registers"). Отдельная
 -- функция получает собственный чистый бюджет регистров.
 local function setupShopUi()
-	local shopUiGui = playerGui:WaitForChild("ShopUi", 5)
-	local shopPanel = shopUiGui and shopUiGui:FindFirstChild("Panel", true)
+	local UiRegistry = require(ReplicatedStorage.Shared.UiRegistry)
+	local UiKit = require(ReplicatedStorage.Shared.UiKit)
+	local shopUiGui = UiRegistry.Get("ShopUi")
+	local shopPanel = shopUiGui and shopUiGui:FindFirstChild("Panel")
 	local shopDimmer = shopUiGui and shopUiGui:FindFirstChild("Dimmer", true)
 	if not (shopUiGui and shopPanel and shopDimmer) then
-		warn("[CustomCartUI] StarterGui/ShopUi не найден или неполон (нужны Panel/Dimmer) — запусти tools/BuildUIAssets.lua. Магазин работать не будет, остальной UI/игра не пострадают.")
+		warn("[CustomCartUI] StarterGui/ShopUi не найден или неполон (нужны Panel/Dimmer) — запусти tools/BuildAllUI.lua. Магазин работать не будет, остальной UI/игра не пострадают.")
 	else
 		shopUiGui.ResetOnSpawn = false
 		shopUiGui.DisplayOrder = 25
@@ -5895,21 +5339,19 @@ local function setupShopUi()
 		local productIconCache = {}
 		local productIconWaiters = {}
 
+		-- v20: картинка товара ставится в IconHolder/PlaceholderIcon карточки,
+		-- а не на всю карточку (раньше она заменяла подложку целиком). Пока
+		-- картинки нет — виден эмодзи из названия товара.
 		local function applySlotImage(slot, imageId)
 			local icon = slot:FindFirstChild("PlaceholderIcon", true)
+			if not icon then return end
+			local emoji = icon:FindFirstChild("Emoji")
 			if imageId and imageId ~= 0 then
-				slot.Image = "rbxassetid://" .. tostring(imageId)
-				slot.ScaleType = Enum.ScaleType.Fit
-				slot.BackgroundTransparency = 1
-				if icon then
-					icon.Visible = false
-				end
+				icon.Image = "rbxassetid://" .. tostring(imageId)
+				if emoji then emoji.Visible = false end
 			else
-				slot.Image = ""
-				slot.BackgroundTransparency = 0
-				if icon then
-					icon.Visible = true
-				end
+				icon.Image = ""
+				if emoji then emoji.Visible = true end
 			end
 		end
 
@@ -5964,16 +5406,22 @@ local function setupShopUi()
 			end)
 		end
 
-		local function applyShopTextOutline(label)
-			if not label or not label:IsA("TextLabel") then return end
-			local stroke = label:FindFirstChildWhichIsA("UIStroke")
-			if not stroke then
-				stroke = Instance.new("UIStroke")
-				stroke.Parent = label
+		local ShopUiBuilder = require(ReplicatedStorage.Shared.UiBuilders.ShopUi)
+		local TAB_FALLBACK_EMOJI = { Boosts = "⚡", Passes = "🎫", Cash = "💵", Events = "⛈", Deals = "🎁" }
+		-- «💰 2x Money» → «💰», «2x Money»: эмодзи уходит в иконку карточки.
+		local function splitShopTitle(title)
+			local first, rest = title:match("^(%S+)%s+(.+)$")
+			if first and not first:find("[%w]") then
+				return first, rest
 			end
-			stroke.Color = Color3.new(0, 0, 0)
-			stroke.Thickness = 1.25
-			stroke.Transparency = 0
+			return "", title
+		end
+		local function shopDescription(item)
+			if item.Description then return tr(item.Description) end
+			local descriptions = Config.Shop.Descriptions
+			local text = descriptions and descriptions[item.Id]
+			if text then return tr(text) end
+			return item.ProductType == "GamePass" and tr("Permanent upgrade!") or tr("Instant delivery!")
 		end
 
 		local renderShop -- forward-declared: purchaseItem и renderSection обе на неё ссылаются
@@ -5984,6 +5432,9 @@ local function setupShopUi()
 		local function purchaseItem(slot, priceButton)
 			local productType = priceButton:GetAttribute("ProductType")
 			local productId = priceButton:GetAttribute("ProductId")
+			if priceButton:GetAttribute("Owned") == true then
+				return
+			end
 			local isStarterPack = slot:GetAttribute("RenderedShopItemId") == "StarterPackDeal"
 			if isStarterPack and (starterPackPurchaseBlocked or player:GetAttribute("StarterPackClaimed") ~= false) then
 				return
@@ -6042,26 +5493,38 @@ local function setupShopUi()
 				slot.Parent = container
 
 				setSlotImage(slot, item)
+				local accent = UiKit.Accent(ShopUiBuilder.TabAccent(tabName))
+				local emojiText, plainTitle = splitShopTitle(item.Title or "")
+				local iconEmoji = slot:FindFirstChild("Emoji", true)
+				if iconEmoji then
+					iconEmoji.Text = item.Emoji or (emojiText ~= "" and emojiText) or TAB_FALLBACK_EMOJI[tabName] or "🛒"
+				end
 				local titleLabel = slot:FindFirstChild("Title", true)
 				if titleLabel then
-					titleLabel.Text = item.Title
-					applyShopTextOutline(titleLabel)
+					titleLabel.Text = plainTitle
+					local gradient = titleLabel:FindFirstChild("TextGradient")
+					if gradient then
+						gradient.Color = ColorSequence.new(accent.Light, accent.Main)
+					else
+						titleLabel.TextColor3 = accent.Light
+					end
+				end
+				local descriptionLabel = slot:FindFirstChild("Description", true)
+				if descriptionLabel then
+					descriptionLabel.Text = shopDescription(item)
 				end
 				local badge = slot:FindFirstChild("Badge", true)
 				if badge then
 					badge.Visible = item.Badge ~= nil and item.Badge ~= ""
-					badge.Text = item.Badge or ""
+					local badgeText = badge:FindFirstChild("Count") or badge
+					if badgeText:IsA("TextLabel") then badgeText.Text = item.Badge or "" end
 				end
-				-- Цвет рамки карточки по типу товара — как на референсе
-				-- (у карточек там разные цвета обводки). GamePass —
-				-- фиолетовый (постоянный эффект), DevProduct — золотой
-				-- (разовая покупка).
-				local accentStroke = slot:FindFirstChild("AccentStroke", true)
-				if accentStroke then
-					accentStroke.Color = item.ProductType == "GamePass"
-						and Color3.fromRGB(180, 110, 240)
-						or Color3.fromRGB(225, 175, 70)
+				-- Рамка карточки — цвет категории (как рамки товаров на референсе).
+				local cardStroke = slot:FindFirstChild("SkinStroke") or slot:FindFirstChild("AccentStroke", true)
+				if cardStroke and cardStroke:IsA("UIStroke") then
+					cardStroke.Color = accent.Main
 				end
+				local owned = item.ProductType == "GamePass" and item.PassKey and player:GetAttribute("Owns_" .. item.PassKey) == true
 				local priceButton = slot:FindFirstChild("PriceButton", true)
 				if priceButton then
 					local robuxIcon = priceButton:FindFirstChild("RobuxIcon", true)
@@ -6073,12 +5536,17 @@ local function setupShopUi()
 						and robuxIcon:IsA("ImageLabel")
 						and robuxIcon.Image ~= ""
 					if robuxIcon then
-						robuxIcon.Visible = hasRobuxIcon == true
+						robuxIcon.Visible = hasRobuxIcon == true and not owned
 					end
 					local caption = priceButton:FindFirstChild("Caption", true)
 					if caption then
-						caption.Text = (hasRobuxIcon and "" or "R$ ") .. tostring(item.PriceRobux)
-						applyShopTextOutline(caption)
+						caption.Text = owned and tr("OWNED") or ((hasRobuxIcon and "" or "R$ ") .. tostring(item.PriceRobux))
+					end
+					-- Купленный геймпасс: кнопка «OWNED», повторная покупка не открывается.
+					priceButton:SetAttribute("Owned", owned == true)
+					if owned then
+						UiKit.ApplySkin(priceButton, "Button_Claim")
+						if caption then caption.TextColor3 = UiKit.Theme.Skins.Button_Claim.TextColor end
 					end
 					priceButton:SetAttribute("ProductType", item.ProductType)
 					priceButton:SetAttribute("ProductId", item.ProductId)
@@ -6095,6 +5563,12 @@ local function setupShopUi()
 			end
 		end
 
+		-- Купил геймпасс — карточка сразу показывает OWNED.
+		player.AttributeChanged:Connect(function(attributeName)
+			if attributeName:sub(1, 5) == "Owns_" then
+				renderShop()
+			end
+		end)
 		player:GetAttributeChangedSignal("StarterPackClaimed"):Connect(function()
 			if player:GetAttribute("StarterPackClaimed") == true then starterPackPurchaseBlocked = true end
 			renderShop()
@@ -6421,7 +5895,9 @@ task.spawn(function()
 	-- снизу — большая кнопка REBIRTH и Cancel. Старый билборд над кротом
 	-- остаётся только для имени (та же лёгкая "разговорная" анимация), вся
 	-- реальная механика теперь в этом окне.
-	local rebirthGui = playerGui:FindFirstChild("RebirthDialogButtons")
+	-- v20: окно собирается билдером (Shared.PrestigeUiBuilder → StarterGui).
+	local UiKit = require(ReplicatedStorage.Shared.UiKit)
+	local rebirthGui = require(ReplicatedStorage.Shared.UiRegistry).Get("RebirthDialogButtons")
 	local panel, closeButton, titleLabel, introLabel, requirementsFrame, bonusFrame, moneyBonusRow, speedBonusRow, confirmButton
 
 	-- СВОЙ АССЕТ ИЗ STUDIO — по прямому запросу "сделай в билдере, чтобы я
@@ -6524,17 +6000,6 @@ task.spawn(function()
 	-- кнопка закрытия — code-generated "X" (closeButton).
 	local closeButtons = (customPanel and #customCloseButtons > 0) and customCloseButtons or { closeButton }
 
-	-- Шрифт форсируем ТОЛЬКО у код-генерируемого варианта — у своего
-	-- ассета из Studio (customPanel ~= nil) шрифт целиком на усмотрение
-	-- автора, в этом и был смысл запроса "чтобы я мог его менять".
-	if not customPanel then
-		for _, descendant in rebirthGui:GetDescendants() do
-			if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
-				descendant.Font = Enum.Font.Arcade
-			end
-		end
-	end
-
 	local confirmEnabledColor = confirmButton.BackgroundColor3
 	local confirmEnabledImageColor = confirmButton:IsA("ImageButton") and confirmButton.ImageColor3 or nil
 
@@ -6549,6 +6014,14 @@ task.spawn(function()
 
 	local function setButtonsUsable(usable)
 		confirmButton.Active = usable
+		if confirmButton:GetAttribute("UiSkin") then
+			-- Кнопка темы: активная — зелёная, неактивная — тёмная.
+			UiKit.ApplySkin(confirmButton, usable and "Button_Green" or "Button_Dark")
+			if confirmButton.Image ~= "" then
+				confirmButton.ImageColor3 = usable and Color3.new(1, 1, 1) or Color3.fromRGB(125, 125, 125)
+			end
+			return
+		end
 		confirmButton.AutoButtonColor = usable
 		confirmButton.BackgroundColor3 = usable and confirmEnabledColor or Color3.fromRGB(105, 105, 110)
 		if confirmEnabledImageColor then
@@ -6587,97 +6060,43 @@ task.spawn(function()
 		end
 	end
 
+	-- Строки чек-листа — клоны шаблона Templates/RequirementRow (галочка
+	-- или крестик в квадратике слева, текст условия справа).
+	local requirementTemplate = rebirthGui:FindFirstChild("Templates") and rebirthGui.Templates:FindFirstChild("RequirementRow")
 	local function rebuildRequirements(requirements)
-		requirementsFrame:ClearAllChildren()
-		local layout = Instance.new("UIListLayout")
-		layout.Padding = UDim.new(0, 10)
-		layout.Parent = requirementsFrame
-		for _, requirement in requirements or {} do
-			local row = Instance.new("Frame")
-			row.Size = UDim2.new(1, 0, 0, 34)
-			row.BackgroundTransparency = 1
-			row.Parent = requirementsFrame
-
-			-- Квадратик слева — галочка (зелёный) или крестик (тускло-серый),
-			-- по прямому запросу "квадратики с галочками слева".
-			local box = Instance.new("Frame")
-			box.Size = UDim2.fromOffset(28, 28)
-			box.Position = UDim2.fromOffset(0, 3)
-			box.BackgroundColor3 = requirement.Met and Color3.fromRGB(60, 150, 80) or Color3.fromRGB(50, 52, 62)
-			box.BorderSizePixel = 0
-			box.Parent = row
-			local boxCorner = Instance.new("UICorner")
-			boxCorner.CornerRadius = UDim.new(0, 6)
-			boxCorner.Parent = box
-
-			-- ЗНАЧОК ВЫПОЛНЕНИЯ УСЛОВИЯ — раньше это был текстовый символ
-			-- "✓"/"✕" на Enum.Font.Arcade. По прямому запросу ("знаки
-			-- галочек не отображаются") — а причина именно в этом: Arcade
-			-- — пиксельный декоративный шрифт с урезанным набором
-			-- символов, и юникодных ✓/✕ в нём попросту нет, поэтому
-			-- TextLabel рисовал пустое место вместо галочки. Смена шрифта
-			-- для одного лейбла проблему не решает переносимо — та же
-			-- судьба ждёт любой другой узкий пиксельный шрифт.
-			--
-			-- РЕШЕНИЕ: галочка/крестик собраны из обычных Frame-полосок
-			-- (геометрия, не текст) — рендерятся ВСЕГДА, независимо от
-			-- того, какой шрифт установлен где-либо в игре.
-			if requirement.Met then
-				-- Галочка — две полоски: короткая (нижний штрих влево-вниз)
-				-- и длинная (верхний штрих вправо-вверх), обычная "V"-форма.
-				local short = Instance.new("Frame")
-				short.AnchorPoint = Vector2.new(0.5, 0.5)
-				short.Size = UDim2.fromOffset(9, 3)
-				short.Position = UDim2.fromScale(0.36, 0.56)
-				short.Rotation = 45
-				short.BackgroundColor3 = Color3.new(1, 1, 1)
-				short.BorderSizePixel = 0
-				short.Parent = box
-				local shortCorner = Instance.new("UICorner")
-				shortCorner.CornerRadius = UDim.new(1, 0)
-				shortCorner.Parent = short
-
-				local long = Instance.new("Frame")
-				long.AnchorPoint = Vector2.new(0.5, 0.5)
-				long.Size = UDim2.fromOffset(16, 3)
-				long.Position = UDim2.fromScale(0.60, 0.44)
-				long.Rotation = -45
-				long.BackgroundColor3 = Color3.new(1, 1, 1)
-				long.BorderSizePixel = 0
-				long.Parent = box
-				local longCorner = Instance.new("UICorner")
-				longCorner.CornerRadius = UDim.new(1, 0)
-				longCorner.Parent = long
-			else
-				-- Крестик — две полоски крест-накрест (+45°/-45°).
-				local strokeA = Instance.new("Frame")
-				strokeA.AnchorPoint = Vector2.new(0.5, 0.5)
-				strokeA.Size = UDim2.fromOffset(18, 3)
-				strokeA.Position = UDim2.fromScale(0.5, 0.5)
-				strokeA.Rotation = 45
-				strokeA.BackgroundColor3 = Color3.fromRGB(200, 202, 210)
-				strokeA.BorderSizePixel = 0
-				strokeA.Parent = box
-				local strokeACorner = Instance.new("UICorner")
-				strokeACorner.CornerRadius = UDim.new(1, 0)
-				strokeACorner.Parent = strokeA
-
-				local strokeB = strokeA:Clone()
-				strokeB.Rotation = -45
-				strokeB.Parent = box
+		for _, child in requirementsFrame:GetChildren() do
+			if child:GetAttribute("RequirementClone") then child:Destroy() end
+		end
+		if not requirementsFrame:FindFirstChildOfClass("UIListLayout") then
+			local layout = Instance.new("UIListLayout")
+			layout.Padding = UDim.new(0, 8)
+			layout.SortOrder = Enum.SortOrder.LayoutOrder
+			layout.Parent = requirementsFrame
+		end
+		if not requirementTemplate then
+			requirementTemplate = require(ReplicatedStorage.Shared.PrestigeUiBuilder).Build().Templates.RequirementRow
+		end
+		for index, requirement in requirements or {} do
+			local row = requirementTemplate:Clone()
+			row:SetAttribute("RequirementClone", true)
+			row.Name = "Requirement" .. index
+			row.LayoutOrder = index
+			row.Visible = true
+			local box = row:FindFirstChild("Box")
+			local check = box and box:FindFirstChild("Check")
+			local cross = box and box:FindFirstChild("Cross")
+			if check then check.Visible = requirement.Met == true end
+			if cross then cross.Visible = requirement.Met ~= true end
+			local boxStroke = box and box:FindFirstChild("SkinStroke")
+			if boxStroke then
+				boxStroke.Color = requirement.Met and UiKit.Theme.Colors.Positive or UiKit.Theme.Colors.MutedText
 			end
-
-			local label = Instance.new("TextLabel")
-			label.Position = UDim2.fromOffset(38, 0)
-			label.Size = UDim2.new(1, -38, 1, 0)
-			label.BackgroundTransparency = 1
-			label.Font = Enum.Font.Arcade
-			label.TextScaled = true
-			label.TextWrapped = true
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.TextColor3 = requirement.Met and Color3.fromRGB(150, 255, 170) or Color3.fromRGB(210, 212, 222)
-			label.Text = requirement.Label
-			label.Parent = row
+			local label = row:FindFirstChild("Label")
+			if label then
+				label.Text = requirement.Label
+				label.TextColor3 = requirement.Met and Color3.fromRGB(170, 255, 170) or UiKit.Theme.Colors.SubText
+			end
+			row.Parent = requirementsFrame
 		end
 	end
 
