@@ -37,15 +37,14 @@ Builder.TEXT_STYLES = {
 	Body = { Font = "Body", Stroke = 2, Color = Theme.Colors.Text },
 	Small = { Font = "Small", Stroke = 1.5, Color = Theme.Colors.SubText },
 	Glyph = { Font = "Title", Stroke = 3, Color = Theme.Accents.Gold.Main },
-	-- v20.3: имена NPC и подписи трофеев/тотемов (референс «Ice Man»):
-	-- белый засечный шрифт с тёмной обводкой, «v»-стрелка под именем.
-	NpcName = { Font = "Serif", Stroke = 2, Color = Color3.new(1, 1, 1) },
-	NpcSub = { Font = "SerifBody", Stroke = 1.6, Color = Color3.fromRGB(225, 225, 230) },
-	NpcArrow = { Font = "SerifBody", Stroke = 1.2, Color = Color3.fromRGB(200, 200, 205) },
-	-- v20.7: подписи над трофеями/тотемами — Fredoka One, TextScaled в
-	-- рамке фиксированного размера (в пикселях) — не зависят от камеры.
-	Label = { Font = "Fredoka", Stroke = 2.5, Color = Color3.new(1, 1, 1) },
-	LabelSub = { Font = "Fredoka", Stroke = 2, Color = Color3.fromRGB(230, 230, 235) },
+	-- v20.8: имена NPC (продавец, мэр престижа…) и подписи над трофеями и
+	-- тотемами — тем же шрифтом, что и деньги в HUD (жирный курсив темы,
+	-- стиль Fisch). Подписи трофеев/тотемов — TextScaled в рамке в пикселях.
+	NpcName = { Font = "Number", Stroke = 2.5, Color = Color3.new(1, 1, 1) },
+	NpcSub = { Font = "Heading", Stroke = 2, Color = Color3.fromRGB(225, 225, 230) },
+	NpcArrow = { Font = "Heading", Stroke = 1.5, Color = Color3.fromRGB(210, 210, 215) },
+	Label = { Font = "Number", Stroke = 2.5, Color = Color3.new(1, 1, 1) },
+	LabelSub = { Font = "Heading", Stroke = 2, Color = Color3.fromRGB(230, 230, 235) },
 }
 
 local function textSample(parent, name, spec)

@@ -46,7 +46,7 @@ local function buildTemplates(gui)
 	row.Parent = templates
 	UiKit.List(row, { Padding = UDim.new(0, 2) })
 
-	local header = UiKit.Group(row, "Header", { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 1 })
+	local header = UiKit.Group(row, "Header", { Size = UDim2.new(1, 0, 0, 42), LayoutOrder = 1 })
 	UiKit.ThemeIcon(header, "Icon", "QuestDiamond", "◈", {
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 0, 0.5, 0),
@@ -56,19 +56,22 @@ local function buildTemplates(gui)
 	local diamond = header.Icon:FindFirstChild("Emoji")
 	if diamond then
 		diamond.TextColor3 = Theme.Accents.Gold.Main
-		diamond.FontFace = Theme.Fonts.Fredoka
+		diamond.FontFace = Theme.Fonts.Number
 	end
-	UiKit.Text(header, "Title", "Quest", {
-		_Style = "Fredoka",
-		_MaxTextSize = 30,
-		Position = UDim2.fromOffset(36, 0),
-		Size = UDim2.new(1, -56, 1, -4),
+	-- Заголовок квеста («Treasure Time») — крупнее всего остального текста трекера.
+	local title = UiKit.Text(header, "Title", "Quest", {
+		_Style = "Number",
+		_Stroke = 2.5,
+		Position = UDim2.fromOffset(38, 0),
+		Size = UDim2.new(1, -62, 1, -4),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextWrapped = false,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	})
+	title.TextScaled = false
+	title.TextSize = 32
 	UiKit.Text(header, "Caret", "^", {
-		_Style = "Fredoka",
+		_Style = "Heading",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, 0, 0.5, 2),
 		Size = UDim2.fromOffset(20, 20),
@@ -84,24 +87,24 @@ local function buildTemplates(gui)
 	UiKit.Gradient(line, Color3.new(1, 1, 1), Color3.new(1, 1, 1), 0, "Fade").Transparency = UiKit.NSeq(0, 0.85)
 
 	local desc = UiKit.Text(row, "Why", "Find the rarest ores to the forge!", {
-		_Style = "Fredoka",
+		_Style = "Heading",
 		Size = UDim2.new(1, 0, 0, 24),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		LayoutOrder = 2,
 	})
 	desc.TextScaled = false
-	desc.TextSize = 20
+	desc.TextSize = 22
 
 	-- Строка цели: «◇ - Get Fireite: 0/3». Progress — число справа в той же строке.
 	local objective = UiKit.Group(row, "Objective", { Size = UDim2.new(1, 0, 0, 28), LayoutOrder = 3 })
 	UiKit.Text(objective, "Bullet", "◇", {
-		_Style = "Fredoka",
+		_Style = "Heading",
 		Position = UDim2.fromOffset(4, 0),
 		Size = UDim2.fromOffset(22, 28),
 	})
 	local objText = UiKit.Text(objective, "Text", "- Get Fireite:", {
-		_Style = "Fredoka",
+		_Style = "Heading",
 		Position = UDim2.fromOffset(28, 0),
 		Size = UDim2.new(1, -28, 1, 0),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -112,9 +115,9 @@ local function buildTemplates(gui)
 	objText.TextSize = 22
 	-- Контракт клиента: Title/Progress/Why/Cycle/Bar — оставлены (Progress и
 	-- Cycle теперь просто подписи, Bar скрыт: на референсе полоски нет).
-	local progress = UiKit.Text(row, "Progress", "0/1", { _Style = "Fredoka", Visible = false, Size = UDim2.fromOffset(0, 0) })
+	local progress = UiKit.Text(row, "Progress", "0/1", { _Style = "Heading", Visible = false, Size = UDim2.fromOffset(0, 0) })
 	progress.LayoutOrder = 9
-	UiKit.Text(row, "Cycle", "", { _Style = "Fredoka", Visible = false, Size = UDim2.fromOffset(0, 0), LayoutOrder = 10 })
+	UiKit.Text(row, "Cycle", "", { _Style = "Heading", Visible = false, Size = UDim2.fromOffset(0, 0), LayoutOrder = 10 })
 	local _, fill = UiKit.Bar(row, "Bar", "Gold", { Size = UDim2.fromOffset(0, 0), Visible = false })
 	fill.Visible = false
 	UiKit.Group(row, "Gap", { Size = UDim2.new(1, 0, 0, 8), LayoutOrder = 20 })
@@ -292,7 +295,7 @@ function Builder.Build()
 	})
 	UiKit.List(list, { Padding = UDim.new(0, 8), HorizontalAlignment = Enum.HorizontalAlignment.Center })
 	UiKit.Padding(list, 4, 0, 6, 10)
-	gui:SetAttribute("UiKitVersion", 23) -- v20.7: трекер Fredoka One, крупнее
+	gui:SetAttribute("UiKitVersion", 24) -- v20.8: трекер шрифтом денег, крупный заголовок
 	modal:SetAttribute("BaseWidth", 640)
 	modal:SetAttribute("BaseHeight", 480)
 

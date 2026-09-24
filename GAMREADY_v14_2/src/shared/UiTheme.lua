@@ -45,8 +45,9 @@ Theme.Fonts = {
 	-- (референс «Ice Man» / «Sensei Moro Final»).
 	Serif = Font.new("rbxasset://fonts/families/Merriweather.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal),
 	SerifBody = Font.new("rbxasset://fonts/families/Merriweather.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-	-- v20.7: Fredoka One — трекер квеста слева и подписи над трофеями/тотемами.
-	Fredoka = Font.new("rbxasset://fonts/families/FredokaOne.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
+	-- v20.8: бывший «Fredoka» — теперь тот же жирный курсив, что и деньги
+	-- (оставлен как псевдоним, чтобы старые ссылки не ломались).
+	Fredoka = Font.new(FAMILY, Enum.FontWeight.Heavy, Enum.FontStyle.Italic),
 	-- v20.6: курсивные варианты для подсказок (трекер квестов слева).
 	SerifItalic = Font.new("rbxasset://fonts/families/Merriweather.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic),
 	SerifBodyItalic = Font.new("rbxasset://fonts/families/Merriweather.json", Enum.FontWeight.Regular, Enum.FontStyle.Italic),

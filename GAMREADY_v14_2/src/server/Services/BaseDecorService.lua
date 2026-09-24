@@ -263,7 +263,7 @@ local function worldCFrame(plot, record)
 end
 
 -- v20.3: подпись над тотемом/трофеем — ВСЕГДА одного размера на экране
--- (размер в пикселях, не в студах), шрифт Fredoka One с TextScaled:
+-- (размер в пикселях, не в студах), шрифт как у денег в HUD, TextScaled:
 -- имя цветом предмета, ниже — строки поменьше. Билборды, пришедшие со своей моделью из Assets,
 -- тоже переводятся в фиксированный размер.
 local function addLabel(model, anchor, lines, maxDistance, heightOffset)
@@ -285,7 +285,7 @@ local function addLabel(model, anchor, lines, maxDistance, heightOffset)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = billboard
 	for index, line in lines do
-		-- Fredoka One + TextScaled: текст вписан в рамку в ПИКСЕЛЯХ — на
+		-- TextScaled: текст вписан в рамку в ПИКСЕЛЯХ — на
 		-- экране всегда один размер, как бы близко/далеко ни была камера.
 		local label = WorldUi.Text(nil, "Text", index == 1 and "Label" or "LabelSub")
 		label.LayoutOrder = index
