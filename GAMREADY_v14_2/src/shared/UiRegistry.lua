@@ -57,7 +57,7 @@ UiRegistry.Entries = {
 	{ Name = "GeodeUi", Module = "GeodeUiBuilder", MinVersion = 20, What = "жеоды" },
 	{ Name = "DropPreviewUi", Module = "UiBuilders.DropPreviewUi", MinVersion = 20, What = "окно шансов" },
 	{ Name = "IslandUi", Module = "UiBuilders.IslandUi", MinVersion = 20, What = "острова и путешествия" },
-	{ Name = "GearUi", Module = "GearUiBuilder", MinVersion = 20, What = "снаряжение, лут сундуков" },
+	{ Name = "GearUi", Module = "GearUiBuilder", MinVersion = 21, What = "снаряжение, лут сундуков" },
 	{ Name = "OfferUi", Module = "OfferUiBuilder", MinVersion = 20, What = "предложения" },
 	{ Name = "GroupRewardUi", Module = "SocialRewardCard", Fn = "BuildGroup", MinVersion = 20, What = "награда за группу" },
 	{ Name = "LikeRewardUi", Module = "SocialRewardCard", Fn = "BuildLike", MinVersion = 20, What = "награда за лайк" },

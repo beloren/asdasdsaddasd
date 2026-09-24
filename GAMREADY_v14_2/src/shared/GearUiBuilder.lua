@@ -12,7 +12,7 @@
 --   │         ├─ ImageLabel "Image"  — пустой = эмодзи в "Icon"
 --   │         ├─ TextLabel "Icon", TextLabel "Count", TextLabel "Key"
 --   │         └─ UIStroke "Border", UIStroke "Selected" (толще, когда в руке)
---   ├─ TextLabel "AimHint"        — подсказка, пока предмет в руке
+--   ├─ ImageLabel "AimHint" [Toast] → "Title", "Text" — подсказка предмета в руке
 --   ├─ ImageLabel "LootPopup" [Card] — окно лута сундука
 --   │    ├─ TextLabel "Title"
 --   │    └─ Frame "List" → TextLabel "LineTemplate" (Visible=false)
@@ -25,7 +25,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 20
+Builder.VERSION = 21 -- v20.5: AimHint — плашка Title/Text
 
 function Builder.BuildChestBillboard()
 	local billboard = Instance.new("BillboardGui")
@@ -93,13 +93,31 @@ function Builder.Build()
 		ZIndex = 3,
 	})
 
-	UiKit.Text(gui, "AimHint", "", {
-		_Style = "Heading",
+	-- v20.5: ПОДСКАЗКА ПРЕДМЕТА В РУКЕ (кроме руды) — плашка над хотбаром:
+	-- «Title» — название (цвет предмета), «Text» — что делает · как применить.
+	-- Тексты — Shared.ItemHints.
+	local hint = UiKit.Plate(gui, "AimHint", "Toast", {
+		_Accent = "Gold",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -150),
-		Size = UDim2.fromOffset(520, 28),
-		TextColor3 = Theme.Colors.Money,
+		Position = UDim2.new(0.5, 0, 1, -96),
+		Size = UDim2.fromOffset(460, 52),
 		Visible = false,
+	})
+	UiKit.Text(hint, "Title", "Small Dynamite", {
+		_Style = "Heading",
+		_MaxTextSize = 20,
+		Position = UDim2.fromOffset(10, 4),
+		Size = UDim2.new(1, -20, 0, 22),
+		TextColor3 = Theme.Colors.Money,
+		ZIndex = 2,
+	})
+	UiKit.Text(hint, "Text", "Blasts boulders · Click to throw", {
+		_Style = "Body",
+		_MaxTextSize = 16,
+		Position = UDim2.fromOffset(10, 27),
+		Size = UDim2.new(1, -20, 0, 20),
+		TextColor3 = Theme.Colors.SubText,
+		ZIndex = 2,
 	})
 
 	local popup = UiKit.Card(gui, "LootPopup", "Gold", {

@@ -90,6 +90,68 @@ local function slotFor(key)
 	return slot
 end
 
+-- v20.5: ПОДСКАЗКА ПРЕДМЕТА В РУКЕ (кроме руды): название + «что делает ·
+-- как применить» (Shared.ItemHints). Упаковку тележки подсказывает её
+-- собственный предпросмотр (CartPlacement) — здесь не дублируем. Кирка —
+-- только первые PICKAXE_HINT_SECONDS после того, как её взяли.
+local ItemHints = require(ReplicatedStorage.Shared.ItemHints)
+local hintTitle = aimHint and aimHint:FindFirstChild("Title")
+local hintText = aimHint and aimHint:FindFirstChild("Text")
+local PICKAXE_HINT_SECONDS = 4
+local pickaxeHintUntil = 0
+
+local function showHint(hint)
+	if not aimHint then return end
+	if not hint then
+		aimHint.Visible = false
+		return
+	end
+	if hintTitle and hintText then
+		hintTitle.Text = tr(hint.Title)
+		hintTitle.TextColor3 = hint.Color
+		hintText.Text = ("%s  ·  %s"):format(tr(hint.What), tr(hint.How))
+		local stroke = aimHint:FindFirstChild("SkinStroke")
+		if stroke then stroke.Color = hint.Color end
+	elseif aimHint:IsA("TextLabel") then
+		aimHint.Text = ("%s — %s · %s"):format(tr(hint.Title), tr(hint.What), tr(hint.How))
+	end
+	aimHint.Visible = true
+end
+
+local function refreshHint()
+	local held = player:GetAttribute("HeldGear") or ""
+	if held ~= "" then
+		if held == ((Config.CartPackage and Config.CartPackage.GearKey) or "CartPackage") then
+			showHint(nil)
+		else
+			showHint(ItemHints.For(held))
+		end
+		return
+	end
+	local character = player.Character
+	local tool = character and character:FindFirstChildOfClass("Tool")
+	if tool and os.clock() < pickaxeHintUntil then
+		showHint(ItemHints.Pickaxe(player:GetAttribute("PickaxeTier")))
+	else
+		showHint(nil)
+	end
+end
+
+local function watchPickaxe(character)
+	character.ChildAdded:Connect(function(child)
+		if child:IsA("Tool") then
+			pickaxeHintUntil = os.clock() + PICKAXE_HINT_SECONDS
+			refreshHint()
+			task.delay(PICKAXE_HINT_SECONDS + 0.05, refreshHint)
+		end
+	end)
+	character.ChildRemoved:Connect(function(child)
+		if child:IsA("Tool") then refreshHint() end
+	end)
+end
+if player.Character then watchPickaxe(player.Character) end
+player.CharacterAdded:Connect(watchPickaxe)
+
 local function render()
 	for _, key in ORDER do
 		local count = math.max(0, math.floor(tonumber(state.Gear[key]) or 0))
@@ -104,23 +166,7 @@ local function render()
 			slots[key].Visible = false
 		end
 	end
-	if aimHint then
-		local held = player:GetAttribute("HeldGear") or ""
-		if Config.Dynamite.Types[held] then
-			aimHint.Text = tr("CLICK A BOULDER TO PLANT · CLICK ANYWHERE TO THROW")
-			aimHint.Visible = true
-		elseif held:match("^Chest_") then
-			aimHint.Text = tr("CLICK THE GROUND OF YOUR BASE TO PLACE THE CHEST")
-			aimHint.Visible = true
-		elseif held == "CartPackage" then
-			-- Подробную подсказку ("можно/нельзя" и причину) рисует сам
-			-- предпросмотр — CartPlacement.client.lua. Здесь не дублируем,
-			-- чтобы на экране не висели две строки об одном и том же.
-			aimHint.Visible = false
-		else
-			aimHint.Visible = false
-		end
-	end
+	refreshHint()
 end
 
 player:GetAttributeChangedSignal("HeldGear"):Connect(function()

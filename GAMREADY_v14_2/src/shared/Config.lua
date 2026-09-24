@@ -6160,9 +6160,9 @@ Config.Dynamite = {
 	BuyAmounts = { 1, 5 },
 	MaxStack = 50,           -- на каждый вид отдельно
 	PlaceRange = 16,         -- дальность установки на валун
-	PlaceFuse = 2,           -- сек до взрыва на валуне
+	PlaceFuse = 3.5,         -- сек до взрыва на валуне (v20.5: +1.5)
 	ThrowRange = 45,
-	ThrowFuse = 1.4,
+	ThrowFuse = 2.9,         -- v20.5: +1.5
 	-- Взрыв на валуне: доля «прогресса разрушения» (1 = валун сломан).
 	BoulderProgressByDiff = { [-9] = 1, [0] = 0.6, [1] = 0.45, [2] = 0.34, [3] = 0.2 }, -- ключ = максимальная разница тиров для строки
 	MaxBoulderDiff = 3,
@@ -6186,7 +6186,7 @@ Config.Dynamite = {
 			UnlockCave = 1,
 			Price = 120,
 			Cooldown = 4,
-			Fuse = 1.4,            -- v16: сек от приземления до взрыва (бросок и установка)
+			Fuse = 2.9,            -- сек от приземления до взрыва (v20.5: было 1.4, +1.5 по запросу)
 			Visual = "Stick",      -- v16: Stick / Bundle (3 шашки, взрыв цепочкой) / Barrel (отсчёт 3-2-1)
 			Radius = 10, BoulderPower = 1, ThrowBoulderPower = 0.5,
 			KnockSpeed = 50, KnockUp = 32, RagdollSeconds = 2.5, DropCount = 1,
@@ -6197,7 +6197,7 @@ Config.Dynamite = {
 			UnlockCave = 5,
 			Price = 1500,
 			Cooldown = 6,
-			Fuse = 1.8,
+			Fuse = 3.3,            -- v20.5: было 1.8
 			Visual = "Bundle",
 			Radius = 14, BoulderPower = 1.6, ThrowBoulderPower = 0.9,
 			KnockSpeed = 68, KnockUp = 42, RagdollSeconds = 3.2, DropCount = 2,
@@ -6208,7 +6208,7 @@ Config.Dynamite = {
 			UnlockCave = 10,
 			Price = 20000,
 			Cooldown = 10,
-			Fuse = 3.2,
+			Fuse = 4.7,            -- v20.5: было 3.2
 			Visual = "Barrel",
 			Radius = 19, BoulderPower = 2.5, ThrowBoulderPower = 1.4,
 			KnockSpeed = 88, KnockUp = 52, RagdollSeconds = 4, DropCount = 3,
