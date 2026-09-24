@@ -42,7 +42,7 @@ UiRegistry.Entries = {
 	{ Name = "QuestMarkerUi", Module = "UiBuilders.QuestMarkerUi", MinVersion = 20, What = "стрелка навигации квеста" },
 
 	-- ОКНА
-	{ Name = "ShopUi", Module = "UiBuilders.ShopUi", MinVersion = 20, What = "магазин за Robux" },
+	{ Name = "ShopUi", Module = "UiBuilders.ShopUi", MinVersion = 21, What = "магазин за Robux" },
 	{ Name = "UpgradeShopUi", Module = "UiBuilders.UpgradeShopUi", MinVersion = 20, What = "прокачка (Upgrade Mole)" },
 	{ Name = "SettingsMenu", Module = "UiBuilders.SettingsUi", MinVersion = 20, What = "настройки и промокоды" },
 	{ Name = "DailyRewardUi", Module = "UiBuilders.DailyRewardUi", MinVersion = 20, What = "награды за вход / время" },

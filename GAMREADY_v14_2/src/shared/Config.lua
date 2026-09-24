@@ -5352,16 +5352,21 @@ Config.Shop = {
 	-- "Deals" СОХРАНЁН как категория: на него ссылаются PreferredTab в
 	-- RebirthService/UpgradeService/NotifyService — под ним теперь
 	-- остаются разовые предложения (стартовый пак, продление щита).
-	Tabs = { "Boosts", "Passes", "Cash", "Events", "Deals" },
+	-- v20.4: порядок — самые покупаемые сверху (над ними ещё Forever Pack).
+	-- Категория без товаров показывается карточками «?» (скоро).
+	Tabs = { "Cash", "Boosts", "Passes", "Weather", "Geodes", "Dynamite", "Deals", "Skins" },
 
 	-- Подпись секции на экране (ключ категории не трогаем — он завязан на
 	-- PreferredTab по всей кодовой базе).
 	TabDisplayNames = {
+		Cash = "Cash",
 		Boosts = "Boosts",
 		Passes = "Game Passes",
-		Cash = "Cash Packs",
-		Events = "Weather Events",
+		Weather = "Weather",
+		Geodes = "Geodes",
+		Dynamite = "Dynamite",
 		Deals = "Special Offers",
+		Skins = "Skins",
 	},
 
 	-- ГРАДИЕНТ ФОНА НА КАЖДУЮ СЕКЦИЮ (по прямому запросу — "раскрась
@@ -5405,36 +5410,36 @@ Config.Shop = {
 		{ Id = "MoneyRushDeal", Tab = "Boosts", Title = Config.DevProducts.Micro.MoneyRush.Icon .. " " .. Config.DevProducts.Micro.MoneyRush.Title, PriceRobux = Config.DevProducts.Micro.MoneyRush.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.Micro.MoneyRush.Id, MicroKey = "MoneyRush" },
 		{ Id = "MineRushDeal", Tab = "Boosts", Title = Config.DevProducts.Micro.MineRush.Icon .. " " .. Config.DevProducts.Micro.MineRush.Title, PriceRobux = Config.DevProducts.Micro.MineRush.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.Micro.MineRush.Id, MicroKey = "MineRush" },
 		{ Id = "PerfectStrikeDeal", Tab = "Boosts", Title = Config.DevProducts.Micro.PerfectStrike.Icon .. " " .. Config.DevProducts.Micro.PerfectStrike.Title, PriceRobux = Config.DevProducts.Micro.PerfectStrike.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.Micro.PerfectStrike.Id, MicroKey = "PerfectStrike" },
-		{ Id = "DynamiteSmallDeal", Tab = "Deals", Title = Config.DevProducts.Micro.DynamiteSmall.Icon .. " " .. Config.DevProducts.Micro.DynamiteSmall.Title, PriceRobux = Config.DevProducts.Micro.DynamiteSmall.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.Micro.DynamiteSmall.Id, MicroKey = "DynamiteSmall" },
-		{ Id = "DynamiteMediumDeal", Tab = "Deals", Title = Config.DevProducts.Micro.DynamiteMedium.Icon .. " " .. Config.DevProducts.Micro.DynamiteMedium.Title, PriceRobux = Config.DevProducts.Micro.DynamiteMedium.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.Micro.DynamiteMedium.Id, MicroKey = "DynamiteMedium" },
-		{ Id = "DynamiteMegaDeal", Tab = "Deals", Title = Config.DevProducts.Micro.DynamiteMega.Icon .. " " .. Config.DevProducts.Micro.DynamiteMega.Title, PriceRobux = Config.DevProducts.Micro.DynamiteMega.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.Micro.DynamiteMega.Id, MicroKey = "DynamiteMega" },
+		{ Id = "DynamiteSmallDeal", Tab = "Dynamite", Title = Config.DevProducts.Micro.DynamiteSmall.Icon .. " " .. Config.DevProducts.Micro.DynamiteSmall.Title, PriceRobux = Config.DevProducts.Micro.DynamiteSmall.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.Micro.DynamiteSmall.Id, MicroKey = "DynamiteSmall" },
+		{ Id = "DynamiteMediumDeal", Tab = "Dynamite", Title = Config.DevProducts.Micro.DynamiteMedium.Icon .. " " .. Config.DevProducts.Micro.DynamiteMedium.Title, PriceRobux = Config.DevProducts.Micro.DynamiteMedium.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.Micro.DynamiteMedium.Id, MicroKey = "DynamiteMedium" },
+		{ Id = "DynamiteMegaDeal", Tab = "Dynamite", Title = Config.DevProducts.Micro.DynamiteMega.Icon .. " " .. Config.DevProducts.Micro.DynamiteMega.Title, PriceRobux = Config.DevProducts.Micro.DynamiteMega.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.Micro.DynamiteMega.Id, MicroKey = "DynamiteMega" },
 		{ Id = "SmeltNowDeal", Tab = "Boosts", Title = Config.DevProducts.Micro.SmeltNow.Icon .. " " .. Config.DevProducts.Micro.SmeltNow.Title, PriceRobux = Config.DevProducts.Micro.SmeltNow.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.Micro.SmeltNow.Id, MicroKey = "SmeltNow" },
 
 		-- РАЗОВЫЕ ПОКУПКИ — деньги/расходники (см. Config.DevProducts/Config.Protection).
 		-- ПОГОДНЫЕ ИВЕНТЫ — по прямому запросу поставлены самыми первыми
 		-- среди Deals (см. Config.DevProducts.Weather* выше).
-		{ Id = "WeatherNightDeal", Tab = "Events", Title = "Trigger: Nightfall", PriceRobux = Config.DevProducts.WeatherNight.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherNight.Id },
-		{ Id = "WeatherRainDeal", Tab = "Events", Title = "Trigger: Rainstorm", PriceRobux = Config.DevProducts.WeatherRain.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherRain.Id },
-		{ Id = "WeatherThunderstormDeal", Tab = "Events", Title = "Trigger: Thunderstorm", PriceRobux = Config.DevProducts.WeatherThunderstorm.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherThunderstorm.Id },
-		{ Id = "WeatherBloodMoonDeal", Tab = "Events", Title = "Trigger: Blood Moon", PriceRobux = Config.DevProducts.WeatherBloodMoon.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherBloodMoon.Id },
-		{ Id = "WeatherSolarEclipseDeal", Tab = "Events", Title = "Trigger: Solar Eclipse", PriceRobux = Config.DevProducts.WeatherSolarEclipse.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherSolarEclipse.Id },
-		{ Id = "MoneyPackSmallDeal", Tab = "Cash", Title = ("%d Min Cash"):format(Config.DevProducts.MoneyPackSmall.Minutes), PriceRobux = Config.DevProducts.MoneyPackSmall.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackSmall.Id },
-		{ Id = "MoneyPackMediumDeal", Tab = "Cash", Title = ("%d Min Cash"):format(Config.DevProducts.MoneyPackMedium.Minutes), PriceRobux = Config.DevProducts.MoneyPackMedium.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackMedium.Id },
-		{ Id = "MoneyPackLargeDeal", Tab = "Cash", Title = ("%d Min Cash"):format(Config.DevProducts.MoneyPackLarge.Minutes), PriceRobux = Config.DevProducts.MoneyPackLarge.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackLarge.Id },
+		{ Id = "WeatherNightDeal", Tab = "Weather", Title = "🌙 Nightfall", PriceRobux = Config.DevProducts.WeatherNight.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherNight.Id },
+		{ Id = "WeatherRainDeal", Tab = "Weather", Title = "🌧 Rainstorm", PriceRobux = Config.DevProducts.WeatherRain.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherRain.Id },
+		{ Id = "WeatherThunderstormDeal", Tab = "Weather", Title = "⛈ Thunderstorm", PriceRobux = Config.DevProducts.WeatherThunderstorm.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherThunderstorm.Id },
+		{ Id = "WeatherBloodMoonDeal", Tab = "Weather", Title = "🩸 Blood Moon", PriceRobux = Config.DevProducts.WeatherBloodMoon.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherBloodMoon.Id },
+		{ Id = "WeatherSolarEclipseDeal", Tab = "Weather", Title = "🌑 Solar Eclipse", PriceRobux = Config.DevProducts.WeatherSolarEclipse.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherSolarEclipse.Id },
+		{ Id = "MoneyPackSmallDeal", Tab = "Cash", Title = ("💵 %d Min Cash"):format(Config.DevProducts.MoneyPackSmall.Minutes), PriceRobux = Config.DevProducts.MoneyPackSmall.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackSmall.Id },
+		{ Id = "MoneyPackMediumDeal", Tab = "Cash", Title = ("💰 %d Min Cash"):format(Config.DevProducts.MoneyPackMedium.Minutes), PriceRobux = Config.DevProducts.MoneyPackMedium.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackMedium.Id },
+		{ Id = "MoneyPackLargeDeal", Tab = "Cash", Title = ("🏦 %d Min Cash"):format(Config.DevProducts.MoneyPackLarge.Minutes), PriceRobux = Config.DevProducts.MoneyPackLarge.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackLarge.Id },
 		{ Id = "ShieldExtensionDeal", Tab = "Deals", Title = ("🛡 Shield +%ds"):format(Config.Protection.PaidDuration), PriceRobux = Config.Protection.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.Protection.PaidProductId },
-		{ Id = "StarterPackDeal", Tab = "Deals", Title = "Starter Pack", PriceRobux = Config.DevProducts.StarterPack.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.StarterPack.Id },
+		{ Id = "StarterPackDeal", Tab = "Deals", Title = "🎁 Starter Pack", PriceRobux = Config.DevProducts.StarterPack.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.StarterPack.Id },
 		-- Geodes are also available from the normal donation shop. The same
 		-- ProductIds are handled by MonetizationService's durable geode branch.
-		{ Id = "StoneGeodeDeal", Tab = "Deals", Title = "Stone Geode", PriceRobux = Config.DevProducts.GeodePacks.Stone.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Stone.Id },
-		{ Id = "CrystalGeodeDeal", Tab = "Deals", Title = "Crystal Geode", PriceRobux = Config.DevProducts.GeodePacks.Crystal.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Crystal.Id },
-		{ Id = "AmberGeodeDeal", Tab = "Deals", Title = "Amber Geode", PriceRobux = Config.DevProducts.GeodePacks.Amber.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Amber.Id },
-		{ Id = "TopazGeodeDeal", Tab = "Deals", Title = "Topaz Geode", PriceRobux = Config.DevProducts.GeodePacks.Topaz.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Topaz.Id },
-		{ Id = "JadeGeodeDeal", Tab = "Deals", Title = "Jade Geode", PriceRobux = Config.DevProducts.GeodePacks.Jade.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Jade.Id },
-		{ Id = "OnyxGeodeDeal", Tab = "Deals", Title = "Onyx Geode", PriceRobux = Config.DevProducts.GeodePacks.Onyx.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Onyx.Id },
-		{ Id = "AuroraGeodeDeal", Tab = "Deals", Title = "Aurora Geode", PriceRobux = Config.DevProducts.GeodePacks.Aurora.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Aurora.Id },
-		{ Id = "NebulaGeodeDeal", Tab = "Deals", Title = "Nebula Geode", PriceRobux = Config.DevProducts.GeodePacks.Nebula.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Nebula.Id },
-		{ Id = "QuasarGeodeDeal", Tab = "Deals", Title = "Quasar Geode", PriceRobux = Config.DevProducts.GeodePacks.Quasar.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Quasar.Id },
-		{ Id = "SingularityGeodeDeal", Tab = "Deals", Title = "Singularity Geode", PriceRobux = Config.DevProducts.GeodePacks.Singularity.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Singularity.Id },
+		{ Id = "StoneGeodeDeal", Tab = "Geodes", Title = "🪨 Stone Geode", PriceRobux = Config.DevProducts.GeodePacks.Stone.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Stone.Id },
+		{ Id = "CrystalGeodeDeal", Tab = "Geodes", Title = "🪨 Crystal Geode", PriceRobux = Config.DevProducts.GeodePacks.Crystal.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Crystal.Id },
+		{ Id = "AmberGeodeDeal", Tab = "Geodes", Title = "🪨 Amber Geode", PriceRobux = Config.DevProducts.GeodePacks.Amber.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Amber.Id },
+		{ Id = "TopazGeodeDeal", Tab = "Geodes", Title = "🪨 Topaz Geode", PriceRobux = Config.DevProducts.GeodePacks.Topaz.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Topaz.Id },
+		{ Id = "JadeGeodeDeal", Tab = "Geodes", Title = "🪨 Jade Geode", PriceRobux = Config.DevProducts.GeodePacks.Jade.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Jade.Id },
+		{ Id = "OnyxGeodeDeal", Tab = "Geodes", Title = "🪨 Onyx Geode", PriceRobux = Config.DevProducts.GeodePacks.Onyx.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Onyx.Id },
+		{ Id = "AuroraGeodeDeal", Tab = "Geodes", Title = "🪨 Aurora Geode", PriceRobux = Config.DevProducts.GeodePacks.Aurora.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Aurora.Id },
+		{ Id = "NebulaGeodeDeal", Tab = "Geodes", Title = "🪨 Nebula Geode", PriceRobux = Config.DevProducts.GeodePacks.Nebula.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Nebula.Id },
+		{ Id = "QuasarGeodeDeal", Tab = "Geodes", Title = "🪨 Quasar Geode", PriceRobux = Config.DevProducts.GeodePacks.Quasar.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Quasar.Id },
+		{ Id = "SingularityGeodeDeal", Tab = "Geodes", Title = "🪨 Singularity Geode", PriceRobux = Config.DevProducts.GeodePacks.Singularity.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Singularity.Id },
 	},
 
 	-- Знак "?" рядом с кнопкой магазина (ShopEntry) — ПОЯВЛЯЕТСЯ
@@ -5446,10 +5451,25 @@ Config.Shop = {
 	HintImageId = 0, -- изображение вместо знака вопроса у кнопки магазина
 }
 
+-- v20.4: «FOREVER PACK» — верхняя полоса магазина (референс Prospecting).
+-- Цепочка наград обновляется каждые RefreshHours: первая — бесплатная
+-- (FreeMinutes минут дохода игрока), следующие — паки за Robux строго по
+-- очереди (следующий открывается, когда куплен предыдущий). Справа — самый
+-- дорогой пак (Big) большой карточкой с анимацией, доступен всегда.
+Config.Shop.ForeverPack = {
+	Title = "Forever Pack",
+	RefreshHours = 4,
+	FreeMinutes = 3,
+	Steps = { "Free", "MoneyPackSmall", "MoneyPackMedium" },
+	Big = "MoneyPackLarge",
+	BigTitle = "Mega Cash",
+}
+
 -- v20: заголовок окна, акценты секций и короткие описания карточек магазина
 -- (строка под названием товара, как «+200 Meteor Shards!» на референсе).
 Config.Shop.WindowTitle = "Prospector's Shop"
-Config.Shop.TabAccents = { Boosts = "Gold", Passes = "Purple", Cash = "Green", Events = "Red", Deals = "Blue" }
+Config.Shop.TabAccents = { Cash = "Green", Boosts = "Gold", Passes = "Purple", Weather = "Blue", Geodes = "Orange", Dynamite = "Red", Deals = "Pink", Skins = "Teal", Forever = "Orange" }
+Config.Shop.TabEmoji = { Cash = "💵", Boosts = "⚡", Passes = "🎫", Weather = "⛅", Geodes = "🪨", Dynamite = "🧨", Deals = "🎁", Skins = "⛏" }
 Config.Shop.Descriptions = {
 	DoubleCashPass = "x2 money from every sale!",
 	DoubleLuckPass = "x2 mutation luck, rarer ore!",

@@ -276,9 +276,83 @@ local function notifyPassPurchased(player, key)
 	})
 end
 
+--------------------------------------------------------------------------------
+-- v20.4: FOREVER PACK (Config.Shop.ForeverPack) — цепочка «бесплатно →
+-- пак → пак дороже», обновляется каждые RefreshHours. Состояние в профиле:
+-- data.ForeverPack = { Window, Step } (Step — сколько звеньев уже взято в
+-- текущем окне). Клиенту — атрибуты ForeverStep и ForeverRefreshAt.
+--------------------------------------------------------------------------------
+local function foreverWindow()
+	local hours = (Config.Shop.ForeverPack and Config.Shop.ForeverPack.RefreshHours) or 4
+	local period = math.max(60, hours * 3600)
+	local index = math.floor(os.time() / period)
+	return index, (index + 1) * period
+end
+
+local function foreverState(data)
+	local window = foreverWindow()
+	if type(data.ForeverPack) ~= "table" or data.ForeverPack.Window ~= window then
+		data.ForeverPack = { Window = window, Step = 0 }
+	end
+	return data.ForeverPack
+end
+
+local function publishForever(player)
+	local data = Services.DataService:GetGeodeData(player)
+	if not data then return end
+	local state = foreverState(data)
+	local _, refreshAt = foreverWindow()
+	player:SetAttribute("ForeverStep", state.Step)
+	player:SetAttribute("ForeverRefreshAt", refreshAt)
+end
+
+-- Покупка пака: если это следующее звено цепочки — продвигаем её.
+local function advanceForever(player, data, packKey)
+	local cfg = Config.Shop.ForeverPack
+	if not (cfg and data) then return end
+	local state = foreverState(data)
+	if cfg.Steps[state.Step + 1] == packKey then
+		state.Step += 1
+	end
+	task.defer(publishForever, player)
+end
+
+function MonetizationService:ClaimForeverFree(player)
+	local cfg = Config.Shop.ForeverPack
+	local data = Services.DataService:GetGeodeData(player)
+	if not (cfg and data) or cfg.Steps[1] ~= "Free" then return false end
+	local state = foreverState(data)
+	if state.Step ~= 0 then return false end
+	state.Step = 1
+	local tiers = Services.DataService:GetTiers(player)
+	local amount = Config.MoneyPackAmount({ Minutes = cfg.FreeMinutes or 3, Amount = 100 }, tiers.Mine, tiers.Cart, Services.DataService:GetCrystalMultiplier(player))
+	Services.DataService:AddMoney(player, amount)
+	publishForever(player)
+	task.spawn(function() pcall(Services.DataService.SaveProfile, Services.DataService, player) end)
+	return true
+end
+
 function MonetizationService:Init(services)
 	Services = services
 	self:InitOffers()
+	local foreverRemote = Instance.new("RemoteEvent")
+	foreverRemote.Name = "ShopForeverRequest"
+	foreverRemote.Parent = ReplicatedStorage.Shared
+	local lastClaim = {}
+	foreverRemote.OnServerEvent:Connect(function(player, action)
+		if action ~= "ClaimFree" then return end
+		local now = os.clock()
+		if lastClaim[player] and now - lastClaim[player] < 1 then return end
+		lastClaim[player] = now
+		self:ClaimForeverFree(player)
+	end)
+	-- Окно обновляется по часам — раз в минуту переиздаём атрибуты.
+	task.spawn(function()
+		while true do
+			task.wait(60)
+			for _, player in Players:GetPlayers() do pcall(publishForever, player) end
+		end
+	end)
 end
 
 function MonetizationService:Start()
@@ -335,6 +409,7 @@ function MonetizationService:Start()
 	end
 
 	Players.PlayerAdded:Connect(function(player)
+		task.delay(3, function() pcall(publishForever, player) end)
 		task.spawn(loadOwnership, player)
 		task.spawn(recomputeReferralGraph) -- новый игрок мог изменить чужие счётчики друзей тоже, не только свой
 		startReferralReminders(player)
@@ -477,13 +552,14 @@ function MonetizationService:Start()
 
 		-- Money Pack'и (Config.DevProducts) — прямая выдача денег в профиль.
 		local devProducts = Config.DevProducts
-		for _, pack in { devProducts.MoneyPackSmall, devProducts.MoneyPackMedium, devProducts.MoneyPackLarge } do
+		for packKey, pack in { MoneyPackSmall = devProducts.MoneyPackSmall, MoneyPackMedium = devProducts.MoneyPackMedium, MoneyPackLarge = devProducts.MoneyPackLarge } do
 			if receiptInfo.ProductId == pack.Id then
 				-- v3: «N минут твоего дохода» — считаем по тирам игрока на момент покупки.
 				local tiers = Services.DataService:GetTiers(player)
 				local amount = Config.MoneyPackAmount(pack, tiers.Mine, tiers.Cart, Services.DataService:GetCrystalMultiplier(player))
 				return process(function(data)
 					data.Money = (BigNum.fromData(data.Money) + amount):clamp(BigNum.new(0), MONEY_SAFETY_CAP):toData()
+					advanceForever(player, data, packKey) -- v20.4: звено Forever Pack
 					return true
 				end)
 			end

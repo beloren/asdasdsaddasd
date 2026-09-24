@@ -5369,7 +5369,7 @@ local function setupShopUi()
 		end
 
 		local ShopUiBuilder = require(ReplicatedStorage.Shared.UiBuilders.ShopUi)
-		local TAB_FALLBACK_EMOJI = { Boosts = "⚡", Passes = "🎫", Cash = "💵", Events = "⛈", Deals = "🎁" }
+		local TAB_FALLBACK_EMOJI = Config.Shop.TabEmoji or { Boosts = "⚡", Passes = "🎫", Cash = "💵", Weather = "⛅", Deals = "🎁" }
 		-- «💰 2x Money» → «💰», «2x Money»: эмодзи уходит в иконку карточки.
 		local function splitShopTitle(title)
 			local first, rest = title:match("^(%S+)%s+(.+)$")
@@ -5441,9 +5441,10 @@ local function setupShopUi()
 			-- заголовком, подчёркиванием и подложкой. Несколько таких пустышек
 			-- подряд и читались как "слишком большое разделение между
 			-- отделами" — между двумя видимыми отделами стояли невидимые.
+			-- v20.4: секция без товаров НЕ прячется — в ней карточки «?» (скоро).
 			local section = container.Parent
 			if section and section.Name:match("^Section_") then
-				section.Visible = #items > 0
+				section.Visible = true
 			end
 
 			for i, item in items do
@@ -5485,6 +5486,17 @@ local function setupShopUi()
 				local cardStroke = slot:FindFirstChild("SkinStroke") or slot:FindFirstChild("AccentStroke", true)
 				if cardStroke and cardStroke:IsA("UIStroke") then
 					cardStroke.Color = accent.Main
+					cardStroke.Thickness = 2
+				end
+				-- v20.4: карточка подкрашена цветом категории (сверху вниз гаснет).
+				slot.BackgroundColor3 = UiKit.Theme.Skins.Card.Color:Lerp(accent.Main, 0.22)
+				local tint = slot:FindFirstChild("Tint")
+				if tint then tint.Color = ColorSequence.new(accent.Main, accent.Dark or accent.Main) end
+				local rays = slot:FindFirstChild("Rays", true)
+				if rays then
+					for _, ray in rays:GetChildren() do
+						if ray:IsA("GuiObject") then ray.BackgroundColor3 = accent.Light end
+					end
 				end
 				local owned = item.ProductType == "GamePass" and item.PassKey and player:GetAttribute("Owns_" .. item.PassKey) == true
 				local priceButton = slot:FindFirstChild("PriceButton", true)
@@ -5519,9 +5531,166 @@ local function setupShopUi()
 			end
 		end
 
+		-- v20.4: пустые места сетки — карточки «?»: ряд всегда полный, а
+		-- категория без товаров показывает два «?» (как на референсе).
+		local emptyTemplate = shopUiGui:FindFirstChild("EmptyCardTemplate", true)
+		local function fillEmptySlots(tabName)
+			local container = sectionContainers[tabName]
+			if not (container and emptyTemplate) then return end
+			local count = 0
+			for _, child in container:GetChildren() do
+				if child:GetAttribute("IsShopCardClone") == true then count += 1 end
+			end
+			local missing = count == 0 and 2 or (count % 2)
+			for i = 1, missing do
+				local empty = emptyTemplate:Clone()
+				empty.Name = "Empty" .. i
+				empty:SetAttribute("IsShopCardClone", true)
+				empty.LayoutOrder = 1000 + i
+				empty.Visible = true
+				empty.Parent = container
+			end
+		end
+
+		-- v20.4: FOREVER PACK (Config.Shop.ForeverPack): цепочка «бесплатно →
+		-- пак → пак дороже» + большая карточка самого дорогого пака справа.
+		local forever = Config.Shop.ForeverPack
+		local foreverSection = body and body:FindFirstChild("Section_Forever")
+		local foreverRemote = ReplicatedStorage.Shared:WaitForChild("ShopForeverRequest", 10)
+		local function packMoneyText(packKey)
+			local pack = Config.DevProducts[packKey]
+			if packKey == "Free" then pack = { Minutes = forever.FreeMinutes or 3, Amount = 100 } end
+			if not pack then return "" end
+			local mine = tonumber(player:GetAttribute("MineTier")) or 1
+			local cart = tonumber(player:GetAttribute("CartTier")) or 1
+			return "$" .. NumberFormat.abbreviate(Config.MoneyPackAmount(pack, mine, cart, 1))
+		end
+		local function renderForever()
+			if not (forever and foreverSection) then return end
+			local stepDone = tonumber(player:GetAttribute("ForeverStep")) or 0
+			local chain = foreverSection:FindFirstChild("Chain", true)
+			for index, packKey in forever.Steps do
+				local step = chain and chain:FindFirstChild("Step" .. index)
+				if step then
+					local button = step:FindFirstChild("Button")
+					local caption = button and button:FindFirstChild("Caption")
+					local robuxIcon = button and button:FindFirstChild("Icon")
+					step.Title.Text = packMoneyText(packKey)
+					local emoji = step:FindFirstChild("Emoji", true)
+					if emoji then emoji.Text = packKey == "Free" and "🎁" or (index == 2 and "💵" or "💰") end
+					local done = index <= stepDone
+					local current = index == stepDone + 1
+					step.Done.Visible = done
+					if button then
+						button.Visible = not done
+						UiKit.SetButtonVariant(button, current and "Green" or "Yellow")
+						button.ImageTransparency = current and 0 or 0.5
+						button.BackgroundTransparency = current and 0 or 0.5
+						button:SetAttribute("Current", current)
+						if caption then
+							if packKey == "Free" then
+								caption.Text = tr("Claim")
+							else
+								local pack = Config.DevProducts[packKey]
+								caption.Text = (robuxIcon and robuxIcon.Visible and "" or "R$ ") .. tostring(pack and pack.PriceRobux or "?")
+							end
+						end
+					end
+					step.BackgroundTransparency = done and 0.5 or 0.08
+				end
+			end
+			local big = foreverSection:FindFirstChild("BigCard", true)
+			local bigPack = Config.DevProducts[forever.Big or "MoneyPackLarge"]
+			if big and bigPack then
+				big.Subtitle.Text = packMoneyText(forever.Big or "MoneyPackLarge") .. "  ·  " .. tr("BEST VALUE!")
+				local caption = big.Button:FindFirstChild("Caption")
+				local robuxIcon = big.Button:FindFirstChild("Icon")
+				if caption then caption.Text = (robuxIcon and robuxIcon.Visible and "" or "R$ ") .. tostring(bigPack.PriceRobux) end
+			end
+		end
+		if forever and foreverSection then
+			local chain = foreverSection:FindFirstChild("Chain", true)
+			for index, packKey in forever.Steps do
+				local step = chain and chain:FindFirstChild("Step" .. index)
+				local button = step and step:FindFirstChild("Button")
+				if button then
+					connectClick(button, function()
+						if button:GetAttribute("Current") ~= true then return end
+						if packKey == "Free" then
+							if foreverRemote then foreverRemote:FireServer("ClaimFree") end
+						else
+							local pack = Config.DevProducts[packKey]
+							if pack and (pack.Id or 0) ~= 0 then MarketplaceService:PromptProductPurchase(player, pack.Id) end
+						end
+					end)
+				end
+			end
+			local big = foreverSection:FindFirstChild("BigCard", true)
+			if big then
+				local function buyBig()
+					local pack = Config.DevProducts[forever.Big or "MoneyPackLarge"]
+					if pack and (pack.Id or 0) ~= 0 then MarketplaceService:PromptProductPurchase(player, pack.Id) end
+				end
+				connectClick(big, buyBig)
+				connectClick(big:FindFirstChild("Button"), buyBig)
+			end
+			for _, attributeName in { "ForeverStep", "MineTier", "CartTier" } do
+				player:GetAttributeChangedSignal(attributeName):Connect(renderForever)
+			end
+			-- Таймер обновления + анимация лучей большой карточки (только пока окно открыто).
+			local refreshLabel = foreverSection:FindFirstChild("Refresh")
+			local bigRays = big and big:FindFirstChild("Rays", true)
+			local bigPulse = big and big:FindFirstChild("Pulse", true)
+			local bigGlow = big and big:FindFirstChild("Glow")
+			local chainRays = {}
+			for _, d in foreverSection:GetDescendants() do
+				if d.Name == "Rays" and d ~= bigRays then table.insert(chainRays, d) end
+			end
+			RunService.RenderStepped:Connect(function()
+				if not shopPanel.Visible then return end
+				local t = os.clock()
+				if bigRays then bigRays.Rotation = (t * 25) % 360 end
+				if bigPulse then bigPulse.Scale = 1 + math.sin(t * 3) * 0.06 end
+				if bigGlow then bigGlow.BackgroundTransparency = 0.55 + math.sin(t * 3) * 0.12 end
+				for _, rays in chainRays do rays.Rotation = (t * 12) % 360 end
+			end)
+			task.spawn(function()
+				while true do
+					if refreshLabel and shopPanel.Visible then
+						local left = math.max(0, (tonumber(player:GetAttribute("ForeverRefreshAt")) or 0) - os.time())
+						refreshLabel.Text = ("%s %dh %02dm"):format(tr("Refresh in:"), math.floor(left / 3600), math.floor(left % 3600 / 60))
+					end
+					task.wait(1)
+				end
+			end)
+		end
+
 		renderShop = function()
 			for tabName in sectionContainers do
 				renderSection(tabName)
+				fillEmptySlots(tabName)
+			end
+			renderForever()
+		end
+
+		-- v20.4: навигация — кнопка категории листает список к её секции.
+		local function scrollToSection(section)
+			if not (section and body) then return end
+			local target = body.CanvasPosition.Y + (section.AbsolutePosition.Y - body.AbsolutePosition.Y)
+			local maxY = math.max(0, body.AbsoluteCanvasSize.Y - body.AbsoluteWindowSize.Y)
+			TweenService:Create(body, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				CanvasPosition = Vector2.new(0, math.clamp(target, 0, maxY)),
+			}):Play()
+		end
+		local navBar = shopPanel:FindFirstChild("NavBar", true)
+		if navBar and body then
+			for _, navButton in navBar:GetChildren() do
+				local tabName = navButton.Name:match("^Nav_(.+)$")
+				if tabName then
+					connectClick(navButton, function()
+						scrollToSection(body:FindFirstChild("Section_" .. tabName))
+					end)
+				end
 			end
 		end
 

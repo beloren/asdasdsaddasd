@@ -356,7 +356,10 @@ local uiV20Translations = {
 		["👥 JOIN & CLAIM"] = "👥 ВСТУПИТЬ И ЗАБРАТЬ", ["📖 Collection"] = "📖 Коллекция", ["🔍 ALL DROPS"] = "🔍 ВЕСЬ ДРОП", ["🛒 BUY"] = "🛒 КУПИТЬ",
 		["Menu"] = "Меню", ["Permanent upgrade!"] = "Навсегда!", ["Instant delivery!"] = "Мгновенно!", ["OWNED"] = "КУПЛЕНО", ["BUY"] = "КУПИТЬ",
 		["Prospector's Shop"] = "Лавка старателя", ["BACK"] = "НАЗАД", ["UPGRADE"] = "УЛУЧШИТЬ", ["MAX LEVEL"] = "МАКС. УРОВЕНЬ",
-		["SKIP TUTORIAL"] = "ПРОПУСТИТЬ ОБУЧЕНИЕ", ["⟲ drag to rotate"] = "⟲ тяни, чтобы вращать", ["CRYSTAL"] = "КРИСТАЛЛ",
+		["SKIP TUTORIAL"] = "ПРОПУСТИТЬ ОБУЧЕНИЕ",
+		["Claim"] = "Забрать", ["Refresh in:"] = "Обновление через:", ["BEST VALUE!"] = "ВЫГОДНЕЕ ВСЕГО!", ["COMING SOON"] = "СКОРО",
+		["Forever Pack"] = "Вечный набор", ["Mega Cash"] = "Мега-деньги", ["Special Offers"] = "Спецпредложения", ["Game Passes"] = "Геймпассы",
+		["Weather"] = "Погода", ["Geodes"] = "Жеоды", ["Dynamite"] = "Динамит", ["Cash"] = "Деньги", ["Boosts"] = "Усиления", ["Skins"] = "Скины", ["⟲ drag to rotate"] = "⟲ тяни, чтобы вращать", ["CRYSTAL"] = "КРИСТАЛЛ",
 	},
 }
 for language, entries in uiV20Translations do
