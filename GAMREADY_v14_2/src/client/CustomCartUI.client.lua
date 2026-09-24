@@ -6671,6 +6671,8 @@ local function setupMoneyGainFx()
 			fade.Completed:Wait()
 			if myToken ~= moneyFxToken then return end
 			moneyFxTotal = 0
+			-- Пустой текст — у обводки (UIStroke) не остаётся букв, контур не висит.
+			moneyFxLabel.Text = ""
 		end)
 	end
 
