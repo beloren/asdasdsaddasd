@@ -28,7 +28,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 22
+Builder.VERSION = 23
 
 local ACCENT = UiKit.Accent("Pink")
 
@@ -130,31 +130,40 @@ function Builder.Build()
 	-- в правой колонке окна: «ALL DROPS» (окно шансов с 3D, DropPreviewUi) и под
 	-- ней «CRACK». Появляются, когда выбрана жеода.
 	-- Правая колонка окна отдана под кнопки — сетка жеод сужается.
-	geodeGrid.Size = UDim2.new(1, -vaultParts.Pad * 2 - 236, 1, -(vaultParts.Top + vaultParts.Pad))
-	local drop = UiKit.Group(vault, "DropInfoPanel", {
+	geodeGrid.Size = UDim2.new(1, -vaultParts.Pad * 2 - 256, 1, -(vaultParts.Top + vaultParts.Pad))
+	-- v20.12: кнопки на своей подложке (карточка цвета окна), текст
+	-- фиксированного размера — TextScaled без переноса в Roblox сжимал
+	-- подписи до нечитаемых.
+	local drop = UiKit.Card(vault, "DropInfoPanel", ACCENT, {
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -vaultParts.Pad, 1, -vaultParts.Pad),
-		Size = UDim2.fromOffset(222, 130),
+		Size = UDim2.fromOffset(244, 176),
 		Visible = false,
 		ZIndex = 5,
 	})
+	UiKit.Padding(drop, 12)
 	local allDrops = UiKit.Button(drop, "AllDropsButton", "🔍 ALL DROPS", "Purple", {
 		Position = UDim2.fromOffset(0, 0),
-		Size = UDim2.new(1, 0, 0, 48),
+		Size = UDim2.new(1, 0, 0, 58),
 		ZIndex = 6,
 		_TextStyle = "Heading",
 	})
 	local crack = UiKit.Button(drop, "CrackButton", "⛏ CRACK", "Green", {
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 0, 1, 0),
-		Size = UDim2.new(1, 0, 0, 66),
+		Size = UDim2.new(1, 0, 0, 78),
 		Active = false,
 		ZIndex = 6,
 		_TextStyle = "Title",
 	})
-	for _, button in { allDrops, crack } do
+	for button, textSize in { [allDrops] = 26, [crack] = 38 } do
 		local caption = button:FindFirstChild("Caption")
-		if caption then caption.TextWrapped = false end
+		if caption then
+			caption.TextScaled = false
+			caption.TextWrapped = false
+			caption.TextSize = textSize
+			caption.ZIndex = 7
+		end
 	end
 
 	-- ПОКУПКА
