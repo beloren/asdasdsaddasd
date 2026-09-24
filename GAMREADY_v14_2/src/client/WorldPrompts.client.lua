@@ -63,7 +63,8 @@ local billboard = Instance.new("BillboardGui")
 billboard.Name = "Prompt"
 -- Холст с запасом по высоте: волна клика расходится до ~2x кружка и не
 -- должна обрезаться краем билборда.
-billboard.Size = UDim2.fromOffset(280, math.floor(CIRCLE * 2.4))
+-- v20.11: шире (420), чтобы надпись действия («Hold To Open») шла в одну строку.
+billboard.Size = UDim2.fromOffset(420, math.floor(CIRCLE * 2.4))
 billboard.AlwaysOnTop = true
 billboard.LightInfluence = 0
 billboard.ResetOnSpawn = false
@@ -230,6 +231,8 @@ label.BackgroundTransparency = 1
 label.TextSize = 20
 label.TextColor3 = Color3.new(1, 1, 1)
 label.TextXAlignment = Enum.TextXAlignment.Left
+label.TextScaled = false
+label.TextWrapped = false -- v20.11: всегда одна строка, не наезжает на вторичную кнопку
 label.Text = ""
 label.ZIndex = 2
 label.Parent = root
@@ -576,8 +579,12 @@ local function show(prompt, inputType, fresh)
 			or keyText(secondaryPrompt, inputType)
 		secondaryButton.Text = ("[%s] %s"):format(secondaryKey, titleCase(tr(secondaryPrompt.ActionText)))
 		secondaryButton.Visible = true
+		-- Главная надпись чуть выше, вторичная кнопка — под ней, без нахлёста.
+		label.Position = UDim2.new(0, CIRCLE + 8, 0.5, -8)
+		secondaryButton.Position = UDim2.new(0, CIRCLE + 8, 0.5, 8)
 	else
 		secondaryButton.Visible = false
+		label.Position = UDim2.new(0, CIRCLE + 8, 0.5, 0)
 	end
 	key.Text = keyText(prompt, inputType)
 	key.TextSize = key.Text == "👆" and 18 or 15
