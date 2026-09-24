@@ -333,6 +333,41 @@ for language, entries in lateAdditions do
 	end
 end
 
+-- v20: подписи новых экранов (билдеры Shared.UiBuilders / *UiBuilder).
+local uiV20Translations = {
+	ru = {
+		["CHEST OPENED!"] = "СУНДУК ОТКРЫТ!", ["CHESTS"] = "СУНДУКИ", ["GEODES"] = "ЖЕОДЫ", ["COLLECT ALL"] = "ЗАБРАТЬ ВСЁ",
+		["DROP CHANCES"] = "ШАНСЫ ДРОПА", ["DROPS"] = "ДРОП", ["Daily"] = "Ежедневные", ["Weekly"] = "Недельные", ["Story"] = "Сюжет",
+		["Daily Quests"] = "Ежедневные задания", ["Main Quests"] = "Основные задания", ["Quests"] = "Задания", ["Track"] = "Следить", ["Tracking"] = "Отслеживается",
+		["Everything resets on prestige"] = "При престиже всё сбрасывается", ["FAVORITE = FREE REWARD"] = "В ИЗБРАННОЕ = НАГРАДА",
+		["FAVORITE: FREE SKIN"] = "ИЗБРАННОЕ: СКИН БЕСПЛАТНО", ["GROUP: +10% CASH"] = "ГРУППА: +10% ДЕНЕГ", ["JOIN GROUP = MORE CASH"] = "ВСТУПИ В ГРУППУ = БОЛЬШЕ ДЕНЕГ",
+		["LIKE THE GAME!"] = "ПОСТАВЬ ЛАЙК!", ["KNOCKDOWN!"] = "НОКДАУН!", ["STUNNED!"] = "ОГЛУШЁН!", ["PERFECT BREAK!"] = "ИДЕАЛЬНЫЙ УДАР!",
+		["Islands"] = "Острова", ["Unlock islands behind your base!"] = "Открывай острова за своей базой!", ["Tap a card to see what it gives"] = "Нажми на карточку, чтобы узнать, что она даёт",
+		["LIMITED"] = "ЛИМИТ", ["LOCKED"] = "ЗАКРЫТО", ["NEW"] = "НОВОЕ", ["NEW!"] = "НОВОЕ!", ["YES"] = "ДА", ["NO"] = "НЕТ",
+		["Needs 2+ players on the server"] = "Нужно 2+ игрока на сервере", ["Nothing in stock — wait for the next restock!"] = "Всё раскуплено — жди нового завоза!",
+		["PICK A CRYSTAL"] = "ВЫБЕРИ КРИСТАЛЛ", ["PICK AN ITEM"] = "ВЫБЕРИ ПРЕДМЕТ", ["Play with a friend for 20 minutes"] = "Поиграй с другом 20 минут",
+		["Playtime Rewards!"] = "Награды за игру!", ["RARE DROP!"] = "РЕДКИЙ ДРОП!", ["REWARD"] = "НАГРАДА", ["SHIELD"] = "ЩИТ", ["SKIP ▶"] = "ПРОПУСТИТЬ ▶",
+		["STARTER KIT"] = "СТАРТОВЫЙ НАБОР", ["Starter Kit"] = "Стартовый набор", ["Search"] = "Поиск", ["Skins"] = "Скины", ["Upgrades"] = "Улучшения",
+		["TAP TO CONTINUE"] = "НАЖМИ, ЧТОБЫ ПРОДОЛЖИТЬ", ["TAP!"] = "ЖМИ!", ["THANK YOU! ❤"] = "СПАСИБО! ❤", ["Welcome Back!"] = "С возвращением!",
+		["What you get"] = "Что ты получишь", ["What you need"] = "Что нужно", ["You were gone"] = "Тебя не было",
+		["Your cart is loaded — deliver it to the bank"] = "Тележка загружена — отвези её в банк", ["Your like helps us make updates!"] = "Твой лайк помогает нам делать обновления!",
+		["◀ BACK"] = "◀ НАЗАД", ["⛏ CRACK"] = "⛏ РАСКОЛОТЬ", ["✔ EQUIPPED"] = "✔ НАДЕТО", ["⭐ FAVORITE & CLAIM"] = "⭐ В ИЗБРАННОЕ И ЗАБРАТЬ",
+		["⭐ Prestige"] = "⭐ Престиж", ["⭐ Prestige Perks"] = "⭐ Перки престижа", ["🎁 FREE REWARD"] = "🎁 БЕСПЛАТНАЯ НАГРАДА", ["🏦 Bank Vault"] = "🏦 Хранилище банка",
+		["👥 JOIN & CLAIM"] = "👥 ВСТУПИТЬ И ЗАБРАТЬ", ["📖 Collection"] = "📖 Коллекция", ["🔍 ALL DROPS"] = "🔍 ВЕСЬ ДРОП", ["🛒 BUY"] = "🛒 КУПИТЬ",
+		["Menu"] = "Меню", ["Permanent upgrade!"] = "Навсегда!", ["Instant delivery!"] = "Мгновенно!", ["OWNED"] = "КУПЛЕНО", ["BUY"] = "КУПИТЬ",
+		["Prospector's Shop"] = "Лавка старателя", ["BACK"] = "НАЗАД", ["UPGRADE"] = "УЛУЧШИТЬ", ["MAX LEVEL"] = "МАКС. УРОВЕНЬ",
+		["SKIP TUTORIAL"] = "ПРОПУСТИТЬ ОБУЧЕНИЕ", ["⟲ drag to rotate"] = "⟲ тяни, чтобы вращать", ["CRYSTAL"] = "КРИСТАЛЛ",
+	},
+}
+for language, entries in uiV20Translations do
+	local target = translations[language]
+	if target then
+		for key, value in entries do
+			if target[key] == nil then target[key] = value end
+		end
+	end
+end
+
 
 local questTranslations = {
 	ru = {

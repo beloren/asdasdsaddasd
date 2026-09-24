@@ -4,24 +4,29 @@
 -- объяснение в src/client/EnsureCoreUiEnabled.client.lua — тот же список
 -- поддерживается синхронно и на лету чинит уже подключённых игроков).
 --
--- НЕ трогает PickaxeHotbar/ActionButtons/RebirthDialogButtons/GeodeUi —
+-- НЕ трогает RebirthDialogButtons/GeodeUi/окна-модалки —
 -- им положено быть выключенными бOльшую часть времени, это не баг.
 
 local StarterGui = game:GetService("StarterGui")
 
 local ALWAYS_ON_GUIS = {
 	"Hud",
+	"HotbarUi",
+	"CollectionMenu",
 	"CartInteractionUi",
-	"SettingsMenu",
-	"ShopEntry",
-	"SkinEntry",
 	"QuestUi",
 	"ShopUi",
 	"SkinUi",
 	"DailyRewardUi",
-	"DialogResponses",
 	"Toast",
-	"UpgradeShopCards",
+	"TopbarDock",
+	"BuffBar",
+	"LootFeedUi",
+	"SocialHud",
+	"QuestMarkerUi",
+	"PlacementUi",
+	"RubbleCrystalHotbar",
+	"MoneyGainFx",
 }
 
 local fixed = {}

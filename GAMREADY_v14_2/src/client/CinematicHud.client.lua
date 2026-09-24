@@ -52,6 +52,8 @@ local KEEP_VISIBLE = {
 	WeatherLightning = true,   -- полноэкранный эффект молнии, часть картинки
 	InventoryDragOverlay = true,
 	IslandLabels = true,       -- мировые подписи над островами (IslandUI), не HUD
+	RevealCards = true,        -- v20: карточки открытия наград
+	TutorialUi = true,         -- v20: реплики обучения
 }
 
 local SLIDE_SECONDS = 0.35

@@ -277,32 +277,17 @@ Config.Cutscene = {
 
 ## UI (StarterGui, не код)
 
-**Весь игровой текст — на английском** (промпты, подсказки, флеш-сообщения) — код-комментарии остаются на русском (это внутренняя документация для разработчика), а вот всё, что видит игрок, теперь по-английски.
+**v20: весь интерфейс в одном стиле, один билдер на всё — см. [`UI_V20_GUIDE.md`](UI_V20_GUIDE.md).**
 
-Весь игровой UI (промпт "Take Cart", подсказка "Drop Cart", хотбар кирки, HUD денег/ребёртов, кнопка защиты, меню настроек) живёт в **StarterGui**, а не собирается кодом с нуля. Roblox сам клонирует содержимое `StarterGui` в `PlayerGui` каждому игроку — `CustomCartUI.client.lua`/`HudService.lua` только находят уже готовое по имени и подключают логику (обновление текста, анимация заливки при удержании/откате, поп-анимация чисел). Если нужного `ScreenGui` или частей внутри него нет — скрипты соберут кодовый плейсхолдер сами, чтобы игра не осталась без UI, но это запасной путь, а не основной. **Единственное исключение — `DialogResponses`** (список ответов у NPC-продавца): для неё рантайм-плейсхолдер убран полностью — соберите её один раз через `tools/BuildUIAssets.lua` (см. ниже), без неё диалог с продавцом просто не откроется (в логах будет понятное предупреждение), весь остальной UI/игра при этом не пострадают.
+Все экраны (HUD, хотбар, магазины, квесты, окна жеод/скинов/перков/островов, мини-игры, обучение,
+подсказки промптов, лента добычи, баффы…) собирает `tools/BuildAllUI.lua` в `StarterGui` — дальше их
+можно менять в Studio, игра использует именно их. Мировые надписи (над рудой, NPC, мобами) берут стиль из
+`StarterGui/WorldUiTemplates`. Если экрана в StarterGui нет или он собран старым билдером, клиент соберёт
+его сам тем же билдером (`Shared/UiRegistry`), так что игра без UI не останется.
 
-StarterGui выбран специально (не `ReplicatedStorage/Assets`, как для моделей): его содержимое рендерится прямо во вьюпорте Studio, можно строить и редактировать билдером интерфейсов и сразу видеть результат, не запуская игру.
+`ScreenGui.ResetOnSpawn` у всех экранов `false` — респавн в игре ручной (`CharacterAutoLoads = false`).
 
-| ScreenGui | Обязательные части |
-|---|---|
-| `StarterGui/CartInteractionUi` | Frame `CartPromptGui` и `CartDropHintGui`, в каждом — TextLabel `Text` (где угодно внутри); необязательно — Frame `FillOverlay` и кнопка `FillCartOffer` для моментального заполнения (если её нет — клиент создаст запасную) |
-| `StarterGui/Hud` | Frame `MoneyPill` и `RebirthPill` (где угодно внутри), в каждом — TextLabel `Value` |
-| `StarterGui/PickaxeHotbar` | Frame `Slot` → ImageLabel ИЛИ TextLabel `Icon`; необязательно — Frame `CooldownOverlay`, TextLabel `CooldownText`, UIStroke (тонируется по тиру кирки) — чего нет, добавится автоматически |
-| `StarterGui/ActionButtons` | Frame `ProtectionButton` → TextLabel/ImageLabel `Icon`; необязательно — Frame `CooldownOverlay` (красная полоса, пуста пока доступно — становится полностью красной в момент нажатия и убывает по мере отката), TextLabel `CooldownText` (число секунд, видно только в последние 30 сек), UIStroke (зеленеет, пока щит активен) |
-| `StarterGui/SettingsMenu` | GuiObject `GearButton` (TextButton/ImageButton ИЛИ обычный Frame/ImageLabel — оба варианта кликабельны, см. ниже), Frame `Panel` → GuiObject `SoundToggle`, TextBox `CodeInput`, GuiObject `RedeemButton`, TextLabel `ResultText`; необязательно — GuiObject `CloseButton` |
-| `StarterGui/DialogResponses` | **Обязателен целиком, без плейсхолдера** — Frame `Responses` (справа на экране) → UIListLayout + GuiObject `Template` (шаблон одного пункта ответа — прячется и клонируется трижды: Mine/Cart/Pickaxe) → TextLabel `Text`; необязательно — GuiObject `CloseButton` (закрыть диалог можно и клавишей Escape) |
-| `StarterGui/PreloadScreen` | `CanvasGroup` `Dimmer` → `LoadingText`, `Bar` → `Fill`; `BackgroundImage` можно заменить своей картинкой |
-| `StarterGui/RebirthDialogButtons` | `Panel` → `GuiButton` `RebirthButton` и `CancelButton`, в каждой можно менять фон/картинку и `Caption` |
-
-**Важно:** `ScreenGui.ResetOnSpawn` для всех десяти обязан быть `false` — респавн персонажей в этой игре ручной (`CharacterAutoLoads = false`), а дефолтное значение Roblox (`true`) уничтожило бы UI при каждом респавне. Код сам принудительно выставляет `false`, независимо от того, что стоит в Studio, так что сломать это невозможно, но при ручном редактировании лучше не полагаться на дефолт.
-
-**Клик по `GearButton`/`CloseButton`/`SoundToggle`/`RedeemButton` работает независимо от того, чем именно они являются** — настоящей кнопкой (`TextButton`/`ImageButton`, штатный `MouseButton1Click`) или простым `Frame`/`ImageLabel` (эмулируется через `InputBegan`, см. `connectClick` в `CustomCartUI.client.lua`) — так что собрать шестерёнку в Studio можно как угодно, не оглядываясь на тип инстанса.
-
-**Важно про порядок появления UI:** Roblox клонирует содержимое `StarterGui` в `PlayerGui` асинхронно, без гарантии порядка относительно LocalScript — код ждёт реальный клон через `WaitForChild` с таймаутом, а не проверяет один раз (`FindFirstChild`), иначе можно словить гонку, при которой строится кодовый плейсхолдер ВМЕСТО ещё не успевшего прилететь авторского UI.
-
-### Как получить весь UI одной командой
-
-`tools/BuildUIAssets.lua` за один запуск создаст все игровые `ScreenGui` со всем содержимым прямо в `StarterGui`, с английским текстом. Открой Command Bar в Studio, вставь содержимое файла целиком, нажми Enter — дальше редактируй результат билдером интерфейсов прямо во вьюпорте. Скрипт не часть игры и безопасно перезапускается повторно, но пересоздаёт собранный UI.
+**Весь игровой текст — на английском**, русский перевод подставляет `Shared/Localization` по языку игрока.
 
 ### Меню настроек — звук и промокоды
 
@@ -312,7 +297,7 @@ StarterGui выбран специально (не `ReplicatedStorage/Assets`, �
 
 ### Хотбар кирки и визуальный откат
 
-Дефолтный Backpack Roblox выключен (`StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)`) — вместо него свой слот снизу экрана (`StarterGui/PickaxeHotbar`), т.к. в игре всего один инструмент и полноценный инвентарь не нужен. **Важный нюанс** (задокументировано на форуме разработчиков Roblox): отключение Backpack CoreGui вырубает не только визуал, а вообще всю штатную систему экипировки инструментов — хоткеи 1-9 и клик по слоту тоже перестают работать. Поэтому: сервер сразу выдаёт кирку в руки при создании (`tool.Parent = character`, а не `Backpack` — `CombatService:_giveTool`), жать ничего не обязательно; клавиша `1` и клик по слоту (`CustomCartUI.client.lua`) реализованы вручную через `Humanoid:EquipTool()`/`UnequipTools()` — чисто опциональная возможность "убрать"/"вернуть" кирку.
+Дефолтный Backpack Roblox выключен (`StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)`) — вместо него слот F в центре хотбара (`StarterGui/HotbarUi/PickaxeSlot`), т.к. в игре всего один инструмент и полноценный инвентарь не нужен. **Важный нюанс** (задокументировано на форуме разработчиков Roblox): отключение Backpack CoreGui вырубает не только визуал, а вообще всю штатную систему экипировки инструментов — хоткеи 1-9 и клик по слоту тоже перестают работать. Поэтому: сервер сразу выдаёт кирку в руки при создании (`tool.Parent = character`, а не `Backpack` — `CombatService:_giveTool`), жать ничего не обязательно; клавиша `1` и клик по слоту (`CustomCartUI.client.lua`) реализованы вручную через `Humanoid:EquipTool()`/`UnequipTools()` — чисто опциональная возможность "убрать"/"вернуть" кирку.
 
 Иконка берётся из `Config.Icons.Pickaxe` — просто число (ID картинки из каталога/Asset Manager, без `rbxassetid://`, префикс достраивается кодом сам). Пока `0` — на её месте emoji-плейсхолдер ⛏️. Тонируется цветом текущего тира кирки (`Config.PickaxeTiers[N].VfxColor`) через атрибуты игрока `PickaxeTier`/`HasPickaxe` (сервер выставляет их в `CombatService`, реплицируются сами, отдельный RemoteEvent не нужен).
 

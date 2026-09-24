@@ -2,7 +2,7 @@
 -- MineVeinUiBuilder — собирает интерфейс мини-игры "РУДНАЯ ЖИЛА" (вариант A).
 --
 -- ОДИН источник правды для двух мест:
---   • tools/BuildMineArcUI.lua (Studio Command Bar) кладёт результат в
+--   • tools/BuildAllUI.lua (Studio Command Bar) кладёт результат в
 --     StarterGui — дальше вид правится мышкой, картинки подставляются в
 --     ImageLabel'ы;
 --   • MineExpeditionUI.client.lua строит то же самое сам, если в

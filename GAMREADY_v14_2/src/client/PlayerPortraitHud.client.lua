@@ -19,7 +19,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local hudGui = playerGui:WaitForChild("Hud", 10)
 local portrait = hudGui and hudGui:FindFirstChild("Portrait", true)
 if not (portrait and portrait:IsA("ViewportFrame")) then
-	warn("[PlayerPortraitHud] StarterGui/Hud без ViewportFrame 'Portrait' — портрет показываться не будет, остальной HUD/игра не пострадают. Запусти tools/BuildUIAssets.lua заново.")
+	warn("[PlayerPortraitHud] StarterGui/Hud без ViewportFrame 'Portrait' — портрет показываться не будет, остальной HUD/игра не пострадают. Запусти tools/BuildAllUI.lua заново.")
 	return
 end
 

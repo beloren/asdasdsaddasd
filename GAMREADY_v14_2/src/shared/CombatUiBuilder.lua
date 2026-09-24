@@ -3,7 +3,7 @@
 -- комбо-счётчик, всплывающие надписи).
 --
 -- ОДИН источник правды для двух мест (как MineVeinUiBuilder):
---   • tools/BuildCombatUI.lua (Studio Command Bar) кладёт результат в
+--   • tools/BuildAllUI.lua (Studio Command Bar) кладёт результат в
 --     StarterGui/CombatUi — дальше вид правится мышкой: цвета, шрифты,
 --     размеры, картинки в ImageLabel'ах;
 --   • StaggerFX.client.lua строит то же самое сам, если в StarterGui нет

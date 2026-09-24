@@ -620,29 +620,19 @@ EmberPickaxe = { Kind = "Pickaxe", DisplayName = "Клинок Пламени", 
 
 ## Интерфейс и билдеры
 
-UI хранится в `StarterGui`, но не синхронизируется текущим `default.project.json`. Билдеры выполняются из Studio Command Bar в Edit Mode.
+UI хранится в `StarterGui`, но не синхронизируется текущим `default.project.json`. Билдеры выполняются из Studio Command Bar в Edit Mode. Весь интерфейс (v20) собирает один `tools/BuildAllUI.lua` — подробности в `UI_V20_GUIDE.md`.
 
 ### Все билдеры
 
 | Билдер | Что создаёт/заменяет |
 |---|---|
 | `BuildNewAssetWorkspacePack.lua` | Безопасно создаёт в `Workspace` пакет из 22 скинов и 36 ассетов жеод; ничего не удаляет из `Assets` |
-| `BuildUIAssets.lua` | 7 базовых ScreenGui: `CartInteractionUi`, `Hud`, `PickaxeHotbar`, `ActionButtons`, `SettingsMenu`, `DialogResponses`, `RebirthDialogButtons` |
-| `BuildNotificationUI.lua` | `StarterGui/Toast` (короткие экранные уведомления) |
-| `BuildUpgradeShopCards.lua` | `StarterGui/UpgradeShopCards` |
-| `BuildShopEntry.lua` | `StarterGui/ShopEntry` |
-| `BuildGamepassQuickBar.lua` | `StarterGui/GamepassQuickBar` |
-| `BuildShopUi.lua` | `StarterGui/ShopUi` |
-| `BuildSkinEntry.lua` | `StarterGui/SkinEntry` |
-| `BuildSkinUI.lua` | `StarterGui/SkinUi` |
+| `BuildAllUI.lua` | **v20: ВЕСЬ интерфейс** — все экраны игры в `StarterGui` в едином стиле (список — `UI_V20_GUIDE.md`) |
+| `ApplyUiSkins.lua` | Проставляет картинки из `UiTheme.Skins`/`UiTheme.Icons` во всём StarterGui, не трогая раскладку |
 | `BuildSkinAssets.lua` | 22 заглушки скинов в `Assets` |
-| `BuildQuestUI.lua` | `StarterGui/QuestUi` |
-| `BuildDailyRewardUI.lua` | `StarterGui/DailyRewardUi` |
-| `BuildGeodeAssets.lua` | Все модели жеод/руды и `StarterGui/GeodeUi` |
-| `BuildMoneyFx.lua` | `Assets/MoneyFxTemplate` |
+| `BuildGeodeAssets.lua` | Все модели жеод/руды; `StarterGui/GeodeUi` — через общий билдер (UiRegistry) |
 | `BuildLeaderboardBoards.lua` | Удаляет старые доски и создаёт preview в `Workspace` |
 | `BuildCartSizeGuides.lua` | Только временные размеры в `Workspace/CartSizeGuides` |
-| `BuildRubbleCrystalUI.lua` | `StarterGui/RubbleCrystalHotbar` (карточка переноски кристалла с валуна) — отдельный от `BuildUIAssets.lua` файл специально, чтобы не пересобирать весь остальной UI заново |
 | `BuildRubbleBoulderSpawnPoints.lua` | `workspace/RubbleBoulderSpawnPoints` — 16 плейсхолдер-точек кольцом вокруг банка, временно (см. раздел "Валуны") |
 
 Каждый билдер разрушителен для указанных объектов. Особенно опасны:
@@ -650,7 +640,7 @@ UI хранится в `StarterGui`, но не синхронизируется 
 - `BuildSkinAssets.lua`: удаляет все 22 готовых скина с точными именами;
 - `BuildGeodeAssets.lua`: удаляет готовые жеоды, коллекционную руду, постройки и Geode UI;
 - `BuildLeaderboardBoards.lua`: удаляет и финальный ассет, и старый preview, затем создаёт только новый preview в `Workspace`;
-- UI-билдеры: удаляют соответствующий `ScreenGui` со всей ручной стилизацией.
+- `BuildAllUI.lua`: пересоздаёт экраны (кроме `SKIP_EXISTING = true` или не входящих в `ONLY`) — ручные правки этих экранов пропадут.
 
 Исключение — `BuildNewAssetWorkspacePack.lua`: он не трогает `ReplicatedStorage/Assets` и отказывается запускаться, если в `Workspace` уже есть `NEW_ASSETS_MOVE_CHILDREN_TO_ASSETS`. После редактирования открой эту папку, выдели все 58 дочерних ассетов и перенеси их прямо в `ReplicatedStorage/Assets`. Саму папку переносить нельзя: runtime не ищет ассеты во вложенных папках.
 

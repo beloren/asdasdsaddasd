@@ -34,7 +34,7 @@ UiRegistry.Entries = {
 	{ Name = "SatchelInventory", Module = "UiBuilders.InventoryUi", Fn = "BuildSatchel", MinVersion = 20, What = "рюкзак (клавиша ~)" },
 	{ Name = "InventoryDragOverlay", Module = "UiBuilders.InventoryUi", Fn = "BuildDragOverlay", MinVersion = 20, What = "слой перетаскивания предметов" },
 	{ Name = "BuffBar", Module = "UiBuilders.BuffBarUi", MinVersion = 20, What = "панель баффов" },
-	{ Name = "LootFeed", Module = "UiBuilders.LootFeedUi", MinVersion = 20, What = "лента добычи" },
+	{ Name = "LootFeedUi", Module = "UiBuilders.LootFeedUi", MinVersion = 20, What = "лента добычи" },
 	{ Name = "Toast", Module = "ToastUiBuilder", MinVersion = 20, What = "уведомления" },
 	{ Name = "QuestUi", Module = "UiBuilders.QuestUi", MinVersion = 20, What = "квесты + трекер" },
 	{ Name = "MobileShiftLockButton", Module = "UiBuilders.ShiftLockUi", MinVersion = 20, What = "кнопка шифтлока (телефон)" },

@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
 -- StarterPackUI
 -- Баннер "STARTER KIT" (радужная надпись + отсчёт до конца окна предложения)
--- поверх StarterGui/StarterPackOffer (см. tools/BuildStarterPackUI.lua).
+-- поверх StarterGui/StarterPackOffer (см. tools/BuildAllUI.lua).
 -- Показывается ТОЛЬКО новым игрокам (см. FirstJoinedAt в DataService),
 -- ТОЛЬКО пока не истекло Config.DevProducts.StarterPack.OfferWindowSeconds
 -- и ТОЛЬКО пока пак ещё не куплен (StarterPackClaimed).

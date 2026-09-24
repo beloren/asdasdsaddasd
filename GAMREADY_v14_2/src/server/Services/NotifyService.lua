@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
 -- NotifyService
 -- ЕДИНАЯ точка для коротких сообщений НА ЭКРАНЕ игрока (ScreenGui "Toast",
--- см. tools/BuildNotificationUI.lua/CustomCartUI.client.lua) — не 3D-биллборд у
+-- см. tools/BuildAllUI.lua/CustomCartUI.client.lua) — не 3D-биллборд у
 -- конкретного объекта (как, например, вспышка над NPC в RebirthService),
 -- а прямо в UI, видно всегда, независимо от того, куда смотрит камера.
 --

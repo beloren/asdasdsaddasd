@@ -37,7 +37,7 @@ local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local MutationVisuals = require(ReplicatedStorage.Shared.MutationVisuals)
 
 -- ЗАЩИТА ОТ РАССИНХРОНА КОНФИГА (см. подробный комментарий в
--- tools/BuildUIAssets.lua) — этот скрипт работает постоянно в игре, а не
+-- tools/BuildAllUI.lua) — этот скрипт работает постоянно в игре, а не
 -- один раз, так что подстраховка здесь ещё важнее: старый/неполный
 -- Config.Shop не должен ронять весь клиентский UI.
 Config.Shop = Config.Shop or {}
@@ -54,7 +54,7 @@ Config.Referral.MaxFriends = Config.Referral.MaxFriends or 3
 -- Config.QuickBar.* защитные дефолты УБРАНЫ отсюда — фичи "быстрых кнопок
 -- геймпассов" (GamepassQuickBar) в игре больше нет целиком, по прямому
 -- запросу. Сам Config.QuickBar (таблица) в Config.lua НЕ удалён — его всё
--- ещё частично читает tools/BuildShopEntry.lua (HintImageId для значка на
+-- ещё частично читает tools/BuildAllUI.lua (HintImageId для значка на
 -- кнопке магазина), это отдельное, не связанное использование.
 
 local player = Players.LocalPlayer
@@ -321,7 +321,7 @@ end
 -- ниже) — если один из этих трёх фреймов становился видимым каким-то
 -- ДРУГИМ путём (или просто раньше, чем успевал отработать код, который
 -- зовёт refresh), он на мгновение показывался в своей "заводской"
--- позиции из StarterGui-ассета (какой её сделал tools/BuildUIAssets.lua
+-- позиции из StarterGui-ассета (какой её сделал tools/BuildAllUI.lua
 -- под десктоп), а не в мобильной. Слушаем Visible НАПРЯМУЮ у каждого
 -- фрейма — теперь позиция гарантированно пересчитывается КАЖДЫЙ раз,
 -- когда фрейм показывается/прячется, независимо от того, откуда пришло
@@ -1235,12 +1235,12 @@ end
 local function findHotbarAsset()
 	local gui = playerGui:WaitForChild("HotbarUi", 10)
 	local slot = gui and gui:FindFirstChild("PickaxeSlot", true)
-	assert(gui and slot, "StarterGui/HotbarUi/PickaxeSlot is required. Run tools/BuildInventoryUI.lua.")
+	assert(gui and slot, "StarterGui/HotbarUi/PickaxeSlot is required. Run tools/BuildAllUI.lua.")
 	return gui, slot
 end
 
 -- НОВЫЙ ХОТБАР ЗАМЕНЯЕТ СТАРЫЙ. Если в игре есть StarterGui/HotbarUi (см.
--- tools/BuildInventoryUI.lua + src/client/InventoryUI.client.lua), то
+-- tools/BuildAllUI.lua + src/client/InventoryUI.client.lua), то
 -- старый одиночный слот кирки больше не показывается: он висел бы вторым
 -- баром поверх нового и, что хуже, перехватывал бы клавишу "1" под кирку —
 -- а в новом хотбаре "1" это первый слот РУДЫ (кирка теперь на F).
@@ -1703,14 +1703,14 @@ end)
 --------------------------------------------------------------------------------
 
 local KIND_LABELS = { Mine = "MINE", Cart = "CART", Pickaxe = "PICKAXE" }
--- Порядок карточек — синхронизирован с tools/BuildUpgradeShopCards.lua
+-- Порядок карточек — синхронизирован с tools/BuildAllUI.lua
 -- ("шахта по середине, тележка справа, кирка слева" по прямому запросу).
 -- Индексы 1/2/3 (клавиши-шорткаты и KIND_ORDER[index] ниже) теперь тоже
 -- считают слева направо в НОВОМ порядке — это ожидаемо, карточки физически
 -- переставлены, а не только перекрашены.
 local KIND_ORDER = { "Pickaxe", "Mine", "Cart" }
 
--- true, если tools/BuildUpgradeShopCards.lua был запущен и ScreenGui
+-- true, если tools/BuildAllUI.lua был запущен и ScreenGui
 -- "UpgradeShopCards" реально собран в StarterGui — выставляется следующим
 -- IIFE ниже. Старый список строк (DialogResponses, дальше по файлу) читает
 -- этот флаг и, если он true, просто ничего не делает — сам, целиком, не
@@ -3861,7 +3861,7 @@ end)()
 	local responseTemplate = responsesFrame and responsesFrame:FindFirstChild("Template", true)
 	local responsesValid = responseTemplate and responseTemplate:FindFirstChild("Text", true)
 	if not responsesValid then
-		warn("[CustomCartUI] StarterGui/DialogResponses не найден или неполон (нужны Responses/Template/Text) — запусти tools/BuildUIAssets.lua. Диалог с продавцом прокачки не будет работать.")
+		warn("[CustomCartUI] StarterGui/DialogResponses не найден или неполон (нужны Responses/Template/Text) — запусти tools/BuildAllUI.lua. Диалог с продавцом прокачки не будет работать.")
 		return
 	end
 	responsesGui.ResetOnSpawn = false
@@ -3887,7 +3887,7 @@ end)()
 
 		-- ФИКС "ТЕГИ ПОКАЗЫВАЮТСЯ КАК ТЕКСТ, А НЕ ЦВЕТОМ": не полагаемся
 		-- на то, что живой ассет в StarterGui уже пересобран через
-		-- обновлённый tools/BuildUIAssets.lua (RichText мог остаться
+		-- обновлённый tools/BuildAllUI.lua (RichText мог остаться
 		-- false на старом инстансе, собранном до этого фикса) — выставляем
 		-- явно здесь же, в коде, при каждом клонировании. Работает
 		-- одинаково и со старым, и с новым ассетом, перезапускать билдер
@@ -4230,7 +4230,7 @@ end
 local talkPromptFrame = screenGui:FindFirstChild("TalkPromptGui", true)
 local talkPromptText = talkPromptFrame and talkPromptFrame:FindFirstChild("Text", true)
 if not (talkPromptFrame and talkPromptText) then
-	warn("[CustomCartUI] В CartInteractionUi нет TalkPromptGui с TextLabel 'Text' — запусти tools/BuildUIAssets.lua. Диалог с NPC пока будет использовать вид подсказки \"Take Cart\".")
+	warn("[CustomCartUI] В CartInteractionUi нет TalkPromptGui с TextLabel 'Text' — запусти tools/BuildAllUI.lua. Диалог с NPC пока будет использовать вид подсказки \"Take Cart\".")
 	talkPromptFrame = promptFrame
 	talkPromptText = promptText
 end
@@ -5188,7 +5188,7 @@ end)
 
 --------------------------------------------------------------------------------
 -- МАГАЗИН (Robux) — окно ShopUi + кнопка ShopEntry + отдельный диалог у
--- ShopNPC (см. Config.Shop/Config.ShopNpc, tools/BuildUIAssets.lua,
+-- ShopNPC (см. Config.Shop/Config.ShopNpc, tools/BuildAllUI.lua,
 -- ShopNpcService.lua). Быстрые кнопки GamepassQuickBar убраны целиком по
 -- прямому запросу ("удали квикгеймпассы в целом, они не нужны справа
 -- снизу") — все покупки геймпассов теперь только через общий магазин.
@@ -5246,7 +5246,7 @@ local function setupShopUi()
 		-- ниже") ВСЕ секции видны одновременно, одним вертикально
 		-- прокручиваемым списком — вкладок и переключения между ними
 		-- больше нет. Контейнеры "Cards_<Tab>" — тот же контракт имён,
-		-- что и раньше (см. tools/BuildShopUi.lua), но теперь это просто
+		-- что и раньше (см. tools/BuildAllUI.lua), но теперь это просто
 		-- пустая сетка (UIGridLayout, без предпостроенных слотов) — все
 		-- карточки клонирует и наполняет клиент из CardTemplate под
 		-- реальные товары, без ограничения "N карточек на экран" и без
@@ -5264,7 +5264,7 @@ local function setupShopUi()
 			end
 		end
 		if not cardTemplate then
-			warn("[CustomCartUI] StarterGui/ShopUi без CardTemplate — карточки товаров показываться не будут. Запусти tools/BuildShopUi.lua заново.")
+			warn("[CustomCartUI] StarterGui/ShopUi без CardTemplate — карточки товаров показываться не будут. Запусти tools/BuildAllUI.lua заново.")
 		end
 
 		-- Товары каждой категории, собранные из Config.Shop.Items ОДИН раз
@@ -5658,7 +5658,7 @@ setupShopUi()
 -- зоне шахты и в неё капала руда — с новой механикой добычи (НПС-
 -- экспедиция, см. MineService.lua) такого состояния больше не бывает, так
 -- что фича была бы не у дел, даже если бы её оставили. Сам билдер-код
--- кнопки (tools/BuildUIAssets.lua) тоже вычищен. Developer Product
+-- кнопки (tools/BuildAllUI.lua) тоже вычищен. Developer Product
 -- Config.DevProducts.CartFillByTier и его обработка в MonetizationService
 -- намеренно НЕ тронуты — это просто данные/приёмка платежа, без
 -- клиентской кнопки их всё равно никто не купит, удалять нечего ломать.
@@ -6303,7 +6303,7 @@ setupShiftLock()
 
 --------------------------------------------------------------------------------
 -- TOAST — короткие уведомления НА ЭКРАНЕ (ScreenGui "Toast", см.
--- NotifyService.lua/tools/BuildNotificationUI.lua). Любой серверный сервис зовёт
+-- NotifyService.lua/tools/BuildAllUI.lua). Любой серверный сервис зовёт
 -- NotifyService:Show(player, text, opts) — здесь просто отображаем, что
 -- прилетело. opts.ActionLabel — необязательная кнопка-действие; opts.Action
 -- определяет, что она делает: "Shop" (по умолчанию, как раньше) открывает
@@ -6316,7 +6316,7 @@ setupShiftLock()
 -- бюджет (лимит 200) со всем кодом выше по файлу.
 local function setupToast()
 	-- v14.3: уведомления в стиле Grow a Garden. Вид — ReplicatedStorage.Shared
-	-- .ToastUiBuilder (Studio-билдер tools/BuildNotificationUI.lua). Здесь —
+	-- .ToastUiBuilder (Studio-билдер tools/BuildAllUI.lua). Здесь —
 	-- только логика:
 	--   • на экране ОДНОВРЕМЕННО максимум 2 карточки (новая сверху, старая
 	--     съезжает вниз);

@@ -3,7 +3,7 @@
 -- CombatService). Сервер решает ВСЁ (шкала, рагдолл, выпадение, награда);
 -- здесь только картинка:
 --   • шкала оглушения + значок WANTED над головой КАЖДОГО игрока — из
---     шаблона StarterGui/CombatUi/StaggerTemplate (tools/BuildCombatUI.lua),
+--     шаблона StarterGui/CombatUi/StaggerTemplate (tools/BuildAllUI.lua),
 --     данные — атрибуты игрока Stagger / Ragdolled / StaggerImmune / Bounty;
 --   • свой рагдолл: Humanoid → Physics + импульс отлёта (физикой своего
 --     персонажа владеет именно этот клиент), подъём — GettingUp;

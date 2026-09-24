@@ -3,7 +3,7 @@
 --
 -- Реплика висит В МИРЕ справа от шахтёра (BillboardGui, прикреплённый к его
 -- голове), под ней — варианты ответа. Один источник правды для:
---   • tools/BuildMinerDialogUI.lua (Command Bar) → StarterGui/MinerDialogUi,
+--   • tools/BuildAllUI.lua (Command Bar) → StarterGui/MinerDialogUi,
 --     дальше вид правится мышкой;
 --   • MineExpeditionUI.client.lua — строит сам, если в StarterGui нет свежей
 --     версии (атрибут MinerDialogVersion меньше VERSION).

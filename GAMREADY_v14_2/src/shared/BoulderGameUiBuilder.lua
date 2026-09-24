@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
 -- BoulderGameUiBuilder — интерфейс мини-игры валунов (Config.BoulderGame).
--- Один источник правды (как MineVeinUiBuilder): tools/BuildBoulderGameUI.lua
+-- Один источник правды (как MineVeinUiBuilder): tools/BuildAllUI.lua
 -- кладёт результат в StarterGui/BoulderGameUi, BoulderGameUI.client.lua
 -- строит его сам, если билдер не запускали.
 --

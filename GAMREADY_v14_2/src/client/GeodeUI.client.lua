@@ -224,7 +224,7 @@ local skipButtonLabel = skipButton and skipButton:FindFirstChildWhichIsA("TextLa
 if not (dimmer and vaultPanel and podiumPanel and opening and geodeGrid and crystalGrid
 	and geodeTemplate and crystalTemplate and dropInfoPanel and crackButton and infoTitle and infoRarity and infoChances
 	and eggImage and flash and resultImage and resultText and skipButton) then
-	warn("[GeodeUI] GeodeUi contract is incomplete. Re-run tools/BuildGeodeUI.lua.")
+	warn("[GeodeUI] GeodeUi contract is incomplete. Re-run tools/BuildAllUI.lua.")
 	return
 end
 opening.BackgroundTransparency = 1
@@ -680,7 +680,7 @@ end
 -- 3D-ПОСТАНОВКА ОТКРЫТИЯ — ПОЛНАЯ ЗАМЕНА старой 2D мини-игры (по прямому
 -- запросу: "удали привычную миниигру открытия жеоды к чертям"). EggImage/
 -- CrackGlow/LeftHalf/RightHalf/DropSilhouette либо не строятся вовсе (см.
--- tools/BuildGeodeUI.lua), либо навсегда невидимы (EggImage — только
+-- tools/BuildAllUI.lua), либо навсегда невидимы (EggImage — только
 -- внутренний шаблон под ResultImage, см. buildFallback выше).
 --
 -- НОВОЕ ПОВЕДЕНИЕ (по прямому запросу):
@@ -1731,7 +1731,7 @@ beginCrack = function()
 	-- кликать, жеода трясётся и увеличивается"). Старая 2D мини-игра
 	-- (яйцо-картинка, которая трясётся/растёт/раскалывается на экране)
 	-- убрана целиком — EggImage/CrackGlow/LeftHalf/RightHalf/DropSilhouette
-	-- либо не строятся вовсе (см. tools/BuildGeodeUI.lua), либо всегда
+	-- либо не строятся вовсе (см. tools/BuildAllUI.lua), либо всегда
 	-- невидимы (EggImage — просто внутренний шаблон под ResultImage).
 	stopHammerAnimation()
 	if activeGeodeProp then activeGeodeProp:Destroy(); activeGeodeProp = nil end
@@ -1960,7 +1960,7 @@ end
 
 -- Порядок задаётся через LayoutOrder, поэтому сетку нужно переключить с
 -- SortOrder.Name. Делаем это в рантайме и ТОЛЬКО для CrystalGrid: тогда
--- сортировка работает и с UI, собранным старым tools/BuildGeodeUI.lua (там
+-- сортировка работает и с UI, собранным старым tools/BuildAllUI.lua (там
 -- тоже прописан SortOrder.Name), а витрина жеод и магазин продолжают
 -- сортироваться как раньше. UIGridStyleLayout — общий базовый класс
 -- UIGridLayout и UIListLayout, так что подхватится любой из них.

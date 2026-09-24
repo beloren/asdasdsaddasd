@@ -44,7 +44,15 @@ local ALWAYS_ON_GUIS = {
 	"SkinUi",
 	"DailyRewardUi",
 	"Toast",
-	"UpgradeShopCards", -- необязательная фича — если её нет, просто пропустится
+	-- v20: постоянные экраны, собранные UiRegistry (tools/BuildAllUI.lua).
+	"TopbarDock",
+	"BuffBar",
+	"LootFeedUi",
+	"SocialHud",
+	"QuestMarkerUi",
+	"PlacementUi",
+	"RubbleCrystalHotbar",
+	"MoneyGainFx",
 }
 
 local player = Players.LocalPlayer

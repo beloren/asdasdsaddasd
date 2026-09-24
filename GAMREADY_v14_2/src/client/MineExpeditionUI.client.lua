@@ -47,7 +47,7 @@ end
 --------------------------------------------------------------------------------
 -- ДИАЛОГ ШАХТЁРА (v14.3) — в стиле Grow a Garden: реплика висит справа от
 -- шахтёра, под ней варианты ответа. Вид — Shared/MinerDialogUiBuilder
--- (Studio-билдер tools/BuildMinerDialogUI.lua).
+-- (Studio-билдер tools/BuildAllUI.lua).
 --------------------------------------------------------------------------------
 local DialogBuilder = require(ReplicatedStorage.Shared.MinerDialogUiBuilder)
 
@@ -379,7 +379,7 @@ end
 -- МИНИ-ИГРА "РУДНАЯ ЖИЛА" (вариант A)
 --
 -- Интерфейс собирает ReplicatedStorage.Shared.MineVeinUiBuilder (его же
--- зовёт Studio-билдер tools/BuildMineArcUI.lua). Здесь — только "оживление":
+-- зовёт Studio-билдер tools/BuildAllUI.lua). Здесь — только "оживление":
 -- кирка бегает по жиле, зоны раунда приходят с сервера, реакция на удар
 -- своя для PERFECT / GOOD / MISS (цвет, звук, вспышка, искры, тряска
 -- камеры и интерфейса, каменные осколки из входа шахты), карточка и
