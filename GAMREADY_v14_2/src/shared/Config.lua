@@ -2072,14 +2072,23 @@ end
 local function caveForNineTierLocal(tier)
 	return math.clamp(1 + math.floor((tier - 1) * (#Config.MineTiers - 1) / 8 + 0.5), 1, #Config.MineTiers)
 end
+-- v20.2: РАСТЯЖКА ПОЗДНЕЙ ИГРЫ (по данным DevForum: первые ~45 мин не
+-- трогаем — быстрые награды и первый престиж держат новичка; конец раньше
+-- проходился за 1–2 вечера). Множитель цены по пещере; плавный, без скачка.
+-- Первое прохождение до пещеры 15 ≈ 3.5 ч активной игры.
+Config.LateGameStretch = { [9] = 1.35, [10] = 1.5, [11] = 1.65, [12] = 1.75, [13] = 1.75, [14] = 1.75, [15] = 1.75 }
+local function stretchFor(cave)
+	return Config.LateGameStretch[cave] or 1
+end
 for _, entry in Config.MineChain do
 	entry.BaseCost = entry.Cost
-	entry.Cost = niceNumber(entry.Cost * Config.CaveNumberScale(entry.Tier - 1))
+	entry.Cost = niceNumber(entry.Cost * Config.CaveNumberScale(entry.Tier - 1) * stretchFor(entry.Tier))
 end
 for _, chain in { Config.CartChain, Config.PickaxeChain } do
 	for _, entry in chain do
 		entry.BaseCost = entry.Cost
-		entry.Cost = niceNumber(entry.Cost * Config.CaveNumberScale(caveForNineTierLocal(entry.Tier)))
+		local cave = caveForNineTierLocal(entry.Tier)
+		entry.Cost = niceNumber(entry.Cost * Config.CaveNumberScale(cave) * stretchFor(cave))
 	end
 end
 
