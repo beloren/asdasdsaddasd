@@ -1,0 +1,33 @@
+{
+    "name": "pvp-extraction-simulator",
+    "tree": {
+        "$className": "DataModel",
+        "ReplicatedFirst": {
+            "LoadingScreen": {
+                "$path": "src/LoadingScreen.client.lua"
+            }
+        },
+        "ReplicatedStorage": {
+            "$ignoreUnknownInstances": true,
+            "Shared": {
+                "$path": "src/shared"
+            }
+        },
+        "ServerStorage": {
+            "$ignoreUnknownInstances": true
+        },
+        "ServerScriptService": {
+            "$ignoreUnknownInstances": true,
+            "Server": {
+                "$path": "src/server"
+            }
+        },
+        "StarterPlayer": {
+            "$ignoreUnknownInstances": true,
+            "StarterPlayerScripts": {
+                "$ignoreUnknownInstances": true,
+                "$path": "src/client"
+            }
+        }
+    }
+}
