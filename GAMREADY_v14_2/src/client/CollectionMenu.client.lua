@@ -19,6 +19,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local UiMotion = require(ReplicatedStorage.Shared.UiMotion)
 local UiSfx = require(ReplicatedStorage.Shared.UiSfx)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
+local PlaceableFactory = require(ReplicatedStorage.Shared.PlaceableFactory)
 local MutationVisuals = require(ReplicatedStorage.Shared.MutationVisuals)
 local CollectionKey = require(ReplicatedStorage.Shared.CollectionKey)
 local OreIncome = require(ReplicatedStorage.Shared.OreIncome)
@@ -487,6 +488,17 @@ do
 		end
 	end
 end
+-- v20: вкладка ТРОФЕЕВ (реликвии). Старый макет без кнопки — клон мобов.
+local tabTrophies = panel.Sidebar:FindFirstChild("TabTrophies")
+if not tabTrophies then
+	tabTrophies = tabMobs:Clone()
+	tabTrophies.Name = "TabTrophies"
+	tabTrophies.LayoutOrder = (tonumber(tabCrystals.LayoutOrder) or 0) + 1
+	tabTrophies.Parent = panel.Sidebar
+	for _, descendant in tabTrophies:GetDescendants() do
+		if descendant:IsA("TextLabel") then descendant.Text = "🏆" end
+	end
+end
 local leftPage = panel:FindFirstChild("LeftPage", true)
 local pageTitle = leftPage:WaitForChild("PageTitle")
 local bookScroller = leftPage:WaitForChild("Scroller")
@@ -592,7 +604,9 @@ RunService.RenderStepped:Connect(function()
 	if previewNameGradient.Enabled and panel.Visible then previewNameGradient.Rotation = (os.clock() * 55) % 360 end
 end)
 
+local previewNameDefaultColor = previewName.TextColor3
 local function clearPreview()
+	previewName.TextColor3 = previewNameDefaultColor
 	previewToken += 1
 	if previewObject then previewObject:Destroy(); previewObject = nil end
 	previewViewport.Visible = false
@@ -800,6 +814,35 @@ local function showMob(mobId)
 		debuff, minHp, maxHp, appearsLine, target, minDamage, maxDamage, tiersLine
 	)
 	prepareViewportObject(makeMobPreview(definition, mobId))
+end
+
+-- v20: карточка трофея (реликвии) на правой странице.
+local function showTrophy(relicId)
+	clearPreview()
+	revealPreviewDetails()
+	local info = Config.Relics.Types[relicId]
+	local color = (Config.Relics.RarityColors and Config.Relics.RarityColors[info.Rarity]) or Config.RarityColors[info.Rarity] or info.Color
+	previewNameGradient.Enabled = false
+	previewName.Text = ("%s %s"):format(info.Icon or "🏆", info.DisplayName)
+	previewName.TextColor3 = color
+	rightPage.StatsRow.Visible = true
+	local count = tonumber(player:GetAttribute("RelicFound_" .. relicId)) or 0
+	local best = tonumber(player:GetAttribute("RelicBest_" .. relicId)) or 0
+	priceLabel.Text = ("+%d%% INCOME"):format(math.floor((info.IncomeBonus or 0) * 100 + 0.5))
+	chanceLabel.Text = ("1 IN %s"):format(NumberFormat.abbreviate(math.floor(1 / math.max(info.Chance or 1e-9, 1e-9) + 0.5)))
+	local hex = color:ToHex()
+	local function value(text, valueColor)
+		return ("<stroke color=\"rgb(0,0,0)\" joins=\"round\" thickness=\"1\"><font color=\"#%s\">%s</font></stroke>"):format(valueColor or hex, text)
+	end
+	descriptionLabel.Text = table.concat({
+		"RARITY: " .. value(string.upper(info.Rarity or "")),
+		"FOUND: " .. value(("%d TIME%s"):format(count, count == 1 and "" or "S"), "69EB82"),
+		"BEST SERIAL: " .. value(best > 0 and ("#" .. best) or "-", "FFD75A"),
+		"DROPS FROM: " .. value("BOULDERS & CHESTS", "7FD4FF"),
+		"PLACE IT ON YOUR BASE FOR " .. value(("+%d%% INCOME"):format(math.floor((info.IncomeBonus or 0) * 100 + 0.5)), "69EB82"),
+	}, "\n")
+	local ok, model = pcall(PlaceableFactory.BuildRelic, relicId)
+	if ok and model then prepareViewportObject(model) end
 end
 
 -- Порядок кристаллов в энциклопедии: сперва все жеодные по тирам жеод
@@ -1022,6 +1065,8 @@ local function renderBook()
 	mutStroke.Thickness = activeTab == "Mutations" and 5 or 2
 	mobStroke.Thickness = activeTab == "Mobs" and 5 or 2
 	if crystalStroke then crystalStroke.Thickness = activeTab == "Crystals" and 5 or 2 end
+	local trophyStroke = tabTrophies:FindFirstChild("SelectionStroke")
+	if trophyStroke then trophyStroke.Thickness = activeTab == "Trophies" and 5 or 2 end
 	if progressChip then progressChip.Visible = activeTab == "Mutations" end
 	if activeTab == "Mutations" then
 		-- v9: КНИГА ПО РУДЕ. Строка = руда (сама руда + каждая мутация на
@@ -1104,6 +1149,20 @@ local function renderBook()
 				end)
 			end
 		end
+	elseif activeTab == "Trophies" then
+		-- v20: ТРОФЕИ — реликвии с валунов и сундуков. Найденные (хоть раз,
+		-- даже проданные) открыты, остальные — закрытые «???» ячейки.
+		pageTitle.Text = "TROPHIES"
+		for order, relicId in Config.Relics.Order do
+			local info = Config.Relics.Types[relicId]
+			local count = tonumber(player:GetAttribute("RelicFound_" .. relicId)) or 0
+			local caption = count > 1 and ("%s x%d"):format(info.DisplayName, count) or info.DisplayName
+			addEntry(order, count > 0, "", caption, function()
+				showTrophy(relicId)
+			end, function()
+				return PlaceableFactory.BuildRelic(relicId)
+			end)
+		end
 	else
 		pageTitle.Text = "MOBS"
 		for order, mobId in {"Warrior", "Thief", "Berserker", "King", "Golden"} do
@@ -1120,6 +1179,12 @@ end
 tabMutations.Activated:Connect(function() activeTab = "Mutations"; renderBook() end)
 tabMobs.Activated:Connect(function() activeTab = "Mobs"; renderBook() end)
 tabCrystals.Activated:Connect(function() UiSfx.play(); activeTab = "Crystals"; renderBook() end)
+tabTrophies.Activated:Connect(function() UiSfx.play(); activeTab = "Trophies"; renderBook() end)
+for relicId in Config.Relics.Types do
+	player:GetAttributeChangedSignal("RelicFound_" .. relicId):Connect(function()
+		if activeTab == "Trophies" and panel.Visible then renderBook() end
+	end)
+end
 
 -- КАКИЕ КРИСТАЛЛЫ УЖЕ НАЙДЕНЫ. Отдельного запроса на сервер не делаем:
 -- состояние коллекции и так рассылается через GeodeRequest, и один ответ

@@ -196,6 +196,9 @@ local DEFAULT_DATA = {
 	-- и метаданные реликвий (глобальный серийник, кто нашёл).
 	PlacedDecor = {},
 	Relics = {},
+	-- v20: книга трофеев — какие реликвии игрок КОГДА-ЛИБО находил (даже
+	-- если потом продал): [RelicId] = { Count, BestSerial, FirstAt }.
+	RelicsFound = {},
 	BaseUidCounter = 0,
 }
 

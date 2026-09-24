@@ -376,6 +376,29 @@ local function migrate(data)
 			data.Gear[key] = 1
 		end
 	end
+	-- v20: книга трофеев. Старые профили: всё, что сейчас лежит в Relics,
+	-- считаем найденным.
+	if type(data.RelicsFound) ~= "table" then data.RelicsFound = {} end
+	if data.RelicsFoundMigrated ~= true then
+		data.RelicsFoundMigrated = true
+		for _, relic in data.Relics do
+			local entry = data.RelicsFound[relic.Id] or { Count = 0, BestSerial = 0, FirstAt = relic.FoundAt or 0 }
+			entry.Count += 1
+			local serial = tonumber(relic.Serial) or 0
+			if serial > 0 and (entry.BestSerial == 0 or serial < entry.BestSerial) then entry.BestSerial = serial end
+			data.RelicsFound[relic.Id] = entry
+		end
+	end
+end
+
+-- v20: книга трофеев на клиенте читает атрибуты игрока
+-- RelicFound_<Id> (сколько раз найдено) и RelicBest_<Id> (лучший серийник).
+local function publishRelicsFound(player, data)
+	for relicId in RELICS.Types do
+		local entry = data.RelicsFound and data.RelicsFound[relicId]
+		player:SetAttribute("RelicFound_" .. relicId, entry and entry.Count or 0)
+		player:SetAttribute("RelicBest_" .. relicId, entry and entry.BestSerial or 0)
+	end
 end
 
 function BaseDecorService:SetupPlot(player, plot)
@@ -629,6 +652,12 @@ function BaseDecorService:GrantRelic(player, relicId, source)
 		FoundAt = os.time(), Finder = player.DisplayName, Source = tostring(source or ""),
 	}
 	table.insert(data.Relics, record)
+	data.RelicsFound = data.RelicsFound or {}
+	local found = data.RelicsFound[relicId] or { Count = 0, BestSerial = 0, FirstAt = record.FoundAt }
+	found.Count += 1
+	if serial > 0 and (found.BestSerial == 0 or serial < found.BestSerial) then found.BestSerial = serial end
+	data.RelicsFound[relicId] = found
+	publishRelicsFound(player, data)
 	Services.GearService:AddGear(player, BaseDecorService.RelicKey(record), 1)
 	task.spawn(function() pcall(Services.DataService.SaveProfile, Services.DataService, player) end)
 
@@ -675,7 +704,10 @@ end
 
 function BaseDecorService:SetupPlayer(player)
 	local data = dataOf(player)
-	if data then migrate(data) end
+	if data then
+		migrate(data)
+		publishRelicsFound(player, data)
+	end
 	self:_recompute(player)
 	if Services.InventoryService and Services.InventoryService.Sync then
 		pcall(Services.InventoryService.Sync, Services.InventoryService, player)

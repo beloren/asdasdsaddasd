@@ -6,7 +6,7 @@
 -- СТРУКТУРА (имена — контракт CollectionMenu.client.lua):
 --   ImageLabel "MutationBookPanel" (окно; BuilderVersion)
 --   ├─ TitleBar → "Title", "Ribbon", "CloseButton"
---   ├─ Frame "Sidebar" (слева снаружи) → ImageButton "TabOreMutations" / "TabMobs" / "TabCrystals"
+--   ├─ Frame "Sidebar" (слева снаружи) → ImageButton "TabOreMutations" / "TabMobs" / "TabCrystals" / "TabTrophies"
 --   │     (у каждой UIStroke "SelectionStroke" и TextLabel "Icon")
 --   ├─ ImageLabel "LeftPage" [Inset] → "PageTitle", ImageLabel "ProgressChip" → "Text",
 --   │     ScrollingFrame "Scroller" (UIGridLayout)
@@ -19,7 +19,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 20
+Builder.VERSION = 21 -- v20.2: вкладка TabTrophies
 
 local SIZE = Vector2.new(880, 540)
 
@@ -40,11 +40,11 @@ function Builder.BuildPanel()
 	local sidebar = UiKit.Group(panel, "Sidebar", {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(0, -8, 0, 70),
-		Size = UDim2.fromOffset(62, 220),
+		Size = UDim2.fromOffset(62, 300),
 		ZIndex = 7,
 	})
 	UiKit.List(sidebar, { Padding = UDim.new(0, 12) })
-	for order, info in { { "TabOreMutations", "💎" }, { "TabMobs", "👺" }, { "TabCrystals", "🔮" } } do
+	for order, info in { { "TabOreMutations", "💎" }, { "TabMobs", "👺" }, { "TabCrystals", "🔮" }, { "TabTrophies", "🏆" } } do
 		local tab = UiKit.PlateButton(sidebar, info[1], "Round", {
 			LayoutOrder = order,
 			Size = UDim2.fromOffset(60, 60),
