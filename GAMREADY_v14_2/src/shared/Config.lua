@@ -1252,8 +1252,26 @@ Config.OreChain = {
 -- 18 руд в цепочке (ТЗ упоминало то 17, то поимённую таблицу на 18 — берём
 -- таблицу как источник истины, она однозначна; если нужно ровно 17, скажи
 -- какую руду убрать/слить, это одна строка).
+-- v20: «БОЛЬШИЕ ЦИФРЫ» НА ВЕРХНИХ ТИРАХ. Начиная с руды From каждая
+-- следующая дороже ещё в Growth раз сверх базовой кривой: последние
+-- пещеры приносят миллионы. Цены пещер/тележки/кирки/престижа ниже
+-- масштабируются тем же коэффициентом (Config.CaveNumberScale), поэтому
+-- ТЕМП игры не меняется — растут только числа.
+Config.NumberGrowth = { From = 5, Growth = 1.19 }
+local function niceNumber(value)
+	if value < 100 then return math.max(1, math.floor(value + 0.5)) end
+	local step = 10 ^ (math.floor(math.log10(value)) - 1)
+	return math.floor(value / step + 0.5) * step
+end
+Config.NiceNumber = niceNumber
+function Config.OreNumberScale(index)
+	local growth = Config.NumberGrowth
+	return growth.Growth ^ math.max(0, (tonumber(index) or 1) - growth.From)
+end
 for index, info in ipairs(Config.OreChain) do
 	info.Index = index
+	info.BaseMultiplier = info.Multiplier
+	info.Multiplier = niceNumber(info.Multiplier * Config.OreNumberScale(index))
 	info.CrystalValue = Config.Crystal_BaseValue * info.Multiplier
 end
 
@@ -1424,10 +1442,11 @@ for tier = 1, Config.Mine.CaveCount do
 		windowOres[slot] = Config.OreChain[start + slot - 1]
 	end
 	local weights = (tier == Config.Mine.CaveCount and Config.TopCaveWeights) or Config.OreTierWeights
-	local weightTotal, expected, points = 0, 0, 0
+	local weightTotal, expected, points, expectedBase = 0, 0, 0, 0
 	for slot, weight in weights do
 		weightTotal += weight
 		expected += windowOres[slot].CrystalValue * weight
+		expectedBase += Config.Crystal_BaseValue * (windowOres[slot].BaseMultiplier or windowOres[slot].Multiplier) * weight
 		points += windowOres[slot].Points * weight
 	end
 	local newest = windowOres[#windowOres]
@@ -1441,6 +1460,8 @@ for tier = 1, Config.Mine.CaveCount do
 		-- редкой руды окна — отсюда завышение дохода в 5-13 раз и цены,
 		-- которые уходили в отрыв от реального заработка.
 		ExpectedValue = expected / weightTotal * variantAverage,
+		-- v20: во сколько раз доход пещеры вырос от Config.NumberGrowth.
+		NumberScale = expected / math.max(1e-9, expectedBase),
 		AveragePoints = points / weightTotal,
 		-- Поля ниже — обратная совместимость (витрина тира = самая редкая руда окна).
 		DisplayName = newest.DisplayName,
@@ -2041,6 +2062,27 @@ Config.PickaxeChain = {
 	{ Tier = 8, Cost = 64000 },
 	{ Tier = 9, Cost = 140000 },
 }
+-- v20: цены — в масштабе дохода пещеры, где их покупают (Config.NumberGrowth):
+-- пещеру N оплачивает доход пещеры N-1, тележку/кирку тира T — доход
+-- пещеры, для которой этот тир «родной».
+function Config.CaveNumberScale(cave)
+	local info = Config.MineTiers[math.clamp(math.floor(tonumber(cave) or 1), 1, #Config.MineTiers)]
+	return info and info.NumberScale or 1
+end
+local function caveForNineTierLocal(tier)
+	return math.clamp(1 + math.floor((tier - 1) * (#Config.MineTiers - 1) / 8 + 0.5), 1, #Config.MineTiers)
+end
+for _, entry in Config.MineChain do
+	entry.BaseCost = entry.Cost
+	entry.Cost = niceNumber(entry.Cost * Config.CaveNumberScale(entry.Tier - 1))
+end
+for _, chain in { Config.CartChain, Config.PickaxeChain } do
+	for _, entry in chain do
+		entry.BaseCost = entry.Cost
+		entry.Cost = niceNumber(entry.Cost * Config.CaveNumberScale(caveForNineTierLocal(entry.Tier)))
+	end
+end
+
 -- v3: отрыв веток больше не ограничивается (Б2). Оставлено числом, чтобы
 -- старый код, если где-то читает поле, не падал на nil.
 Config.BranchMaxGap = math.huge
@@ -4322,6 +4364,10 @@ end
 
 -- v20: 0.6 → 0.25 — валуны давали за 10–15 сек больше, чем рейс в шахту.
 Config.Boulders.MoneyInCarts = 0.25
+-- v20: потолок одного ролла денег — доля полной тележки ТЕКУЩЕЙ пещеры
+-- игрока. Не даёт фармить валуны намного выше своей пещеры (кирка дешевле
+-- шахты). На «своих» тирах потолок почти не срабатывает.
+Config.Boulders.MoneyCapInCarts = 0.5
 Config.Boulders.RewardMoneyByTier = {}
 for tier = 1, 9 do
 	-- 9 тиров валунов (= тир кирки) растянуты на 15 пещер.
@@ -6780,5 +6826,11 @@ Config.BoulderHitFx = {
 		Seconds = 0.12,  -- за сколько гаснет
 	},
 }
+
+-- v20: цена престижа — в масштабе дохода пещеры, где его делают (Config.NumberGrowth).
+if Config.Prestige and Config.Prestige.CostBase then
+	Config.Prestige.CostBase = Config.NiceNumber(Config.Prestige.CostBase * Config.CaveNumberScale(Config.Prestige.MinCave or 8))
+	Config.Prestige.CostMax = Config.NiceNumber((Config.Prestige.CostMax or 1e15) * Config.CaveNumberScale(#Config.MineTiers))
+end
 
 return Config

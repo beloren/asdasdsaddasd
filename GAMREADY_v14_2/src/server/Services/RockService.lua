@@ -1585,6 +1585,13 @@ function RockService:GrantBoulderRewards(player, tier, position, deferNotificati
 		end
 		if kind == "Money" then
 			local amount = math.max(1, math.floor(Config.Boulders.RewardMoneyByTier[tier] * moneyMult))
+			-- v20: не больше MoneyCapInCarts полной тележки текущей пещеры игрока.
+			local capCarts = Config.Boulders.MoneyCapInCarts
+			if capCarts and capCarts > 0 then
+				local cave = math.clamp(math.floor(tonumber(player:GetAttribute("MineTier")) or 1), 1, #Config.MineTiers)
+				local cap = Config.CartValue(cave, Config.NaturalCartTierForCave(cave)) * capCarts * moneyMult
+				amount = math.max(1, math.floor(math.min(amount, cap)))
+			end
 			table.insert(drops, "MONEY: $" .. NumberFormat.abbreviate(amount))
 			table.insert(rich, { Kind = "Money", Icon = "💰", Text = "$" .. NumberFormat.abbreviate(amount), Color = Color3.fromRGB(110, 255, 140) })
 			Services.DataService:AddMoney(player, amount, position, true) -- suppressCoinBurst: визуал даёт SpawnLooseReward ниже, не нужен второй одновременно
