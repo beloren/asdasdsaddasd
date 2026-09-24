@@ -47,7 +47,6 @@ UiRegistry.Entries = {
 	{ Name = "ReturnScreenUi", Module = "UiBuilders.ReturnScreenUi", MinVersion = 20, What = "экран возвращения" },
 	{ Name = "StarterPackOffer", Module = "UiBuilders.StarterPackUi", MinVersion = 20, What = "стартовый набор" },
 	{ Name = "CollectionMenu", Module = "UiBuilders.CollectionMenuUi", MinVersion = 20, What = "книга-меню" },
-	{ Name = "CollectionBookUi", Module = "CollectionBookUiBuilder", MinVersion = 20, What = "книга коллекции" },
 	{ Name = "SkinUi", Module = "SkinUiBuilder", MinVersion = 20, What = "скины" },
 	{ Name = "PerkUi", Module = "PerkUiBuilder", MinVersion = 20, What = "перки престижа" },
 	{ Name = "RebirthDialogButtons", Module = "PrestigeUiBuilder", MinVersion = 20, What = "окно престижа у NPC" },

@@ -1,7 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -10,6 +9,9 @@ local UiSfx = require(ReplicatedStorage.Shared.UiSfx)
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local remote = ReplicatedStorage.Shared:WaitForChild("QuestRequest")
+
+-- Иконка-эмодзи награды по типу (пока в Icon не поставлена картинка).
+local KIND_EMOJI = { Money = "💰", Luck = "🍀", MutationPotion = "🧪", MiningBoost = "⛏", Skin = "🎨", CartColor = "🛒" }
 
 local COLORS = {
 	Panel = Color3.fromRGB(29, 34, 47),
@@ -28,139 +30,10 @@ local COLORS = {
 	RewardSkin = Color3.fromRGB(255, 195, 70),
 }
 
-local function label(name, text, size, position, textSize)
-	local item = Instance.new("TextLabel")
-	item.Name = name
-	item.Size = size
-	item.Position = position
-	item.BackgroundTransparency = 1
-	item.Font = Enum.Font.Arcade
-	item.Text = text
-	item.TextColor3 = COLORS.White
-	item.TextSize = textSize
-	item.TextStrokeTransparency = 1
-	item.TextWrapped = true
-	return item
-end
-
-local function rewardCard(day, size, position, parent)
-	local card = Instance.new("ImageButton")
-	card.Name = "Day" .. day
-	card.Size = size
-	card.Position = position
-	card.BackgroundColor3 = COLORS.Card
-	card.BorderSizePixel = 0
-	card.AutoButtonColor = false
-	card.Image = ""
-	card.Parent = parent
-	local dayLabel = label("Day", "DAY " .. day, UDim2.new(1, -12, 0, 28), UDim2.fromOffset(6, 7), 16)
-	dayLabel.TextColor3 = COLORS.Yellow
-	dayLabel.Parent = card
-	local icon = Instance.new("ImageLabel")
-	icon.Name = "Icon"
-	icon.AnchorPoint = Vector2.new(0.5, 0)
-	icon.Position = day == 7 and UDim2.fromOffset(75, 36) or UDim2.new(0.5, 0, 0, 36)
-	icon.Size = day == 7 and UDim2.fromOffset(60, 44) or UDim2.fromOffset(64, 50)
-	icon.BackgroundTransparency = 1
-	icon.ScaleType = Enum.ScaleType.Fit
-	icon.Parent = card
-	local reward = label("Reward", "REWARD", day == 7 and UDim2.fromOffset(330, 40) or UDim2.new(1, -10, 0, 42), day == 7 and UDim2.fromOffset(120, 24) or UDim2.fromOffset(5, 88), 13)
-	-- БОЛЬШИЕ, ЯРКИЕ, ОБВЕДЁННЫЕ буквы — раньше это была мелкая обычная
-	-- подпись (TextSize 13, без обводки), которая терялась на фоне карточки
-	-- и не выглядела как приз. TextScaled вместо фиксированного размера:
-	-- короткие награды ("$75K") занимают почти всю коробку крупно, а
-	-- двухстрочные ("2.5x MINING\n1 HOUR") сами вписываются, не вылезая за
-	-- край — без этого один общий TextSize либо резал бы длинный текст,
-	-- либо был бы слишком мелким для короткого.
-	reward.TextScaled = true
-	reward.Font = Enum.Font.GothamBlack
-	reward.TextStrokeTransparency = 0.35
-	reward.TextStrokeColor3 = Color3.fromRGB(10, 12, 18)
-	local rewardSizeLimit = Instance.new("UITextSizeConstraint")
-	rewardSizeLimit.MaxTextSize = day == 7 and 30 or 22
-	rewardSizeLimit.MinTextSize = 10
-	rewardSizeLimit.Parent = reward
-	reward.Parent = card
-	local status = label("Status", "LOCKED", day == 7 and UDim2.fromOffset(330, 20) or UDim2.new(1, -12, 0, 18), day == 7 and UDim2.fromOffset(120, 66) or UDim2.new(0, 6, 1, -20), 11)
-	status.TextColor3 = Color3.fromRGB(170, 178, 198)
-	status.Parent = card
-	return card
-end
-
-local function buildFallback()
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "DailyRewardUi"
-	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = false
-	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
-	gui.DisplayOrder = 500
-	gui.Parent = playerGui
-	local dimmer = Instance.new("Frame")
-	dimmer.Name = "Dimmer"
-	dimmer.Size = UDim2.fromScale(1, 1)
-	dimmer.BackgroundColor3 = Color3.fromRGB(12, 15, 22)
-	dimmer.BackgroundTransparency = 0.28
-	dimmer.BorderSizePixel = 0
-	dimmer.Visible = false
-	dimmer.Parent = gui
-	local panel = Instance.new("Frame")
-	panel.Name = "Panel"
-	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UDim2.fromOffset(560, 590)
-	panel.BackgroundColor3 = COLORS.Panel
-	panel.BorderSizePixel = 0
-	panel.Visible = false
-	panel.Parent = gui
-	local scale = Instance.new("UIScale")
-	scale.Name = "ResponsiveScale"
-	scale.Parent = panel
-	local header = Instance.new("Frame")
-	header.Name = "Header"
-	header.Size = UDim2.new(1, 0, 0, 64)
-	header.BackgroundColor3 = Color3.fromRGB(55, 91, 166)
-	header.BorderSizePixel = 0
-	header.Parent = panel
-	label("Title", "DAILY REWARD", UDim2.new(1, -90, 1, 0), UDim2.fromOffset(24, 0), 27).Parent = header
-	local close = Instance.new("TextButton")
-	close.Name = "CloseButton"
-	close.AnchorPoint = Vector2.new(1, 0)
-	close.Position = UDim2.new(1, -14, 0, 14)
-	close.Size = UDim2.fromOffset(42, 38)
-	close.BackgroundColor3 = Color3.fromRGB(190, 65, 70)
-	close.BorderSizePixel = 0
-	close.Font = Enum.Font.Arcade
-	close.Text = "X"
-	close.TextColor3 = COLORS.White
-	close.TextSize = 18
-	close.TextStrokeTransparency = 1
-	close.Parent = header
-	for day = 1, 6 do
-		local column = (day - 1) % 3
-		local row = math.floor((day - 1) / 3)
-		rewardCard(day, UDim2.fromOffset(150, 150), UDim2.fromOffset(35 + column * 170, 76 + row * 164), panel)
-	end
-	rewardCard(7, UDim2.fromOffset(490, 94), UDim2.fromOffset(35, 405), panel)
-	local claim = Instance.new("TextButton")
-	claim.Name = "ClaimButton"
-	claim.Position = UDim2.fromOffset(35, 520)
-	claim.Size = UDim2.fromOffset(490, 48)
-	claim.BackgroundColor3 = COLORS.Locked
-	claim.BorderSizePixel = 0
-	claim.Font = Enum.Font.Arcade
-	claim.Text = "CLAIM TODAY'S REWARD"
-	claim.TextColor3 = COLORS.White
-	claim.TextSize = 15
-	claim.TextStrokeTransparency = 1
-	claim.Active = false
-	claim.Parent = panel
-	return gui
-end
-
-local gui = playerGui:FindFirstChild("DailyRewardUi")
-local authored = StarterGui:FindFirstChild("DailyRewardUi")
-if not gui and authored then gui = playerGui:WaitForChild("DailyRewardUi", 5) end
-gui = gui or buildFallback()
+-- v20: окно собирается билдером (Shared.UiBuilders.DailyRewardUi →
+-- StarterGui/DailyRewardUi) и правится в Studio; здесь только логика.
+local UiKit = require(ReplicatedStorage.Shared.UiKit)
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("DailyRewardUi")
 gui.DisplayOrder = 500
 
 local dimmer = gui:FindFirstChild("Dimmer", true)
@@ -170,11 +43,11 @@ local claimButton = panel and panel:FindFirstChild("ClaimButton", true)
 local dayCards = {}
 local cardsValid = true
 for day = 1, 7 do
-	dayCards[day] = panel and panel:FindFirstChild("Day" .. day)
+	dayCards[day] = panel and panel:FindFirstChild("Day" .. day, true)
 	if not dayCards[day] or not dayCards[day]:IsA("GuiButton") then cardsValid = false end
 end
 if not (dimmer and panel and closeButton and claimButton and cardsValid) then
-	warn("[DailyRewardUI] Contract is incomplete. Run tools/BuildDailyRewardUI.lua in Studio.")
+	warn("[DailyRewardUI] Contract is incomplete. Run tools/BuildAllUI.lua in Studio.")
 	return
 end
 
@@ -198,58 +71,11 @@ end
 -- сборок.
 --------------------------------------------------------------------------------
 local toggleButton = gui:FindFirstChild("DailyToggleButton")
-if not toggleButton then
-	toggleButton = Instance.new("ImageButton")
-	toggleButton.Name = "DailyToggleButton"
-	-- СПРАВА от кнопки квестов, в один ряд с ней (по прямому уточнению).
-	-- Кнопка квестов — 36x36 в левом верхнем углу (см.
-	-- QuestUI.QuestToggleButton), поэтому смещаемся на её ширину плюс
-	-- 6 пикселей зазора: 36 + 6 = 42 по X, а по Y остаёмся на её уровне.
-	--
-	-- Раньше стояло наоборот (0, 42) — то есть ПОД квестами. Вертикальная
-	-- колонка иконок в левом верхнем углу растёт вниз, к остальному HUD, и
-	-- на невысоких экранах телефона упирается в него; горизонтальный ряд
-	-- вдоль верхнего края такой проблемы не создаёт.
-	toggleButton.AnchorPoint = Vector2.new(0, 0)
-	toggleButton.Position = UDim2.fromOffset(42, 0)
-	toggleButton.Size = UDim2.fromOffset(36, 36)
-	toggleButton.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-	toggleButton.Image = ""
-	toggleButton.Parent = gui
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(1, 0)
-	corner.Parent = toggleButton
-
-	local caption = Instance.new("TextLabel")
-	caption.Name = "Caption"
-	caption.AnchorPoint = Vector2.new(0.5, 0.5)
-	caption.Position = UDim2.fromScale(0.5, 0.5)
-	caption.Size = UDim2.fromScale(1, 1)
-	caption.BackgroundTransparency = 1
-	caption.Font = Enum.Font.Arcade
-	caption.Text = "🎁"
-	caption.TextScaled = true
-	caption.TextColor3 = COLORS.White
-	caption.Parent = toggleButton
-
-	-- Красная точка «есть что забрать». Без неё кнопка выглядит просто
-	-- ещё одной иконкой в углу, и повода нажать на неё нет.
-	local badge = Instance.new("Frame")
-	badge.Name = "Badge"
-	badge.AnchorPoint = Vector2.new(1, 0)
-	badge.Position = UDim2.new(1, 2, 0, -2)
-	badge.Size = UDim2.fromOffset(12, 12)
-	badge.BackgroundColor3 = Color3.fromRGB(235, 75, 75)
-	badge.BorderSizePixel = 0
-	badge.Visible = false
-	badge.Parent = toggleButton
-	local badgeCorner = Instance.new("UICorner")
-	badgeCorner.CornerRadius = UDim.new(1, 0)
-	badgeCorner.Parent = badge
-end
 -- v19.4: кнопка — в ряд со штатными кнопками Roblox в топбаре.
-require(ReplicatedStorage.Shared.TopbarDock).Add(toggleButton, 2)
-local toggleBadge = toggleButton:FindFirstChild("Badge")
+if toggleButton then
+	require(ReplicatedStorage.Shared.TopbarDock).Add(toggleButton, 2)
+end
+local toggleBadge = toggleButton and toggleButton:FindFirstChild("Badge")
 
 local iconMotion = {}
 local activeIconTweens = {}
@@ -520,7 +346,9 @@ end
 local function resize()
 	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(600, 700)
 	local scale = panel:FindFirstChild("ResponsiveScale")
-	if scale then scale.Scale = math.min(1, (viewport.X - 24) / 560, (viewport.Y - 40) / 590) end
+	local baseWidth = panel:GetAttribute("BaseWidth") or 560
+	local baseHeight = panel:GetAttribute("BaseHeight") or 590
+	if scale then scale.Scale = math.min(1, (viewport.X - 24) / baseWidth, (viewport.Y - 40) / baseHeight) end
 end
 local viewportConnection
 local function bindCurrentCamera()
@@ -579,7 +407,7 @@ local function render(data)
 	local anyReady = false
 
 	for index = 1, 7 do
-		local card = panel:FindFirstChild("Day" .. index)
+		local card = dayCards[index]
 		if card then
 			local entry = entries[index]
 			local reward = Config.Quests.PlaytimeRewards[index]
@@ -601,9 +429,23 @@ local function render(data)
 					rewardLabel.TextColor3 = rewardColor
 				end
 
-				card.BackgroundColor3 = entry.Claimed and COLORS.Claimed
-					or entry.Ready and COLORS.Current
-					or COLORS.Locked
+				-- Вид состояния: забрано — зелёная рамка и галочка; готово —
+				-- жёлтая рамка и уголки выделения; ещё рано — серая рамка.
+				local stateColor = entry.Claimed and COLORS.Claimed or entry.Ready and COLORS.Yellow or COLORS.Locked
+				local cardStroke = card:FindFirstChild("SkinStroke")
+				if cardStroke then
+					cardStroke.Color = stateColor
+				else
+					card.BackgroundColor3 = stateColor
+				end
+				local check = card:FindFirstChild("Check")
+				if check then check.Visible = entry.Claimed == true end
+				local brackets = card:FindFirstChild("Brackets")
+				if brackets then brackets.Visible = entry.Ready == true and not entry.Claimed end
+				local emoji = card:FindFirstChild("Emoji", true)
+				if emoji and emoji.Parent and emoji.Parent.Name == "Icon" and emoji.Parent.Image == "" then
+					emoji.Text = KIND_EMOJI[reward.Buff or reward.Kind] or "🎁"
+				end
 				setText(
 					card,
 					"Status",
@@ -619,9 +461,19 @@ local function render(data)
 
 	if toggleBadge then toggleBadge.Visible = anyReady end
 	claimButton.Active = anyReady
-	claimButton.AutoButtonColor = anyReady
-	claimButton.BackgroundColor3 = anyReady and COLORS.Claimed or COLORS.Locked
-	claimButton.Text = anyReady and "CLAIM REWARD" or ("PLAYED " .. formatRemaining(elapsed))
+	local claimText = anyReady and "CLAIM REWARD" or ("PLAYED " .. formatRemaining(elapsed))
+	if claimButton:GetAttribute("UiSkin") then
+		UiKit.ApplySkin(claimButton, anyReady and "Button_Green" or "Button_Claim")
+	else
+		claimButton.AutoButtonColor = anyReady
+		claimButton.BackgroundColor3 = anyReady and COLORS.Claimed or COLORS.Locked
+	end
+	local claimCaption = claimButton:FindFirstChild("Caption")
+	if claimCaption then
+		claimCaption.Text = claimText
+	elseif claimButton:IsA("TextButton") then
+		claimButton.Text = claimText
+	end
 end
 
 local function open()
@@ -676,11 +528,11 @@ local function claimFirstReady()
 	end
 end
 
-toggleButton.Activated:Connect(function()
+if toggleButton then toggleButton.Activated:Connect(function()
 	-- Панель уже открыта — кнопка работает как переключатель, чтобы её
 	-- нельзя было «залипить» повторным нажатием.
 	if panel.Visible then close() else open() end
-end)
+end) end
 
 claimButton.Activated:Connect(claimFirstReady)
 for day, card in dayCards do

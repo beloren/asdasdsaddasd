@@ -152,7 +152,9 @@ end
 -- Книга обязательна и собирается вручную в StarterGui/CollectionMenu/
 -- BookButton. Не создаём никаких плейсхолдеров: ждём точную Studio-иерархию,
 -- чтобы её размер, вид, поворот и позиция оставались только под её контролем.
-local gui = playerGui:WaitForChild("CollectionMenu")
+-- v20: меню собирается билдером (Shared.UiBuilders.CollectionMenuUi →
+-- StarterGui/CollectionMenu); нет в StarterGui — соберётся тем же билдером.
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("CollectionMenu")
 gui.DisplayOrder = 30
 local bookButton = gui:WaitForChild("BookButton")
 assert(bookButton:IsA("GuiButton"), "StarterGui/CollectionMenu/BookButton должен быть ImageButton или TextButton")
@@ -246,7 +248,7 @@ IconBounce.ApplyPulse(bookButton)
 local dimmer = gui:FindFirstChild("Dimmer")
 local submenu = gui:FindFirstChild("Submenu")
 if not (dimmer and dimmer:IsA("GuiButton") and submenu and submenu:IsA("GuiObject")) then
-	warn("[CollectionMenu] Submenu не найден или неполон — запусти tools/BuildCollectionMenu.lua. Использую runtime fallback.")
+	warn("[CollectionMenu] Submenu не найден или неполон — запусти tools/BuildAllUI.lua. Использую runtime fallback.")
 	if dimmer then dimmer:Destroy() end
 	if submenu then submenu:Destroy() end
 	dimmer = Instance.new("TextButton")
@@ -292,8 +294,8 @@ if workspace.CurrentCamera then
 end
 -- Без скругления (квадратные углы, как и весь остальной UI "книжки").
 
-local submenuClose = submenu:FindFirstChild("CloseButton")
-local list = submenu:FindFirstChild("List")
+local submenuClose = submenu:FindFirstChild("CloseButton", true)
+local list = submenu:FindFirstChild("List", true)
 if not (submenuClose and submenuClose:IsA("GuiButton")) then
 	submenuClose = Instance.new("TextButton")
 	submenuClose.Name = "CloseButton"
@@ -460,7 +462,7 @@ panel.ZIndex = 6
 -- Sibling mode keeps the whole book subtree above the full-screen dimmer,
 -- while the dimmer still blocks clicks outside the book.
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-local bookClose = panel:WaitForChild("CloseButton")
+local bookClose = panel:FindFirstChild("CloseButton", true)
 local tabMutations = panel:WaitForChild("Sidebar"):WaitForChild("TabOreMutations")
 local tabMobs = panel.Sidebar:WaitForChild("TabMobs")
 
@@ -485,7 +487,7 @@ do
 		end
 	end
 end
-local leftPage = panel:WaitForChild("LeftPage")
+local leftPage = panel:FindFirstChild("LeftPage", true)
 local pageTitle = leftPage:WaitForChild("PageTitle")
 local bookScroller = leftPage:WaitForChild("Scroller")
 -- ОТСТУП ПОД ОБВОДКУ КАРТОЧЕК. Scroller обрезает всё, что выходит за его
@@ -500,7 +502,7 @@ do
 	scrollerPadding.PaddingRight = UDim.new(0, 4)
 	scrollerPadding.Parent = bookScroller
 end
-local rightPage = panel:WaitForChild("RightPage")
+local rightPage = panel:FindFirstChild("RightPage", true)
 local previewViewport = rightPage:WaitForChild("PreviewImage")
 local previewCamera = previewViewport:FindFirstChildWhichIsA("Camera") or Instance.new("Camera")
 previewCamera.Parent = previewViewport
@@ -901,52 +903,36 @@ local function showCrystal(entry)
 end
 
 local function clearGrid()
+	-- Только ячейки: UIGridLayout и UIPadding прокрутки должны остаться
+	-- (раньше отступ под обводку удалялся после первой же перерисовки).
 	for _, child in bookScroller:GetChildren() do
-		if not child:IsA("UIGridLayout") then child:Destroy() end
+		if child:IsA("GuiObject") then child:Destroy() end
 	end
 	bookScroller.CanvasPosition = Vector2.zero
 	clearPreview()
 end
 
+-- Подпись ячейки — TextLabel "Caption" из шаблона ItemCell (билдер книги);
+-- у старых шаблонов без неё создаётся на лету.
 local function addCaption(cell, text)
-	local label = Instance.new("TextLabel")
-	label.Name = "Caption"
-	label.AnchorPoint = Vector2.new(0.5, 1)
-	label.Position = UDim2.new(0.5, 0, 1, -3)
-	-- ВЫСОТА ПОДБИРАЕТСЯ ПОД ТЕКСТ, А НЕ ЗАФИКСИРОВАНА. Раньше здесь стояло
-	-- Size = (1, -6, 0, 24) вместе с TextScaled: длинное имя вроде
-	-- "Golden Goblin King" не помещалось в 24 пикселя, и подпись либо
-	-- сжималась до нечитаемого, либо наползала на иконку.
-	--
-	-- Теперь AutomaticSize.Y вместе с AnchorPoint.Y = 1 растит плашку ВВЕРХ
-	-- от её нижнего края: короткое имя занимает одну строку и выглядит как
-	-- раньше, длинное само переносится на две и приподнимается, не налезая
-	-- на низ иконки. TextScaled при этом обязан быть выключен — он подгоняет
-	-- текст под размер, а нам нужно наоборот, размер под текст.
-	label.Size = UDim2.new(1, -6, 0, 0)
-	label.AutomaticSize = Enum.AutomaticSize.Y
-	label.TextSize = 14
-	label.TextScaled = false
-	label.TextWrapped = true
-	label.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-	label.BackgroundTransparency = 0.2
-	label.Font = Enum.Font.Arcade
-	label.TextColor3 = Color3.new(1, 1, 1)
+	local label = cell:FindFirstChild("Caption")
+	if not label then
+		label = Instance.new("TextLabel")
+		label.Name = "Caption"
+		label.AnchorPoint = Vector2.new(0.5, 1)
+		label.Position = UDim2.new(0.5, 0, 1, -3)
+		label.Size = UDim2.new(1, -6, 0, 0)
+		label.AutomaticSize = Enum.AutomaticSize.Y
+		label.TextSize = 14
+		label.TextWrapped = true
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.FredokaOne
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.TextStrokeTransparency = 0
+		label.ZIndex = cell.ZIndex + 2
+		label.Parent = cell
+	end
 	label.Text = text
-	label.ZIndex = cell.ZIndex + 1
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 4)
-	corner.Parent = label
-	-- Небольшие поля, чтобы буквы не липли к краям плашки на двух строках.
-	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 2)
-	padding.PaddingBottom = UDim.new(0, 2)
-	padding.PaddingLeft = UDim.new(0, 4)
-	padding.PaddingRight = UDim.new(0, 4)
-	padding.Parent = label
-
-	label.Parent = cell
 end
 
 -- Неподвижное превью модели прямо в ячейке списка. Нужно потому, что
@@ -1017,7 +1003,12 @@ local function addEntry(order, unlocked, image, caption, callback, buildModel)
 	if unlocked then
 		-- Для записей с 3D-моделью оставляем только живое превью, без
 		-- дублирующей плоской иконки.
-		cell.Image = buildModel and "" or image
+		local cellIcon = cell:FindFirstChild("Icon")
+		if cellIcon and cellIcon:IsA("ImageLabel") then
+			cellIcon.Image = buildModel and "" or image
+		else
+			cell.Image = buildModel and "" or image
+		end
 		if buildModel then addCellPreview(cell, buildModel) end
 		addCaption(cell, caption)
 		cell.Activated:Connect(function() UiSfx.play(); callback() end)

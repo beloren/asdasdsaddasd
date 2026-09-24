@@ -29,9 +29,11 @@ if not pack then
 	return
 end
 
-local gui = playerGui:FindFirstChild("StarterPackOffer") or playerGui:WaitForChild("StarterPackOffer", 10)
+-- v20: вид собирается билдером (Shared.UiBuilders.StarterPackUi →
+-- StarterGui/StarterPackOffer); нет в StarterGui — соберётся тем же билдером.
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("StarterPackOffer")
 if not gui then
-	warn("[StarterPackUI] StarterPackOffer не найден в PlayerGui. Запусти tools/BuildStarterPackUI.lua, чтобы создать UI в StarterGui.")
+	warn("[StarterPackUI] StarterPackOffer не найден. Запусти tools/BuildAllUI.lua.")
 	return
 end
 
@@ -46,12 +48,13 @@ local buyButton = details and details:FindFirstChild("BuyButton", true)
 -- v10: зачёркнутая «стоит» цена рядом с реальной (Config.DevProducts.StarterPack).
 do
 	local starterPack = Config.DevProducts.StarterPack or {}
-	if buyButton and buyButton:IsA("TextButton") and starterPack.PriceRobux then
-		buyButton.RichText = true
+	local buyLabel = buyButton and (buyButton:FindFirstChild("Caption") or (buyButton:IsA("TextButton") and buyButton))
+	if buyLabel and starterPack.PriceRobux then
+		buyLabel.RichText = true
 		if starterPack.WorthRobux and starterPack.WorthRobux > starterPack.PriceRobux then
-			buyButton.Text = ("<s>R$ %d</s>  BUY FOR R$ %d"):format(starterPack.WorthRobux, starterPack.PriceRobux)
+			buyLabel.Text = ("<s>R$ %d</s>  BUY FOR R$ %d"):format(starterPack.WorthRobux, starterPack.PriceRobux)
 		else
-			buyButton.Text = ("BUY FOR R$ %d"):format(starterPack.PriceRobux)
+			buyLabel.Text = ("BUY FOR R$ %d"):format(starterPack.PriceRobux)
 		end
 	end
 end
@@ -62,30 +65,11 @@ local function setVisible(instance, visible)
 	end
 end
 
-if banner then
-    for _, child in banner:GetDescendants() do
-        if child.Name == "Icon" then
-            child:Destroy()
-        end
-    end
-end
-
-local bannerIcon
-if banner and banner:IsA("GuiObject") then
-    bannerIcon = Instance.new("ImageLabel")
-    bannerIcon.Name = "Icon"
-    bannerIcon.Parent = banner
-end
-if bannerIcon and bannerIcon:IsA("ImageLabel") then
-	bannerIcon.AnchorPoint = Vector2.new(0, 0.5)
-	bannerIcon.Position = UDim2.fromOffset(10, 43)
-	bannerIcon.Size = UDim2.fromOffset(66, 66)
-	bannerIcon.BackgroundTransparency = 1
-	bannerIcon.BorderSizePixel = 0
-	bannerIcon.ScaleType = Enum.ScaleType.Fit
-	bannerIcon.ZIndex = math.max((banner and banner:IsA("GuiObject") and banner.ZIndex or 10) + 1, bannerIcon.ZIndex)
-	bannerIcon.Visible = true
-    bannerIcon.Image = STARTER_PACK_ICON_IMAGE
+-- Иконка баннера — из билдера (её можно заменить в Studio). Пустая —
+-- ставим стандартную картинку стартового набора.
+local bannerIcon = banner and banner:FindFirstChild("Icon")
+if bannerIcon and bannerIcon:IsA("ImageLabel") and bannerIcon.Image == "" then
+	bannerIcon.Image = STARTER_PACK_ICON_IMAGE
 end
 
 -- Тот же приём, что и у остальных панелей проекта (CollectionMenu/

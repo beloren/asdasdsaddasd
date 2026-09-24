@@ -178,6 +178,7 @@ Theme.Icons = {
 	Quests = "",
 	Settings = "",
 	Inventory = "",
+	Skins = "",
 	Rewards = "",
 	Social = "",
 	Book = "",
