@@ -62,10 +62,27 @@ local function apply(inst, props)
 	end
 end
 
+-- Шаблоны, собранные кодом (запасной путь, если в StarterGui лежит старая
+-- версия WorldUiTemplates без нового стиля/билборда).
+local runtimeBuilt = nil
+local function runtimeTemplates()
+	if runtimeBuilt == nil then
+		local ok, built = pcall(function()
+			return require(script.Parent.UiBuilders.WorldUi).Build()
+		end)
+		runtimeBuilt = ok and built or false
+	end
+	return runtimeBuilt or nil
+end
+
 local function sample(folderName, name)
 	local root = templates()
 	local folder = root and root:FindFirstChild(folderName)
-	return folder and folder:FindFirstChild(name)
+	local found = folder and folder:FindFirstChild(name)
+	if found then return found end
+	local fallback = runtimeTemplates()
+	local fallbackFolder = fallback and fallback:FindFirstChild(folderName)
+	return fallbackFolder and fallbackFolder:FindFirstChild(name)
 end
 
 function WorldUi.Text(parent, name, style, props)

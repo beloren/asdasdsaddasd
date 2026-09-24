@@ -46,29 +46,29 @@ local function buildTemplates(gui)
 	row.Parent = templates
 	UiKit.List(row, { Padding = UDim.new(0, 2) })
 
-	local header = UiKit.Group(row, "Header", { Size = UDim2.new(1, 0, 0, 28), LayoutOrder = 1 })
+	local header = UiKit.Group(row, "Header", { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 1 })
 	UiKit.ThemeIcon(header, "Icon", "QuestDiamond", "◈", {
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 0, 0.5, 0),
-		Size = UDim2.fromOffset(24, 24),
+		Size = UDim2.fromOffset(30, 30),
 		ImageColor3 = Theme.Accents.Gold.Main,
 	})
 	local diamond = header.Icon:FindFirstChild("Emoji")
 	if diamond then
 		diamond.TextColor3 = Theme.Accents.Gold.Main
-		diamond.FontFace = Theme.Fonts.SerifItalic
+		diamond.FontFace = Theme.Fonts.Fredoka
 	end
 	UiKit.Text(header, "Title", "Quest", {
-		_Style = "SerifItalic",
-		_MaxTextSize = 22,
-		Position = UDim2.fromOffset(32, 0),
+		_Style = "Fredoka",
+		_MaxTextSize = 30,
+		Position = UDim2.fromOffset(36, 0),
 		Size = UDim2.new(1, -56, 1, -4),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextWrapped = false,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	})
 	UiKit.Text(header, "Caret", "^", {
-		_Style = "SerifBodyItalic",
+		_Style = "Fredoka",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, 0, 0.5, 2),
 		Size = UDim2.fromOffset(20, 20),
@@ -76,32 +76,32 @@ local function buildTemplates(gui)
 	})
 	local line = UiKit.Group(header, "Line", {
 		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.new(0, 30, 1, 0),
-		Size = UDim2.new(1, -30, 0, 1),
+		Position = UDim2.new(0, 34, 1, 0),
+		Size = UDim2.new(1, -34, 0, 2),
 		BackgroundTransparency = 0.45,
 		BackgroundColor3 = Color3.fromRGB(235, 225, 200),
 	})
 	UiKit.Gradient(line, Color3.new(1, 1, 1), Color3.new(1, 1, 1), 0, "Fade").Transparency = UiKit.NSeq(0, 0.85)
 
 	local desc = UiKit.Text(row, "Why", "Find the rarest ores to the forge!", {
-		_Style = "SerifBodyItalic",
-		Size = UDim2.new(1, 0, 0, 20),
+		_Style = "Fredoka",
+		Size = UDim2.new(1, 0, 0, 24),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		LayoutOrder = 2,
 	})
 	desc.TextScaled = false
-	desc.TextSize = 15
+	desc.TextSize = 20
 
 	-- Строка цели: «◇ - Get Fireite: 0/3». Progress — число справа в той же строке.
-	local objective = UiKit.Group(row, "Objective", { Size = UDim2.new(1, 0, 0, 22), LayoutOrder = 3 })
+	local objective = UiKit.Group(row, "Objective", { Size = UDim2.new(1, 0, 0, 28), LayoutOrder = 3 })
 	UiKit.Text(objective, "Bullet", "◇", {
-		_Style = "SerifBodyItalic",
+		_Style = "Fredoka",
 		Position = UDim2.fromOffset(4, 0),
-		Size = UDim2.fromOffset(18, 22),
+		Size = UDim2.fromOffset(22, 28),
 	})
 	local objText = UiKit.Text(objective, "Text", "- Get Fireite:", {
-		_Style = "SerifBodyItalic",
+		_Style = "Fredoka",
 		Position = UDim2.fromOffset(28, 0),
 		Size = UDim2.new(1, -28, 1, 0),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -109,12 +109,12 @@ local function buildTemplates(gui)
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	})
 	objText.TextScaled = false
-	objText.TextSize = 16
+	objText.TextSize = 22
 	-- Контракт клиента: Title/Progress/Why/Cycle/Bar — оставлены (Progress и
 	-- Cycle теперь просто подписи, Bar скрыт: на референсе полоски нет).
-	local progress = UiKit.Text(row, "Progress", "0/1", { _Style = "SerifBodyItalic", Visible = false, Size = UDim2.fromOffset(0, 0) })
+	local progress = UiKit.Text(row, "Progress", "0/1", { _Style = "Fredoka", Visible = false, Size = UDim2.fromOffset(0, 0) })
 	progress.LayoutOrder = 9
-	UiKit.Text(row, "Cycle", "", { _Style = "SerifBodyItalic", Visible = false, Size = UDim2.fromOffset(0, 0), LayoutOrder = 10 })
+	UiKit.Text(row, "Cycle", "", { _Style = "Fredoka", Visible = false, Size = UDim2.fromOffset(0, 0), LayoutOrder = 10 })
 	local _, fill = UiKit.Bar(row, "Bar", "Gold", { Size = UDim2.fromOffset(0, 0), Visible = false })
 	fill.Visible = false
 	UiKit.Group(row, "Gap", { Size = UDim2.new(1, 0, 0, 8), LayoutOrder = 20 })
@@ -267,7 +267,7 @@ function Builder.Build()
 	local tracker = UiKit.Group(gui, "QuestTracker", {
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 14, 1, -140),
-		Size = UDim2.fromOffset(320, 300),
+		Size = UDim2.fromOffset(380, 300),
 	})
 	UiKit.List(tracker, { Padding = UDim.new(0, 4), VerticalAlignment = Enum.VerticalAlignment.Bottom })
 
@@ -292,7 +292,7 @@ function Builder.Build()
 	})
 	UiKit.List(list, { Padding = UDim.new(0, 8), HorizontalAlignment = Enum.HorizontalAlignment.Center })
 	UiKit.Padding(list, 4, 0, 6, 10)
-	gui:SetAttribute("UiKitVersion", 22) -- v20.6: курсивный трекер
+	gui:SetAttribute("UiKitVersion", 23) -- v20.7: трекер Fredoka One, крупнее
 	modal:SetAttribute("BaseWidth", 640)
 	modal:SetAttribute("BaseHeight", 480)
 

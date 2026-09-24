@@ -17,7 +17,7 @@ return function(gui, shared, require)
 	add("DoneCard", 10)
 	gui.QuestModal.Visible = _G.PREVIEW_MODAL == true
 	gui.Dimmer.Visible = _G.PREVIEW_MODAL == true
-	for i, q in { { "Goblin King 2", "Give items to 'Goblin King'.", "- Bring 3 Topaz and 10000 gold." }, { "Sensei Moro Final", "Find the rarest ores to the forge!", "- Get Fireite: 0/3" } } do
+	for i, q in { { "Sensei Moro Final", "Find the rarest ores to the forge!", "- Get Fireite: 0/3" } } do
 		local row = t.TrackerRow:Clone()
 		row.Visible = true
 		row.LayoutOrder = i

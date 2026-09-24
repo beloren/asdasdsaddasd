@@ -188,7 +188,7 @@ end
 --------------------------------------------------------------------------------
 local trackerRows = {}
 local collapsedRows = {} -- [questId] = true — свёрнут кнопкой «^»
-local MAX_TRACKED = 3
+local MAX_TRACKED = 1 -- v20.7: на экране только один (закреплённый Track) квест
 
 local function titleCase(text)
 	return (string.gsub(string.lower(text), "(%a)([%w']*)", function(first, rest) return string.upper(first) .. rest end))

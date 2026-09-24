@@ -11,7 +11,7 @@
 --   ScreenGui "WorldUiTemplates" (Enabled=false — сам ничего не рисует)
 --   ├─ Folder "TextStyles" — образцы TextLabel (FontFace + UIStroke "TextStroke"):
 --   │    "Title", "Heading", "Number", "Money", "Body", "Small", "Glyph",
---   │    "NpcName", "NpcSub", "NpcArrow" (имена NPC, подписи трофеев)
+--   │    "NpcName", "NpcSub", "NpcArrow" (имена NPC), "Label", "LabelSub" (трофеи, тотемы)
 --   ├─ Folder "Plates" — образцы подложек (ImageLabel со скином):
 --   │    "Pill", "Card", "Dark", "Bar" (→ "Fill")
 --   └─ Folder "Billboards" — готовые билборды:
@@ -42,6 +42,10 @@ Builder.TEXT_STYLES = {
 	NpcName = { Font = "Serif", Stroke = 2, Color = Color3.new(1, 1, 1) },
 	NpcSub = { Font = "SerifBody", Stroke = 1.6, Color = Color3.fromRGB(225, 225, 230) },
 	NpcArrow = { Font = "SerifBody", Stroke = 1.2, Color = Color3.fromRGB(200, 200, 205) },
+	-- v20.7: подписи над трофеями/тотемами — Fredoka One, TextScaled в
+	-- рамке фиксированного размера (в пикселях) — не зависят от камеры.
+	Label = { Font = "Fredoka", Stroke = 2.5, Color = Color3.new(1, 1, 1) },
+	LabelSub = { Font = "Fredoka", Stroke = 2, Color = Color3.fromRGB(230, 230, 235) },
 }
 
 local function textSample(parent, name, spec)

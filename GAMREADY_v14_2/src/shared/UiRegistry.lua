@@ -36,7 +36,7 @@ UiRegistry.Entries = {
 	{ Name = "BuffBar", Module = "UiBuilders.BuffBarUi", MinVersion = 20, What = "панель баффов" },
 	{ Name = "LootFeedUi", Module = "UiBuilders.LootFeedUi", MinVersion = 20, What = "лента добычи" },
 	{ Name = "Toast", Module = "ToastUiBuilder", MinVersion = 20, What = "уведомления" },
-	{ Name = "QuestUi", Module = "UiBuilders.QuestUi", MinVersion = 22, What = "квесты + трекер" },
+	{ Name = "QuestUi", Module = "UiBuilders.QuestUi", MinVersion = 23, What = "квесты + трекер" },
 	{ Name = "MobileShiftLockButton", Module = "UiBuilders.ShiftLockUi", MinVersion = 20, What = "кнопка шифтлока (телефон)" },
 	{ Name = "SocialHud", Module = "UiBuilders.SocialHudUi", MinVersion = 20, What = "кнопка наград за группу/избранное" },
 	{ Name = "QuestMarkerUi", Module = "UiBuilders.QuestMarkerUi", MinVersion = 20, What = "стрелка навигации квеста" },

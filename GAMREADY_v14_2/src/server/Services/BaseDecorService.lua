@@ -263,8 +263,8 @@ local function worldCFrame(plot, record)
 end
 
 -- v20.3: подпись над тотемом/трофеем — ВСЕГДА одного размера на экране
--- (размер в пикселях, не в студах) и в стиле имён NPC: белое засечное имя,
--- ниже — строки поменьше. Билборды, пришедшие со своей моделью из Assets,
+-- (размер в пикселях, не в студах), шрифт Fredoka One с TextScaled:
+-- имя цветом предмета, ниже — строки поменьше. Билборды, пришедшие со своей моделью из Assets,
 -- тоже переводятся в фиксированный размер.
 local function addLabel(model, anchor, lines, maxDistance, heightOffset)
 	for _, descendant in model:GetDescendants() do
@@ -273,7 +273,7 @@ local function addLabel(model, anchor, lines, maxDistance, heightOffset)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "DecorLabel"
 	billboard.Adornee = anchor
-	billboard.Size = UDim2.fromOffset(240, 30 + 22 * math.max(0, #lines - 1))
+	billboard.Size = UDim2.fromOffset(280, 36 + 26 * math.max(0, #lines - 1))
 	billboard.StudsOffsetWorldSpace = Vector3.new(0, heightOffset, 0)
 	billboard.AlwaysOnTop = true
 	billboard.DistanceStep = 0
@@ -285,13 +285,15 @@ local function addLabel(model, anchor, lines, maxDistance, heightOffset)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = billboard
 	for index, line in lines do
-		local label = WorldUi.Text(nil, "Text", index == 1 and "NpcName" or "NpcSub")
+		-- Fredoka One + TextScaled: текст вписан в рамку в ПИКСЕЛЯХ — на
+		-- экране всегда один размер, как бы близко/далеко ни была камера.
+		local label = WorldUi.Text(nil, "Text", index == 1 and "Label" or "LabelSub")
 		label.LayoutOrder = index
 		label.BackgroundTransparency = 1
-		label.Size = UDim2.new(1, 0, 0, index == 1 and 30 or 22)
+		label.Size = UDim2.new(1, 0, 0, index == 1 and 36 or 26)
 		label.TextScaled = true
 		label.Text = line.Text
-		if index > 1 and line.Color then label.TextColor3 = line.Color end
+		if line.Color then label.TextColor3 = line.Color end
 		label.Parent = billboard
 	end
 end
