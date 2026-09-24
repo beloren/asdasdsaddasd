@@ -20,88 +20,22 @@ local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "OrePreviewHud"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = false
-gui.Parent = playerGui
-
--- Подсветка руды — один переиспользуемый Highlight, Adornee переключается
--- на текущий превьюшный кусок руды (или снимается, когда превью закрыто).
-local highlight = Instance.new("Highlight")
-highlight.Name = "OrePreviewHighlight"
-highlight.FillTransparency = 0.75
-highlight.OutlineTransparency = 0
-highlight.DepthMode = Enum.HighlightDepthMode.Occluded
-highlight.Parent = gui
-
--- Карточка — тот же чёрный + градиент стиль, что и у превью в книге
--- мутаций, только теперь как BillboardGui над самим куском руды в мире,
--- а не привязанная к 2D-книге.
-local billboard = Instance.new("BillboardGui")
-billboard.Name = "OrePreviewBillboard"
-billboard.Size = UDim2.fromOffset(140, 150)
-billboard.StudsOffset = Vector3.new(0, 2.6, 0)
-billboard.AlwaysOnTop = true
+-- v20: вид — Shared.UiBuilders.OrePreviewUi (StarterGui/OrePreviewHud).
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("OrePreviewHud")
+local highlight = gui:WaitForChild("OrePreviewHighlight")
+local billboard = gui:WaitForChild("OrePreviewBillboard")
 billboard.Enabled = false
-billboard.Parent = gui
-
-local card = Instance.new("Frame")
-card.Size = UDim2.fromScale(1, 1)
-card.BackgroundTransparency = 1
-card.BorderSizePixel = 0
-card.Parent = billboard
-
--- 3D-превью САМОГО ЭТОГО куска руды (с уже применённой мутацией — не
--- перегенерированный заново "усреднённый" тир, а клон реального инстанса,
--- см. showPreview) — тот же приём, что и в книге мутаций, только тут
--- показываем настоящий предмет, а не типовой пример. Вьюпорт занимает
--- почти всю карточку сверху донизу (до цены) — сама руда внутри
--- увеличена (см. радиус камеры в showPreview), чтобы оказаться почти
--- вплотную над ценой. Никакого фона/обводки у самого вьюпорта — чёрная
--- обводка нужна ВОКРУГ РУДЫ, а не вокруг рамки вьюпорта, поэтому она
--- сделана как Highlight на 3D-клоне внутри (см. showPreview), а не UIStroke
--- здесь на 2D-фрейме.
-local previewViewport = Instance.new("ViewportFrame")
-previewViewport.Name = "Viewport"
-previewViewport.Position = UDim2.fromOffset(4, 4)
-previewViewport.Size = UDim2.new(1, -8, 1, -8)
-previewViewport.BackgroundTransparency = 1
-previewViewport.Parent = card
-local previewCamera = Instance.new("Camera")
-previewCamera.Parent = previewViewport
+local card = billboard:WaitForChild("Card")
+local cardPlate = card:FindFirstChild("Plate")
+local previewViewport = card:WaitForChild("Viewport")
+local previewCamera = previewViewport.CurrentCamera or previewViewport:FindFirstChildOfClass("Camera")
+if not previewCamera then
+	previewCamera = Instance.new("Camera")
+	previewCamera.Parent = previewViewport
+end
 previewViewport.CurrentCamera = previewCamera
-
--- Без названия/тира руды — только цена и мутация (если есть), по центру,
--- в нижней части карточки.
-local priceLabel = Instance.new("TextLabel")
-priceLabel.Name = "Price"
-priceLabel.AnchorPoint = Vector2.new(0.5, 1)
-priceLabel.Position = UDim2.new(0.5, 0, 1, -30)
-priceLabel.Size = UDim2.new(1, -16, 0, 26)
-priceLabel.BackgroundTransparency = 1
-priceLabel.Font = Enum.Font.Arcade
-priceLabel.TextScaled = true
-priceLabel.TextXAlignment = Enum.TextXAlignment.Center
-priceLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
-priceLabel.TextStrokeTransparency = 0
-priceLabel.ZIndex = 5
-priceLabel.Parent = card
-
-local mutationLabel = Instance.new("TextLabel")
-mutationLabel.Name = "Mutation"
-mutationLabel.AnchorPoint = Vector2.new(0.5, 1)
-mutationLabel.Position = UDim2.new(0.5, 0, 1, -4)
-mutationLabel.Size = UDim2.new(1, -16, 0, 24)
-mutationLabel.BackgroundTransparency = 1
-mutationLabel.Font = Enum.Font.Arcade
-mutationLabel.TextScaled = true
-mutationLabel.TextXAlignment = Enum.TextXAlignment.Center
-mutationLabel.TextColor3 = Color3.fromRGB(230, 230, 235)
-mutationLabel.TextStrokeTransparency = 0
-mutationLabel.Visible = false
-mutationLabel.ZIndex = 5
-mutationLabel.Parent = card
+local priceLabel = card:WaitForChild("Price")
+local mutationLabel = card:WaitForChild("Mutation")
 
 -- Кусок руды может быть и обычным Part, и Model (см. CrystalUtil.GetRoot).
 -- Сервер больше не ставит ClickDetector на каждую часть: клиент сам делает
@@ -156,6 +90,8 @@ local function showPreview(crystalInstance)
 	priceLabel.Text = isGeode and (geodeInfo and geodeInfo.DisplayName or geodeType or "GEODE")
 		or "$" .. NumberFormat.withSeparators(value)
 	priceLabel.TextColor3 = tierColor
+	local plateStroke = cardPlate and cardPlate:FindFirstChild("SkinStroke")
+	if plateStroke then plateStroke.Color = tierColor end
 
 	mutationLabel.Visible = false
 	if not isGeode and mutationsRaw and mutationsRaw ~= "" then

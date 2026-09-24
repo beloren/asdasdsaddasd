@@ -36,7 +36,7 @@ local UiRegistry = require(shared.UiRegistry)
 local LEGACY = {
 	"PreloadScreen", "ShopEntry", "SkinEntry", "InventoryEntry", "InventoryUi", "UpgradeShopV3", "ActionButtons", "PickaxeHotbar",
 	"GamepassQuickBar", "UpgradeShopCards", "TutorialObjectiveCard", "MutationBookUi",
-	"MobBillboardTemplates", "PreviewGroupReward", "PreviewLikeReward", "OpenDropPreview",
+	"PreviewGroupReward", "PreviewLikeReward", "OpenDropPreview",
 }
 for _, name in LEGACY do
 	local old = StarterGui:FindFirstChild(name)

@@ -51,6 +51,7 @@ local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local CrystalUtil = require(ReplicatedStorage.Shared.CrystalUtil)
@@ -1856,17 +1857,14 @@ local function attachMysteryGui(crystal)
 	-- клиент может гонять каждый вопросик со своей фазой (волна, разный
 	-- масштаб, разный наклон). В одном TextLabel буквы двигаться не умеют.
 	for i = 1, 3 do
-		local mark = Instance.new("TextLabel")
+		local mark = WorldUi.Text(nil, "Text", "Heading")
 		mark.Name = "Mark" .. i
 		mark.BackgroundTransparency = 1
 		mark.Size = UDim2.fromScale(1 / 3, 1)
 		mark.Position = UDim2.fromScale((i - 1) / 3, 0)
-		mark.Font = Enum.Font.FredokaOne
 		mark.Text = "?"
 		mark.TextScaled = true
 		mark.TextColor3 = Color3.fromRGB(255, 255, 255)
-		mark.TextStrokeColor3 = Color3.fromRGB(10, 10, 14)
-		mark.TextStrokeTransparency = 0
 		mark.Parent = gui
 	end
 	return gui
@@ -2222,21 +2220,13 @@ local function attachCutsceneChance(crystal, priceGui)
 	gui.Enabled = priceGui.Enabled
 	gui.Adornee = root
 	gui.Parent = root
-	local label = Instance.new("TextLabel")
+	local label = WorldUi.Text(nil, "Text", "Heading")
 	label.BackgroundTransparency = 1
 	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
 	label.Text = "1/" .. NumberFormat.abbreviate(oneInN)
 	label.TextColor3 = color
-	label.TextStrokeColor3 = Color3.fromRGB(12, 12, 18)
-	label.TextStrokeTransparency = 0
 	label.Parent = gui
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 2.5
-	stroke.Color = Color3.fromRGB(12, 12, 18)
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
-	stroke.Parent = label
 	priceGui:GetPropertyChangedSignal("Enabled"):Connect(function()
 		if gui.Parent then gui.Enabled = priceGui.Enabled end
 	end)
@@ -2267,14 +2257,11 @@ function MineService:_markAsGigantic(crystal)
 	badge.Enabled = false -- включается вместе с ценником при раскрытии (см. MineService:_ejectOre — priceGui.Enabled = true в тот же момент)
 	badge.Parent = root
 
-	local label = Instance.new("TextLabel")
+	local label = WorldUi.Text(nil, "Text", "Heading")
 	label.BackgroundTransparency = 1
 	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
 	label.TextColor3 = Color3.fromRGB(255, 215, 60)
-	label.TextStrokeTransparency = 0
-	label.TextStrokeColor3 = Color3.new(0, 0, 0)
 	label.Text = "GIGANTIC"
 	label.Parent = badge
 

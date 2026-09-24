@@ -34,6 +34,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Localization = require(ReplicatedStorage.Shared.Localization)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей
 
 if Config.UI and Config.UI.WorldPrompts == false then return end
 
@@ -46,7 +47,7 @@ local function tr(text)
 	return ok and translated or text
 end
 
-local FONT = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold)
+local FONT = require(ReplicatedStorage.Shared.UiTheme).Fonts.Heading -- v20: шрифт темы
 local CIRCLE = 46
 local CIRCLE_COLOR = Color3.fromRGB(25, 25, 25)
 local BLUE = Color3.fromRGB(45, 105, 190)
@@ -183,14 +184,13 @@ end
 setProgress(0)
 
 -- Клавиша: скруглённый квадрат с белой рамкой.
-local key = Instance.new("TextLabel")
+local key = WorldUi.Text(nil, "Text", "Heading")
 key.Name = "Key"
 key.AnchorPoint = Vector2.new(0.5, 0.5)
 key.Position = UDim2.fromScale(0.5, 0.5)
 key.Size = UDim2.fromOffset(26, 26)
 key.BackgroundColor3 = Color3.new(1, 1, 1)
 key.BackgroundTransparency = 1
-key.FontFace = FONT
 key.TextSize = 15
 key.TextColor3 = Color3.new(1, 1, 1)
 key.Text = "E"
@@ -221,13 +221,12 @@ rippleStroke.Thickness = 3
 rippleStroke.Transparency = 1
 rippleStroke.Parent = ripple
 
-local label = Instance.new("TextLabel")
+local label = WorldUi.Text(nil, "Text", "Heading")
 label.Name = "Action"
 label.AnchorPoint = Vector2.new(0, 0.5)
 label.Position = UDim2.new(0, CIRCLE + 8, 0.5, 0)
 label.Size = UDim2.new(1, -(CIRCLE + 8), 1, 0)
 label.BackgroundTransparency = 1
-label.FontFace = FONT
 label.TextSize = 20
 label.TextColor3 = Color3.new(1, 1, 1)
 label.TextXAlignment = Enum.TextXAlignment.Left

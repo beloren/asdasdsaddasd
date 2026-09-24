@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local CollectionKey = require(ReplicatedStorage.Shared.CollectionKey)
@@ -502,7 +503,7 @@ local function billboard(part, offset, worldSized)
 		gui.Name = "StatusGui"
 		local anchor = part:IsA("Model") and (part.PrimaryPart or part:FindFirstChild("Root", true)) or part
 		gui.Parent = anchor or part
-		label = Instance.new("TextLabel")
+		label = WorldUi.Text(nil, "Text", "Number")
 		label.Name = "Status"
 		label.Size = UDim2.fromScale(1, 1)
 		label.Parent = gui
@@ -534,9 +535,6 @@ local function billboard(part, offset, worldSized)
 		label.TextWrapped = true
 		label.TextXAlignment = Enum.TextXAlignment.Center
 		label.TextYAlignment = Enum.TextYAlignment.Center
-		label.TextStrokeColor3 = Color3.new(0, 0, 0)
-		label.TextStrokeTransparency = 0
-		label.Font = Enum.Font.Arcade
 	end
 	return label, gui, created
 end
@@ -744,31 +742,25 @@ function PassiveIncomeService:BuildStructures(player, podiumCFrame, safeCFrame, 
 	safeLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	safeLayout.Parent = safeGui
 
-	local safeLabel = Instance.new("TextLabel")
+	local safeLabel = WorldUi.Text(nil, "Text", "Number")
 	safeLabel.Name = "Amount"
 	safeLabel.LayoutOrder = 1
 	safeLabel.Size = UDim2.new(1, 0, 0, 34)
 	safeLabel.BackgroundTransparency = 1
-	safeLabel.Font = Enum.Font.Arcade
 	safeLabel.TextScaled = true
 	safeLabel.TextWrapped = true
 	safeLabel.TextColor3 = Color3.fromRGB(90, 255, 130) -- зелёный, по прямому запросу
-	safeLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-	safeLabel.TextStrokeTransparency = 0
 	safeLabel.Text = "$0"
 	safeLabel.Parent = safeGui
 
-	local timerLabel = Instance.new("TextLabel")
+	local timerLabel = WorldUi.Text(nil, "Text", "Number")
 	timerLabel.Name = "Timer"
 	timerLabel.LayoutOrder = 2
 	timerLabel.Size = UDim2.new(1, 0, 0, 26)
 	timerLabel.BackgroundTransparency = 1
-	timerLabel.Font = Enum.Font.Arcade
 	timerLabel.TextScaled = true
 	timerLabel.TextWrapped = true
 	timerLabel.RichText = true
-	timerLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-	timerLabel.TextStrokeTransparency = 0
 	timerLabel.Text = ""
 	timerLabel.Parent = safeGui
 
@@ -963,16 +955,13 @@ function PassiveIncomeService:UpdateDisplay(player)
 				incomeGui.MaxDistance = 35 -- тот же радиус, что и у суммы над сейфом
 				incomeGui.Parent = incomeAnchor
 
-				local incomeLabelText = Instance.new("TextLabel")
+				local incomeLabelText = WorldUi.Text(nil, "Text", "Number")
 				incomeLabelText.Name = "Income"
 				incomeLabelText.Size = UDim2.fromScale(1, 1)
 				incomeLabelText.BackgroundTransparency = 1
-				incomeLabelText.Font = Enum.Font.Arcade
 				incomeLabelText.TextScaled = true
 				incomeLabelText.TextWrapped = true
 				incomeLabelText.TextColor3 = Color3.fromRGB(90, 255, 130)
-				incomeLabelText.TextStrokeColor3 = Color3.new(0, 0, 0)
-				incomeLabelText.TextStrokeTransparency = 0
 				incomeLabelText.Parent = incomeGui
 
 				display.IncomeLabelGui = incomeGui

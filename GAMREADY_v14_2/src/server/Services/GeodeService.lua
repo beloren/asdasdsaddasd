@@ -3,6 +3,7 @@ local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local MutationRoll = require(ReplicatedStorage.Shared.MutationRoll)
 local CollectionKey = require(ReplicatedStorage.Shared.CollectionKey)
 local OreIncome = require(ReplicatedStorage.Shared.OreIncome)
@@ -885,13 +886,11 @@ function GeodeService:BuildBuilding(player, cframe, parent)
 		gui.AlwaysOnTop = true
 		gui.MaxDistance = 80
 		gui.Parent = root
-		label = Instance.new("TextLabel")
+		label = WorldUi.Text(nil, "Text", "Number")
 		label.Name = "Status"
 		label.Size = UDim2.fromScale(1, 1)
 		label.BackgroundTransparency = 1
 		label.TextScaled = true
-		label.Font = Enum.Font.Arcade
-		label.TextStrokeTransparency = 1
 		label.Parent = gui
 	end
 	model.Parent = plot.Content

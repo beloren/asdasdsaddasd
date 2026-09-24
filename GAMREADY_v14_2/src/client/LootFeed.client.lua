@@ -39,29 +39,11 @@ if not localEvent then
 	localEvent.Parent = shared
 end
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "LootFeedUi"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.DisplayOrder = 40
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.Parent = playerGui
-
-local column = Instance.new("Frame")
-column.Name = "Feed"
-column.AnchorPoint = Vector2.new(1, 0.5)
-column.Position = UDim2.new(1, -14, 0.5, 0)
-column.Size = UDim2.fromOffset(300, 420)
-column.BackgroundTransparency = 1
-column.Parent = gui
-local columnScale = Instance.new("UIScale")
-columnScale.Parent = column
-local layout = Instance.new("UIListLayout")
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.VerticalAlignment = Enum.VerticalAlignment.Center
-layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-layout.Padding = UDim.new(0, 6)
-layout.Parent = column
+-- v20: вид — Shared.UiBuilders.LootFeedUi (правится в StarterGui/LootFeedUi).
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("LootFeedUi")
+local column = gui:WaitForChild("Feed")
+local columnScale = column:WaitForChild("AutoScale")
+local cardTemplate = gui:WaitForChild("Templates"):WaitForChild("CardTemplate")
 
 local function fitScale()
 	local camera = workspace.CurrentCamera
@@ -98,91 +80,36 @@ local function pushCard(item, delaySeconds)
 	task.delay(delaySeconds or 0, function()
 		order -= 1
 		local color = typeof(item.Color) == "Color3" and item.Color or rarityColor(item.Rarity)
-		local card = Instance.new("Frame")
+		local card = cardTemplate:Clone()
 		card.Name = "Card"
 		card.LayoutOrder = order
-		card.BackgroundTransparency = 1
 		card.Size = UDim2.fromOffset(290, item.Sub and 58 or 48)
-		card.ClipsDescendants = false
 		card.Parent = column
 
-		local body = Instance.new("Frame")
-		body.Name = "Body"
-		body.Size = UDim2.fromScale(1, 1)
+		local body = card:WaitForChild("Body")
 		body.Position = UDim2.new(1.2, 0, 0, 0)
-		body.BackgroundColor3 = Color3.fromRGB(22, 24, 34)
-		body.BackgroundTransparency = 0.15
-		body.Parent = card
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 10)
-		corner.Parent = body
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = 2.5
-		stroke.Color = color
-		stroke.Parent = body
-		local gradient = Instance.new("UIGradient")
-		gradient.Color = ColorSequence.new(color:Lerp(Color3.new(0, 0, 0), 0.55), Color3.fromRGB(22, 24, 34))
-		gradient.Parent = body
-		local strip = Instance.new("Frame")
-		strip.Size = UDim2.new(0, 6, 1, -10)
-		strip.Position = UDim2.fromOffset(5, 5)
-		strip.BackgroundColor3 = color
-		strip.Parent = body
-		Instance.new("UICorner", strip).CornerRadius = UDim.new(1, 0)
+		local stroke = body:FindFirstChild("SkinStroke")
+		if stroke then stroke.Color = color end
+		local strip = body:FindFirstChild("Strip")
+		if strip then strip.BackgroundColor3 = color; strip.ImageColor3 = color end
+		local image = body:FindFirstChild("Image")
+		local emoji = body:FindFirstChild("Emoji")
+		local iconValue = tostring(item.Icon or "✨")
+		local isAsset = iconValue:match("^rbxasset") or iconValue:match("^%d+$")
+		if image then image.Image = isAsset and (iconValue:match("^%d+$") and "rbxassetid://" .. iconValue or iconValue) or "" end
+		if emoji then emoji.Text = isAsset and "" or iconValue end
 
-		local icon = Instance.new("TextLabel")
-		icon.BackgroundTransparency = 1
-		icon.Size = UDim2.fromOffset(40, 40)
-		icon.Position = UDim2.new(0, 16, 0.5, -20)
-		icon.Font = Enum.Font.GothamBold
-		icon.TextScaled = true
-		icon.Text = tostring(item.Icon or "✨")
-		icon.Parent = body
-
-		local title = Instance.new("TextLabel")
-		title.BackgroundTransparency = 1
+		local title = body:WaitForChild("Title")
 		title.Position = UDim2.fromOffset(62, item.Sub and 6 or 0)
 		title.Size = UDim2.new(1, -70, 0, item.Sub and 28 or 48)
-		title.Font = Enum.Font.FredokaOne
-		title.TextScaled = true
-		title.TextXAlignment = Enum.TextXAlignment.Left
 		title.TextColor3 = color:Lerp(Color3.new(1, 1, 1), 0.25)
 		title.Text = tr(tostring(item.Text or ""))
-		title.Parent = body
-		local titleStroke = Instance.new("UIStroke")
-		titleStroke.Thickness = 1.6
-		titleStroke.Parent = title
-		local limit = Instance.new("UITextSizeConstraint")
-		limit.MaxTextSize = 24
-		limit.Parent = title
-
-		if item.Sub or item.Rarity then
-			local sub = Instance.new("TextLabel")
-			sub.BackgroundTransparency = 1
-			sub.Position = UDim2.fromOffset(62, item.Sub and 32 or 30)
-			sub.Size = UDim2.new(1, -70, 0, 20)
-			sub.Font = Enum.Font.GothamBold
-			sub.TextScaled = true
-			sub.TextXAlignment = Enum.TextXAlignment.Left
-			sub.TextColor3 = Color3.fromRGB(215, 215, 225)
+		local sub = body:FindFirstChild("Sub")
+		if sub then
 			sub.Text = tr(tostring(item.Sub or ""))
 			sub.Visible = item.Sub ~= nil
-			sub.Parent = body
-			local subLimit = Instance.new("UITextSizeConstraint")
-			subLimit.MaxTextSize = 16
-			subLimit.Parent = sub
 		end
-
-		-- Блик по карточке.
-		local shine = Instance.new("Frame")
-		shine.BackgroundColor3 = Color3.new(1, 1, 1)
-		shine.BackgroundTransparency = 0.7
-		shine.BorderSizePixel = 0
-		shine.Size = UDim2.new(0, 26, 1, 0)
-		shine.Position = UDim2.new(-0.2, 0, 0, 0)
-		shine.Rotation = 12
-		shine.Parent = body
-		body.ClipsDescendants = true
+		local shine = body:WaitForChild("Shine")
 
 		TweenService:Create(body, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = UDim2.new(0, 0, 0, 0) }):Play()
 		task.delay(0.25, function()
@@ -201,34 +128,12 @@ end
 --------------------------------------------------------------------------------
 -- БАННЕР ПО ЦЕНТРУ
 --------------------------------------------------------------------------------
-local banner = Instance.new("Frame")
-banner.Name = "Banner"
-banner.AnchorPoint = Vector2.new(0.5, 0.5)
-banner.Position = UDim2.fromScale(0.5, 0.3)
-banner.Size = UDim2.fromOffset(560, 120)
-banner.BackgroundTransparency = 1
-banner.Visible = false
-banner.Parent = gui
-local bannerScale = Instance.new("UIScale")
-bannerScale.Parent = banner
-local bannerTitle = Instance.new("TextLabel")
-bannerTitle.BackgroundTransparency = 1
-bannerTitle.Size = UDim2.new(1, 0, 0.45, 0)
-bannerTitle.Font = Enum.Font.FredokaOne
-bannerTitle.TextScaled = true
-bannerTitle.TextColor3 = Color3.new(1, 1, 1)
-bannerTitle.Parent = banner
-Instance.new("UIStroke", bannerTitle).Thickness = 3
-local bannerText = Instance.new("TextLabel")
-bannerText.BackgroundTransparency = 1
-bannerText.Position = UDim2.fromScale(0, 0.45)
-bannerText.Size = UDim2.new(1, 0, 0.55, 0)
-bannerText.Font = Enum.Font.FredokaOne
-bannerText.TextScaled = true
-bannerText.Parent = banner
-Instance.new("UIStroke", bannerText).Thickness = 3.5
-local bannerGradient = Instance.new("UIGradient")
-bannerGradient.Parent = bannerText
+local banner = gui:WaitForChild("Banner")
+local bannerScale = banner:WaitForChild("Pop")
+local bannerTitle = banner:WaitForChild("Title")
+local bannerText = banner:WaitForChild("Text")
+local bannerGradient = bannerText:FindFirstChild("TextGradient") or Instance.new("UIGradient", bannerText)
+bannerGradient.Rotation = 0 -- перелив идёт слева направо
 
 local bannerToken = 0
 local function showBanner(title, text, color)

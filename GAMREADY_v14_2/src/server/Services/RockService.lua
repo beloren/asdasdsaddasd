@@ -5,6 +5,7 @@ local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local CrystalUtil = require(ReplicatedStorage.Shared.CrystalUtil)
 local MutationVisuals = require(ReplicatedStorage.Shared.MutationVisuals)
@@ -277,18 +278,15 @@ local function attachBoulderHealthBillboard(model, tier, maxHealth)
 	icon.ScaleType = Enum.ScaleType.Fit
 	icon.Parent = billboard
 
-	local title = Instance.new("TextLabel")
+	local title = WorldUi.Text(nil, "Text", "Number")
 	title.Name = "Title"
 	title.Size = UDim2.new(1, -26, 1, 0)
 	title.Position = UDim2.fromOffset(24, 0)
 	title.BackgroundTransparency = 1
-	title.Font = Enum.Font.Arcade
 	title.TextScaled = true
 	title.RichText = true
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.TextColor3 = Color3.fromRGB(238, 240, 235)
-	title.TextStrokeTransparency = 0
-	title.TextStrokeColor3 = Color3.new(0, 0, 0)
 	title.Text = ("<b>BOULDER <font color=\"#69EB82\">LV. %d</font></b>"):format(tier)
 	title.Parent = billboard
 
@@ -2216,14 +2214,12 @@ local function decorateGolden(model)
 	billboard.LightInfluence = 0
 	billboard.Adornee = root
 	billboard.Parent = model
-	local label = Instance.new("TextLabel")
+	local label = WorldUi.Text(nil, "Text", "Heading")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
 	label.Text = "⭐ GOLDEN BOULDER ⭐"
 	label.TextColor3 = gold
-	label.TextStrokeTransparency = 0
 	label.Parent = billboard
 	model:SetAttribute("GoldenBoulder", true)
 end
@@ -2351,13 +2347,10 @@ function RockService:CarryCrystal(player, oreId, mutations, owned, source)
 	carryLabel.MaxDistance = 60
 	carryLabel.Adornee = root
 	carryLabel.Parent = root
-	local carryText = Instance.new("TextLabel")
+	local carryText = WorldUi.Text(nil, "Text", "Number")
 	carryText.Size = UDim2.fromScale(1, 1)
 	carryText.BackgroundTransparency = 1
-	carryText.Font = Enum.Font.Arcade
 	carryText.TextScaled = true
-	carryText.TextStrokeColor3 = Color3.fromRGB(20, 20, 25)
-	carryText.TextStrokeTransparency = 0
 	carryText.TextColor3 = info.Color
 	local mutationNames = {}
 	for _, mutationId in mutationIds do

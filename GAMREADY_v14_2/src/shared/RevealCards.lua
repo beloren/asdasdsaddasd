@@ -25,8 +25,11 @@ local okSfx, UiSfx = pcall(require, ReplicatedStorage.Shared.UiSfx)
 
 local RevealCards = {}
 
-local CARD_W, CARD_H, GAP = 170, 236, 16
-local INK = Color3.fromRGB(12, 10, 20)
+-- v20: вид карточек и экрана — Shared.UiBuilders.RevealCardsUi
+-- (StarterGui/RevealCards, правится в Studio).
+local RevealBuilder = require(ReplicatedStorage.Shared.UiBuilders.RevealCardsUi)
+local UiKit = require(ReplicatedStorage.Shared.UiKit)
+local CARD_W, CARD_H, GAP = RevealBuilder.CARD_W, RevealBuilder.CARD_H, RevealBuilder.GAP
 local RARITY_RANK = { Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5, Mythic = 6, Secret = 6 }
 
 local function sfx(name)
@@ -42,27 +45,6 @@ local function corner(parent, r)
 	c.CornerRadius = UDim.new(0, r or 14)
 	c.Parent = parent
 	return c
-end
-
-local function stroke(parent, thickness, color, contextual)
-	local s = Instance.new("UIStroke")
-	s.Thickness = thickness
-	s.Color = color or INK
-	s.ApplyStrokeMode = contextual and Enum.ApplyStrokeMode.Contextual or Enum.ApplyStrokeMode.Border
-	s.Parent = parent
-	return s
-end
-
-local function text(parent, props)
-	local l = Instance.new("TextLabel")
-	l.BackgroundTransparency = 1
-	l.Font = Enum.Font.FredokaOne
-	l.TextScaled = true
-	l.TextColor3 = Color3.new(1, 1, 1)
-	for k, v in props do l[k] = v end
-	l.Parent = parent
-	stroke(l, 2, INK, true)
-	return l
 end
 
 --------------------------------------------------------------------------------
@@ -130,53 +112,19 @@ end
 --------------------------------------------------------------------------------
 -- ЭКРАН
 --------------------------------------------------------------------------------
-local gui, dim, row, header, hint, scaleObj
+local gui, dim, row, header, hint, scaleObj, cardTemplate
 local function ensureGui()
 	if gui and gui.Parent then return end
-	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-	gui = Instance.new("ScreenGui")
-	gui.Name = "RevealCards"
-	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
-	gui.DisplayOrder = 70
+	gui = require(ReplicatedStorage.Shared.UiRegistry).Get("RevealCards")
 	gui.Enabled = false
-	gui.Parent = playerGui
-
-	dim = Instance.new("TextButton")
-	dim.Name = "Dimmer"
-	dim.Text = ""
-	dim.AutoButtonColor = false
-	dim.Size = UDim2.fromScale(1, 1)
-	dim.BackgroundColor3 = Color3.new(0, 0, 0)
-	dim.BackgroundTransparency = 1
-	dim.Parent = gui
-
-	local holder = Instance.new("Frame")
-	holder.Name = "Holder"
-	holder.AnchorPoint = Vector2.new(0.5, 0.5)
-	holder.Position = UDim2.fromScale(0.5, 0.52)
-	holder.Size = UDim2.fromOffset(1100, 340)
-	holder.BackgroundTransparency = 1
-	holder.Parent = gui
-	scaleObj = Instance.new("UIScale")
-	scaleObj.Parent = holder
-
-	header = text(holder, {
-		Name = "Header", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, -8),
-		Size = UDim2.fromOffset(600, 40), Text = "",
-	})
-	row = Instance.new("Frame")
-	row.Name = "Row"
-	row.BackgroundTransparency = 1
-	row.AnchorPoint = Vector2.new(0.5, 0.5)
-	row.Position = UDim2.fromScale(0.5, 0.55)
-	row.Size = UDim2.fromOffset(1100, CARD_H)
-	row.Parent = holder
-	hint = text(holder, {
-		Name = "Hint", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, 18),
-		Size = UDim2.fromOffset(300, 22), Text = "TAP TO CONTINUE", TextTransparency = 1,
-		TextColor3 = Color3.fromRGB(220, 220, 230),
-	})
+	dim = gui:WaitForChild("Dimmer")
+	dim.Visible = true
+	local holder = gui:WaitForChild("Holder")
+	scaleObj = holder:WaitForChild("Scale")
+	header = holder:WaitForChild("Header")
+	row = holder:WaitForChild("Row")
+	hint = holder:WaitForChild("Hint")
+	cardTemplate = gui:WaitForChild("Templates"):WaitForChild("Card")
 end
 
 local function fitScale(count)
@@ -191,121 +139,43 @@ end
 --------------------------------------------------------------------------------
 local function buildCard(item, index, count)
 	local color = rarityColor(item.Rarity)
-	local slot = Instance.new("Frame")
+	local slot = cardTemplate:Clone()
 	slot.Name = "Card" .. index
-	slot.BackgroundTransparency = 1
-	slot.AnchorPoint = Vector2.new(0.5, 0.5)
 	local x = (index - (count + 1) / 2) * (CARD_W + GAP)
 	slot.Position = UDim2.new(0.5, x, 0.5, 0)
-	slot.Size = UDim2.fromOffset(CARD_W, CARD_H)
 	slot.Parent = row
-	local pop = Instance.new("UIScale")
-	pop.Parent = slot
+	local pop = slot:WaitForChild("Pop")
 
-	-- Лучи за карточкой (Legendary+).
-	local rays = Instance.new("Frame")
-	rays.Name = "Rays"
-	rays.AnchorPoint = Vector2.new(0.5, 0.5)
-	rays.Position = UDim2.fromScale(0.5, 0.5)
-	rays.Size = UDim2.fromOffset(CARD_H * 1.7, CARD_H * 1.7)
-	rays.BackgroundTransparency = 1
-	rays.Visible = false
-	rays.ZIndex = 0
-	rays.Parent = slot
-	for i = 1, 8 do
-		local ray = Instance.new("Frame")
-		ray.AnchorPoint = Vector2.new(0.5, 0.5)
-		ray.Position = UDim2.fromScale(0.5, 0.5)
-		ray.Size = UDim2.new(0, 26, 1, 0)
-		ray.Rotation = i * 22.5
-		ray.BackgroundColor3 = color
-		ray.BackgroundTransparency = 0.55
-		ray.BorderSizePixel = 0
-		ray.ZIndex = 0
-		ray.Parent = rays
-		local g = Instance.new("UIGradient")
-		g.Rotation = 90
-		g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0.2), NumberSequenceKeypoint.new(1, 1) })
-		g.Parent = ray
+	-- Лучи за карточкой (Legendary+) — цвет редкости.
+	local rays = slot:WaitForChild("Rays")
+	for _, ray in rays:GetChildren() do
+		if ray:IsA("GuiObject") then ray.BackgroundColor3 = color end
 	end
 
-	local flipper = Instance.new("Frame")
-	flipper.Name = "Flipper"
-	flipper.AnchorPoint = Vector2.new(0.5, 0.5)
-	flipper.Position = UDim2.fromScale(0.5, 0.5)
-	flipper.Size = UDim2.fromScale(1, 1)
-	flipper.BackgroundTransparency = 1
-	flipper.ZIndex = 2
-	flipper.Parent = slot
-
-	-- РУБАШКА
-	local back = Instance.new("Frame")
-	back.Name = "Back"
-	back.Size = UDim2.fromScale(1, 1)
-	back.BackgroundColor3 = Color3.fromRGB(38, 32, 62)
-	back.ZIndex = 2
-	back.Parent = flipper
-	corner(back, 16)
-	local backStroke = stroke(back, 4, Color3.fromRGB(90, 80, 130))
-	local backGrad = Instance.new("UIGradient")
-	backGrad.Rotation = 60
-	backGrad.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(150, 140, 200))
-	backGrad.Parent = back
-	local inner = Instance.new("Frame")
-	inner.AnchorPoint = Vector2.new(0.5, 0.5)
-	inner.Position = UDim2.fromScale(0.5, 0.5)
-	inner.Size = UDim2.new(1, -22, 1, -22)
-	inner.BackgroundTransparency = 1
-	inner.ZIndex = 3
-	inner.Parent = back
-	corner(inner, 12)
-	stroke(inner, 2, Color3.fromRGB(120, 110, 170))
-	text(back, { Text = "?", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(90, 110), ZIndex = 4, TextColor3 = Color3.fromRGB(230, 220, 255) })
-
-	-- ЛИЦО
-	local front = Instance.new("Frame")
-	front.Name = "Front"
-	front.Size = UDim2.fromScale(1, 1)
-	front.BackgroundColor3 = Color3.fromRGB(26, 24, 38)
-	front.Visible = false
-	front.ZIndex = 2
-	front.Parent = flipper
-	corner(front, 16)
-	stroke(front, 4, color)
-	local band = Instance.new("Frame")
-	band.Size = UDim2.new(1, 0, 0.62, 0)
-	band.BackgroundColor3 = color
-	band.ZIndex = 2
-	band.Parent = front
-	corner(band, 16)
-	local bandGrad = Instance.new("UIGradient")
-	bandGrad.Rotation = 90
-	bandGrad.Transparency = NumberSequence.new(0.35, 1)
-	bandGrad.Parent = band
-	local viewport = Instance.new("ViewportFrame")
-	viewport.Name = "Preview"
-	viewport.BackgroundTransparency = 1
-	viewport.Position = UDim2.fromOffset(8, 22)
-	viewport.Size = UDim2.new(1, -16, 0, 120)
-	viewport.ZIndex = 3
-	viewport.Parent = front
-	text(front, { Name = "Rarity", Text = (item.Rarity or ""):upper(), Position = UDim2.fromOffset(10, 6),
-		Size = UDim2.new(1, -20, 0, 16), TextColor3 = color, ZIndex = 4 })
-	text(front, { Name = "Title", Text = titleOf(item):upper(), Position = UDim2.fromOffset(8, 146),
-		Size = UDim2.new(1, -16, 0, 30), ZIndex = 4 })
-	text(front, { Name = "Detail", Text = detailOf(item), Position = UDim2.fromOffset(8, 178),
-		Size = UDim2.new(1, -16, 0, 20), Font = Enum.Font.GothamBold, TextColor3 = Color3.fromRGB(255, 225, 130), ZIndex = 4 })
-	local oneIn = DropTables.OneIn(item.Chance)
-	text(front, { Name = "Chance", Text = oneIn, Position = UDim2.fromOffset(8, 204),
-		Size = UDim2.new(1, -16, 0, 16), Font = Enum.Font.GothamBold, TextColor3 = Color3.fromRGB(170, 170, 190), ZIndex = 4 })
+	local flipper = slot:WaitForChild("Flipper")
+	local back = flipper:WaitForChild("Back")
+	local backStroke = back:FindFirstChild("SkinStroke") or Instance.new("UIStroke", back)
+	local front = flipper:WaitForChild("Front")
+	local frontStroke = front:FindFirstChild("SkinStroke")
+	if frontStroke then frontStroke.Color = color end
+	local band = front:FindFirstChild("Band")
+	if band then band.BackgroundColor3 = color end
+	local viewport = front:WaitForChild("Preview")
+	front.Rarity.Text = (item.Rarity or ""):upper()
+	front.Rarity.TextColor3 = color
+	front.Title.Text = titleOf(item):upper()
+	front.Detail.Text = detailOf(item)
+	front.Chance.Text = DropTables.OneIn(item.Chance)
 	local badgeText, badgeColor = badgeOf(item)
-	if badgeText then
-		local badge = text(front, { Name = "Badge", Text = badgeText, AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0, 0), Size = UDim2.fromOffset(110, 26), BackgroundTransparency = 0,
-			BackgroundColor3 = badgeColor, ZIndex = 6, Rotation = -4 })
-		corner(badge, 13)
-		stroke(badge, 2, INK)
+	local badge = front:FindFirstChild("Badge")
+	if badge then
+		badge.Visible = badgeText ~= nil
+		if badgeText then
+			UiKit.Tint(badge, badgeColor:Lerp(Color3.new(0, 0, 0), 0.35))
+			local badgeStroke = badge:FindFirstChild("SkinStroke")
+			if badgeStroke then badgeStroke.Color = badgeColor end
+			badge.Text.Text = badgeText
+		end
 	end
 	return { Slot = slot, Pop = pop, Flipper = flipper, Back = back, BackStroke = backStroke, Front = front,
 		Rays = rays, Viewport = viewport, Item = item, Color = color, Rank = RARITY_RANK[item.Rarity or ""] or 1 }
@@ -419,7 +289,13 @@ local function runBatch(items, opts)
 	gui.Enabled = true
 	scaleObj.Scale = fitScale(count)
 	header.Text = opts and opts.Title or ""
-	header.TextColor3 = opts and opts.Color or Color3.new(1, 1, 1)
+	local headerColor = opts and opts.Color or UiKit.Theme.Accents.Gold.Main
+	local headerGradient = header:FindFirstChild("TextGradient")
+	if headerGradient then
+		headerGradient.Color = UiKit.Seq(headerColor:Lerp(Color3.new(1, 1, 1), 0.55), headerColor)
+	else
+		header.TextColor3 = headerColor
+	end
 	header.TextTransparency = 1
 	tween(header, 0.3, { TextTransparency = 0 })
 	hint.TextTransparency = 1

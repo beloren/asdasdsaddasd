@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BigNum = require(ReplicatedStorage.Shared.BigNum)
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 
@@ -140,11 +141,10 @@ local function renderBoard(part, spec, entries, errorText)
 	background.BorderSizePixel = 0
 	background.Parent = gui
 
-	local title = Instance.new("TextLabel")
+	local title = WorldUi.Text(nil, "Text", "Number")
 	title.Size = UDim2.new(1, 0, 0, 110)
 	title.BackgroundColor3 = spec.Color
 	title.BorderSizePixel = 0
-	title.Font = Enum.Font.Arcade
 	title.Text = spec.Title
 	title.TextColor3 = Color3.fromRGB(20, 22, 26)
 	title.TextSize = 45
@@ -152,11 +152,10 @@ local function renderBoard(part, spec, entries, errorText)
 
 	local status = errorText or (#entries == 0 and "NO PLAYERS YET" or nil)
 	if status then
-		local label = Instance.new("TextLabel")
+		local label = WorldUi.Text(nil, "Text", "Number")
 		label.Position = UDim2.new(0, 25, 0, 135)
 		label.Size = UDim2.new(1, -50, 1, -160)
 		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.Arcade
 		label.Text = status
 		label.TextColor3 = Color3.fromRGB(190, 195, 205)
 		label.TextSize = 31
@@ -173,20 +172,18 @@ local function renderBoard(part, spec, entries, errorText)
 		row.BorderSizePixel = 0
 		row.Parent = background
 
-		local rankLabel = Instance.new("TextLabel")
+		local rankLabel = WorldUi.Text(nil, "Text", "Number")
 		rankLabel.Size = UDim2.new(0, 70, 1, 0)
 		rankLabel.BackgroundTransparency = 1
-		rankLabel.Font = Enum.Font.Arcade
 		rankLabel.Text = "#" .. rank
 		rankLabel.TextColor3 = rank <= 3 and spec.Color or Color3.fromRGB(185, 190, 200)
 		rankLabel.TextSize = 27
 		rankLabel.Parent = row
 
-		local nameLabel = Instance.new("TextLabel")
+		local nameLabel = WorldUi.Text(nil, "Text", "Number")
 		nameLabel.Position = UDim2.new(0, 75, 0, 0)
 		nameLabel.Size = UDim2.new(1, -255, 1, 0)
 		nameLabel.BackgroundTransparency = 1
-		nameLabel.Font = Enum.Font.Arcade
 		nameLabel.Text = entry.Name
 		nameLabel.TextColor3 = Color3.new(1, 1, 1)
 		nameLabel.TextSize = 25
@@ -194,12 +191,11 @@ local function renderBoard(part, spec, entries, errorText)
 		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 		nameLabel.Parent = row
 
-		local valueLabel = Instance.new("TextLabel")
+		local valueLabel = WorldUi.Text(nil, "Text", "Number")
 		valueLabel.AnchorPoint = Vector2.new(1, 0)
 		valueLabel.Position = UDim2.fromScale(1, 0)
 		valueLabel.Size = UDim2.new(0, 175, 1, 0)
 		valueLabel.BackgroundTransparency = 1
-		valueLabel.Font = Enum.Font.Arcade
 		valueLabel.Text = spec.IsTime and formatPlayTime(entry.Value) or formatNumber(entry.Value)
 		valueLabel.TextColor3 = spec.Color
 		valueLabel.TextSize = 27

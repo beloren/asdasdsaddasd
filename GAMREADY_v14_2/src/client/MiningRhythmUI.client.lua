@@ -37,98 +37,26 @@ if not (promptRemote and hitRemote) then
 	return
 end
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "MiningRhythmUi"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.DisplayOrder = 50
-gui.Parent = playerGui
-
--- Кольцо-таймер (уменьшающаяся дуга) вокруг самой кнопки — те же
--- дискретные сегменты, что уже использованы у кольца ХП валунов
--- (RockService.lua) и билборда слайма — единый визуальный язык проекта
--- вместо честной радиальной заливки (которая на UI требует более
--- хрупких трюков с ClipsDescendants/UIGradient, см. эти же файлы).
-local RING_SEGMENTS = 10
-
--- Контейнер, который двигается по экрану целиком (кнопка+кольцо внутри
--- него всегда выровнены друг на друга, независимо от того, куда он
--- переехал) — по прямому запросу "в разных точках экрана". Безопасная
--- зона (см. randomSafePosition ниже) специально держится подальше от
--- краёв экрана, где обычно живёт остальной HUD (хотбар снизу, квесты/
--- шахта сверху и т.п.) — "главное не на UI".
-local promptContainer = Instance.new("Frame")
-promptContainer.Name = "PromptContainer"
-promptContainer.AnchorPoint = Vector2.new(0.5, 0.5)
-promptContainer.Position = UDim2.fromScale(0.5, 0.5)
-promptContainer.Size = UDim2.fromOffset(120, 120)
-promptContainer.BackgroundTransparency = 1
-promptContainer.Parent = gui
-
-local button = Instance.new("TextButton")
-button.Name = "RhythmButton"
-button.AnchorPoint = Vector2.new(0.5, 0.5)
-button.Position = UDim2.fromScale(0.5, 0.5)
-button.Size = UDim2.fromOffset(92, 92)
-button.BackgroundColor3 = Color3.fromRGB(255, 210, 60)
-button.AutoButtonColor = false
-button.Font = Enum.Font.Arcade
-button.TextScaled = true
-button.TextColor3 = Color3.fromRGB(30, 24, 8)
-button.TextStrokeTransparency = 1
-button.Text = "TAP!"
+-- v20: вид — Shared.UiBuilders.MiningRhythmUi (StarterGui/MiningRhythmUi).
+local RhythmBuilder = require(ReplicatedStorage.Shared.UiBuilders.MiningRhythmUi)
+local UiKit = require(ReplicatedStorage.Shared.UiKit)
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("MiningRhythmUi")
+local promptContainer = gui:WaitForChild("PromptContainer")
+local button = promptContainer:WaitForChild("RhythmButton")
+local buttonCaption = button:WaitForChild("Caption")
+local ringHolder = promptContainer:WaitForChild("RingHolder")
 button.Visible = false
-button.ZIndex = 5
-button.Parent = promptContainer
--- Квадратная кнопка по прямому запросу — БЕЗ UICorner (раньше был
--- CornerRadius=0.5, превращавший её в круг). TextButton по умолчанию и
--- так прямоугольный, скруглять было специально нужно только для круга.
-
-local buttonStroke = Instance.new("UIStroke")
-buttonStroke.Thickness = 3
-buttonStroke.Color = Color3.fromRGB(255, 255, 255)
-buttonStroke.Parent = button
-
-local ringHolder = Instance.new("Frame")
-ringHolder.Name = "RingHolder"
-ringHolder.AnchorPoint = Vector2.new(0.5, 0.5)
-ringHolder.Position = UDim2.fromScale(0.5, 0.5)
-ringHolder.Size = UDim2.fromOffset(118, 118)
-ringHolder.BackgroundTransparency = 1
-ringHolder.ZIndex = 4
-ringHolder.Parent = promptContainer
-ringHolder.Visible = false -- ИНАЧЕ 10 белых квадратиков-сегментов видны сразу при заходе, до первого приглашения мини-игры (button.Visible уже был false, а этот — забыт)
-
--- Точка на ПЕРИМЕТРЕ КВАДРАТА (не круга — по прямому запросу) для t в
--- диапазоне [0, 4): каждая целая часть — одна сторона квадрата (верх →
--- право → низ → лево), дробная часть — положение вдоль этой стороны.
--- Возвращает x,y в масштабе [0,1] (0,0 — левый верхний угол).
-local function squarePerimeterPoint(t)
-	t = t % 4
-	local side = math.floor(t)
-	local along = t - side
-	if side == 0 then return along, 0
-	elseif side == 1 then return 1, along
-	elseif side == 2 then return 1 - along, 1
-	else return 0, 1 - along end
-end
+ringHolder.Visible = false -- иначе сегменты кольца видны сразу при заходе
+local BUTTON_SIZE = RhythmBuilder.BUTTON_SIZE
+local RING_SIZE = RhythmBuilder.RING_SIZE
 
 local ringSegments = {}
-for i = 1, RING_SEGMENTS do
-	local x, y = squarePerimeterPoint((i - 1) / RING_SEGMENTS * 4)
-	local segment = Instance.new("Frame")
-	segment.Name = "Segment" .. i
-	segment.AnchorPoint = Vector2.new(0.5, 0.5)
-	segment.Size = UDim2.fromOffset(12, 12)
-	segment.Position = UDim2.fromScale(x, y)
-	segment.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	segment.BackgroundTransparency = 0
-	segment.BorderSizePixel = 0
-	segment.ZIndex = 4
-	-- Квадратные сегменты — БЕЗ UICorner, тот же принцип, что у кнопки.
-	segment.Parent = ringHolder
+for i = 1, RhythmBuilder.RING_SEGMENTS do
+	local segment = ringHolder:FindFirstChild("Segment" .. i)
+	if not segment then break end
 	ringSegments[i] = segment
 end
+local RING_SEGMENTS = #ringSegments
 
 local activeToken = nil
 local hideTweenToken = 0
@@ -178,20 +106,20 @@ local function popIn()
 	button.Size = UDim2.fromOffset(20, 20)
 	ringHolder.Size = UDim2.fromOffset(30, 30)
 	local tween = TweenService:Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Size = UDim2.fromOffset(92, 92),
+		Size = UDim2.fromOffset(BUTTON_SIZE, BUTTON_SIZE),
 	})
 	local ringTween = TweenService:Create(ringHolder, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Size = UDim2.fromOffset(118, 118),
+		Size = UDim2.fromOffset(RING_SIZE, RING_SIZE),
 	})
 	tween:Play()
 	ringTween:Play()
 end
 
 local function playHitFeedback()
-	button.BackgroundColor3 = Color3.fromRGB(120, 255, 140)
-	button.Text = "NICE!"
+	UiKit.SetButtonVariant(button, "Green")
+	buttonCaption.Text = "NICE!"
 	local tween = TweenService:Create(button, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-		Size = UDim2.fromOffset(120, 120),
+		Size = UDim2.fromOffset(BUTTON_SIZE * 1.3, BUTTON_SIZE * 1.3),
 	})
 	tween:Play()
 	task.delay(0.16, hidePrompt)
@@ -226,8 +154,9 @@ promptRemote.OnClientEvent:Connect(function(token, windowSeconds, step, maxSteps
 		Color3.fromRGB(255, 95, 70),
 		Color3.fromRGB(255, 60, 60),
 	}
-	button.BackgroundColor3 = stepColors[math.clamp(step, 1, #stepColors)]
-	button.Text = maxSteps > 1 and ("TAP! %d/%d"):format(step, maxSteps) or "TAP!"
+	UiKit.SetButtonVariant(button, "Yellow")
+	UiKit.Tint(button, stepColors[math.clamp(step, 1, #stepColors)])
+	buttonCaption.Text = maxSteps > 1 and ("TAP! %d/%d"):format(step, maxSteps) or "TAP!"
 	button.Visible = true
 	ringHolder.Visible = true
 	setRingLit(RING_SEGMENTS)

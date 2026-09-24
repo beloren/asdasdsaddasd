@@ -204,41 +204,29 @@ chevron.Anchored = true
 chevron.CanCollide = false
 chevron.CanQuery = false
 chevron.CanTouch = false
-local chevronGui = Instance.new("SurfaceGui")
-chevronGui.Face = Enum.NormalId.Top
-chevronGui.LightInfluence = 0
-chevronGui.AlwaysOnTop = false
+-- v20: вид шеврона и стрелки — Shared.UiBuilders.QuestMarkerUi
+-- (StarterGui/QuestMarkerUi; свою картинку клади в Image — надпись спрячется).
+local markerUi = require(ReplicatedStorage.Shared.UiRegistry).Get("QuestMarkerUi")
+local markerColor = cfg.Color or Color3.fromRGB(255, 215, 90)
+local function paintGlyph(holder, transparency)
+	local image = holder:FindFirstChild("Image")
+	local glyph = holder:FindFirstChild("Glyph")
+	local hasImage = image and image.Image ~= ""
+	if image then image.ImageColor3 = markerColor end
+	if glyph then
+		glyph.TextColor3 = markerColor
+		glyph.TextTransparency = transparency or 0
+		glyph.Visible = not hasImage
+	end
+end
+local chevronGui = markerUi:WaitForChild("Templates"):WaitForChild("Chevron"):Clone()
 chevronGui.Parent = chevron
-local chevronLabel = Instance.new("TextLabel")
-chevronLabel.Size = UDim2.fromScale(1, 1)
-chevronLabel.BackgroundTransparency = 1
-chevronLabel.Text = "▲"
-chevronLabel.TextScaled = true
-chevronLabel.Font = Enum.Font.GothamBlack
-chevronLabel.TextColor3 = cfg.Color or Color3.fromRGB(255, 215, 90)
-chevronLabel.TextTransparency = 0.15
-chevronLabel.Parent = chevronGui
+paintGlyph(chevronGui, 0.15)
 
 -- Стрелка у края экрана.
-local edgeGui = Instance.new("ScreenGui")
-edgeGui.Name = "QuestEdgeArrow"
-edgeGui.ResetOnSpawn = false
-edgeGui.IgnoreGuiInset = true
-edgeGui.DisplayOrder = 6
-edgeGui.Parent = playerGui
-local edgeArrow = Instance.new("TextLabel")
-edgeArrow.AnchorPoint = Vector2.new(0.5, 0.5)
-edgeArrow.Size = UDim2.fromOffset(46, 46)
-edgeArrow.BackgroundTransparency = 1
-edgeArrow.Text = "➤"
-edgeArrow.TextScaled = true
-edgeArrow.Font = Enum.Font.GothamBlack
-edgeArrow.TextColor3 = cfg.Color or Color3.fromRGB(255, 215, 90)
+local edgeArrow = markerUi:WaitForChild("EdgeArrow")
+paintGlyph(edgeArrow, 0)
 edgeArrow.Visible = false
-edgeArrow.Parent = edgeGui
-local edgeStroke = Instance.new("UIStroke")
-edgeStroke.Thickness = 3
-edgeStroke.Parent = edgeArrow
 
 -- Знак «!».
 local marker = nil

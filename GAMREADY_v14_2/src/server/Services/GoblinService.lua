@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 local PathfindingService = game:GetService("PathfindingService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local CrystalUtil = require(ReplicatedStorage.Shared.CrystalUtil)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local Sfx = require(ReplicatedStorage.Shared.Sfx)
@@ -919,11 +920,10 @@ local function createR6Placeholder(position, tier, bankPosition, goblinType, ass
 	icon.Image = Config.Goblins.IconImage or ""
 	icon.ScaleType = Enum.ScaleType.Fit
 	icon.Parent = iconBadge
-	local iconFallback = Instance.new("TextLabel")
+	local iconFallback = WorldUi.Text(nil, "Text", "Number")
 	iconFallback.Name = "IconPlaceholder"
 	iconFallback.Size = UDim2.fromScale(1, 1)
 	iconFallback.BackgroundTransparency = 1
-	iconFallback.Font = Enum.Font.Arcade
 	iconFallback.Text = "G"
 	iconFallback.TextColor3 = tierColor
 	iconFallback.TextSize = 18
@@ -937,18 +937,15 @@ local function createR6Placeholder(position, tier, bankPosition, goblinType, ass
 	info.BackgroundTransparency = 1
 	info.BorderSizePixel = 0
 	info.Parent = billboard
-	local title = Instance.new("TextLabel")
+	local title = WorldUi.Text(nil, "Text", "Number")
 	title.Size = UDim2.new(1, -12, 0, 19)
 	title.Position = UDim2.fromOffset(6, 1)
 	title.BackgroundTransparency = 1
-	title.Font = Enum.Font.Arcade
 	title.TextSize = 11
 	title.TextScaled = false
 	title.RichText = true
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.TextColor3 = Color3.fromRGB(238, 240, 235)
-	title.TextStrokeTransparency = 0
-	title.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 	title.Text = ("%s <font color=\"#69EB82\">Lv. %d</font>"):format(definition.DisplayName, tier)
 	title.Parent = info
 	local healthBack = Instance.new("Frame")
@@ -966,16 +963,13 @@ local function createR6Placeholder(position, tier, bankPosition, goblinType, ass
 	healthFill.BackgroundColor3 = Color3.fromRGB(104, 207, 80)
 	healthFill.BorderSizePixel = 0
 	healthFill.Parent = healthBack
-	local healthText = Instance.new("TextLabel")
+	local healthText = WorldUi.Text(nil, "Text", "Number")
 	healthText.Size = UDim2.fromScale(1, 1)
 	healthText.BackgroundTransparency = 1
-	healthText.Font = Enum.Font.Arcade
 	healthText.TextSize = 8
 	healthText.TextScaled = false
 	healthText.RichText = true
-	healthText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 	healthText.TextColor3 = Color3.new(1, 1, 1)
-	healthText.TextStrokeTransparency = 0.45
 	healthText.ZIndex = 2
 	healthText.Parent = healthBack
 	local function updateHealthBar(health)

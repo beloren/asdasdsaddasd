@@ -46,9 +46,7 @@ end
 -- stay green even for mutated crystals.
 function MutationVisuals.StyleOverheadLabel(label, mutationIds, baseColor)
 	if not label then return end
-	label.Font = Enum.Font.Arcade
-	label.TextStrokeColor3 = Color3.fromRGB(15, 15, 20)
-	label.TextStrokeTransparency = 0
+	require(script.Parent.WorldUi).Restyle(label, "Number", true) -- v20: стиль мирового текста
 	label.TextColor3 = (baseColor or Color3.new(1, 1, 1)):Lerp(Color3.new(1, 1, 1), 0.72)
 	label.RichText = true
 	local oldGradient = label:FindFirstChild("MutationGradient")

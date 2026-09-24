@@ -24,6 +24,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local okReveal, RevealCards = pcall(require, ReplicatedStorage.Shared.RevealCards) -- v18
 if not okReveal then RevealCards = nil end
 local Sfx = require(ReplicatedStorage.Shared.Sfx)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей
 
 local player = Players.LocalPlayer
 local CFG = Config.Chests
@@ -245,24 +246,20 @@ local function lootToken(item, color, from, landing, isOwner, delay)
 		gui.AlwaysOnTop = true
 		gui.LightInfluence = 0
 		gui.Parent = orb
-		local icon = Instance.new("TextLabel")
+		local icon = WorldUi.Text(nil, "Text", "Heading")
 		icon.Size = UDim2.new(1, 0, 0.6, 0)
 		icon.BackgroundTransparency = 1
 		icon.Text = icons[item.Kind] or "🎁"
 		icon.TextScaled = true
 		icon.Parent = gui
-		local label = Instance.new("TextLabel")
+		local label = WorldUi.Text(nil, "Text", "Heading")
 		label.Position = UDim2.fromScale(0, 0.6)
 		label.Size = UDim2.new(1, 0, 0.4, 0)
 		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.FredokaOne
 		label.TextScaled = true
 		label.TextColor3 = color
 		label.Text = tostring(item.Text or "")
 		label.Parent = gui
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = 2
-		stroke.Parent = label
 		Sfx.play("LootPop", orb)
 		-- Дуга вверх и падение на землю с небольшим отскоком.
 		local flight, apex = 0.7, 6 + math.random() * 3

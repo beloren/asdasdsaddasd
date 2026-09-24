@@ -474,10 +474,9 @@ task.spawn(function()
 		label.Position = UDim2.fromScale(0.5, 0.68)
 		label.Size = UDim2.fromScale(1, 0.32)
 		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.Arcade
+		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(label, "Number") -- v20: шрифт темы
 		label.TextSize = 22
 		label.TextColor3 = Color3.fromRGB(255, 225, 90)
-		label.TextStrokeTransparency = 0
 		-- "<ник>'s Base" — по формату референса ("...'s Garden"), просто
 		-- со словом этой игры ("Base"), а не позаимствованным из другой.
 		label.Text = ("%s's Base"):format(player.DisplayName ~= "" and player.DisplayName or player.Name)
@@ -1417,38 +1416,7 @@ end)
 --                                   TextLabel "CooldownText", UIStroke)
 --------------------------------------------------------------------------------
 
-local function buildActionButtonPlaceholder(name, position, emoji, strokeColor)
-	local btn = Instance.new("Frame")
-	btn.Name = name
-	btn.AnchorPoint = Vector2.new(0.5, 1)
-	btn.Position = position
-	btn.Size = UDim2.fromOffset(56, 56)
-	btn.BackgroundColor3 = Color3.fromRGB(30, 28, 35)
-	btn.BorderSizePixel = 0
-	btn.ClipsDescendants = true
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
-	corner.Parent = btn
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 3
-	stroke.Color = strokeColor
-	stroke.Parent = btn
-
-	local icon = Instance.new("ImageLabel")
-	icon.Name = "Icon"
-	icon.Image = resolveIconAsset(Config.Icons.Protection) or ""
-	icon.ScaleType = Enum.ScaleType.Fit
-	icon.BackgroundTransparency = 1
-	icon.AnchorPoint = Vector2.new(0.5, 0.5)
-	icon.Position = UDim2.fromScale(0.5, 0.5)
-	icon.Size = UDim2.fromScale(0.62, 0.62)
-	icon.ZIndex = 2
-	icon.Parent = btn
-
-	return btn
-end
+-- (v20: заглушка ActionButtons удалена — щит живёт в слоте F хотбара, HotbarUi.)
 
 -- WaitForChild, а не FindFirstChild. Это единственное место в файле, где
 -- Studio-овский GUI брался без ожидания (все остальные — WaitForChild с
@@ -1524,11 +1492,9 @@ local function setupFillBar(slot, color, showCountdownBelow)
 		text.Position = UDim2.fromScale(0.5, 0.5)
 		text.Size = UDim2.fromScale(0.8, 0.5)
 		text.BackgroundTransparency = 1
-		text.Font = Enum.Font.FredokaOne
+		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(text, "Heading") -- v20: шрифт темы
 		text.TextScaled = true
 		text.TextColor3 = Color3.new(1, 1, 1)
-		text.TextStrokeColor3 = Color3.fromRGB(20, 20, 25)
-		text.TextStrokeTransparency = 0
 		text.ZIndex = 4
 		text.Parent = slot
 	end
@@ -1595,11 +1561,9 @@ local function buildWarningLabel(slot)
 	label.Position = UDim2.new(0.5, 0, 0, -6)
 	label.Size = UDim2.new(3.2, 0, 0.7, 0)
 	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
+	require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(label, "Heading") -- v20: шрифт темы
 	label.TextScaled = true
 	label.TextColor3 = Color3.fromRGB(255, 90, 90)
-	label.TextStrokeColor3 = Color3.fromRGB(20, 20, 25)
-	label.TextStrokeTransparency = 0
 	label.Visible = false
 	label.ZIndex = 10
 	label.Parent = slot
@@ -1657,7 +1621,7 @@ protectionTooltipText.Name = "Text"
 protectionTooltipText.BackgroundTransparency = 1
 protectionTooltipText.Position = UDim2.fromOffset(8, 6)
 protectionTooltipText.Size = UDim2.new(1, -16, 1, -12)
-protectionTooltipText.Font = Enum.Font.Arcade
+require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(protectionTooltipText, "Number") -- v20: шрифт темы
 protectionTooltipText.TextColor3 = Color3.new(1, 1, 1)
 protectionTooltipText.TextSize = 14
 protectionTooltipText.TextWrapped = true
@@ -4354,11 +4318,9 @@ if not holdHint then
 	holdHint.Position = UDim2.new(0.5, 0, 0, -6)
 	holdHint.Size = UDim2.fromOffset(150, 34)
 	holdHint.BackgroundTransparency = 1
-	holdHint.Font = Enum.Font.FredokaOne
+	require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(holdHint, "Heading") -- v20: шрифт темы
 	holdHint.TextSize = 22
 	holdHint.TextColor3 = Color3.fromRGB(255, 235, 90)
-	holdHint.TextStrokeColor3 = Color3.new(0, 0, 0)
-	holdHint.TextStrokeTransparency = 0
 	holdHint.ZIndex = 25
 	holdHint.Parent = promptFrame
 end
@@ -5880,7 +5842,7 @@ task.spawn(function()
 		caption.Name = "Caption"
 		caption.Size = UDim2.fromScale(1, 1)
 		caption.BackgroundTransparency = 1
-		caption.Font = Enum.Font.Arcade
+		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(caption, "Number") -- v20: шрифт темы
 		caption.Text = text
 		caption.TextScaled = true
 		caption.TextColor3 = Color3.new(1, 1, 1)
@@ -6320,49 +6282,19 @@ local function setupShiftLock()
 	-- МОБИЛЬНАЯ КНОПКА — показывается только на телефоне/планшете
 	-- (UserInputService.TouchEnabled), делает ровно то же самое переключение.
 	if UserInputService.TouchEnabled then
-		local gui = Instance.new("ScreenGui")
-		gui.Name = "MobileShiftLockButton"
-		gui.ResetOnSpawn = false
-		gui.DisplayOrder = 10
-		pcall(function()
-			gui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
-			gui.ClipToDeviceSafeArea = true
-		end)
-		gui.Parent = playerGui
-
-		local button = Instance.new("TextButton")
-		button.Name = "ShiftLockButton"
-		button.AnchorPoint = Vector2.new(0, 1)
-		button.Position = UDim2.new(0, 18, 1, -18) -- строго левый нижний угол безопасной области
-		button.Size = UDim2.fromOffset(42, 42)
-		button.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-		button.BackgroundTransparency = 0.2
-		button.Text = ""
-		button.AutoButtonColor = true
-		button.Parent = gui
-
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(1, 0)
-		corner.Parent = button
-
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = 2
-		stroke.Color = Color3.new(1, 1, 1)
-		stroke.Transparency = 0.6
-		stroke.Parent = button
-
-		local icon = Instance.new("TextLabel")
-		icon.Size = UDim2.fromScale(1, 1)
-		icon.BackgroundTransparency = 1
-		icon.Font = Enum.Font.FredokaOne
-		icon.TextScaled = true
-		icon.Text = "🔒"
-		icon.TextColor3 = Color3.new(1, 1, 1)
-		icon.Parent = button
+		-- v20: вид — Shared.UiBuilders.ShiftLockUi (StarterGui/MobileShiftLockButton).
+		local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("MobileShiftLockButton")
+		gui.Enabled = true
+		local button = gui:WaitForChild("ShiftLockButton")
+		local iconImage = button:WaitForChild("Icon")
+		local icon = iconImage:FindFirstChild("Emoji") or iconImage
+		local stroke = button:FindFirstChild("SkinStroke") or Instance.new("UIStroke", button)
 
 		connectClick(button, function()
 			toggleShiftLock()
-			icon.TextColor3 = shiftLockEnabled and Color3.fromRGB(120, 255, 160) or Color3.new(1, 1, 1)
+			local lockColor = shiftLockEnabled and Color3.fromRGB(120, 255, 160) or Color3.new(1, 1, 1)
+			if icon:IsA("TextLabel") then icon.TextColor3 = lockColor end
+			iconImage.ImageColor3 = lockColor
 			stroke.Color = shiftLockEnabled and Color3.fromRGB(120, 255, 160) or Color3.new(1, 1, 1)
 		end, "DialogueChoice")
 	end
@@ -6701,32 +6633,14 @@ local function setupMoneyGainFx()
 	local moneyFxTotal = 0
 	local moneyFxToken = 0
 
+	-- v20: вид — Shared.UiBuilders.MoneyFxUi (StarterGui/MoneyGainFx).
+	local MONEY_FX_SIZE = require(ReplicatedStorage.Shared.UiBuilders.MoneyFxUi).SIZE
 	local function ensureMoneyFxGui()
 		if moneyFxGui and moneyFxGui.Parent then return end
-		moneyFxGui = Instance.new("ScreenGui")
-		moneyFxGui.Name = "MoneyGainFx"
-		moneyFxGui.ResetOnSpawn = false
-		moneyFxGui.DisplayOrder = 95
-		moneyFxGui.Parent = playerGui
-
-		moneyFxContainer = Instance.new("Frame")
-		moneyFxContainer.AnchorPoint = Vector2.new(0.5, 0.5)
-		moneyFxContainer.Position = UDim2.new(0.5, 0, 0.45, 0)
-		moneyFxContainer.Size = UDim2.fromOffset(280, 50)
-		moneyFxContainer.BackgroundTransparency = 1
-		moneyFxContainer.Parent = moneyFxGui
-
-		moneyFxLabel = Instance.new("TextLabel")
-		moneyFxLabel.Size = UDim2.fromScale(1, 1)
-		moneyFxLabel.BackgroundTransparency = 1
-		moneyFxLabel.Font = Enum.Font.Arcade
-		moneyFxLabel.TextSize = 34
-		moneyFxLabel.TextXAlignment = Enum.TextXAlignment.Center
-		moneyFxLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
-		moneyFxLabel.TextStrokeTransparency = 1
-		moneyFxLabel.Text = ""
+		moneyFxGui = require(ReplicatedStorage.Shared.UiRegistry).Get("MoneyGainFx")
+		moneyFxContainer = moneyFxGui:WaitForChild("Container")
+		moneyFxLabel = moneyFxContainer:WaitForChild("Label")
 		moneyFxLabel.TextTransparency = 1
-		moneyFxLabel.Parent = moneyFxContainer
 	end
 
 	local function playMoneyGainFx(amount)
@@ -6741,9 +6655,9 @@ local function setupMoneyGainFx()
 		moneyFxLabel.TextTransparency = 0
 		-- Маленький "поп" на каждое добавление — видно, что сумма растёт,
 		-- а не просто тихо подменяется числом.
-		moneyFxContainer.Size = UDim2.fromOffset(280 * 1.12, 50 * 1.12)
+		moneyFxContainer.Size = UDim2.fromOffset(MONEY_FX_SIZE.X * 1.12, MONEY_FX_SIZE.Y * 1.12)
 		TweenService:Create(moneyFxContainer, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = UDim2.fromOffset(280, 50),
+			Size = UDim2.fromOffset(MONEY_FX_SIZE.X, MONEY_FX_SIZE.Y),
 		}):Play()
 
 		if playUiClick then playUiClick("RewardMoney") end
@@ -6802,10 +6716,9 @@ local function setupProtectionTimers()
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.fromScale(1, 1)
 		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.Arcade
+		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(label, "Number") -- v20: шрифт темы
 		label.TextSize = 18
 		label.TextColor3 = Config.Protection.Color
-		label.TextStrokeTransparency = 0
 		label.Parent = billboard
 		billboard.Parent = head
 		protectionGuis[plr] = billboard

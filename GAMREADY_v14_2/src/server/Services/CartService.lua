@@ -35,6 +35,7 @@ local TweenService = game:GetService("TweenService")
 local PhysicsService = game:GetService("PhysicsService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 Config.Cart = Config.Cart or {}
 Config.Cart.ButtonOffset = Config.Cart.ButtonOffset or Vector3.new(5, -0.5, 0)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
@@ -1029,7 +1030,7 @@ local function findOrBuildValueGui(root)
 	local gui = root:FindFirstChild("ValueGui", true)
 	local label = gui and gui:FindFirstChildWhichIsA("TextLabel", true)
 	if gui and label then
-		label.Font = Enum.Font.Arcade
+		WorldUi.Restyle(label, "Number", true)
 		gui.Size = UDim2.new(3.6, 0, VALUE_HEIGHT, 0)
 		return gui, label
 	end
@@ -1047,15 +1048,12 @@ local function findOrBuildValueGui(root)
 	gui.DistanceStep = 0 -- фиксированный размер на экране
 	gui.Parent = root
 
-	label = Instance.new("TextLabel")
+	label = WorldUi.Text(nil, "Text", "Number")
 	label.Name = "ValueLabel"
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.Arcade
 	label.TextScaled = true
 	label.TextColor3 = Color3.fromRGB(60, 220, 90)
-	label.TextStrokeColor3 = Color3.fromRGB(20, 20, 25)
-	label.TextStrokeTransparency = 0
 	label.Parent = gui
 
 	return gui, label
@@ -1073,7 +1071,6 @@ local function findOrBuildComboGui(root)
 	local label = gui and gui:FindFirstChildWhichIsA("TextLabel", true)
 	local gradient = label and (label:FindFirstChildWhichIsA("UIGradient") or (label.Parent and label.Parent:FindFirstChildWhichIsA("UIGradient")))
 	if gui and label and gradient then
-		label.Font = Enum.Font.Arcade
 		return gui, label, gradient
 	end
 	if gui then
@@ -1091,15 +1088,12 @@ local function findOrBuildComboGui(root)
 	gui.Enabled = false
 	gui.Parent = root
 
-	label = Instance.new("TextLabel")
+	label = WorldUi.Text(nil, "Text", "Number")
 	label.Name = "ComboLabel"
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.Arcade
 	label.TextScaled = true
 	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeColor3 = Color3.fromRGB(20, 20, 25)
-	label.TextStrokeTransparency = 0
 	label.Parent = gui
 
 	-- Enabled=false по умолчанию — включается только на верхней "радужной"

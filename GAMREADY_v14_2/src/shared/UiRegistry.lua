@@ -37,6 +37,8 @@ UiRegistry.Entries = {
 	{ Name = "LootFeed", Module = "UiBuilders.LootFeedUi", MinVersion = 20, What = "лента добычи" },
 	{ Name = "Toast", Module = "ToastUiBuilder", MinVersion = 20, What = "уведомления" },
 	{ Name = "QuestUi", Module = "UiBuilders.QuestUi", MinVersion = 20, What = "квесты + трекер" },
+	{ Name = "MobileShiftLockButton", Module = "UiBuilders.ShiftLockUi", MinVersion = 20, What = "кнопка шифтлока (телефон)" },
+	{ Name = "SocialHud", Module = "UiBuilders.SocialHudUi", MinVersion = 20, What = "кнопка наград за группу/избранное" },
 	{ Name = "QuestMarkerUi", Module = "UiBuilders.QuestMarkerUi", MinVersion = 20, What = "стрелка навигации квеста" },
 
 	-- ОКНА
@@ -70,8 +72,9 @@ UiRegistry.Entries = {
 	{ Name = "RubbleCrystalHotbar", Module = "UiBuilders.RubbleCrystalUi", MinVersion = 20, What = "кристалл в руках" },
 	{ Name = "OrePreviewHud", Module = "UiBuilders.OrePreviewUi", MinVersion = 20, What = "руда в руках" },
 	{ Name = "PlacementUi", Module = "UiBuilders.PlacementUi", MinVersion = 20, What = "подсказки установки" },
-	{ Name = "RewardPopups", Module = "UiBuilders.RewardPopupsUi", MinVersion = 20, What = "всплывающие награды" },
-	{ Name = "MoneyFx", Module = "UiBuilders.RewardPopupsUi", Fn = "BuildMoneyFx", MinVersion = 20, What = "летящие деньги" },
+	{ Name = "MoneyGainFx", Module = "UiBuilders.MoneyFxUi", MinVersion = 20, What = "«+$X» при начислении денег" },
+	{ Name = "RevealCards", Module = "UiBuilders.RevealCardsUi", MinVersion = 20, What = "карточки открытия жеод/сундуков" },
+	{ Name = "MobBillboardTemplates", Module = "UiBuilders.MobBillboardsUi", MinVersion = 20, What = "таблички гоблинов и валунов" },
 	{ Name = "WorldUiTemplates", Module = "UiBuilders.WorldUi", MinVersion = 20, What = "шаблоны билбордов (мобы, валуны, промпты)" },
 }
 

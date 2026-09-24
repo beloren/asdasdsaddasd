@@ -24,6 +24,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local MessagingService = game:GetService("MessagingService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local PlaceableCatalog = require(ReplicatedStorage.Shared.PlaceableCatalog)
 local PlaceableFactory = require(ReplicatedStorage.Shared.PlaceableFactory)
 local GroundCheck = require(ReplicatedStorage.Shared.GroundCheck)
@@ -275,15 +276,13 @@ local function addLabel(model, anchor, lines, maxDistance, heightOffset)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = billboard
 	for index, line in lines do
-		local label = Instance.new("TextLabel")
+		local label = WorldUi.Text(nil, "Text", "Heading")
 		label.LayoutOrder = index
 		label.BackgroundTransparency = 1
 		label.Size = UDim2.new(1, 0, 0, index == 1 and 28 or 22)
-		label.Font = Enum.Font.FredokaOne
 		label.TextScaled = true
 		label.Text = line.Text
 		label.TextColor3 = line.Color or Color3.new(1, 1, 1)
-		label.TextStrokeTransparency = 0.2
 		label.Parent = billboard
 	end
 end

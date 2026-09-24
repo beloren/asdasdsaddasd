@@ -303,7 +303,7 @@ if not (submenuClose and submenuClose:IsA("GuiButton")) then
 	submenuClose.Position = UDim2.new(1, -10, 0, 10)
 	submenuClose.Size = UDim2.fromOffset(30, 30)
 	submenuClose.BackgroundColor3 = Color3.fromRGB(220, 70, 70)
-	submenuClose.Font = Enum.Font.Arcade
+	require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(submenuClose, "Number") -- v20: шрифт темы
 	submenuClose.TextScaled = true
 	submenuClose.TextColor3 = Color3.new(1, 1, 1)
 	submenuClose.Text = "X"
@@ -394,7 +394,7 @@ for order, item in ITEMS do
 		label.Position = UDim2.new(0, 60, 0.5, 0)
 		label.Size = UDim2.new(1, -72, 1, -12)
 		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.Arcade
+		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(label, "Number") -- v20: шрифт темы
 		label.TextScaled = true
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextColor3 = Color3.fromRGB(60, 60, 70)
@@ -926,9 +926,8 @@ local function addCaption(cell, text)
 		label.TextSize = 14
 		label.TextWrapped = true
 		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.FredokaOne
+		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(label, "Heading") -- v20: шрифт темы
 		label.TextColor3 = Color3.new(1, 1, 1)
-		label.TextStrokeTransparency = 0
 		label.ZIndex = cell.ZIndex + 2
 		label.Parent = cell
 	end

@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей
 local remote = ReplicatedStorage.Shared:WaitForChild("BankTrailHintEvent")
 local cleanupCurrent
 
@@ -51,14 +52,12 @@ local function showGuide(cargoKind)
 	arrow.AlwaysOnTop = true
 	arrow.MaxDistance = 250
 	arrow.Parent = player:WaitForChild("PlayerGui")
-	local arrowText = Instance.new("TextLabel")
+	local arrowText = WorldUi.Text(nil, "Text", "Number")
 	arrowText.Size = UDim2.fromScale(1, 1)
 	arrowText.BackgroundTransparency = 1
-	arrowText.Font = Enum.Font.Arcade
 	arrowText.TextScaled = true
 	arrowText.Text = "▼\nBANK"
 	arrowText.TextColor3 = Config.Tutorial.TrailColor
-	arrowText.TextStrokeTransparency = 0
 	arrowText.Parent = arrow
 
 	local connection

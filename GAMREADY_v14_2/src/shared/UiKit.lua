@@ -275,6 +275,17 @@ function UiKit.ApplySkin(inst, skinKey, accentValue, imagesOnly)
 	return inst
 end
 
+-- Красит подложку в цвет состояния: без картинки — фон, с картинкой —
+-- ImageColor3 (свой ассет остаётся виден, только тонируется).
+function UiKit.Tint(inst, color)
+	inst.BackgroundColor3 = color
+	if inst:IsA("ImageLabel") or inst:IsA("ImageButton") then
+		if inst.Image ~= "" then
+			inst.ImageColor3 = color
+		end
+	end
+end
+
 -- ImageLabel-подложка со скином.
 function UiKit.Plate(parent, name, skinKey, props)
 	local p = Instance.new("ImageLabel")
@@ -363,6 +374,31 @@ function UiKit.Text(parent, name, text, props)
 	return t
 end
 
+-- Переводит готовый (кодовый или авторский) TextLabel/TextButton на
+-- шрифт и обводку темы, не трогая текст, размер и место.
+function UiKit.StyleText(t, style, strokeThickness)
+	if not t then return t end
+	style = style or "Heading"
+	t.FontFace = Theme.Fonts[style] or Theme.Fonts.Heading
+	t.TextStrokeTransparency = 1
+	local thickness = strokeThickness or Theme.TextStroke[style] or 1.4
+	local s = t:FindFirstChild("TextStroke")
+	if thickness > 0 then
+		if not s then
+			s = Instance.new("UIStroke")
+			s.Name = "TextStroke"
+			s.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+			s.Color = Theme.Colors.TextStroke
+			s.LineJoinMode = Enum.LineJoinMode.Round
+			s.Parent = t
+		end
+		s.Thickness = thickness
+	elseif s then
+		s:Destroy()
+	end
+	return t
+end
+
 -- TextButton в стиле темы (для текстовых кнопок без подложки, строк-ссылок).
 function UiKit.TextButton(parent, name, text, props)
 	local t = Instance.new("TextButton")
@@ -437,6 +473,22 @@ function UiKit.Button(parent, name, text, variant, props)
 	apply(b, props)
 	b.Parent = parent
 	return b, caption
+end
+
+-- Перекрашивает готовую кнопку в другой вариант (Green/Yellow/Red/Dark/...):
+-- подложка + цвет и обводка подписи. Для клиентов, меняющих состояние кнопки.
+function UiKit.SetButtonVariant(button, variant, captionName)
+	local skinKey = "Button_" .. (variant or "Green")
+	local skin = Theme.Skins[skinKey]
+	if not skin then return end
+	UiKit.ApplySkin(button, skinKey)
+	button:SetAttribute("ButtonVariant", variant)
+	local caption = button:FindFirstChild(captionName or "Caption")
+	if caption and caption:IsA("TextLabel") then
+		caption.TextColor3 = skin.TextColor or Theme.Colors.Text
+		local textStroke = caption:FindFirstChild("TextStroke")
+		if textStroke and skin.TextStroke then textStroke.Color = skin.TextStroke end
+	end
 end
 
 -- Цена в Robux: зелёная кнопка со значком Robux слева.

@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -94,16 +95,13 @@ remote.OnClientEvent:Connect(function(target, amount, hitPosition)
 	gui.MaxDistance = 70
 	gui.Parent = playerGui
 
-	local text = Instance.new("TextLabel")
+	local text = WorldUi.Text(nil, "Text", "Number")
 	text.Size = UDim2.fromScale(1, 1)
 	text.BackgroundTransparency = 1
-	text.Font = Enum.Font.Arcade
 	text.TextScaled = true
 	local amountText = ("%.2f"):format(amount):gsub("0+$", ""):gsub("%.$", "")
 	text.Text = "-" .. amountText .. " HP"
 	text.TextColor3 = Color3.fromRGB(255, 78, 72)
-	text.TextStrokeColor3 = Color3.fromRGB(40, 0, 0)
-	text.TextStrokeTransparency = 0
 	text.TextTransparency = 1
 	text.Parent = gui
 	local constraint = Instance.new("UITextSizeConstraint")

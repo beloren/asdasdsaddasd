@@ -3,9 +3,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей
 
 local playerGui = player:WaitForChild("PlayerGui")
-local templateSource = playerGui:WaitForChild("MobBillboardTemplates", 5)
+-- v20: шаблоны — Shared.UiBuilders.MobBillboardsUi (StarterGui/MobBillboardTemplates).
+local templateSource = require(ReplicatedStorage.Shared.UiRegistry).Get("MobBillboardTemplates")
 
 local tracked = {}
 local trackedBoulders = {}
@@ -31,22 +33,19 @@ local function colorHex(color)
 end
 
 local function makeText(parent, size, position, fontSize)
-	local label = Instance.new("TextLabel")
+	local label = WorldUi.Text(nil, "Text", "Number")
 	label.Size = size
 	label.Position = position
 	label.AutomaticSize = Enum.AutomaticSize.None
 	label.SizeConstraint = Enum.SizeConstraint.RelativeXY
 	label.BackgroundTransparency = 1
 	label.BorderSizePixel = 0
-	label.Font = Enum.Font.Arcade
 	label.TextSize = math.max(18, fontSize or 14)
 	label.TextScaled = false
 	label.TextWrapped = false
 	label.TextXAlignment = Enum.TextXAlignment.Center
 	label.TextYAlignment = Enum.TextYAlignment.Center
 	label.RichText = true
-	label.TextStrokeTransparency = 0
-	label.TextStrokeColor3 = Color3.new(0, 0, 0)
 	label.Parent = parent
 	return label
 end
@@ -84,10 +83,8 @@ local function convertChildrenToScale(parent, parentPixels)
 				oldPosition.Y.Scale + oldPosition.Y.Offset / parentPixels.Y
 			)
 			if child:IsA("TextLabel") then
-				child.Font = Enum.Font.Arcade
+				WorldUi.Restyle(child, "Number", true)
 				child.TextSize = math.max(child.TextSize, 18)
-				child.TextStrokeColor3 = Color3.new(0, 0, 0)
-				child.TextStrokeTransparency = 0
 				if not child:FindFirstChildOfClass("UITextSizeConstraint") then
 					local constraint = Instance.new("UITextSizeConstraint")
 					constraint.MaxTextSize = child.TextSize

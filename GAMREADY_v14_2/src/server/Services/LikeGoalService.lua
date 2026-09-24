@@ -13,6 +13,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 
 local LikeGoalService = {}
@@ -74,16 +75,11 @@ local function findBoardPart()
 end
 
 local function label(parent, props)
-	local l = Instance.new("TextLabel")
+	local l = WorldUi.Text(nil, "Text", "Heading")
 	l.BackgroundTransparency = 1
-	l.Font = Enum.Font.FredokaOne
 	l.TextScaled = true
 	l.TextColor3 = Color3.new(1, 1, 1)
 	for key, value in props do l[key] = value end
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 3
-	stroke.Color = Color3.fromRGB(15, 12, 25)
-	stroke.Parent = l
 	l.Parent = parent
 	return l
 end
@@ -109,7 +105,7 @@ function LikeGoalService:_buildBoard()
 	pad.PaddingRight = UDim.new(0.05, 0)
 	pad.Parent = root
 	label(root, { Text = CFG.Title or "LIKE GOALS", Size = UDim2.fromScale(1, 0.13), TextColor3 = Color3.fromRGB(255, 215, 80) })
-	label(root, { Text = CFG.Subtitle or "", Size = UDim2.fromScale(1, 0.07), Position = UDim2.fromScale(0, 0.13), Font = Enum.Font.GothamBold })
+	label(root, { Text = CFG.Subtitle or "", Size = UDim2.fromScale(1, 0.07), Position = UDim2.fromScale(0, 0.13) })
 
 	-- Прогресс до следующей цели.
 	local nextGoal = nil
@@ -158,7 +154,7 @@ function LikeGoalService:_buildBoard()
 		end
 		label(list, {
 			Text = text, LayoutOrder = index, Size = UDim2.fromScale(1, 1 / count - 0.03),
-			TextXAlignment = Enum.TextXAlignment.Left, Font = Enum.Font.GothamBlack,
+			TextXAlignment = Enum.TextXAlignment.Left,
 			TextColor3 = done and Color3.fromRGB(120, 255, 150) or Color3.fromRGB(200, 200, 215),
 		})
 	end

@@ -13,6 +13,7 @@ local HttpService = game:GetService("HttpService")
 local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local Sfx = require(ReplicatedStorage.Shared.Sfx)
@@ -151,13 +152,10 @@ local function attachPriceGui(crystal, oreInfo, value, chanceFraction, mutationN
 		gui.Adornee = root -- важно для Model-кристаллов: без Adornee биллборд не знает, где висеть
 		gui.Parent = root
 
-		label = Instance.new("TextLabel")
+		label = WorldUi.Text(nil, "Text", "Number")
 		label.Size = UDim2.fromScale(1, 1)
 		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.Arcade
 		label.TextScaled = true
-		label.TextStrokeColor3 = Color3.fromRGB(20, 20, 25)
-		label.TextStrokeTransparency = 0
 		label.Parent = gui
 	end
 
@@ -166,10 +164,7 @@ local function attachPriceGui(crystal, oreInfo, value, chanceFraction, mutationN
 	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0
 	gui.MaxDistance = 100
-	label.Font = Enum.Font.Arcade
 	label.TextScaled = true
-	label.TextStrokeColor3 = Color3.fromRGB(10, 10, 14)
-	label.TextStrokeTransparency = 0
 	label.RichText = true
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.Text = text

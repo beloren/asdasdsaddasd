@@ -17,6 +17,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local BigNum = require(ReplicatedStorage.Shared.BigNum)
 Config.NpcBillboard = Config.NpcBillboard or {}
 Config.NpcBillboard.UpgradeShopNPC = Config.NpcBillboard.UpgradeShopNPC or { Height = 1.55, SizeWidth = 240, SizeHeight = 90 }
@@ -259,23 +260,17 @@ local function ensureShopGui(npc, primaryPart)
 	gui.Parent = primaryPart
 
 	local function label(labelName, size, position, color)
-		local text = Instance.new("TextLabel")
+		local text = WorldUi.Text(nil, "Text", "Heading")
 		text.Name = labelName
 		text.BackgroundTransparency = 1
 		text.Size = size
 		text.Position = position
-		text.Font = Enum.Font.FredokaOne
 		text.TextSize = 30
 		text.TextColor3 = color
 		text.TextWrapped = true
 		text.Text = ""
 		text.Parent = gui
 
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = 3
-		stroke.Color = Color3.new(0, 0, 0)
-		stroke.Transparency = 0.4
-		stroke.Parent = text
 
 		return text
 	end

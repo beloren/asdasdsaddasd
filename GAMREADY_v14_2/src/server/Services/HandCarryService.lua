@@ -24,6 +24,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local CrystalUtil = require(ReplicatedStorage.Shared.CrystalUtil)
 
@@ -150,14 +151,11 @@ local function rebuildVisual(player)
 	countGui.Adornee = model.PrimaryPart
 	countGui.Parent = model.PrimaryPart
 
-	local countLabel = Instance.new("TextLabel")
+	local countLabel = WorldUi.Text(nil, "Text", "Heading")
 	countLabel.Size = UDim2.fromScale(1, 1)
 	countLabel.BackgroundTransparency = 1
-	countLabel.Font = Enum.Font.FredokaOne
 	countLabel.TextScaled = true
 	countLabel.TextColor3 = Color3.new(1, 1, 1)
-	countLabel.TextStrokeColor3 = Color3.fromRGB(20, 20, 25)
-	countLabel.TextStrokeTransparency = 0
 	countLabel.Text = ("✋ %d/%d"):format(#list, capacityFor(player))
 	countLabel.Parent = countGui
 

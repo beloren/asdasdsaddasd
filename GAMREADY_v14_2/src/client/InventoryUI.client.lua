@@ -337,7 +337,7 @@ local function applyPreview(preview, stack)
 			gearIcon.BackgroundTransparency = 1
 			gearIcon.Size = UDim2.fromScale(1, 1)
 			gearIcon.TextScaled = true
-			gearIcon.Font = Enum.Font.FredokaOne
+			require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(gearIcon, "Heading") -- v20: шрифт темы
 			gearIcon.ZIndex = (preview.ZIndex or 1) + 1
 			gearIcon.Parent = preview
 		end
@@ -469,7 +469,7 @@ for index, filter in INVENTORY_FILTERS do
 		button.LayoutOrder = index
 		button.AutomaticSize = Enum.AutomaticSize.X
 		button.Size = UDim2.new(0, 0, 1, 0)
-		button.Font = Enum.Font.GothamBold
+		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(button, "Body") -- v20: шрифт темы
 		button.TextSize = FONT_SIZE - 2
 		button.Text = filter.Label
 		button.BorderSizePixel = 0
@@ -695,10 +695,9 @@ local function cooldownOverlay(slot)
 	seconds.AnchorPoint = Vector2.new(0.5, 0.5)
 	seconds.Position = UDim2.fromScale(0.5, 0.5)
 	seconds.Size = UDim2.fromScale(0.8, 0.5)
-	seconds.Font = Enum.Font.FredokaOne
+	require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(seconds, "Heading") -- v20: шрифт темы
 	seconds.TextScaled = true
 	seconds.TextColor3 = Color3.new(1, 1, 1)
-	seconds.TextStrokeTransparency = 0
 	seconds.ZIndex = overlay.ZIndex + 1
 	seconds.Visible = false
 	seconds.Parent = slot

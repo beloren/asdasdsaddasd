@@ -169,7 +169,7 @@ local function makeTabButton(tab)
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.fromScale(0.9, 0.75)
 	l.Position = UDim2.fromScale(0.05, 0.125)
-	l.Font = Enum.Font.FredokaOne
+	require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(l, "Heading") -- v20: шрифт темы
 	l.TextScaled = true
 	l.TextColor3 = Color3.new(1, 1, 1)
 	l.Text = tr(tab.Label)
@@ -242,7 +242,7 @@ local function buildRow(data)
 		effect.BackgroundTransparency = 1
 		effect.Position = UDim2.fromOffset(12, 120)
 		effect.Size = UDim2.new(1, -24, 0, 26)
-		effect.Font = Enum.Font.FredokaOne
+		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(effect, "Heading") -- v20: шрифт темы
 		effect.TextScaled = true
 		effect.TextXAlignment = Enum.TextXAlignment.Left
 		effect.TextColor3 = Color3.fromRGB(255, 230, 170)
@@ -266,7 +266,7 @@ local function buildRow(data)
 		badge.Position = UDim2.new(0.5, 0, 0, -6)
 		badge.Size = UDim2.new(1, 8, 0, 22)
 		badge.BackgroundColor3 = Color3.fromRGB(230, 40, 70)
-		badge.Font = Enum.Font.FredokaOne
+		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(badge, "Heading") -- v20: шрифт темы
 		badge.TextScaled = true
 		badge.TextColor3 = Color3.new(1, 1, 1)
 		badge.Text = tr("LIMITED")
@@ -348,7 +348,7 @@ renderList = function()
 		empty.Name = "EmptyNote"
 		empty.BackgroundTransparency = 1
 		empty.Size = UDim2.new(1, -30, 0, 70)
-		empty.Font = Enum.Font.FredokaOne
+		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(empty, "Heading") -- v20: шрифт темы
 		empty.TextScaled = true
 		empty.TextColor3 = Color3.fromRGB(230, 210, 180)
 		empty.LayoutOrder = 99999

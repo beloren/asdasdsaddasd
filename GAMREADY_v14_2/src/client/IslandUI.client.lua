@@ -53,401 +53,114 @@ end
 -- даёт, сколько стоит, кнопка покупки и "НАЗАД". Купленное — серое.
 -- Улучшения плавильни делаются ВНУТРИ её карточки.
 --------------------------------------------------------------------------------
-local PANEL_SIZE = Vector2.new(600, 420)
--- Карточки ВЕРТИКАЛЬНО-ВЫТЯНУТЫЕ (по прямому запросу — «не квадратные»).
-local CARD_W = 140
-local CARD_H = 212
+-- v20: окно собирает Shared.UiBuilders.IslandUi (правится в StarterGui/IslandUi).
+local UiKit = require(ReplicatedStorage.Shared.UiKit)
+local IslandBuilder = require(ReplicatedStorage.Shared.UiBuilders.IslandUi)
+local PANEL_SIZE = IslandBuilder.PANEL_SIZE
+local CARD_W = IslandBuilder.CARD_W
+local CARD_H = IslandBuilder.CARD_H
 local CARD_SIZE = CARD_W -- шаг прокрутки стрелками
 
+-- Смысловые состояния → вариант кнопки темы.
 local COLORS = {
-	Panel = Color3.fromRGB(22, 26, 40),
-	Outline = Color3.fromRGB(12, 14, 22),
-	Frame = Color3.fromRGB(60, 190, 255),
-	TabA = Color3.fromRGB(40, 120, 255),
-	TabB = Color3.fromRGB(90, 205, 255),
-	Text = Color3.fromRGB(245, 245, 250),
-	Muted = Color3.fromRGB(170, 176, 196),
-	Buy = Color3.fromRGB(70, 200, 95),
-	Poor = Color3.fromRGB(215, 120, 45),
-	Grey = Color3.fromRGB(95, 98, 110),
-	Gold = Color3.fromRGB(255, 212, 80),
-	Close = Color3.fromRGB(225, 50, 55),
-	Back = Color3.fromRGB(55, 140, 255),
+	Text = UiKit.Theme.Colors.Text,
+	Muted = UiKit.Theme.Colors.SubText,
+	Buy = "Green",
+	Poor = "Yellow",
+	Grey = "Dark",
 }
+local DARK_CARD = UiKit.Theme.Skins.Card.Color
 
-local function corner(parent, radius)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, radius or 12)
-	c.Parent = parent
-	return c
-end
-
-local function stroke(parent, color, thickness, transparency, contextual)
-	local s = Instance.new("UIStroke")
-	s.Color = color or COLORS.Outline
-	s.Thickness = thickness or 2
-	s.Transparency = transparency or 0
-	s.ApplyStrokeMode = contextual and Enum.ApplyStrokeMode.Contextual or Enum.ApplyStrokeMode.Border
-	s.LineJoinMode = Enum.LineJoinMode.Round
-	s.Parent = parent
-	return s
-end
-
-local function gradient(parent, top, bottom, rotation)
-	local g = Instance.new("UIGradient")
-	g.Color = ColorSequence.new(top, bottom)
-	g.Rotation = rotation or 90
-	g.Parent = parent
-	return g
-end
-
-local function label(parent, props)
-	local text = Instance.new("TextLabel")
-	text.Name = props.Name or "Label"
-	text.BackgroundTransparency = 1
-	text.Font = props.Font or Enum.Font.GothamBold
-	text.TextColor3 = props.Color or COLORS.Text
-	text.TextScaled = props.Scaled ~= false
-	text.TextWrapped = true
-	text.RichText = true
-	text.Text = props.Text or ""
-	text.Size = props.Size or UDim2.fromScale(1, 1)
-	text.Position = props.Position or UDim2.new()
-	text.AnchorPoint = props.AnchorPoint or Vector2.zero
-	text.TextXAlignment = props.AlignX or Enum.TextXAlignment.Center
-	text.TextYAlignment = props.AlignY or Enum.TextYAlignment.Center
-	if props.TextSize then text.TextSize = props.TextSize end
-	text.ZIndex = props.ZIndex or 3
-	text.LayoutOrder = props.LayoutOrder or 0
-	text.Parent = parent
-	if props.MaxTextSize then
-		local constraint = Instance.new("UITextSizeConstraint")
-		constraint.MaxTextSize = props.MaxTextSize
-		constraint.Parent = text
-	end
-	if props.Outline then
-		stroke(text, COLORS.Outline, props.Outline, 0, true)
-	end
-	return text
-end
-
--- Кнопка в стиле референса: цветная, тёмная обводка, лёгкий градиент,
--- "проседает" при нажатии.
-local function button(parent, props)
-	local b = Instance.new("TextButton")
-	b.Name = props.Name or "Button"
-	b.AutoButtonColor = false
-	b.Text = ""
-	b.BackgroundColor3 = props.Color or COLORS.Buy
-	b.Size = props.Size
-	b.Position = props.Position or UDim2.new()
-	b.AnchorPoint = props.AnchorPoint or Vector2.zero
-	b.ZIndex = props.ZIndex or 4
-	b.LayoutOrder = props.LayoutOrder or 0
-	b.Parent = parent
-	corner(b, props.Radius or 10)
-	stroke(b, COLORS.Outline, 3)
-	gradient(b, Color3.new(1, 1, 1), Color3.fromRGB(190, 190, 190))
-	local scale = Instance.new("UIScale")
-	scale.Parent = b
-	local text = label(b, {
-		Name = "Text",
-		Text = props.Text or "",
-		Font = Enum.Font.FredokaOne,
-		Size = UDim2.new(1, -12, 1, -10),
-		Position = UDim2.fromOffset(6, 5),
-		ZIndex = (props.ZIndex or 4) + 1,
-		Outline = 2,
-		MaxTextSize = props.MaxTextSize or 26,
-	})
-	b.MouseEnter:Connect(function()
-		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1.05 }):Play()
-	end)
-	b.MouseLeave:Connect(function()
-		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1 }):Play()
-	end)
-	b.MouseButton1Down:Connect(function()
-		TweenService:Create(scale, TweenInfo.new(0.06), { Scale = 0.93 }):Play()
-	end)
-	b.MouseButton1Up:Connect(function()
-		TweenService:Create(scale, TweenInfo.new(0.14, Enum.EasingStyle.Back), { Scale = 1 }):Play()
-	end)
-	return b, text
-end
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "IslandShopUi"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.DisplayOrder = 30
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("IslandUi")
 gui.Enabled = false
-gui.Parent = playerGui
+local dimmer = gui:WaitForChild("Dimmer")
+local panel = gui:WaitForChild("Panel")
+local panelScale = panel:WaitForChild("PanelScale")
+local closeButton = panel:WaitForChild("CloseButton")
+local toast = panel:WaitForChild("Toast")
+local templates = panel:WaitForChild("Templates")
+local content = panel:WaitForChild("Content")
+local gridView = content:WaitForChild("GridView")
+local scroller = gridView:WaitForChild("Cards")
+local leftArrow = gridView:WaitForChild("Left")
+local rightArrow = gridView:WaitForChild("Right")
+local footer = gridView:WaitForChild("Footer")
+local detailView = content:WaitForChild("DetailView")
+local backButton = detailView:WaitForChild("Back")
+local previewHolder = detailView:WaitForChild("PreviewHolder")
+local info = detailView:WaitForChild("Info")
+local detailTitle = info:WaitForChild("Title")
+local detailDesc = info:WaitForChild("Desc")
+local perksHeader = info:WaitForChild("PerksHeader")
+local perksList = info:WaitForChild("Perks")
+local upgradeBox = info:WaitForChild("Upgrade")
+local upgradeTitle = upgradeBox:WaitForChild("Title")
+local pipRow = upgradeBox:WaitForChild("Pips")
+local upgradeText = upgradeBox:WaitForChild("Text")
+local priceLabel = detailView:WaitForChild("Price")
+local actionButton = detailView:WaitForChild("Action")
+local actionText = actionButton:WaitForChild("Caption")
 
-local dimmer = Instance.new("TextButton")
-dimmer.Name = "Dimmer"
-dimmer.Text = ""
-dimmer.AutoButtonColor = false
-dimmer.BackgroundColor3 = Color3.new(0, 0, 0)
-dimmer.BackgroundTransparency = 0.5
-dimmer.Size = UDim2.fromScale(1, 1)
-dimmer.ZIndex = 1
-dimmer.Parent = gui
-
-local panel = Instance.new("Frame")
-panel.Name = "Panel"
-panel.AnchorPoint = Vector2.new(0.5, 0.5)
-panel.Position = UDim2.fromScale(0.5, 0.52)
-panel.Size = UDim2.fromOffset(PANEL_SIZE.X, PANEL_SIZE.Y)
-panel.BackgroundColor3 = COLORS.Panel
-panel.BackgroundTransparency = 0.06
-panel.ZIndex = 2
-panel.Parent = gui
-corner(panel, 14)
-stroke(panel, COLORS.Outline, 5)
-local panelScale = Instance.new("UIScale")
-panelScale.Parent = panel
-
--- Внутренняя голубая рамка (как в референсе: тёмный контур + светлая рамка).
-local innerFrame = Instance.new("Frame")
-innerFrame.Name = "InnerFrame"
-innerFrame.BackgroundTransparency = 1
-innerFrame.Position = UDim2.fromOffset(4, 4)
-innerFrame.Size = UDim2.new(1, -8, 1, -8)
-innerFrame.ZIndex = 2
-innerFrame.Parent = panel
-corner(innerFrame, 11)
-stroke(innerFrame, COLORS.Frame, 3)
-
--- Скошенная вкладка заголовка.
-local tab = Instance.new("Frame")
-tab.Name = "Tab"
-tab.Position = UDim2.fromOffset(-12, -24)
-tab.Size = UDim2.fromOffset(230, 48)
-tab.BackgroundColor3 = Color3.new(1, 1, 1)
-tab.ZIndex = 6
-tab.Parent = panel
-corner(tab, 8)
-stroke(tab, COLORS.Outline, 3)
-gradient(tab, COLORS.TabA, COLORS.TabB, 0)
-local tabTip = Instance.new("Frame")
-tabTip.Name = "Tip"
-tabTip.AnchorPoint = Vector2.new(0.5, 0.5)
-tabTip.Position = UDim2.new(1, -6, 0.5, 0)
-tabTip.Size = UDim2.fromOffset(26, 54)
-tabTip.Rotation = 22
-tabTip.BackgroundColor3 = COLORS.TabB
-tabTip.ZIndex = 5
-tabTip.Parent = tab
-corner(tabTip, 6)
-stroke(tabTip, COLORS.Outline, 3)
-local tabTitle = label(tab, {
-	Text = tr("Islands"),
-	Font = Enum.Font.FredokaOne,
-	Size = UDim2.new(1, -24, 1, -10),
-	Position = UDim2.fromOffset(16, 5),
-	AlignX = Enum.TextXAlignment.Left,
-	ZIndex = 7,
-	Outline = 3,
-	MaxTextSize = 32,
-})
-
-local subtitle = label(panel, {
-	Text = tr("Unlock islands behind your base!"),
-	Font = Enum.Font.GothamBlack,
-	Size = UDim2.fromOffset(300, 20),
-	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -52, 0, 14),
-	AlignX = Enum.TextXAlignment.Right,
-	Outline = 2,
-	MaxTextSize = 16,
-	ZIndex = 4,
-})
-
-local closeButton, _ = button(panel, {
-	Name = "Close",
-	Color = COLORS.Close,
-	Size = UDim2.fromOffset(46, 46),
-	AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.new(1, -4, 0, 4),
-	Text = "X",
-	ZIndex = 8,
-	MaxTextSize = 30,
-})
--- Как в референсе: красная кнопка со светлой обводкой.
-closeButton:FindFirstChildOfClass("UIStroke").Color = Color3.fromRGB(245, 245, 250)
-
-local content = Instance.new("Frame")
-content.Name = "Content"
-content.BackgroundTransparency = 1
-content.Position = UDim2.fromOffset(16, 44)
-content.Size = UDim2.new(1, -32, 1, -60)
-content.ClipsDescendants = true
-content.ZIndex = 3
-content.Parent = panel
-
-local toast = label(panel, {
-	Size = UDim2.new(1, -40, 0, 24),
-	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 1, 10),
-	Font = Enum.Font.GothamBlack,
-	MaxTextSize = 20,
-	Outline = 2,
-	ZIndex = 9,
-})
-toast.TextTransparency = 1
+panel:WaitForChild("TitleBar"):WaitForChild("Title").Text = tr("Islands")
+panel:WaitForChild("Subtitle").Text = tr("Unlock islands behind your base!")
+gridView:WaitForChild("Hint").Text = tr("Tap a card to see what it gives")
+backButton:WaitForChild("Caption").Text = "◀ " .. tr("BACK")
 
 --------------------------------------------------------------------------------
--- КАРТОЧКА (общая для сетки и превью на экране улучшения)
+-- КАРТОЧКА (общая для сетки и превью на экране улучшения) — клон шаблона.
 --------------------------------------------------------------------------------
 local function makeCardVisual(parent, width, height)
-	local card = Instance.new("TextButton")
-	card.Name = "Card"
-	card.Text = ""
-	card.AutoButtonColor = false
+	local card = templates:WaitForChild("Card"):Clone()
 	card.Size = UDim2.fromOffset(width, height or width)
-	card.BackgroundColor3 = Color3.new(1, 1, 1)
-	card.ZIndex = 4
 	card.Parent = parent
-	corner(card, 14)
-	local rim = stroke(card, COLORS.Outline, 4)
-	local grad = gradient(card, Color3.new(1, 1, 1), Color3.new(1, 1, 1))
-	local scale = Instance.new("UIScale")
-	scale.Parent = card
-
-	local shine = Instance.new("Frame")
-	shine.Name = "Shine"
-	shine.BackgroundColor3 = Color3.new(1, 1, 1)
-	shine.BackgroundTransparency = 0.85
-	shine.Size = UDim2.new(1, -12, 0.3, 0)
-	shine.Position = UDim2.fromOffset(6, 6)
-	shine.ZIndex = 5
-	shine.Parent = card
-	corner(shine, 10)
-
-	local icon = label(card, {
-		Name = "Icon",
-		Font = Enum.Font.FredokaOne,
-		Size = UDim2.fromScale(0.72, 0.36),
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.fromScale(0.5, 0.1),
-		ZIndex = 6,
-		Outline = 3,
-	})
-	local name = label(card, {
-		Name = "Title",
-		Font = Enum.Font.FredokaOne,
-		Size = UDim2.new(1, -14, 0.2, 0),
-		Position = UDim2.new(0, 7, 0.5, 0),
-		ZIndex = 6,
-		Outline = 2,
-	})
-	local chip = Instance.new("Frame")
-	chip.Name = "Chip"
-	chip.AnchorPoint = Vector2.new(0.5, 1)
-	chip.Position = UDim2.new(0.5, 0, 1, -8)
-	chip.Size = UDim2.new(1, -16, 0.15, 0)
-	chip.BackgroundColor3 = COLORS.Outline
-	chip.BackgroundTransparency = 0.25
-	chip.ZIndex = 6
-	chip.Parent = card
-	corner(chip, 8)
-	local chipText = label(chip, {
-		Name = "Text",
-		Font = Enum.Font.GothamBlack,
-		Size = UDim2.new(1, -10, 1, -6),
-		Position = UDim2.fromOffset(5, 3),
-		ZIndex = 7,
-		Outline = 2,
-	})
-	local lock = label(card, {
-		Name = "Lock",
-		Text = "🔒",
-		Font = Enum.Font.GothamBlack,
-		Size = UDim2.fromOffset(30, 30),
-		Position = UDim2.fromOffset(8, 8),
-		ZIndex = 8,
-	})
-
-	local visual = { Card = card, Rim = rim, Gradient = grad, Scale = scale, Icon = icon, Name = name, ChipText = chipText, Lock = lock, Shine = shine }
-	return visual
+	return {
+		Card = card,
+		Rim = card:FindFirstChild("SkinStroke"),
+		Scale = card:FindFirstChild("Pop"),
+		Image = card:FindFirstChild("Image"),
+		Icon = card:WaitForChild("Icon"),
+		Name = card:WaitForChild("Title"),
+		ChipText = card:WaitForChild("Chip"):WaitForChild("Text"),
+		Lock = card:WaitForChild("Lock"),
+		Shine = card:FindFirstChild("Shine"),
+	}
 end
 
--- Состояния: OWNED — серая, LOCKED — тёмная с замком, иначе — цвет острова.
-local function applyCard(visual, info)
-	local color = info.Color or Color3.new(1, 1, 1)
-	visual.Icon.Text = info.Icon ~= "" and info.Icon or "?"
-	visual.Name.Text = tr(info.DisplayName)
+-- Состояния: OWNED — приглушённая, LOCKED — тёмная с замком, иначе —
+-- рамка и лёгкий тон цвета острова.
+local function applyCard(visual, entry)
+	local color = entry.Color or Color3.new(1, 1, 1)
+	local hasImage = visual.Image ~= nil and typeof(entry.Image) == "string" and entry.Image ~= ""
+	if visual.Image then visual.Image.Image = hasImage and UiKit.ImageUri(entry.Image) or "" end
+	visual.Icon.Text = hasImage and "" or (entry.Icon ~= "" and entry.Icon or "?")
+	visual.Name.Text = tr(entry.DisplayName)
 	visual.Lock.Visible = false
-	visual.Shine.Visible = true
-	if info.Owned then
-		visual.Card.BackgroundColor3 = COLORS.Grey
-		visual.Gradient.Color = ColorSequence.new(Color3.fromRGB(150, 150, 158), Color3.fromRGB(95, 96, 104))
+	if visual.Shine then visual.Shine.Visible = true end
+	if entry.Owned then
+		visual.Card.BackgroundColor3 = DARK_CARD:Lerp(Color3.fromRGB(90, 92, 100), 0.35)
 		visual.Icon.TextTransparency = 0.35
 		visual.Name.TextColor3 = Color3.fromRGB(205, 205, 212)
-		visual.Rim.Color = COLORS.Outline
-		visual.Shine.Visible = false
-		local upgradeText = info.UpgradeLevel and ("  LV %d/%d"):format(info.UpgradeLevel, info.UpgradeMax) or ""
-		visual.ChipText.Text = '<font color="#9CFFB4">✔ ' .. tr("OWNED") .. "</font>" .. upgradeText
-	elseif not info.RequiresMet then
-		visual.Card.BackgroundColor3 = Color3.fromRGB(45, 46, 54)
-		visual.Gradient.Color = ColorSequence.new(Color3.fromRGB(110, 110, 118), Color3.fromRGB(60, 60, 66))
+		if visual.Rim then visual.Rim.Color = Color3.fromRGB(120, 122, 132) end
+		if visual.Shine then visual.Shine.Visible = false end
+		local levelText = entry.UpgradeLevel and ("  LV %d/%d"):format(entry.UpgradeLevel, entry.UpgradeMax) or ""
+		visual.ChipText.Text = '<font color="#9CFFB4">✔ ' .. tr("OWNED") .. "</font>" .. levelText
+	elseif not entry.RequiresMet then
+		visual.Card.BackgroundColor3 = DARK_CARD
 		visual.Icon.TextTransparency = 0.6
 		visual.Name.TextColor3 = COLORS.Muted
-		visual.Rim.Color = COLORS.Outline
+		if visual.Rim then visual.Rim.Color = Color3.fromRGB(70, 70, 80) end
 		visual.Lock.Visible = true
-		visual.ChipText.Text = '<font color="#FFB35A">' .. tr("Needs {name}", { name = tr(info.RequiresName or "") }) .. "</font>"
+		visual.ChipText.Text = '<font color="#FFB35A">' .. tr("Needs {name}", { name = tr(entry.RequiresName or "") }) .. "</font>"
 	else
-		visual.Card.BackgroundColor3 = color
-		visual.Gradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 150, 150))
+		visual.Card.BackgroundColor3 = DARK_CARD:Lerp(color, 0.28)
 		visual.Icon.TextTransparency = 0
 		visual.Name.TextColor3 = COLORS.Text
-		visual.Rim.Color = COLORS.Outline
-		visual.ChipText.Text = info.CanAfford
-			and ('<font color="#FFE27A">' .. info.CostText .. "</font>")
-			or ('<font color="#FF9E6A">' .. info.CostText .. "</font>")
+		if visual.Rim then visual.Rim.Color = color end
+		visual.ChipText.Text = entry.CanAfford
+			and ('<font color="#FFE27A">' .. entry.CostText .. "</font>")
+			or ('<font color="#FF9E6A">' .. entry.CostText .. "</font>")
 	end
 end
-
---------------------------------------------------------------------------------
--- ЭКРАН 1: СЕТКА КАРТОЧЕК
---------------------------------------------------------------------------------
-local gridView = Instance.new("CanvasGroup")
-gridView.Name = "GridView"
-gridView.BackgroundTransparency = 1
-gridView.Size = UDim2.fromScale(1, 1)
-gridView.ZIndex = 3
-gridView.Parent = content
-
-local scroller = Instance.new("ScrollingFrame")
-scroller.Name = "Cards"
-scroller.BackgroundTransparency = 1
-scroller.BorderSizePixel = 0
-scroller.AnchorPoint = Vector2.new(0.5, 0.5)
-scroller.Position = UDim2.fromScale(0.5, 0.47)
-scroller.Size = UDim2.new(1, -92, 0, CARD_H + 36)
-scroller.ScrollingDirection = Enum.ScrollingDirection.X
-scroller.AutomaticCanvasSize = Enum.AutomaticSize.X
-scroller.CanvasSize = UDim2.new()
-scroller.ScrollBarThickness = 6
-scroller.ScrollBarImageColor3 = COLORS.Frame
-scroller.HorizontalScrollBarInset = Enum.ScrollBarInset.None
-scroller.ElasticBehavior = Enum.ElasticBehavior.Always
-scroller.ZIndex = 3
-scroller.Parent = gridView
-local scrollLayout = Instance.new("UIListLayout")
-scrollLayout.FillDirection = Enum.FillDirection.Horizontal
-scrollLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-scrollLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-scrollLayout.Padding = UDim.new(0, 16)
-scrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
-scrollLayout.Parent = scroller
-local scrollPadding = Instance.new("UIPadding")
-scrollPadding.PaddingLeft = UDim.new(0, 10)
-scrollPadding.PaddingRight = UDim.new(0, 10)
-scrollPadding.PaddingTop = UDim.new(0, 8)
-scrollPadding.PaddingBottom = UDim.new(0, 14)
-scrollPadding.Parent = scroller
 
 local function scrollBy(direction)
 	local maxX = math.max(0, scroller.AbsoluteCanvasSize.X - scroller.AbsoluteWindowSize.X)
@@ -457,14 +170,6 @@ local function scrollBy(direction)
 	}):Play()
 	playSfx("UiTabSwitch")
 end
-local leftArrow = button(gridView, {
-	Name = "Left", Color = COLORS.Back, Text = "◀", Radius = 20,
-	Size = UDim2.fromOffset(36, 60), AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.47, 0),
-})
-local rightArrow = button(gridView, {
-	Name = "Right", Color = COLORS.Back, Text = "▶", Radius = 20,
-	Size = UDim2.fromOffset(36, 60), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.47, 0),
-})
 leftArrow.Activated:Connect(function() scrollBy(-1) end)
 rightArrow.Activated:Connect(function() scrollBy(1) end)
 local function refreshArrows()
@@ -475,117 +180,8 @@ end
 scroller:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(refreshArrows)
 scroller:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(refreshArrows)
 
-local footer = label(gridView, {
-	Size = UDim2.new(1, -20, 0, 22),
-	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -4),
-	Font = Enum.Font.GothamBlack,
-	MaxTextSize = 16,
-	Outline = 2,
-})
-local hint = label(gridView, {
-	Text = tr("Tap a card to see what it gives"),
-	Size = UDim2.new(1, -20, 0, 18),
-	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -30),
-	Font = Enum.Font.GothamBold,
-	Color = COLORS.Muted,
-	MaxTextSize = 14,
-})
-
---------------------------------------------------------------------------------
--- ЭКРАН 2: ВЫБРАННОЕ УЛУЧШЕНИЕ
---------------------------------------------------------------------------------
-local detailView = Instance.new("CanvasGroup")
-detailView.Name = "DetailView"
-detailView.BackgroundTransparency = 1
-detailView.Size = UDim2.fromScale(1, 1)
-detailView.Visible = false
-detailView.ZIndex = 3
-detailView.Parent = content
-
-local backButton = button(detailView, {
-	Name = "Back", Color = COLORS.Back, Text = "◀ " .. tr("BACK"),
-	Size = UDim2.fromOffset(110, 38), Position = UDim2.fromOffset(4, 4), MaxTextSize = 20,
-})
-
-local previewHolder = Instance.new("Frame")
-previewHolder.Name = "PreviewHolder"
-previewHolder.BackgroundTransparency = 1
-previewHolder.Position = UDim2.fromOffset(28, 50)
-previewHolder.Size = UDim2.fromOffset(150, 224)
-previewHolder.ZIndex = 3
-previewHolder.Parent = detailView
 local preview = makeCardVisual(previewHolder, 150, 224)
 preview.Card.Active = false
-preview.Card.AutoButtonColor = false
-
-local info = Instance.new("Frame")
-info.Name = "Info"
-info.BackgroundTransparency = 1
-info.Position = UDim2.fromOffset(216, 4)
-info.Size = UDim2.new(1, -220, 1, -70)
-info.ZIndex = 3
-info.Parent = detailView
-local infoLayout = Instance.new("UIListLayout")
-infoLayout.Padding = UDim.new(0, 6)
-infoLayout.SortOrder = Enum.SortOrder.LayoutOrder
-infoLayout.Parent = info
-
-local detailTitle = label(info, { Name = "Title", Font = Enum.Font.FredokaOne, Size = UDim2.new(1, 0, 0, 34), AlignX = Enum.TextXAlignment.Left, Outline = 3, MaxTextSize = 30, LayoutOrder = 1 })
-local detailDesc = label(info, { Name = "Desc", Font = Enum.Font.GothamBold, Color = COLORS.Muted, Size = UDim2.new(1, 0, 0, 38), AlignX = Enum.TextXAlignment.Left, AlignY = Enum.TextYAlignment.Top, MaxTextSize = 15, LayoutOrder = 2 })
-local perksHeader = label(info, { Name = "PerksHeader", Font = Enum.Font.GothamBlack, Color = COLORS.Gold, Size = UDim2.new(1, 0, 0, 20), AlignX = Enum.TextXAlignment.Left, Outline = 2, MaxTextSize = 16, LayoutOrder = 3 })
-local perksList = Instance.new("Frame")
-perksList.Name = "Perks"
-perksList.BackgroundTransparency = 1
-perksList.Size = UDim2.new(1, 0, 0, 0)
-perksList.AutomaticSize = Enum.AutomaticSize.Y
-perksList.LayoutOrder = 4
-perksList.ZIndex = 3
-perksList.Parent = info
-local perksLayout = Instance.new("UIListLayout")
-perksLayout.Padding = UDim.new(0, 3)
-perksLayout.SortOrder = Enum.SortOrder.LayoutOrder
-perksLayout.Parent = perksList
-
--- Блок улучшения плавильни (показывается в её карточке, когда она куплена).
-local upgradeBox = Instance.new("Frame")
-upgradeBox.Name = "Upgrade"
-upgradeBox.BackgroundColor3 = Color3.fromRGB(34, 38, 56)
-upgradeBox.Size = UDim2.new(1, 0, 0, 104)
-upgradeBox.LayoutOrder = 5
-upgradeBox.Visible = false
-upgradeBox.ZIndex = 3
-upgradeBox.Parent = info
-corner(upgradeBox, 10)
-stroke(upgradeBox, COLORS.Frame, 2, 0.4)
-local upgradeTitle = label(upgradeBox, { Font = Enum.Font.GothamBlack, Size = UDim2.new(1, -16, 0, 22), Position = UDim2.fromOffset(8, 6), AlignX = Enum.TextXAlignment.Left, Outline = 2, MaxTextSize = 17, ZIndex = 4 })
-local pipRow = Instance.new("Frame")
-pipRow.BackgroundTransparency = 1
-pipRow.Position = UDim2.fromOffset(8, 34)
-pipRow.Size = UDim2.new(1, -16, 0, 26)
-pipRow.ZIndex = 4
-pipRow.Parent = upgradeBox
-local pipLayout = Instance.new("UIListLayout")
-pipLayout.FillDirection = Enum.FillDirection.Horizontal
-pipLayout.Padding = UDim.new(0, 6)
-pipLayout.SortOrder = Enum.SortOrder.LayoutOrder
-pipLayout.Parent = pipRow
-local upgradeText = label(upgradeBox, { Font = Enum.Font.GothamBold, Color = COLORS.Muted, Size = UDim2.new(1, -16, 0, 34), Position = UDim2.fromOffset(8, 64), AlignX = Enum.TextXAlignment.Left, AlignY = Enum.TextYAlignment.Top, MaxTextSize = 15, ZIndex = 4 })
-
-local priceLabel = label(detailView, {
-	Name = "Price", Font = Enum.Font.FredokaOne,
-	Size = UDim2.fromOffset(190, 26),
-	Position = UDim2.new(0, 8, 1, -54),
-	Outline = 2, MaxTextSize = 22,
-})
-local actionButton, actionText = button(detailView, {
-	Name = "Action", Color = COLORS.Buy,
-	Size = UDim2.new(1, -236, 0, 50),
-	AnchorPoint = Vector2.new(1, 1),
-	Position = UDim2.new(1, -4, 1, -6),
-	MaxTextSize = 28,
-})
 
 --------------------------------------------------------------------------------
 -- СОСТОЯНИЕ / ОТРИСОВКА
@@ -614,11 +210,12 @@ local function decorated(entry)
 	return entry
 end
 
-local function setAction(text, color, enabled)
+local currentVariant = "Green"
+local function setAction(text, variant, enabled)
 	actionText.Text = text
-	actionButton.BackgroundColor3 = color
+	currentVariant = variant
+	UiKit.SetButtonVariant(actionButton, variant)
 	actionButton.Active = enabled
-	actionButton.AutoButtonColor = false
 end
 
 local function renderDetail()
@@ -637,35 +234,30 @@ local function renderDetail()
 	upgradeBox.Visible = showUpgrade
 
 	for _, child in perksList:GetChildren() do
-		if child:IsA("TextLabel") then child:Destroy() end
+		if child:IsA("GuiObject") then child:Destroy() end
 	end
 	perksHeader.Text = tr("WHAT YOU GET:")
 	for index, perk in entry.Perks or {} do
-		label(perksList, {
-			Text = '<font color="#6CFF9A">✔</font>  ' .. tr(perk),
-			Font = Enum.Font.GothamBold,
-			Size = UDim2.new(1, 0, 0, 20),
-			AlignX = Enum.TextXAlignment.Left,
-			MaxTextSize = 15,
-			LayoutOrder = index,
-		})
+		local line = templates:WaitForChild("PerkLine"):Clone()
+		line.Text = '<font color="#6CFF9A">✔</font>  ' .. tr(perk)
+		line.LayoutOrder = index
+		line.Parent = perksList
 	end
 
 	if showUpgrade then
 		for _, child in pipRow:GetChildren() do
-			if child:IsA("Frame") then child:Destroy() end
+			if child:IsA("GuiObject") then child:Destroy() end
 		end
 		for level = 1, smelter.MaxLevel do
-			local pip = Instance.new("Frame")
+			local pip = templates:WaitForChild("Pip"):Clone()
 			pip.LayoutOrder = level
-			pip.Size = UDim2.fromOffset(46, 24)
-			pip.BackgroundColor3 = level <= smelter.Level and COLORS.Gold or Color3.fromRGB(58, 62, 80)
-			pip.ZIndex = 5
-			pip.Parent = pipRow
-			corner(pip, 6)
-			stroke(pip, COLORS.Outline, 2)
+			local reached = level <= smelter.Level
+			pip.BackgroundColor3 = reached and UiKit.Theme.Accents.Gold.Main or UiKit.Theme.Skins.Slot.Color
+			local pipStroke = pip:FindFirstChild("SkinStroke")
+			if pipStroke then pipStroke.Color = reached and UiKit.Theme.Accents.Gold.Light or Color3.fromRGB(95, 95, 105) end
 			local slots = smelter.Levels and smelter.Levels[level] and smelter.Levels[level].Slots or level
-			label(pip, { Text = "x" .. slots, Font = Enum.Font.GothamBlack, Size = UDim2.new(1, -6, 1, -4), Position = UDim2.fromOffset(3, 2), ZIndex = 6, Outline = 1, MaxTextSize = 14 })
+			pip.Text.Text = "x" .. slots
+			pip.Parent = pipRow
 		end
 		upgradeTitle.Text = tr("FURNACE LV {level}/{max}", { level = smelter.Level, max = smelter.MaxLevel }) .. ' — <font color="#FFD75A">' .. tr(smelter.Name or "") .. "</font>"
 		if smelter.NextSlots then
@@ -689,7 +281,7 @@ local function renderDetail()
 		priceLabel.Text = '<font color="#FFD75A">' .. entry.CostText .. "</font>"
 		setAction(tr("BUY"), entry.CanAfford and COLORS.Buy or COLORS.Poor, true)
 	end
-	if pendingAction then setAction("...", actionButton.BackgroundColor3, false) end
+	if pendingAction then setAction("...", currentVariant, false) end
 end
 
 local function render(state)
@@ -1300,38 +892,15 @@ local function addLabel(model)
 	local definition = islandId and Config.Islands.Definitions[islandId]
 	if not definition then return end
 
-	local billboard = Instance.new("BillboardGui")
+	local billboard = templates:WaitForChild("IslandLabel"):Clone()
 	billboard.Name = "IslandLabel_" .. islandId
-	billboard.Size = UDim2.fromOffset(360, 92)
-	billboard.AlwaysOnTop = true
-	billboard.LightInfluence = 0
 	billboard.MaxDistance = Config.Islands.LabelMaxDistance or 1500
 	billboard.Parent = labelFolder
 
 	local color = definition.Color or Color3.new(1, 1, 1)
-	local title = label(billboard, {
-		Text = tr(definition.DisplayName or islandId):upper(),
-		Font = Enum.Font.FredokaOne,
-		Color = color:Lerp(Color3.new(1, 1, 1), 0.25),
-		Size = UDim2.new(1, 0, 0.55, 0),
-		ZIndex = 1,
-	})
-	local titleStroke = Instance.new("UIStroke")
-	titleStroke.Thickness = 3
-	titleStroke.Transparency = 0.15
-	titleStroke.Parent = title
-	local tagline = label(billboard, {
-		Text = tr(definition.Tagline or definition.Description or ""),
-		Font = Enum.Font.GothamBold,
-		Color = Color3.fromRGB(235, 235, 240),
-		Size = UDim2.new(1, 0, 0.4, 0),
-		Position = UDim2.fromScale(0, 0.58),
-		ZIndex = 1,
-	})
-	local taglineStroke = Instance.new("UIStroke")
-	taglineStroke.Thickness = 2
-	taglineStroke.Transparency = 0.25
-	taglineStroke.Parent = tagline
+	billboard.Title.Text = tr(definition.DisplayName or islandId):upper()
+	billboard.Title.TextColor3 = color:Lerp(Color3.new(1, 1, 1), 0.25)
+	billboard.Tagline.Text = tr(definition.Tagline or definition.Description or "")
 
 	islandLabels[model] = billboard
 	updateLabelHeight(model, billboard)

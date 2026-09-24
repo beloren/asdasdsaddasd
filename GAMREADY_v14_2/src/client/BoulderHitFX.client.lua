@@ -21,6 +21,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей
 
 local CFG = Config.BoulderHitFx or {}
 if CFG.Enabled == false then return end
@@ -28,9 +29,9 @@ if CFG.Enabled == false then return end
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- v19.1: шрифт как во всей игре (FredokaOne), без чёрных подложек — только обводка.
-local NAME_FONT = Font.fromEnum(Enum.Font.FredokaOne)
-local NUMBER_FONT = Font.fromEnum(Enum.Font.FredokaOne)
+-- v20: шрифты темы (Shared.UiTheme), без чёрных подложек — только обводка.
+local NAME_FONT = require(ReplicatedStorage.Shared.UiTheme).Fonts.Title
+local NUMBER_FONT = require(ReplicatedStorage.Shared.UiTheme).Fonts.Number
 local INK = Color3.fromRGB(10, 8, 18)
 
 local function textStroke(label, thickness, color)
@@ -118,12 +119,11 @@ local function buildPlate(model)
 	popScale.Parent = group
 	gui.Enabled = false
 
-	local name = Instance.new("TextLabel")
+	local name = WorldUi.Text(nil, "Text", "Heading")
 	name.Name = "Name"
 	name.BackgroundTransparency = 1
 	name.Position = UDim2.fromOffset(10, 4)
 	name.Size = UDim2.new(0.62, -10, 0, 20)
-	name.FontFace = NAME_FONT
 	name.TextScaled = true
 	name.TextXAlignment = Enum.TextXAlignment.Left
 	name.TextColor3 = WHITE
@@ -131,13 +131,12 @@ local function buildPlate(model)
 	name.Parent = group
 	textStroke(name, 2)
 
-	local hp = Instance.new("TextLabel")
+	local hp = WorldUi.Text(nil, "Text", "Heading")
 	hp.Name = "HP"
 	hp.BackgroundTransparency = 1
 	hp.AnchorPoint = Vector2.new(1, 0)
 	hp.Position = UDim2.new(1, -10, 0, 5)
 	hp.Size = UDim2.new(0.38, -10, 0, 17)
-	hp.FontFace = NAME_FONT
 	hp.TextScaled = true
 	hp.TextXAlignment = Enum.TextXAlignment.Right
 	hp.TextColor3 = WHITE
@@ -321,13 +320,12 @@ local GRADE_STYLE = {
 
 local function numberPlate(parent, textValue, color, strokeColor, size, order)
 	-- v19.1: без подложки — цифра с тёмной обводкой, как остальной текст игры.
-	local label = Instance.new("TextLabel")
+	local label = WorldUi.Text(nil, "Text", "Heading")
 	label.Name = "Number"
 	label.BackgroundTransparency = 1
 	label.AutomaticSize = Enum.AutomaticSize.X
 	label.Size = UDim2.fromOffset(0, size + 6)
 	label.LayoutOrder = order or 1
-	label.FontFace = NUMBER_FONT
 	label.TextSize = size
 	label.TextColor3 = color
 	label.Text = textValue

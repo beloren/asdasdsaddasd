@@ -23,6 +23,7 @@ local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Sfx = require(ReplicatedStorage.Shared.Sfx)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей
 
 local player = Players.LocalPlayer
 local FX = Config.Dynamite.Fx or {}
@@ -109,12 +110,11 @@ local function buildPlaceholder(info)
 		local gui = Instance.new("SurfaceGui")
 		gui.Face = Enum.NormalId.Front
 		gui.Parent = label
-		local text = Instance.new("TextLabel")
+		local text = WorldUi.Text(nil, "Text", "Heading")
 		text.Size = UDim2.fromScale(1, 1)
 		text.BackgroundTransparency = 1
 		text.Text = "TNT"
 		text.TextScaled = true
-		text.Font = Enum.Font.FredokaOne
 		text.TextColor3 = Color3.fromRGB(200, 30, 30)
 		text.Parent = gui
 		local fuse = Instance.new("Attachment")
@@ -264,10 +264,9 @@ local function boomWord(position, scale)
 	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0
 	gui.Parent = anchor
-	local label = Instance.new("TextLabel")
+	local label = WorldUi.Text(nil, "Text", "Heading")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
 	local words = FX.BoomWords or { "BOOM!" }
 	label.Text = words[math.random(1, #words)]
@@ -447,17 +446,13 @@ local function countdownGui(model)
 	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0
 	gui.Parent = root
-	local label = Instance.new("TextLabel")
+	local label = WorldUi.Text(nil, "Text", "Heading")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
 	label.TextColor3 = Color3.fromRGB(255, 80, 60)
 	label.Text = ""
 	label.Parent = gui
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 4
-	stroke.Parent = label
 	local scale = Instance.new("UIScale")
 	scale.Parent = label
 	return label, scale

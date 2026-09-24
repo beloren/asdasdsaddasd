@@ -56,26 +56,11 @@ local settings = Config.CartPackage or {}
 -- у магазина/инвентаря (Frame и TextLabel кликов не ловят, но слой всё равно
 -- держим ниже панелей).
 --------------------------------------------------------------------------------
-local gui = Instance.new("ScreenGui")
-gui.Name = "CartPlacementHud"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = false
-gui.DisplayOrder = 6
-gui.Enabled = false
-gui.Parent = playerGui
-
-local hint = Instance.new("TextLabel")
-hint.Name = "Hint"
-hint.AnchorPoint = Vector2.new(0.5, 1)
-hint.Position = UDim2.new(0.5, 0, 1, -120)
-hint.Size = UDim2.new(0, 420, 0, 34)
-hint.BackgroundTransparency = 1
-hint.Font = Enum.Font.FredokaOne
-hint.TextScaled = true
-hint.TextStrokeColor3 = Color3.fromRGB(12, 12, 16)
-hint.TextStrokeTransparency = 0
-hint.Text = ""
-hint.Parent = gui
+-- v20: вид — Shared.UiBuilders.PlacementUi (StarterGui/PlacementUi → CartHud).
+local placementUi = require(ReplicatedStorage.Shared.UiRegistry).Get("PlacementUi")
+local cartHud = placementUi:WaitForChild("CartHud")
+local hintPlate = cartHud:WaitForChild("Hint")
+local hint = hintPlate:WaitForChild("Text")
 
 --------------------------------------------------------------------------------
 -- ПРИЗРАК
@@ -186,7 +171,7 @@ RunService.RenderStepped:Connect(function()
 
 	if not (tier and hrp and humanoid and humanoid.Health > 0) then
 		if ghost then destroyGhost() end
-		if gui.Enabled then gui.Enabled = false end
+		if cartHud.Visible then cartHud.Visible = false end
 		return
 	end
 
@@ -230,10 +215,12 @@ RunService.RenderStepped:Connect(function()
 	end
 	paintGhost(ok)
 
-	gui.Enabled = true
+	cartHud.Visible = true
 	hint.Text = ok and "TAP TO PLACE YOUR CART" or string.upper(reason or "CAN'T PLACE HERE")
 	hint.TextColor3 = ok and (settings.PreviewOkColor or Color3.fromRGB(70, 255, 120))
 		or (settings.PreviewBadColor or Color3.fromRGB(255, 70, 70))
+	local hintStroke = hintPlate:FindFirstChild("SkinStroke")
+	if hintStroke then hintStroke.Color = hint.TextColor3 end
 end)
 
 --------------------------------------------------------------------------------

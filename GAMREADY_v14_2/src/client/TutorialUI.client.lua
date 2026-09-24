@@ -50,7 +50,6 @@ end
 -- запускали, строим такой же на лету из ТОГО ЖЕ модуля — обучение обязано
 -- работать даже на свежем месте, иначе новичок не увидит ничего и застрянет.
 --------------------------------------------------------------------------------
-local TutorialUiBuilder = require(ReplicatedStorage.Shared.TutorialUiBuilder)
 
 local function isNarrow()
 	local camera = workspace.CurrentCamera
@@ -58,12 +57,7 @@ local function isNarrow()
 	return viewport.X < 700
 end
 
-local gui = playerGui:FindFirstChild("TutorialUi")
-if not gui then
-	gui = TutorialUiBuilder.Build(isNarrow())
-	gui.Parent = playerGui
-	warn("[TutorialUI] TutorialUi не найден в PlayerGui — собран на лету. Запусти tools/BuildTutorialUI.lua (или BuildAllUI.lua), чтобы он лежал в StarterGui как остальной интерфейс.")
-end
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("TutorialUi")
 gui.Enabled = false
 
 -- Все элементы ищутся по контракту имён из TutorialUiBuilder. Падать при
@@ -126,10 +120,9 @@ worldArrow.Parent = worldArrowAnchor
 local worldArrowLabel = Instance.new("TextLabel")
 worldArrowLabel.Size = UDim2.fromScale(1, 1)
 worldArrowLabel.BackgroundTransparency = 1
-worldArrowLabel.Font = Enum.Font.FredokaOne
+require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(worldArrowLabel, "Heading") -- v20: шрифт темы
 worldArrowLabel.TextColor3 = Config.Tutorial.TrailColor
 worldArrowLabel.TextScaled = true
-worldArrowLabel.TextStrokeTransparency = 0.2
 worldArrowLabel.Text = "▼"
 worldArrowLabel.Parent = worldArrow
 

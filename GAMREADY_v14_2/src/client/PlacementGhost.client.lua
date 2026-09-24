@@ -39,55 +39,13 @@ end
 --------------------------------------------------------------------------------
 -- UI: подсказка + кнопки для телефона
 --------------------------------------------------------------------------------
-local gui = Instance.new("ScreenGui")
-gui.Name = "PlacementGhostUi"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.DisplayOrder = 26
-gui.Enabled = false
-gui.Parent = playerGui
-
-local hint = Instance.new("TextLabel")
-hint.AnchorPoint = Vector2.new(0.5, 0)
-hint.Position = UDim2.new(0.5, 0, 0, 70)
-hint.Size = UDim2.fromOffset(640, 30)
-hint.BackgroundTransparency = 1
-hint.Font = Enum.Font.FredokaOne
-hint.TextScaled = true
-hint.TextColor3 = Color3.fromRGB(255, 240, 180)
-hint.Parent = gui
-Instance.new("UIStroke", hint).Thickness = 2
-
-local mobileBar = Instance.new("Frame")
-mobileBar.AnchorPoint = Vector2.new(1, 1)
-mobileBar.Position = UDim2.new(1, -20, 1, -150)
-mobileBar.Size = UDim2.fromOffset(200, 64)
-mobileBar.BackgroundTransparency = 1
-mobileBar.Parent = gui
-local barLayout = Instance.new("UIListLayout")
-barLayout.FillDirection = Enum.FillDirection.Horizontal
-barLayout.Padding = UDim.new(0, 10)
-barLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-barLayout.Parent = mobileBar
-
-local function roundButton(text, color)
-	local b = Instance.new("TextButton")
-	b.Size = UDim2.fromOffset(62, 62)
-	b.BackgroundColor3 = color
-	b.Text = text
-	b.TextScaled = true
-	b.Font = Enum.Font.FredokaOne
-	b.TextColor3 = Color3.new(1, 1, 1)
-	b.Parent = mobileBar
-	Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
-	local s = Instance.new("UIStroke")
-	s.Thickness = 3
-	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	s.Parent = b
-	return b
-end
-local rotateButton = roundButton("↻", Color3.fromRGB(60, 130, 230))
-local placeButton = roundButton("✔", Color3.fromRGB(60, 190, 80))
+-- v20: вид — Shared.UiBuilders.PlacementUi (StarterGui/PlacementUi → GhostHud).
+local placementUi = require(ReplicatedStorage.Shared.UiRegistry).Get("PlacementUi")
+local ghostHud = placementUi:WaitForChild("GhostHud")
+local hint = ghostHud:WaitForChild("Hint"):WaitForChild("Text")
+local mobileBar = ghostHud:WaitForChild("MobileBar")
+local rotateButton = mobileBar:WaitForChild("Rotate")
+local placeButton = mobileBar:WaitForChild("Place")
 
 --------------------------------------------------------------------------------
 -- ПРИЗРАК
@@ -117,7 +75,7 @@ end
 local function destroyGhost()
 	if ghost then ghost:Destroy() end
 	ghost, highlight, ghostKey, targetCFrame = nil, nil, nil, nil
-	gui.Enabled = false
+	ghostHud.Visible = false
 end
 
 local function buildGhost(key)
@@ -150,7 +108,7 @@ local function buildGhost(key)
 	local touchOnly = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 	mobileBar.Visible = touchOnly
 	hint.Text = touchOnly and tr("Tap a spot on your base, then ✔") or tr("Click a spot on your base to place • R rotate")
-	gui.Enabled = true
+	ghostHud.Visible = true
 end
 
 local function snap(value)

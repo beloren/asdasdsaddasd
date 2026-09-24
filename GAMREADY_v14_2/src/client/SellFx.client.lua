@@ -27,6 +27,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local CrystalUtil = require(ReplicatedStorage.Shared.CrystalUtil)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей
 
 local player = Players.LocalPlayer
 local shared = ReplicatedStorage:WaitForChild("Shared")
@@ -225,20 +226,15 @@ counterGui.Adornee = counterAnchor
 counterGui.Parent = counterAnchor
 
 local function strokeLabel(name, y, height, textSize, color)
-	local label = Instance.new("TextLabel")
+	local label = WorldUi.Text(nil, "Text", "Heading")
 	label.Name = name
 	label.BackgroundTransparency = 1
 	label.AnchorPoint = Vector2.new(0.5, 0)
 	label.Position = UDim2.new(0.5, 0, 0, y)
 	label.Size = UDim2.new(1, 0, 0, height)
-	label.Font = Enum.Font.FredokaOne
 	label.TextSize = textSize
 	label.TextColor3 = color
 	label.Parent = counterGui
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 3
-	stroke.Color = Color3.fromRGB(15, 35, 10)
-	stroke.Parent = label
 	return label
 end
 local amountLabel = strokeLabel("Amount", 0, 64, 54, Color3.fromRGB(90, 255, 90))

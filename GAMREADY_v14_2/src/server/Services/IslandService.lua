@@ -29,6 +29,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local BigNum = require(ReplicatedStorage.Shared.BigNum)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
@@ -572,34 +573,24 @@ local function buildSmelterBoard(anchor)
 	gui.LightInfluence = 0
 	gui.Adornee = anchor
 	gui.Parent = anchor
-	local title = Instance.new("TextLabel")
+	local title = WorldUi.Text(nil, "Text", "Heading")
 	title.Name = "Title"
 	title.Size = UDim2.new(1, 0, 0.55, 0)
 	title.BackgroundTransparency = 1
-	title.Font = Enum.Font.FredokaOne
 	title.TextScaled = true
 	title.TextColor3 = Color3.new(1, 1, 1)
 	title.Text = "SMELTER"
 	title.Parent = gui
-	local titleStroke = Instance.new("UIStroke")
-	titleStroke.Thickness = 3
-	titleStroke.Transparency = 0.2
-	titleStroke.Parent = title
-	local sub = Instance.new("TextLabel")
+	local sub = WorldUi.Text(nil, "Text", "Body")
 	sub.Name = "Sub"
 	sub.Position = UDim2.fromScale(0, 0.58)
 	sub.Size = UDim2.new(1, 0, 0.4, 0)
 	sub.BackgroundTransparency = 1
-	sub.Font = Enum.Font.GothamBold
 	sub.TextScaled = true
 	sub.RichText = true
 	sub.TextColor3 = Color3.fromRGB(230, 230, 235)
 	sub.Text = ""
 	sub.Parent = gui
-	local subStroke = Instance.new("UIStroke")
-	subStroke.Thickness = 2
-	subStroke.Transparency = 0.3
-	subStroke.Parent = sub
 	return gui, title, sub
 end
 

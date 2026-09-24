@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local BigNum = require(ReplicatedStorage.Shared.BigNum)
 Config.NpcBillboard = Config.NpcBillboard or {}
 Config.NpcBillboard.RebirthNPC = Config.NpcBillboard.RebirthNPC or { Height = 3, SizeWidth = 4.2, SizeHeight = 1.0 }
@@ -276,12 +277,11 @@ local function ensureRebirthDialogGui(npc, primaryPart)
 	gui.Parent = primaryPart
 
 	local function label(labelName, size, position, color)
-		local text = Instance.new("TextLabel")
+		local text = WorldUi.Text(nil, "Text", "Number")
 		text.Name = labelName
 		text.BackgroundTransparency = 1
 		text.Size = size
 		text.Position = position
-		text.Font = Enum.Font.Arcade
 		text.TextSize = 30
 		text.TextScaled = true
 		text.TextColor3 = color
@@ -290,17 +290,11 @@ local function ensureRebirthDialogGui(npc, primaryPart)
 		text.Text = ""
 		text.Parent = gui
 
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = 3
-		stroke.Color = Color3.new(0, 0, 0)
-		stroke.Transparency = 0.4
-		stroke.Parent = text
 
 		return text
 	end
 
 	local nameLabel = label("name", UDim2.new(1, 0, 0.28, 0), UDim2.new(0, 0, 0, 0), Color3.fromRGB(255, 215, 120))
-	nameLabel.Font = Enum.Font.Arcade
 	nameLabel.Text = "PRESTIGE MAYOR"
 
 	local arrowLabel = label("arrow", UDim2.new(1, 0, 0.18, 0), UDim2.new(0, 0, 0.28, 0), Color3.new(1, 1, 1))

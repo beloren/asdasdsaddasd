@@ -64,69 +64,16 @@ end
 player:GetAttributeChangedSignal("CarryingCrystal"):Connect(refreshGiftPrompt)
 RunService.Heartbeat:Connect(refreshGiftPrompt)
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "RubbleCrystalUI"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.Parent = playerGui
-
--- Карточка переноски — не строится кодом здесь: это готовый инстанс из
--- StarterGui/RubbleCrystalHotbar/Slot (см. tools/BuildRubbleCrystalUI.lua),
--- визуально точная копия слота кирки. Этот скрипт только переключает
--- видимость и подставляет иконку/плейсхолдер под текущий oreId — саму
--- геометрию/стиль карточки трогать тут не нужно, она уже готова в Studio.
---
--- ВАЖНО: WaitForChild с таймаутом возвращает nil (не кидает ошибку), если
--- не нашёл — но вызов :WaitForChild НА nil уже кидает ошибку и раньше
--- ронял ВЕСЬ файл целиком (значит и трейд, и поза рук ниже тоже переставали
--- работать) просто потому, что билдер карточки ещё не запускали в Studio.
--- Теперь если карточки нет — предупреждаем в вывод и спокойно продолжаем
--- без неё, остальной скрипт (передача через промпт/поза рук) работает независимо.
-local crystalHotbar = playerGui:WaitForChild("RubbleCrystalHotbar", 10)
-local crystalSlot = crystalHotbar and crystalHotbar:WaitForChild("Slot", 10)
+-- v20: ячейка кристалла — Shared.UiBuilders.RubbleCrystalUi
+-- (StarterGui/RubbleCrystalHotbar), стоит над хотбаром и ничего не сдвигает.
+local crystalHotbar = require(ReplicatedStorage.Shared.UiRegistry).Get("RubbleCrystalHotbar")
+local crystalSlot = crystalHotbar:WaitForChild("Slot", 10)
 local crystalIcon = crystalSlot and crystalSlot:WaitForChild("Icon", 5)
 local crystalPlaceholder = crystalSlot and crystalSlot:WaitForChild("Placeholder", 5)
 if not (crystalSlot and crystalIcon and crystalPlaceholder) then
-	warn("[RubbleCrystalUI] StarterGui.RubbleCrystalHotbar.Slot не найден — запустите tools/BuildRubbleCrystalUI.lua через Command Bar в Studio. Карточка кристалла не будет показываться, но передача через промпт и поза рук всё равно работают.")
+	warn("[RubbleCrystalUI] RubbleCrystalHotbar/Slot неполон — карточка кристалла не будет показываться (передача и поза рук работают).")
+	crystalSlot = nil
 end
-
--- Пока карточка кристалла видна, кирка должна ЧУТЬ-ЧУТЬ отъехать вправо —
--- чтобы пара [кристалл][кирка] стояла ровно по центру экрана, а не кирка
--- одна по центру + кристалл слева от неё (что смещает видимый "центр
--- тяжести" пары влево). Сдвиг = половина ширины слота (68) + половина
--- отступа между карточками (8) = 38 — ровно на столько же кристалл смещён
--- влево от центра в tools/BuildRubbleCrystalUI.lua.
-local PICKAXE_SHIFT_OFFSET = 38
-local pickaxeSlot = playerGui:WaitForChild("PickaxeHotbar", 10)
-pickaxeSlot = pickaxeSlot and pickaxeSlot:WaitForChild("Slot", 5)
-local pickaxeBasePosition = pickaxeSlot and pickaxeSlot.Position
-local pickaxeShifted = false
-local function setPickaxeShifted(shifted)
-	if not pickaxeSlot or shifted == pickaxeShifted then return end
-	pickaxeShifted = shifted
-	local offset = shifted and PICKAXE_SHIFT_OFFSET or 0
-	TweenService:Create(pickaxeSlot, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Position = UDim2.new(pickaxeBasePosition.X.Scale, pickaxeBasePosition.X.Offset + offset, pickaxeBasePosition.Y.Scale, pickaxeBasePosition.Y.Offset),
-	}):Play()
-end
-
---------------------------------------------------------------------------------
--- ПОЗА "РУКИ НАД ГОЛОВОЙ" — пока персонаж несёт кристалл, обе руки подняты,
--- как будто он держит его над головой (сам кристалл физически прикреплён к
--- голове через WeldConstraint — см. RockService:CarryCrystal; поза рук —
--- чисто косметическая надстройка сверху, с точкой крепления не связана).
---
--- Прошлая версия использовала дефолтную анимацию ПРЫЖКА R6 (Action priority)
--- — технически решает гонку с "Animate", НО эта анимация двигает не только
--- руки, а всё тело (по сути реально "подпрыгивает" персонаж) — не то, что
--- нужно. Возвращаемся к прямой правке Motor6D.Transform, но ТОЛЬКО у
--- "Right Shoulder"/"Left Shoulder" — гарантированно НИЧЕГО, кроме рук, не
--- трогаем (ноги/торс в принципе не участвуют, значит никакого "прыжка" по
--- определению). Пишем Transform КАЖДЫЙ кадр в RenderStepped (после
--- Stepped/Heartbeat, где встроенный "Animate" обновляет позу ходьбы/покоя),
--- поэтому наша правка оказывается "последним словом" за кадр даже если
--- Animate тоже что-то пишет туда в этом же кадре.
---------------------------------------------------------------------------------
 
 local ARM_RAISE_TRANSFORM = CFrame.Angles(math.rad(-165), 0, 0) -- см. примечание ниже
 local POSE_LERP_SPEED = 12 -- скорость сглаживания подъёма/опускания рук
@@ -196,27 +143,9 @@ end)
 
 RunService.RenderStepped:Connect(function()
 	local oreId = player:GetAttribute("CarryingCrystal") or ""
-	if UserInputService.TouchEnabled and pickaxeSlot and crystalSlot then
-		-- Пока кристалл в руках, удерживаем пару рядом. Без кристалла позицию
-		-- кирки не трогаем: ей управляет mobile interaction layout, который
-		-- сдвигает слот влево при появлении ProximityPrompt.
-		local hasCrystal = oreId ~= ""
-		crystalSlot.Position = UDim2.new(0.5, -38, 1, -20)
-		if hasCrystal then
-			pickaxeSlot.Position = UDim2.new(0.5, 38, 1, -20)
-		end
-	end
 	if crystalSlot then
 		crystalSlot.Visible = oreId ~= ""
-		if not UserInputService.TouchEnabled then
-			setPickaxeShifted(oreId ~= "")
-		end
 		if oreId ~= "" then
-			-- Config.Geodes.Ores содержит и обычные жеодные руды, и валунные
-			-- (смерджены в Config.lua) — иконка должна красиво показывать ОБЕ
-			-- категории, не только 10 кастомных с валунов. ImageId меняется по
-			-- айдишнику конкретного кристалла; пока картинки нет (ImageId=0 или
-			-- ассет ещё не прописан) — показываем плейсхолдер "?" вместо пустоты.
 			local info = Config.Geodes.Ores[oreId]
 			local imageId = info and info.ImageId
 			if imageId and imageId ~= 0 then
@@ -228,6 +157,8 @@ RunService.RenderStepped:Connect(function()
 				crystalPlaceholder.Visible = true
 				crystalPlaceholder.TextColor3 = info and info.Color or Color3.fromRGB(230, 230, 235)
 			end
+			local stroke = crystalSlot:FindFirstChild("SkinStroke")
+			if stroke and info and info.Color then stroke.Color = info.Color end
 		end
 	end
 end)

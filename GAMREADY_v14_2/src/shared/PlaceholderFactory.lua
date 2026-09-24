@@ -111,6 +111,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(script.Parent.Config)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей
 
 -- Защита от рассинхрона (см. тот же приём в BuildUIAssets.lua/CustomCartUI.client.lua) —
 -- если Config.lua ещё старой версии без Config.NpcBillboard, подставляем
@@ -1642,20 +1643,15 @@ function PlaceholderFactory.BankMerchant()
 		board.LightInfluence = 0
 		board.Parent = head
 		local function line(name, y, height, textSize, color)
-			local label = Instance.new("TextLabel")
+			local label = WorldUi.Text(nil, "Text", "Heading")
 			label.Name = name
 			label.BackgroundTransparency = 1
 			label.Size = UDim2.new(1, 0, 0, height)
 			label.Position = UDim2.fromOffset(0, y)
-			label.Font = Enum.Font.FredokaOne
 			label.TextSize = textSize
 			label.TextColor3 = color
 			label.Text = ""
 			label.Parent = board
-			local stroke = Instance.new("UIStroke")
-			stroke.Thickness = 2.5
-			stroke.Color = Color3.fromRGB(20, 12, 6)
-			stroke.Parent = label
 			return label
 		end
 		line("Title", 0, 34, 30, Color3.fromRGB(255, 220, 120)).Text = (Config.Merchant and Config.Merchant.DisplayName or "Ore Merchant"):upper()
@@ -1782,23 +1778,17 @@ function PlaceholderFactory.UpgradeShopNPC()
 	gui.Parent = head
 
 	local function label(name, size, position, color)
-		local text = Instance.new("TextLabel")
+		local text = WorldUi.Text(nil, "Text", "Heading")
 		text.Name = name
 		text.BackgroundTransparency = 1
 		text.Size = size
 		text.Position = position
-		text.Font = Enum.Font.FredokaOne
 		text.TextSize = 30 -- база для масштабатора разрешения, см. CustomCartUI.client.lua
 		text.TextColor3 = color
 		text.TextWrapped = true
 		text.Text = ""
 		text.Parent = gui
 
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = 3
-		stroke.Color = Color3.new(0, 0, 0)
-		stroke.Transparency = 0.4
-		stroke.Parent = text
 
 		return text
 	end
@@ -1880,23 +1870,17 @@ function PlaceholderFactory.ShopNPC()
 	gui.Parent = head
 
 	local function label(name, size, position, color)
-		local text = Instance.new("TextLabel")
+		local text = WorldUi.Text(nil, "Text", "Heading")
 		text.Name = name
 		text.BackgroundTransparency = 1
 		text.Size = size
 		text.Position = position
-		text.Font = Enum.Font.FredokaOne
 		text.TextSize = 30
 		text.TextColor3 = color
 		text.TextWrapped = true
 		text.Text = ""
 		text.Parent = gui
 
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = 3
-		stroke.Color = Color3.new(0, 0, 0)
-		stroke.Transparency = 0.4
-		stroke.Parent = text
 
 		return text
 	end
@@ -1973,23 +1957,17 @@ function PlaceholderFactory.MinerNPC()
 	gui.Parent = head
 
 	local function label(name, size, position, color)
-		local text = Instance.new("TextLabel")
+		local text = WorldUi.Text(nil, "Text", "Heading")
 		text.Name = name
 		text.BackgroundTransparency = 1
 		text.Size = size
 		text.Position = position
-		text.Font = Enum.Font.FredokaOne
 		text.TextSize = 30
 		text.TextColor3 = color
 		text.TextWrapped = true
 		text.Text = ""
 		text.Parent = gui
 
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = 3
-		stroke.Color = Color3.new(0, 0, 0)
-		stroke.Transparency = 0.4
-		stroke.Parent = text
 
 		return text
 	end

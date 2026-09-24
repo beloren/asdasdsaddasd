@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
@@ -35,13 +36,10 @@ local function createDialog(npc)
 	dialogGui.AlwaysOnTop = true
 	dialogGui.MaxDistance = 60
 	dialogGui.Parent = root
-	dialogText = Instance.new("TextLabel")
+	dialogText = WorldUi.Text(nil, "Text", "Number")
 	dialogText.Size = UDim2.fromScale(1, 1)
 	dialogText.BackgroundTransparency = 1
-	dialogText.Font = Enum.Font.Arcade
 	dialogText.TextColor3 = Color3.fromRGB(225, 242, 255)
-	dialogText.TextStrokeColor3 = Color3.fromRGB(5, 10, 20)
-	dialogText.TextStrokeTransparency = 0
 	dialogText.TextSize = 23
 	dialogText.TextWrapped = true
 	dialogText.TextXAlignment = Enum.TextXAlignment.Center

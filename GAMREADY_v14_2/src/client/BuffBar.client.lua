@@ -27,99 +27,18 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- На 20% меньше прежних 52/8 (по прямому запросу).
-local ICON_SIZE = 42
-local ICON_GAP = 6
--- Иконки идут В РЯД, не больше стольких в строке; следующая строка
--- растёт вверх над первой.
-local ICONS_PER_ROW = 3
+-- Размеры иконок и сетки — в Shared.UiBuilders.BuffBarUi.
 
 --------------------------------------------------------------------------------
--- КАРКАС
+-- КАРКАС — v20: собирает Shared.UiBuilders.BuffBarUi (его можно поправить в
+-- StarterGui/BuffBar: иконки клонируются из Templates/IconTemplate).
 --------------------------------------------------------------------------------
-local gui = Instance.new("ScreenGui")
-gui.Name = "BuffBar"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = false
-gui.DisplayOrder = 12
-gui.Parent = playerGui
-
-local bar = Instance.new("Frame")
-bar.Name = "Bar"
--- СПРАВА СНИЗУ (по прямому запросу). Растёт ВВЕРХ от нижнего края —
--- новые иконки не должны наезжать на хотбар, который тоже внизу по
--- центру, а слева-снизу-вверх не пересекается с ним при любой ширине.
-bar.AnchorPoint = Vector2.new(1, 1)
-bar.Position = UDim2.new(1, -12, 1, -18)
-bar.Size = UDim2.fromOffset(ICON_SIZE * ICONS_PER_ROW + ICON_GAP * (ICONS_PER_ROW - 1), 0)
-bar.AutomaticSize = Enum.AutomaticSize.Y
-bar.BackgroundTransparency = 1
-bar.Parent = gui
-
--- СЕТКА ВМЕСТО СТОЛБЦА (по прямому запросу "не сверху вниз, а в ряд,
--- максимум три"). StartCorner = BottomRight: первая иконка — в правом
--- нижнем углу, следующие встают левее, четвёртая начинает новую строку
--- ВЫШЕ первой, так что панель по-прежнему растёт от нижнего края вверх и
--- не наезжает на хотбар.
-local layout = Instance.new("UIGridLayout")
-layout.CellSize = UDim2.fromOffset(ICON_SIZE, ICON_SIZE)
-layout.CellPadding = UDim2.fromOffset(ICON_GAP, ICON_GAP)
-layout.FillDirection = Enum.FillDirection.Horizontal
-layout.FillDirectionMaxCells = ICONS_PER_ROW
-layout.StartCorner = Enum.StartCorner.BottomRight
-layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = bar
-
--- Подсказка одна на всю панель: показывать по одной на иконку значило бы
--- держать десяток невидимых фреймов без всякой пользы.
-local tooltip = Instance.new("Frame")
-tooltip.Name = "Tooltip"
-tooltip.AnchorPoint = Vector2.new(1, 1)
-tooltip.Size = UDim2.fromOffset(240, 78)
-tooltip.BackgroundColor3 = Color3.fromRGB(25, 27, 29)
-tooltip.BackgroundTransparency = 0.1
-tooltip.BorderSizePixel = 0
-tooltip.Visible = false
-tooltip.ZIndex = 20
-tooltip.Parent = gui
-
-local tooltipCorner = Instance.new("UICorner")
-tooltipCorner.CornerRadius = UDim.new(0, 8)
-tooltipCorner.Parent = tooltip
-
-local tooltipStroke = Instance.new("UIStroke")
-tooltipStroke.Color = Color3.fromRGB(255, 255, 255)
-tooltipStroke.Transparency = 0.75
-tooltipStroke.Thickness = 1
-tooltipStroke.Parent = tooltip
-
-local tooltipTitle = Instance.new("TextLabel")
-tooltipTitle.Name = "Title"
-tooltipTitle.Position = UDim2.fromOffset(10, 8)
-tooltipTitle.Size = UDim2.new(1, -20, 0, 20)
-tooltipTitle.BackgroundTransparency = 1
-tooltipTitle.Font = Enum.Font.GothamBold
-tooltipTitle.TextSize = 15
-tooltipTitle.TextXAlignment = Enum.TextXAlignment.Left
-tooltipTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-tooltipTitle.ZIndex = 21
-tooltipTitle.Parent = tooltip
-
-local tooltipBody = Instance.new("TextLabel")
-tooltipBody.Name = "Body"
-tooltipBody.Position = UDim2.fromOffset(10, 30)
-tooltipBody.Size = UDim2.new(1, -20, 1, -38)
-tooltipBody.BackgroundTransparency = 1
-tooltipBody.Font = Enum.Font.Gotham
-tooltipBody.TextSize = 13
-tooltipBody.TextWrapped = true
-tooltipBody.TextXAlignment = Enum.TextXAlignment.Left
-tooltipBody.TextYAlignment = Enum.TextYAlignment.Top
-tooltipBody.TextColor3 = Color3.fromRGB(215, 215, 225)
-tooltipBody.ZIndex = 21
-tooltipBody.Parent = tooltip
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("BuffBar")
+local bar = gui:WaitForChild("Bar")
+local tooltip = gui:WaitForChild("Tooltip")
+local tooltipTitle = tooltip:WaitForChild("Title")
+local tooltipBody = tooltip:WaitForChild("Body")
+local iconTemplate = gui:WaitForChild("Templates"):WaitForChild("IconTemplate")
 
 local shownFor = nil
 
@@ -172,52 +91,19 @@ end
 local icons = {}
 
 local function makeIcon(id, spec, order)
-	local button = Instance.new("ImageButton")
+	local button = iconTemplate:Clone()
 	button.Name = "Buff_" .. id
 	button.LayoutOrder = order
-	button.Size = UDim2.fromOffset(ICON_SIZE, ICON_SIZE)
-	button.BackgroundColor3 = Color3.fromRGB(25, 27, 29)
-	button.BackgroundTransparency = 0.15
-	button.BorderSizePixel = 0
-	button.AutoButtonColor = false
-	button.Image = "" -- ← сюда свой ассет иконки
-	button.ScaleType = Enum.ScaleType.Fit
 	button.Parent = bar
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
-	corner.Parent = button
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Name = "Accent"
-	stroke.Thickness = 2
-	stroke.Color = spec.Color or Color3.fromRGB(200, 200, 200)
-	stroke.Parent = button
-
-	-- Запасная подпись: пока Image пустой, иконка всё равно читается.
-	-- Клиент прячет её сам, как только подставлен ассет.
-	local glyph = Instance.new("TextLabel")
-	glyph.Name = "Glyph"
-	glyph.Size = UDim2.fromScale(1, 0.6)
-	glyph.BackgroundTransparency = 1
-	glyph.Font = Enum.Font.GothamBold
-	glyph.TextScaled = true
+	local color = spec.Color or Color3.fromRGB(200, 200, 200)
+	local stroke = button:FindFirstChild("SkinStroke")
+	if stroke then stroke.Color = color end
+	local image = button:FindFirstChild("Image")
+	local glyph = button:WaitForChild("Glyph")
 	glyph.Text = spec.IconText or "?"
-	glyph.TextColor3 = spec.Color or Color3.fromRGB(255, 255, 255)
-	glyph.Parent = button
-
-	local timer = Instance.new("TextLabel")
-	timer.Name = "Timer"
-	timer.AnchorPoint = Vector2.new(0.5, 1)
-	timer.Position = UDim2.new(0.5, 0, 1, -2)
-	timer.Size = UDim2.new(1, 0, 0, 12)
-	timer.BackgroundTransparency = 1
-	timer.Font = Enum.Font.GothamBold
-	timer.TextSize = 10
-	timer.TextColor3 = Color3.fromRGB(255, 255, 255)
-	timer.TextStrokeTransparency = 0.6
+	glyph.TextColor3 = color
+	local timer = button:WaitForChild("Timer")
 	timer.Text = ""
-	timer.Parent = button
 
 	-- Появление: "выпрыгивает" из точки. Позицию в сетке задаёт
 	-- UIGridLayout, двигать Position бесполезно — поэтому анимируем масштаб.
@@ -228,7 +114,7 @@ local function makeIcon(id, spec, order)
 		Scale = 1,
 	}):Play()
 
-	local entry = { Button = button, Timer = timer, Glyph = glyph, Spec = spec }
+	local entry = { Button = button, Timer = timer, Glyph = glyph, Image = image, Spec = spec }
 	bindTooltip(button, function()
 		return entry.Spec.DisplayName or id
 	end, function()
@@ -244,6 +130,7 @@ local function removeIcon(id)
 	icons[id] = nil
 	if shownFor == entry.Button then hideTooltip() end
 	local tween = TweenService:Create(entry.Button, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		ImageTransparency = 1,
 		BackgroundTransparency = 1,
 	})
 	local popScale = entry.Button:FindFirstChildOfClass("UIScale")
@@ -365,7 +252,7 @@ local function refresh()
 		entry.Timer.Text = effect.SecondsLeft and formatSeconds(effect.SecondsLeft) or ""
 		-- Ассет подставлен — прячем запасную подпись, иначе буквы
 		-- просвечивали бы поверх картинки.
-		entry.Glyph.Visible = entry.Button.Image == ""
+		entry.Glyph.Visible = not (entry.Image and entry.Image.Image ~= "")
 		-- Подсказка открыта прямо сейчас — обновляем и её, иначе таймер в
 		-- ней замер бы до закрытия.
 		if shownFor == entry.Button then

@@ -40,6 +40,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local MutationVisuals = require(ReplicatedStorage.Shared.MutationVisuals)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей
 
 -- Насколько высоко над головой висит руда и как широко разведены руки.
 local HEAD_CLEARANCE = 1.5   -- студ от верха головы до низа руды
@@ -212,27 +213,21 @@ local function buildPackageModel(plr, tier)
 	billboard.Adornee = root
 	billboard.Parent = root
 
-	local title = Instance.new("TextLabel")
+	local title = WorldUi.Text(nil, "Text", "Heading")
 	title.Size = UDim2.fromScale(1, 0.55)
 	title.BackgroundTransparency = 1
-	title.Font = Enum.Font.FredokaOne
 	title.TextScaled = true
 	title.Text = "CART PACKAGE"
 	title.TextColor3 = Color3.fromRGB(255, 255, 255)
-	title.TextStrokeColor3 = Color3.fromRGB(10, 10, 14)
-	title.TextStrokeTransparency = 0
 	title.Parent = billboard
 
-	local subtitle = Instance.new("TextLabel")
+	local subtitle = WorldUi.Text(nil, "Text", "Heading")
 	subtitle.Size = UDim2.fromScale(1, 0.45)
 	subtitle.Position = UDim2.fromScale(0, 0.55)
 	subtitle.BackgroundTransparency = 1
-	subtitle.Font = Enum.Font.FredokaOne
 	subtitle.TextScaled = true
 	subtitle.Text = ("LV %d"):format(tier)
 	subtitle.TextColor3 = Color3.fromRGB(120, 230, 255)
-	subtitle.TextStrokeColor3 = Color3.fromRGB(10, 10, 14)
-	subtitle.TextStrokeTransparency = 0
 	subtitle.Parent = billboard
 
 	model.Name = "HeldCartPackageVisual_" .. plr.UserId
@@ -296,15 +291,12 @@ local function buildPotionModel(plr, key)
 	billboard.MaxDistance = 80
 	billboard.Adornee = root
 	billboard.Parent = root
-	local title = Instance.new("TextLabel")
+	local title = WorldUi.Text(nil, "Text", "Heading")
 	title.Size = UDim2.fromScale(1, 1)
 	title.BackgroundTransparency = 1
-	title.Font = Enum.Font.FredokaOne
 	title.TextScaled = true
 	title.Text = (info.Icon and (info.Icon .. " ") or "") .. (info.DisplayName or key):upper()
 	title.TextColor3 = color
-	title.TextStrokeColor3 = Color3.fromRGB(10, 10, 14)
-	title.TextStrokeTransparency = 0
 	title.Parent = billboard
 
 	model.Name = "HeldPotionVisual_" .. plr.UserId
@@ -405,16 +397,13 @@ local function buildOreModel(plr)
 	layout.Parent = billboard
 
 	local function makeLine(order, height, text, color, stroke)
-		local line = Instance.new("TextLabel")
+		local line = WorldUi.Text(nil, "Text", "Heading")
 		line.LayoutOrder = order
 		line.Size = UDim2.new(1, 0, height, 0)
 		line.BackgroundTransparency = 1
-		line.Font = Enum.Font.FredokaOne
 		line.TextScaled = true
 		line.Text = text
 		line.TextColor3 = color
-		line.TextStrokeColor3 = stroke or Color3.fromRGB(10, 10, 14)
-		line.TextStrokeTransparency = 0
 		line.Parent = billboard
 		return line
 	end

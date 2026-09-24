@@ -1175,7 +1175,7 @@ local function buildCardPlaceholder(rarity, color)
 	sub.BackgroundTransparency = 1
 	sub.Size = UDim2.fromScale(1, 0.24)
 	sub.Position = UDim2.fromScale(0, 0.08)
-	sub.Font = Enum.Font.FredokaOne
+	require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(sub, "Heading") -- v20: шрифт темы
 	sub.TextScaled = true
 	sub.TextColor3 = Color3.new(1, 1, 1)
 	sub.Text = "MINE RARITY"

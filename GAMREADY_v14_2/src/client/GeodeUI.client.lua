@@ -123,12 +123,11 @@ local function label(name, text, font)
 	local item = Instance.new("TextLabel")
 	item.Name = name
 	item.BackgroundTransparency = 1
-	item.Font = font or Enum.Font.Arcade
+	require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(item, "Number") -- v20: шрифт темы
 	item.Text = text or ""
 	item.TextColor3 = Color3.new(1, 1, 1)
 	item.TextScaled = true
 	item.TextWrapped = true
-	item.TextStrokeTransparency = 1
 	return item
 end
 
@@ -137,11 +136,10 @@ local function button(name, text, color)
 	item.Name = name
 	item.BackgroundColor3 = color
 	item.BorderSizePixel = 0
-	item.Font = Enum.Font.Arcade
+	require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(item, "Number") -- v20: шрифт темы
 	item.Text = text
 	item.TextColor3 = Color3.new(1, 1, 1)
 	item.TextScaled = true
-	item.TextStrokeTransparency = 1
 	return item
 end
 
@@ -241,7 +239,7 @@ do
 		allDrops.Position = UDim2.new(1, -8, 0, 8)
 		allDrops.Size = UDim2.fromOffset(104, 28)
 		allDrops.BackgroundColor3 = Color3.fromRGB(150, 90, 230)
-		allDrops.Font = Enum.Font.FredokaOne
+		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(allDrops, "Heading") -- v20: шрифт темы
 		allDrops.TextScaled = true
 		allDrops.TextColor3 = Color3.new(1, 1, 1)
 		allDrops.Text = "🔍 ALL DROPS"
@@ -1369,10 +1367,9 @@ local function spawnScatterDrop(origin, landPos, flightSeconds, arcHeight, resul
 		local label = Instance.new("TextLabel")
 		label.BackgroundTransparency = 1
 		label.Size = UDim2.fromScale(1, 1)
-		label.Font = Enum.Font.FredokaOne
+		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(label, "Heading") -- v20: шрифт темы
 		label.TextScaled = true
 		label.TextColor3 = Color3.fromRGB(255, 225, 130)
-		label.TextStrokeTransparency = 0
 		label.Text = ("1/%d"):format(math.max(1, math.round(1 / chance)))
 		label.Parent = billboard
 	end
@@ -2089,11 +2086,10 @@ showDropNotification = function(result)
 	title.BackgroundTransparency = 1
 	title.Size = UDim2.new(1, -20, 0, 26)
 	title.Position = UDim2.fromOffset(10, 8)
-	title.Font = Enum.Font.FredokaOne
+	require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(title, "Heading") -- v20: шрифт темы
 	title.TextScaled = true
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.TextColor3 = Color3.new(1, 1, 1)
-	title.TextStrokeTransparency = 0.5
 	title.Text = (result and (result.Title or "REWARD") or "REWARD"):upper()
 	title.Parent = card
 
@@ -2101,7 +2097,7 @@ showDropNotification = function(result)
 	detail.BackgroundTransparency = 1
 	detail.Size = UDim2.new(1, -20, 0, 30)
 	detail.Position = UDim2.fromOffset(10, 36)
-	detail.Font = Enum.Font.GothamBold
+	require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(detail, "Body") -- v20: шрифт темы
 	detail.TextScaled = true
 	detail.TextXAlignment = Enum.TextXAlignment.Left
 	detail.TextColor3 = (result and rarityColors[result.Rarity]) or Color3.fromRGB(220, 220, 220)
