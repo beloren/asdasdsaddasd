@@ -2004,21 +2004,22 @@ Config.PickaxeTiers = {
 -- Итог без пассов и престижа: пещера 8 (первый престиж) ≈ 45 мин, пещера
 -- 15 + всё докачано ≈ 2.3 ч. Цены ФИКСИРОВАННЫЕ (не зависят от игрока).
 --------------------------------------------------------------------------------
+-- v20: цены пещер +15% (прогрессия была слишком быстрой).
 Config.MineChain = {
-	{ Tier = 2, Cost = 120 },
-	{ Tier = 3, Cost = 290 },
-	{ Tier = 4, Cost = 650 },
-	{ Tier = 5, Cost = 1300 },
-	{ Tier = 6, Cost = 2100 },
-	{ Tier = 7, Cost = 4500 },
-	{ Tier = 8, Cost = 7500 },
-	{ Tier = 9, Cost = 18000 },
-	{ Tier = 10, Cost = 34000 },
-	{ Tier = 11, Cost = 58000 },
-	{ Tier = 12, Cost = 110000 },
-	{ Tier = 13, Cost = 190000 },
-	{ Tier = 14, Cost = 370000 },
-	{ Tier = 15, Cost = 600000 },
+	{ Tier = 2, Cost = 140 },
+	{ Tier = 3, Cost = 330 },
+	{ Tier = 4, Cost = 750 },
+	{ Tier = 5, Cost = 1500 },
+	{ Tier = 6, Cost = 2400 },
+	{ Tier = 7, Cost = 5200 },
+	{ Tier = 8, Cost = 8600 },
+	{ Tier = 9, Cost = 21000 },
+	{ Tier = 10, Cost = 39000 },
+	{ Tier = 11, Cost = 67000 },
+	{ Tier = 12, Cost = 130000 },
+	{ Tier = 13, Cost = 220000 },
+	{ Tier = 14, Cost = 430000 },
+	{ Tier = 15, Cost = 690000 },
 }
 Config.CartChain = {
 	{ Tier = 2, Cost = 330 },
@@ -4319,7 +4320,8 @@ function Config.NineTierForCave(cave)
 	return math.clamp(1 + math.floor((cave - 1) * 8 / (#Config.MineTiers - 1) + 0.5), 1, 9)
 end
 
-Config.Boulders.MoneyInCarts = 0.6
+-- v20: 0.6 → 0.25 — валуны давали за 10–15 сек больше, чем рейс в шахту.
+Config.Boulders.MoneyInCarts = 0.25
 Config.Boulders.RewardMoneyByTier = {}
 for tier = 1, 9 do
 	-- 9 тиров валунов (= тир кирки) растянуты на 15 пещер.
@@ -6066,7 +6068,7 @@ Config.BoulderGame = {
 	Grades = { Miss = 0, Good = 0.6, Perfect = 1 },
 	-- Итог = средняя оценка всех своих ударов по этому валуну.
 	Results = {
-		{ Min = 0.85, Label = "PERFECT BREAK!", MoneyMult = 1.6, ExtraRolls = 1, ChestMult = 2.5, Color = Color3.fromRGB(255, 215, 80) },
+		{ Min = 0.85, Label = "PERFECT BREAK!", MoneyMult = 1.3, ExtraRolls = 1, ChestMult = 2.5, Color = Color3.fromRGB(255, 215, 80) }, -- v20: MoneyMult было 1.6
 		{ Min = 0.5,  Label = "GOOD BREAK",     MoneyMult = 1.0, ExtraRolls = 0, ChestMult = 1.0, Color = Color3.fromRGB(120, 255, 150) },
 		{ Min = 0,    Label = "ROUGH BREAK",    MoneyMult = 0.6, ExtraRolls = 0, ChestMult = 0.5, Color = Color3.fromRGB(200, 200, 210) },
 	},
