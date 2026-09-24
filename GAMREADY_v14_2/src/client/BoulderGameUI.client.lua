@@ -24,7 +24,7 @@ local function tr(text, args)
 	return ok and result or text
 end
 
-local gui = playerGui:WaitForChild("BoulderGameUi", 3)
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("BoulderGameUi") -- v20: StarterGui/BoulderGameUi или сборка билдером
 if not gui or (tonumber(gui:GetAttribute("BuilderVersion")) or 0) < (cfg.UiVersion or 1) then
 	if gui then gui:Destroy() end
 	gui = require(ReplicatedStorage.Shared.BoulderGameUiBuilder).Build()

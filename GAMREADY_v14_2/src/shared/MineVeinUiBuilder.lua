@@ -41,9 +41,12 @@
 --        └─ TextButton "TapButton" (на тач-устройствах)
 --------------------------------------------------------------------------------
 
+local UiKit = require(script.Parent.UiKit)
+local Theme = UiKit.Theme
+
 local Builder = {}
 
-Builder.VERSION = 2 -- клиент пересобирает MineArcUi, если версия в StarterGui старее
+Builder.VERSION = 20 -- клиент пересобирает MineArcUi, если версия в StarterGui старее
 Builder.VEIN_WIDTH = 540
 Builder.VEIN_HEIGHT = 44
 
@@ -64,25 +67,21 @@ local function stroke(parent, color, thickness, name)
 	return s
 end
 
+-- v20: текст — стиль темы (жирный курсив с обводкой).
 local function label(name, text, size, color)
-	local l = Instance.new("TextLabel")
-	l.Name = name
-	l.BackgroundTransparency = 1
-	l.Font = Enum.Font.FredokaOne
-	l.TextScaled = true
-	l.Text = text
-	l.TextColor3 = color or Color3.new(1, 1, 1)
-	l.Size = size
-	local s = Instance.new("UIStroke")
-	s.Color = Color3.fromRGB(20, 16, 12)
-	s.Thickness = 2
-	s.Parent = l
-	return l
+	return UiKit.Text(nil, name, text, {
+		_Style = "Title",
+		Size = size,
+		TextColor3 = color or Color3.new(1, 1, 1),
+	})
 end
 
+-- v20: все плашки запасного вида — ImageLabel (Image пустой = видна
+-- заливка цветом; поставишь картинку — клиент спрячет запасной декор).
 local function frame(name, props)
-	local f = Instance.new("Frame")
+	local f = Instance.new("ImageLabel")
 	f.Name = name
+	f.Image = ""
 	f.BorderSizePixel = 0
 	for key, value in props do
 		f[key] = value
@@ -93,32 +92,23 @@ end
 function Builder.Build()
 	local W, H = Builder.VEIN_WIDTH, Builder.VEIN_HEIGHT
 
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "MineArcUi"
-	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
-	gui.DisplayOrder = 45
-	gui.Enabled = false
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	local gui = UiKit.Screen("MineArcUi", { DisplayOrder = 45, Enabled = false })
 	gui:SetAttribute("VeinUiVersion", Builder.VERSION)
 
 	----------------------------------------------------------------------------
 	-- КАРТОЧКА МОДИФИКАТОРА (по центру экрана, появляется в начале захода)
 	----------------------------------------------------------------------------
-	local card = frame("ModifierCard", {
+	local card = UiKit.Card(nil, "ModifierCard", Theme.Accents.Gold, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.3),
 		Size = UDim2.fromOffset(440, 104),
-		BackgroundColor3 = Color3.fromRGB(28, 24, 20),
-		BackgroundTransparency = 0.1,
 		Visible = false,
 	})
-	corner(card, UDim.new(0, 14))
-	stroke(card, Color3.fromRGB(255, 205, 70), 3, "Rim")
+	card:FindFirstChild("SkinStroke").Name = "Rim"
 	local cardScale = Instance.new("UIScale")
 	cardScale.Name = "Pop"
 	cardScale.Parent = card
-	local cardTitle = label("Title", "GOLDEN VEIN", UDim2.new(1, -24, 0, 50), Color3.fromRGB(255, 205, 70))
+	local cardTitle = label("Title", "GOLDEN VEIN", UDim2.new(1, -24, 0, 50), Theme.Accents.Gold.Main)
 	cardTitle.Position = UDim2.fromOffset(12, 10)
 	cardTitle.Parent = card
 	local cardSub = label("Subtitle", "Perfect hits give x2.5 luck", UDim2.new(1, -24, 0, 26), Color3.fromRGB(235, 230, 220))
@@ -142,16 +132,14 @@ function Builder.Build()
 	container.Parent = gui
 
 	-- Компактная плашка модификатора над жилой (живёт весь заход).
-	local tag = frame("ModifierTag", {
+	local tag = UiKit.Plate(nil, "ModifierTag", "Pill", {
+		_Accent = Theme.Accents.Gold,
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.fromOffset(300, 0),
 		Size = UDim2.fromOffset(230, 24),
-		BackgroundColor3 = Color3.fromRGB(28, 24, 20),
-		BackgroundTransparency = 0.15,
 		Visible = false,
 	})
-	corner(tag, UDim.new(1, 0))
-	stroke(tag, Color3.fromRGB(255, 205, 70), 2, "Rim")
+	tag:FindFirstChild("SkinStroke").Name = "Rim"
 	local tagTitle = label("Title", "GOLDEN VEIN", UDim2.new(1, -16, 1, -6), Color3.fromRGB(255, 205, 70))
 	tagTitle.AnchorPoint = Vector2.new(0.5, 0.5)
 	tagTitle.Position = UDim2.fromScale(0.5, 0.5)
@@ -376,19 +364,17 @@ function Builder.Build()
 
 	-- Кнопка удара — только для тача (клиент прячет её на ПК: там бьют
 	-- кликом в любом месте экрана или пробелом).
-	local tap = Instance.new("TextButton")
-	tap.Name = "TapButton"
-	tap.AnchorPoint = Vector2.new(0, 0.5)
-	tap.Position = UDim2.fromOffset(300 + W / 2 + 10, 74 + H / 2)
-	tap.Size = UDim2.fromOffset(64, 48)
-	tap.BackgroundColor3 = Color3.fromRGB(255, 205, 70)
-	tap.AutoButtonColor = true
-	tap.Font = Enum.Font.FredokaOne
-	tap.TextScaled = true
-	tap.TextColor3 = Color3.fromRGB(40, 30, 10)
-	tap.Text = "HIT"
-	tap.ZIndex = 12
-	corner(tap, UDim.new(0, 10))
+	local tap = UiKit.TextButton(nil, "TapButton", "HIT", {
+		_Style = "Title",
+		_StrokeColor = Theme.Skins.Button_Yellow.TextStroke,
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.fromOffset(300 + W / 2 + 10, 74 + H / 2),
+		Size = UDim2.fromOffset(64, 48),
+		BackgroundTransparency = 0,
+		BackgroundColor3 = Theme.Skins.Button_Yellow.Color,
+		ZIndex = 12,
+	})
+	UiKit.Stroke(tap, Theme.Skins.Button_Yellow.StrokeColor, 1.5, 0, "SkinStroke")
 	tap.Parent = container
 
 	return gui

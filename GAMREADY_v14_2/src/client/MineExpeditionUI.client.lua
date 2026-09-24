@@ -51,7 +51,12 @@ end
 --------------------------------------------------------------------------------
 local DialogBuilder = require(ReplicatedStorage.Shared.MinerDialogUiBuilder)
 
-local dialogGui = playerGui:FindFirstChild("MinerDialogUi")
+-- v20: StarterGui/MinerDialogUi (tools/BuildAllUI.lua); нет — соберётся билдером.
+-- Раньше тут был одноразовый FindFirstChild: копия из StarterGui ещё не
+-- успевала прийти, скрипт строил свою, и отредактированная в Studio версия
+-- висела рядом никем не используемой.
+local UiRegistry = require(ReplicatedStorage.Shared.UiRegistry)
+local dialogGui = UiRegistry.Get("MinerDialogUi")
 if dialogGui and (dialogGui:GetAttribute("MinerDialogVersion") or 0) < DialogBuilder.VERSION then
 	dialogGui:Destroy()
 	dialogGui = nil
@@ -441,9 +446,9 @@ end
 local function ensureVeinUi()
 	if ui and ui.Gui.Parent then return ui end
 
-	local gui = playerGui:FindFirstChild("MineArcUi")
+	local gui = UiRegistry.Get("MineArcUi")
 	if gui and ((gui:GetAttribute("VeinUiVersion") or 0) < VeinBuilder.VERSION or not gui:FindFirstChild("Vein", true)) then
-		warn("[MineExpeditionUI] StarterGui/MineArcUi устарел (старая дуга/полоса) — собираю жилу кодом. Перезапусти tools/BuildMineArcUI.lua, чтобы править вид в Studio.")
+		warn("[MineExpeditionUI] StarterGui/MineArcUi устарел — собираю жилу кодом. Перезапусти tools/BuildAllUI.lua, чтобы править вид в Studio.")
 		gui:Destroy()
 		gui = nil
 	end

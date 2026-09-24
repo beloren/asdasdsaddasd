@@ -22,32 +22,20 @@
 -- дерево — вопрос). Позиция облачка относительно шахтёра —
 -- BillboardGui.StudsOffset (X — вправо по экрану).
 --------------------------------------------------------------------------------
+local UiKit = require(script.Parent.UiKit)
+local Theme = UiKit.Theme
+
 local Builder = {}
-Builder.VERSION = 1
+Builder.VERSION = 20
 
 Builder.CREAM = Color3.fromRGB(255, 246, 222)
-Builder.OUTLINE = Color3.fromRGB(62, 38, 18)
+Builder.OUTLINE = Color3.fromRGB(12, 10, 16)
+-- Цвет кнопки ответа по смыслу: да / нет / вопрос.
 Builder.CHOICE_COLORS = {
-	Yes = Color3.fromRGB(96, 200, 72),
-	No = Color3.fromRGB(226, 84, 70),
-	Ask = Color3.fromRGB(214, 160, 84),
+	Yes = Theme.Skins.Button_Green.Color,
+	No = Theme.Skins.Button_Red.Color,
+	Ask = Theme.Skins.Button_Yellow.Color,
 }
-
-local function corner(parent, radius)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = radius
-	c.Parent = parent
-end
-
-local function stroke(parent, color, thickness, contextual)
-	local s = Instance.new("UIStroke")
-	s.Color = color
-	s.Thickness = thickness
-	s.LineJoinMode = Enum.LineJoinMode.Round
-	s.ApplyStrokeMode = contextual and Enum.ApplyStrokeMode.Contextual or Enum.ApplyStrokeMode.Border
-	s.Parent = parent
-	return s
-end
 
 function Builder.Build()
 	local gui = Instance.new("BillboardGui")
@@ -61,118 +49,67 @@ function Builder.Build()
 	gui.SizeOffset = Vector2.new(0.5, -0.1) -- растём вправо от точки крепления
 	gui.StudsOffset = Vector3.new(2.2, 1.2, 0)
 	gui.Enabled = false
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui:SetAttribute("MinerDialogVersion", Builder.VERSION)
 
-	local root = Instance.new("Frame")
-	root.Name = "Root"
-	root.Size = UDim2.fromScale(1, 1)
-	root.BackgroundTransparency = 1
-	root.Parent = gui
-	local pop = Instance.new("UIScale")
-	pop.Name = "Pop"
-	pop.Parent = root
+	local root = UiKit.Group(gui, "Root", {})
+	UiKit.Scale(root, "Pop", 1)
 
-	local bubble = Instance.new("Frame")
-	bubble.Name = "Bubble"
-	bubble.Position = UDim2.fromOffset(14, 14)
-	bubble.Size = UDim2.new(1, -18, 0, 104)
-	bubble.BackgroundColor3 = Builder.CREAM
-	bubble.BorderSizePixel = 0
-	bubble.Parent = root
-	corner(bubble, UDim.new(0, 16))
-	stroke(bubble, Builder.OUTLINE, 3)
+	-- Облачко реплики.
+	local bubble = UiKit.Card(root, "Bubble", "Gold", {
+		Position = UDim2.fromOffset(14, 14),
+		Size = UDim2.new(1, -18, 0, 104),
+	})
+	bubble.BackgroundTransparency = 0.1
+	local tail = UiKit.Plate(bubble, "Tail", "Card", {
+		_Accent = "Gold",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0, 0, 0, 62),
+		Size = UDim2.fromOffset(18, 18),
+		Rotation = 45,
+		ZIndex = 0,
+	})
+	tail.BackgroundTransparency = 0.1
 
-	local tail = Instance.new("Frame")
-	tail.Name = "Tail"
-	tail.AnchorPoint = Vector2.new(0.5, 0.5)
-	tail.Position = UDim2.new(0, 0, 0, 62)
-	tail.Size = UDim2.fromOffset(18, 18)
-	tail.Rotation = 45
-	tail.BackgroundColor3 = Builder.CREAM
-	tail.BorderSizePixel = 0
-	tail.ZIndex = 0
-	tail.Parent = bubble
-	stroke(tail, Builder.OUTLINE, 3)
+	local nameTag = UiKit.Plate(bubble, "NameTag", "Pill", {
+		_Accent = "Green",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.fromOffset(14, 0),
+		Size = UDim2.fromOffset(100, 26),
+		BackgroundColor3 = Theme.Skins.Button_Green.Color,
+		BackgroundTransparency = 0,
+		ZIndex = 3,
+	})
+	UiKit.Text(nameTag, "Title", "MINER", {
+		_Style = "Heading",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, -12, 1, -4),
+		ZIndex = 4,
+	})
 
-	local nameTag = Instance.new("Frame")
-	nameTag.Name = "NameTag"
-	nameTag.AnchorPoint = Vector2.new(0, 0.5)
-	nameTag.Position = UDim2.fromOffset(14, 0)
-	nameTag.Size = UDim2.fromOffset(96, 26)
-	nameTag.BackgroundColor3 = Color3.fromRGB(96, 200, 72)
-	nameTag.BorderSizePixel = 0
-	nameTag.ZIndex = 3
-	nameTag.Parent = bubble
-	corner(nameTag, UDim.new(1, 0))
-	stroke(nameTag, Builder.OUTLINE, 2.5)
-	local title = Instance.new("TextLabel")
-	title.Name = "Title"
-	title.Size = UDim2.new(1, -12, 1, -4)
-	title.AnchorPoint = Vector2.new(0.5, 0.5)
-	title.Position = UDim2.fromScale(0.5, 0.5)
-	title.BackgroundTransparency = 1
-	title.Font = Enum.Font.FredokaOne
-	title.TextScaled = true
-	title.TextColor3 = Color3.new(1, 1, 1)
-	title.Text = "MINER"
-	title.ZIndex = 4
-	title.Parent = nameTag
-	stroke(title, Builder.OUTLINE, 1.5, true)
+	local text = UiKit.Text(bubble, "Text", "Hey there! Wanna head into the mine?", {
+		_Style = "Body",
+		Position = UDim2.fromOffset(14, 18),
+		Size = UDim2.new(1, -28, 1, -26),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		ZIndex = 2,
+	})
+	text.TextScaled = false
+	text.TextSize = 20
 
-	local text = Instance.new("TextLabel")
-	text.Name = "Text"
-	text.Position = UDim2.fromOffset(14, 18)
-	text.Size = UDim2.new(1, -28, 1, -26)
-	text.BackgroundTransparency = 1
-	text.Font = Enum.Font.FredokaOne
-	text.TextSize = 19
-	text.TextWrapped = true
-	text.TextXAlignment = Enum.TextXAlignment.Left
-	text.TextYAlignment = Enum.TextYAlignment.Top
-	text.TextColor3 = Color3.fromRGB(70, 44, 22)
-	text.RichText = true
-	text.Text = "Hey there! Wanna head into the mine?"
-	text.ZIndex = 2
-	text.Parent = bubble
+	local choices = UiKit.Group(root, "Choices", {
+		Position = UDim2.fromOffset(30, 128),
+		Size = UDim2.new(1, -40, 0, 120),
+	})
+	UiKit.List(choices, { Padding = UDim.new(0, 6) })
 
-	local choices = Instance.new("Frame")
-	choices.Name = "Choices"
-	choices.Position = UDim2.fromOffset(30, 128)
-	choices.Size = UDim2.new(1, -40, 0, 120)
-	choices.BackgroundTransparency = 1
-	choices.Parent = root
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 6)
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = choices
-
-	local template = Instance.new("TextButton")
-	template.Name = "ChoiceTemplate"
-	template.Size = UDim2.new(1, 0, 0, 34)
-	template.BackgroundColor3 = Builder.CHOICE_COLORS.Yes
-	template.AutoButtonColor = true
-	template.Text = ""
-	template.Visible = false
-	template.Parent = choices
-	corner(template, UDim.new(0, 10))
-	stroke(template, Builder.OUTLINE, 2.5)
-	local gradient = Instance.new("UIGradient")
-	gradient.Rotation = 90
-	gradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(200, 200, 200))
-	gradient.Parent = template
-	local label = Instance.new("TextLabel")
-	label.Name = "Label"
-	label.Size = UDim2.new(1, -16, 1, -8)
-	label.AnchorPoint = Vector2.new(0.5, 0.5)
-	label.Position = UDim2.fromScale(0.5, 0.5)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.Text = "Let's dig!"
-	label.Parent = template
-	stroke(label, Builder.OUTLINE, 1.5, true)
-
+	local template, caption = UiKit.Button(choices, "ChoiceTemplate", "Let's dig!", "Green", {
+		Size = UDim2.new(1, 0, 0, 36),
+		Visible = false,
+	})
+	caption.Name = "Label"
 	return gui
 end
 

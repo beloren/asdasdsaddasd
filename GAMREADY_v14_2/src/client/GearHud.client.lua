@@ -22,7 +22,8 @@ local function tr(text, args)
 	return ok and result or text
 end
 
-local gui = playerGui:WaitForChild("GearUi", 3)
+-- v20: StarterGui/GearUi (tools/BuildAllUI.lua); нет — соберётся билдером.
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("GearUi")
 if not gui or (tonumber(gui:GetAttribute("BuilderVersion")) or 0) < (Config.Chests.GearUiVersion or 1) then
 	if gui then gui:Destroy() end
 	gui = require(ReplicatedStorage.Shared.GearUiBuilder).Build()

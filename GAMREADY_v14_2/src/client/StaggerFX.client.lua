@@ -36,7 +36,7 @@ end
 -- ШАБЛОН ИНТЕРФЕЙСА: копия StarterGui/CombatUi из билдера; если её нет или
 -- она старее Config.Stagger.UiVersion — собираем тем же модулем сами.
 --------------------------------------------------------------------------------
-local combatGui = playerGui:WaitForChild("CombatUi", 3)
+local combatGui = require(ReplicatedStorage.Shared.UiRegistry).Get("CombatUi") -- v20: StarterGui/CombatUi или сборка билдером
 local wantedVersion = cfg.UiVersion or 1
 if not combatGui or (tonumber(combatGui:GetAttribute("BuilderVersion")) or 0) < wantedVersion then
 	if combatGui then combatGui:Destroy() end

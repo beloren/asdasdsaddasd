@@ -30,7 +30,8 @@ local playerGui = player:WaitForChild("PlayerGui")
 local cfg = Config.Offers or {}
 local micro = Config.DevProducts.Micro or {}
 
-local gui = playerGui:WaitForChild("OfferUi", 3)
+-- v20: StarterGui/OfferUi (tools/BuildAllUI.lua); нет — соберётся билдером.
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("OfferUi")
 if not gui or (tonumber(gui:GetAttribute("BuilderVersion")) or 0) < Builder.VERSION then
 	if gui then gui:Destroy() end
 	gui = Builder.Build()

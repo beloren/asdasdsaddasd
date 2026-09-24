@@ -75,6 +75,26 @@ local gameProxy = setmetatable({}, {
 })
 
 local cache = {}
+-- RandomPolyfill: в Lune нет типа Random — простая замена с сидом.
+local RandomPolyfill = {
+	new = function(seed)
+		local state = (tonumber(seed) or os.time()) % 2147483647
+		if state <= 0 then state += 2147483646 end
+		local function nextFloat()
+			state = (state * 16807) % 2147483647
+			return state / 2147483647
+		end
+		return {
+			NextNumber = function(_, a, b)
+				a, b = a or 0, b or 1
+				return a + (b - a) * nextFloat()
+			end,
+			NextInteger = function(_, a, b)
+				return math.floor(a + (b - a + 1) * nextFloat())
+			end,
+		}
+	end,
+}
 local baseEnv = getfenv(1)
 local function makeEnv(scriptInstance)
 	return setmetatable({
@@ -95,6 +115,7 @@ local function makeEnv(scriptInstance)
 		Vector3 = roblox.Vector3,
 		CFrame = roblox.CFrame,
 		Rect = roblox.Rect,
+		Random = RandomPolyfill,
 		Font = roblox.Font,
 		BrickColor = roblox.BrickColor,
 		TweenInfo = { new = function(...) return { ... } end },

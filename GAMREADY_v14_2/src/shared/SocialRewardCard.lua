@@ -24,50 +24,33 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local UiKit = require(script.Parent.UiKit)
+local Theme = UiKit.Theme
 
 local Card = {}
-Card.VERSION = 17
+Card.VERSION = 20
 
-local CREAM = Color3.fromRGB(255, 244, 214)
-local WOOD = Color3.fromRGB(122, 78, 42)
-local WOOD_DARK = Color3.fromRGB(58, 34, 16)
-local WOOD_INNER = Color3.fromRGB(96, 60, 30)
-local GREEN = Color3.fromRGB(96, 200, 72)
-local GREEN_DARK = Color3.fromRGB(30, 80, 20)
-local LIKE_BLUE = Color3.fromRGB(70, 160, 255)
-local LIKE_BLUE_DARK = Color3.fromRGB(20, 60, 120)
+local CARD_W, CARD_H = 400, 290
 
-local CARD_W, CARD_H = 380, 268
-
-local function corner(parent, radius)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = radius
-	c.Parent = parent
-	return c
-end
-
-local function stroke(parent, color, thickness, contextual)
-	local s = Instance.new("UIStroke")
-	s.Color = color
-	s.Thickness = thickness
-	s.LineJoinMode = Enum.LineJoinMode.Round
-	s.ApplyStrokeMode = contextual and Enum.ApplyStrokeMode.Contextual or Enum.ApplyStrokeMode.Border
-	s.Parent = parent
-	return s
-end
-
-local function label(parent, props)
-	local l = Instance.new("TextLabel")
-	l.BackgroundTransparency = 1
-	l.Font = Enum.Font.FredokaOne
-	l.TextScaled = true
-	l.TextColor3 = CREAM
-	l.ZIndex = 4
-	for key, value in props do l[key] = value end
-	l.Parent = parent
-	stroke(l, WOOD_DARK, 2, true)
-	return l
-end
+-- Настройки двух окон (их же использует tools/BuildAllUI.lua).
+Card.PRESETS = {
+	GroupRewardUi = {
+		GuiName = "GroupRewardUi",
+		ActionName = "JoinGroupButton",
+		Accent = Color3.fromRGB(70, 140, 230),
+		HeaderIcon = "👥",
+		Title = "JOIN GROUP = MORE CASH",
+		ActionText = "👥 JOIN & CLAIM",
+	},
+	LikeRewardUi = {
+		GuiName = "LikeRewardUi",
+		ActionName = "FavoriteButton",
+		Accent = Color3.fromRGB(235, 90, 130),
+		HeaderIcon = "⭐",
+		Title = "FAVORITE = FREE REWARD",
+		ActionText = "⭐ FAVORITE & CLAIM",
+	},
+}
 
 -- Прогресс лайков: следующая недостигнутая цель из Config.LikeGoals.
 function Card.likeGoal()
@@ -85,223 +68,159 @@ function Card.likeGoal()
 	return nil
 end
 
+-- Собирает ScreenGui (без родителя) в едином стиле UiKit.
 -- opts: GuiName, ActionName, Accent (Color3), HeaderIcon, Title, ActionText
-function Card.Build(playerGui, opts)
-	local old = playerGui:FindFirstChild(opts.GuiName)
-	if old and old:GetAttribute("RewardCardVersion") ~= Card.VERSION then
-		old:Destroy()
-	elseif old then
-		return old
-	end
-	-- Старый ассет из StarterGui может скопироваться позже — убираем дубль.
-	local gui = Instance.new("ScreenGui")
-	gui.Name = opts.GuiName
-	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
-	gui.DisplayOrder = 40
-	gui.Enabled = false
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+function Card.BuildGui(opts)
+	local accent = UiKit.Accent(opts.Accent or Theme.Accents.Blue.Main)
+	local gui = UiKit.Screen(opts.GuiName, { DisplayOrder = 40, Enabled = false })
 	gui:SetAttribute("RewardCardVersion", Card.VERSION)
-	playerGui.ChildAdded:Connect(function(child)
-		if child.Name == opts.GuiName and child ~= gui then
-			task.defer(function() child:Destroy() end)
-		end
-	end)
 
-	local dimmer = Instance.new("TextButton")
-	dimmer.Name = "Dimmer"
-	dimmer.Text = ""
-	dimmer.AutoButtonColor = false
-	dimmer.Size = UDim2.fromScale(1, 1)
-	dimmer.BackgroundColor3 = Color3.new(0, 0, 0)
+	local dimmer = UiKit.Dimmer(gui)
 	dimmer.BackgroundTransparency = 1
-	dimmer.BorderSizePixel = 0
-	dimmer.ZIndex = 1
-	dimmer.Visible = false
-	dimmer.Parent = gui
 
-	local card = Instance.new("Frame")
-	card.Name = "Card"
-	card.AnchorPoint = Vector2.new(0.5, 0.5)
-	card.Position = UDim2.fromScale(0.5, 0.42)
-	card.Size = UDim2.fromOffset(CARD_W, CARD_H)
-	card.BackgroundColor3 = WOOD
-	card.BorderSizePixel = 0
-	card.Visible = false
-	card.ZIndex = 2
-	card.Parent = gui
+	local card = UiKit.Plate(gui, "Card", "Panel", {
+		_Accent = accent,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.42),
+		Size = UDim2.fromOffset(CARD_W, CARD_H),
+		Visible = false,
+		ZIndex = 2,
+	})
+	card.BackgroundTransparency = 0.15
 	card:SetAttribute("CardWidth", CARD_W)
 	card:SetAttribute("CardHeight", CARD_H)
-	corner(card, UDim.new(0, 18))
-	stroke(card, WOOD_DARK, 4)
-	local gradient = Instance.new("UIGradient")
-	gradient.Rotation = 90
-	gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(190, 170, 150))
-	gradient.Parent = card
-	local fit = Instance.new("UIScale")
-	fit.Name = "Fit"
-	fit.Parent = card
-	local inner = Instance.new("Frame")
-	inner.Name = "Inner"
-	inner.AnchorPoint = Vector2.new(0.5, 0.5)
-	inner.Position = UDim2.fromScale(0.5, 0.5)
-	inner.Size = UDim2.new(1, -12, 1, -12)
-	inner.BackgroundColor3 = WOOD_INNER
-	inner.BackgroundTransparency = 0.35
-	inner.BorderSizePixel = 0
-	inner.ZIndex = 2
-	inner.Parent = card
-	corner(inner, UDim.new(0, 14))
+	UiKit.Scale(card, "Fit", 1)
 
 	-- Лента «FREE REWARD» над карточкой.
-	local ribbon = Instance.new("Frame")
-	ribbon.Name = "Ribbon"
-	ribbon.AnchorPoint = Vector2.new(0.5, 0.5)
-	ribbon.Position = UDim2.new(0.5, 0, 0, 0)
-	ribbon.Size = UDim2.fromOffset(170, 30)
-	ribbon.BackgroundColor3 = opts.Accent
-	ribbon.ZIndex = 5
-	ribbon.Parent = card
-	corner(ribbon, UDim.new(1, 0))
-	stroke(ribbon, WOOD_DARK, 3)
-	label(ribbon, {
-		Text = "🎁 FREE REWARD", Size = UDim2.new(1, -16, 1, -8), AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5), TextColor3 = Color3.new(1, 1, 1), ZIndex = 6,
+	local ribbon = UiKit.Plate(card, "Ribbon", "Pill", {
+		_Accent = accent,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0, 0),
+		Size = UDim2.fromOffset(190, 32),
+		BackgroundColor3 = accent.Main,
+		BackgroundTransparency = 0,
+		ZIndex = 5,
+	})
+	UiKit.Text(ribbon, "Label", "🎁 FREE REWARD", {
+		_Style = "Heading",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, -16, 1, -8),
+		ZIndex = 6,
 	})
 
-	local close = Instance.new("TextButton")
-	close.Name = "CloseButton"
-	close.AnchorPoint = Vector2.new(0.5, 0.5)
-	close.Position = UDim2.new(1, -6, 0, 6)
-	close.Size = UDim2.fromOffset(36, 36)
-	close.BackgroundColor3 = Color3.fromRGB(225, 70, 70)
-	close.Font = Enum.Font.FredokaOne
-	close.TextScaled = true
-	close.TextColor3 = Color3.new(1, 1, 1)
-	close.Text = "X"
-	close.AutoButtonColor = true
-	close.ZIndex = 7
-	close.Parent = card
-	corner(close, UDim.new(1, 0))
-	stroke(close, WOOD_DARK, 3)
+	UiKit.CloseButton(card, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -6, 0, 6),
+		Size = UDim2.fromOffset(36, 36),
+		ZIndex = 7,
+	})
 
-	-- Заголовок.
-	label(card, {
-		Name = "Title", Text = ("%s  %s"):format(opts.HeaderIcon or "", opts.Title or ""),
-		Position = UDim2.fromOffset(18, 22), Size = UDim2.new(1, -36, 0, 30),
+	UiKit.TitleText(card, "Title", ("%s  %s"):format(opts.HeaderIcon or "", opts.Title or ""), accent, {
+		Position = UDim2.fromOffset(18, 24),
+		Size = UDim2.new(1, -60, 0, 32),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 4,
 	})
 
 	-- Что дают: две «фишки».
-	local chips = Instance.new("Frame")
-	chips.Name = "Rewards"
-	chips.BackgroundTransparency = 1
-	chips.Position = UDim2.fromOffset(16, 58)
-	chips.Size = UDim2.new(1, -32, 0, 42)
-	chips.ZIndex = 3
-	chips.Parent = card
-	local chipsLayout = Instance.new("UIListLayout")
-	chipsLayout.FillDirection = Enum.FillDirection.Horizontal
-	chipsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	chipsLayout.Padding = UDim.new(0, 8)
-	chipsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	chipsLayout.Parent = chips
-	local chipLabels = {}
+	local chips = UiKit.Group(card, "Rewards", {
+		Position = UDim2.fromOffset(16, 64),
+		Size = UDim2.new(1, -32, 0, 44),
+		ZIndex = 3,
+	})
+	UiKit.List(chips, { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, Padding = UDim.new(0, 8) })
 	for index = 1, 2 do
-		local chip = Instance.new("Frame")
-		chip.Name = "Chip" .. index
-		chip.LayoutOrder = index
-		chip.Size = UDim2.new(0.5, -4, 1, 0)
-		chip.BackgroundColor3 = CREAM
-		chip.ZIndex = 3
-		chip.Parent = chips
-		corner(chip, UDim.new(0, 12))
-		stroke(chip, WOOD_DARK, 2.5)
-		local chipText = label(chip, {
-			Name = "Text", Text = "", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.new(1, -14, 1, -12), TextColor3 = WOOD_DARK,
+		local chip = UiKit.Card(chips, "Chip" .. index, Theme.Accents.Gold, {
+			LayoutOrder = index,
+			Size = UDim2.new(0.5, -4, 1, 0),
+			ZIndex = 3,
 		})
-		chipText:FindFirstChildOfClass("UIStroke"):Destroy()
-		chipLabels[index] = chipText
+		UiKit.Text(chip, "Text", "", {
+			_Style = "Heading",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.new(1, -14, 1, -12),
+			TextColor3 = Theme.Colors.Money,
+			ZIndex = 4,
+		})
 	end
 
 	-- Большой призыв на лайк.
-	local likeBox = Instance.new("Frame")
-	likeBox.Name = "LikeBox"
-	likeBox.Position = UDim2.fromOffset(16, 110)
-	likeBox.Size = UDim2.new(1, -32, 0, 76)
-	likeBox.BackgroundColor3 = LIKE_BLUE
-	likeBox.ZIndex = 3
-	likeBox.Parent = card
-	corner(likeBox, UDim.new(0, 14))
-	stroke(likeBox, LIKE_BLUE_DARK, 3)
-	local likeGradient = Instance.new("UIGradient")
-	likeGradient.Rotation = 90
-	likeGradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(170, 200, 255))
-	likeGradient.Parent = likeBox
-	local thumb = Instance.new("TextLabel")
-	thumb.Name = "Thumb"
-	thumb.BackgroundTransparency = 1
-	thumb.AnchorPoint = Vector2.new(0.5, 0.5)
-	thumb.Position = UDim2.new(0, 36, 0.5, 0)
-	thumb.Size = UDim2.fromOffset(56, 56)
-	thumb.Text = "👍"
-	thumb.TextScaled = true
-	thumb.ZIndex = 5
-	thumb.Parent = likeBox
-	local likeTitle = label(likeBox, {
-		Name = "LikeTitle", Text = "LIKE THE GAME!", Position = UDim2.fromOffset(70, 6),
-		Size = UDim2.new(1, -80, 0, 26), TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = Color3.new(1, 1, 1),
+	local likeBox = UiKit.Card(card, "LikeBox", Theme.Accents.Blue, {
+		Position = UDim2.fromOffset(16, 118),
+		Size = UDim2.new(1, -32, 0, 80),
+		ZIndex = 3,
 	})
-	likeTitle:FindFirstChildOfClass("UIStroke").Color = LIKE_BLUE_DARK
-	local barBack = Instance.new("Frame")
-	barBack.Name = "LikeBar"
-	barBack.Position = UDim2.fromOffset(70, 36)
-	barBack.Size = UDim2.new(1, -80, 0, 14)
-	barBack.BackgroundColor3 = LIKE_BLUE_DARK
-	barBack.ZIndex = 4
-	barBack.Parent = likeBox
-	corner(barBack, UDim.new(1, 0))
-	local barFill = Instance.new("Frame")
-	barFill.Name = "Fill"
-	barFill.Size = UDim2.fromScale(0, 1)
-	barFill.BackgroundColor3 = Color3.fromRGB(255, 225, 70)
-	barFill.ZIndex = 5
-	barFill.Parent = barBack
-	corner(barFill, UDim.new(1, 0))
-	local barText = label(barBack, {
-		Name = "Count", Text = "", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.new(1, 0, 1, 2), TextColor3 = Color3.new(1, 1, 1), ZIndex = 6,
+	UiKit.Text(likeBox, "Thumb", "👍", {
+		_Stroke = 0,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0, 36, 0.5, 0),
+		Size = UDim2.fromOffset(56, 56),
+		ZIndex = 5,
+	}).FontFace = Font.fromEnum(Enum.Font.GothamBold)
+	UiKit.Text(likeBox, "LikeTitle", "LIKE THE GAME!", {
+		_Style = "Title",
+		Position = UDim2.fromOffset(70, 6),
+		Size = UDim2.new(1, -80, 0, 26),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Theme.Accents.Blue.Light,
+		ZIndex = 4,
 	})
-	barText:FindFirstChildOfClass("UIStroke").Color = LIKE_BLUE_DARK
-	local likeGoalText = label(likeBox, {
-		Name = "GoalText", Text = "", Position = UDim2.fromOffset(70, 52), Size = UDim2.new(1, -80, 0, 18),
-		TextXAlignment = Enum.TextXAlignment.Left, Font = Enum.Font.GothamBold, TextColor3 = Color3.new(1, 1, 1),
+	local bar = UiKit.Bar(likeBox, "LikeBar", "Gold", {
+		Position = UDim2.fromOffset(70, 38),
+		Size = UDim2.new(1, -80, 0, 14),
+		ZIndex = 4,
 	})
-	likeGoalText:FindFirstChildOfClass("UIStroke").Color = LIKE_BLUE_DARK
+	UiKit.Text(bar, "Count", "", {
+		_Style = "Number",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, 0, 1, 4),
+		ZIndex = 6,
+	})
+	UiKit.Text(likeBox, "GoalText", "", {
+		_Style = "Small",
+		Position = UDim2.fromOffset(70, 56),
+		Size = UDim2.new(1, -80, 0, 18),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 4,
+	})
 
 	-- Кнопка действия.
-	local action = Instance.new("TextButton")
-	action.Name = opts.ActionName
-	action.AnchorPoint = Vector2.new(0.5, 1)
-	action.Position = UDim2.new(0.5, 0, 1, -14)
-	action.Size = UDim2.new(1, -32, 0, 54)
-	action.BackgroundColor3 = GREEN
-	action.AutoButtonColor = true
-	action.Text = ""
-	action.ZIndex = 4
-	action.Parent = card
-	corner(action, UDim.new(1, 0))
-	stroke(action, GREEN_DARK, 3.5)
-	local actionScale = Instance.new("UIScale")
-	actionScale.Name = "Pulse"
-	actionScale.Parent = action
-	local caption = label(action, {
-		Name = "Caption", Text = opts.ActionText or "CLAIM", AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, -24, 1, -14), TextColor3 = Color3.new(1, 1, 1), ZIndex = 5,
+	local action = UiKit.Button(card, opts.ActionName, opts.ActionText or "CLAIM", "Green", {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -14),
+		Size = UDim2.new(1, -32, 0, 56),
+		ZIndex = 4,
+		_TextStyle = "Title",
 	})
-	caption:FindFirstChildOfClass("UIStroke").Color = GREEN_DARK
+	UiKit.Scale(action, "Pulse", 1)
+	return gui
+end
 
+function Card.BuildGroup()
+	return Card.BuildGui(Card.PRESETS.GroupRewardUi)
+end
+
+function Card.BuildLike()
+	return Card.BuildGui(Card.PRESETS.LikeRewardUi)
+end
+
+-- Клиент: экран из StarterGui (tools/BuildAllUI.lua) или собранный на лету.
+function Card.Build(playerGui, opts)
+	local ok, UiRegistry = pcall(require, script.Parent.UiRegistry)
+	if ok and UiRegistry.Entry(opts.GuiName) then
+		local gui = UiRegistry.Get(opts.GuiName)
+		if gui and gui:FindFirstChild("Card") and gui.Card:FindFirstChild(opts.ActionName) then
+			return gui
+		end
+		if gui then gui:Destroy() end
+	end
+	local old = playerGui:FindFirstChild(opts.GuiName)
+	if old then old:Destroy() end
+	local gui = Card.BuildGui(opts)
+	gui.Parent = playerGui
 	return gui
 end
 

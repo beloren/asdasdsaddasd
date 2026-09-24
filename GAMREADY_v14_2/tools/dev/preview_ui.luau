@@ -56,6 +56,26 @@ local gameProxy = setmetatable({}, { __index = function(_, key)
 	return game[key]
 end })
 local cache = {}
+-- RandomPolyfill: в Lune нет типа Random — простая замена с сидом.
+local RandomPolyfill = {
+	new = function(seed)
+		local state = (tonumber(seed) or os.time()) % 2147483647
+		if state <= 0 then state += 2147483646 end
+		local function nextFloat()
+			state = (state * 16807) % 2147483647
+			return state / 2147483647
+		end
+		return {
+			NextNumber = function(_, a, b)
+				a, b = a or 0, b or 1
+				return a + (b - a) * nextFloat()
+			end,
+			NextInteger = function(_, a, b)
+				return math.floor(a + (b - a + 1) * nextFloat())
+			end,
+		}
+	end,
+}
 local baseEnv = getfenv(1)
 local requireModule
 local function makeEnv(scriptInstance)
@@ -65,7 +85,7 @@ local function makeEnv(scriptInstance)
 		ColorSequence = roblox.ColorSequence, ColorSequenceKeypoint = roblox.ColorSequenceKeypoint,
 		NumberSequence = roblox.NumberSequence, NumberSequenceKeypoint = roblox.NumberSequenceKeypoint,
 		NumberRange = roblox.NumberRange, UDim = roblox.UDim, UDim2 = roblox.UDim2, Vector2 = roblox.Vector2,
-		Vector3 = roblox.Vector3, CFrame = roblox.CFrame, Rect = roblox.Rect, Font = roblox.Font, BrickColor = roblox.BrickColor,
+		Vector3 = roblox.Vector3, CFrame = roblox.CFrame, Rect = roblox.Rect, Random = RandomPolyfill, Font = roblox.Font, BrickColor = roblox.BrickColor,
 		TweenInfo = { new = function(...) return { ... } end }, task = task, tick = os.clock, time = os.clock,
 		warn = function(...) print("[warn]", ...) end, require = function(m) return requireModule(m) end,
 	}, { __index = baseEnv })

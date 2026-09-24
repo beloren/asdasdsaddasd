@@ -31,49 +31,25 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
+local UiKit = require(script.Parent.UiKit)
+local Theme = UiKit.Theme
 
 local Builder = {}
+Builder.VERSION = 20
 
-local OUTLINE = Color3.fromRGB(12, 14, 22)
-
-local function corner(parent, radius)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = radius or UDim.new(0, 6)
-	c.Parent = parent
-	return c
-end
-
-local function stroke(parent, thickness, color, contextual)
-	local s = Instance.new("UIStroke")
-	s.Thickness = thickness or 2
-	s.Color = color or OUTLINE
-	s.ApplyStrokeMode = contextual and Enum.ApplyStrokeMode.Contextual or Enum.ApplyStrokeMode.Border
-	s.LineJoinMode = Enum.LineJoinMode.Round
-	s.Parent = parent
-	return s
-end
-
+-- v20: весь текст — UiKit.Text (жирный курсив темы с тёмной обводкой).
 local function text(parent, name, props)
-	local label = Instance.new("TextLabel")
-	label.Name = name
-	label.BackgroundTransparency = 1
-	label.Size = props.Size or UDim2.fromScale(1, 1)
-	label.Position = props.Position or UDim2.new()
-	label.AnchorPoint = props.AnchorPoint or Vector2.zero
-	label.Font = props.Font or Enum.Font.FredokaOne
-	label.Text = props.Text or ""
-	label.TextColor3 = props.Color or Color3.new(1, 1, 1)
-	label.TextScaled = true
-	label.RichText = true
-	label.TextXAlignment = props.AlignX or Enum.TextXAlignment.Center
-	label.ZIndex = props.ZIndex or 2
-	label.Parent = parent
-	stroke(label, props.Stroke or 2, OUTLINE, true)
-	if props.MaxTextSize then
-		local limit = Instance.new("UITextSizeConstraint")
-		limit.MaxTextSize = props.MaxTextSize
-		limit.Parent = label
-	end
+	local label = UiKit.Text(parent, name, props.Text or "", {
+		_Style = props.Style or "Title",
+		_Stroke = props.Stroke or 2,
+		_MaxTextSize = props.MaxTextSize,
+		Size = props.Size or UDim2.fromScale(1, 1),
+		Position = props.Position or UDim2.new(),
+		AnchorPoint = props.AnchorPoint or Vector2.zero,
+		TextColor3 = props.Color or Color3.new(1, 1, 1),
+		TextXAlignment = props.AlignX or Enum.TextXAlignment.Center,
+		ZIndex = props.ZIndex or 2,
+	})
 	return label
 end
 
@@ -94,73 +70,53 @@ local function buildStaggerTemplate(parent)
 	text(billboard, "State", {
 		Text = "STUNNED!",
 		Size = UDim2.new(1, 0, 0, 16),
-		Position = UDim2.fromOffset(0, 0),
-		Color = Color3.fromRGB(255, 225, 90),
+		Color = Theme.Colors.Money,
 		MaxTextSize = 16,
 	}).Visible = false
 
 	-- Ряд делений. Клиент клонирует PipTemplate Config.Stagger.Pips раз и
 	-- задаёт Fill.Size.X по заполнению шкалы.
-	local bar = Instance.new("Frame")
-	bar.Name = "Bar"
-	bar.AnchorPoint = Vector2.new(0.5, 0)
-	bar.Position = UDim2.new(0.5, 0, 0, 18)
-	bar.Size = UDim2.fromOffset(92, 11)
-	bar.BackgroundTransparency = 1
-	bar.Parent = billboard
-	local layout = Instance.new("UIListLayout")
-	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	layout.Padding = UDim.new(0, 3)
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = bar
-
-	local pip = Instance.new("Frame")
-	pip.Name = "PipTemplate"
-	pip.Visible = false
-	pip.Size = UDim2.new(0.25, -3, 1, 0)
-	pip.BackgroundColor3 = Color3.fromRGB(40, 42, 52)
-	pip.BackgroundTransparency = 0.15
-	pip.Parent = bar
-	corner(pip, UDim.new(0, 3))
-	stroke(pip, 1.5)
-	local fill = Instance.new("Frame")
-	fill.Name = "Fill"
-	fill.Size = UDim2.fromScale(0, 1)
+	local bar = UiKit.Group(billboard, "Bar", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 18),
+		Size = UDim2.fromOffset(92, 11),
+	})
+	UiKit.List(bar, {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Padding = UDim.new(0, 3),
+	})
+	local pip = UiKit.Plate(bar, "PipTemplate", "BarTrack", {
+		Visible = false,
+		Size = UDim2.new(0.25, -3, 1, 0),
+	})
+	local fill = UiKit.Plate(pip, "Fill", "BarFill", {
+		_Accent = Theme.Accents.Orange,
+		Size = UDim2.fromScale(0, 1),
+		ZIndex = 2,
+	})
 	fill.BackgroundColor3 = Color3.fromRGB(255, 170, 60)
-	fill.BorderSizePixel = 0
-	fill.Parent = pip
-	corner(fill, UDim.new(0, 3))
-	local shine = Instance.new("UIGradient")
-	shine.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(200, 200, 200))
-	shine.Rotation = 90
-	shine.Parent = fill
 
 	-- Компактный значок награды: одна строка, не шире шкалы.
-	local wanted = Instance.new("Frame")
-	wanted.Name = "Wanted"
-	wanted.AnchorPoint = Vector2.new(0.5, 0)
-	wanted.Position = UDim2.new(0.5, 0, 0, 31)
-	wanted.Size = UDim2.fromOffset(78, 15)
-	wanted.BackgroundColor3 = Color3.fromRGB(60, 40, 10)
-	wanted.BackgroundTransparency = 0.2
-	wanted.Visible = false
-	wanted.Parent = billboard
-	corner(wanted, UDim.new(1, 0))
-	stroke(wanted, 1.5, Color3.fromRGB(255, 200, 70))
-	local icon = Instance.new("ImageLabel")
-	icon.Name = "Icon"
-	icon.BackgroundTransparency = 1
-	icon.Image = ""
-	icon.Size = UDim2.fromOffset(13, 13)
-	icon.Position = UDim2.fromOffset(3, 1)
-	icon.Visible = false -- включается клиентом, если сюда поставили картинку
-	icon.Parent = wanted
+	local wanted = UiKit.Plate(billboard, "Wanted", "Pill", {
+		_Accent = Theme.Accents.Gold,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 31),
+		Size = UDim2.fromOffset(80, 15),
+		Visible = false,
+	})
+	UiKit.Icon(wanted, "Icon", "", {
+		Position = UDim2.fromOffset(3, 1),
+		Size = UDim2.fromOffset(13, 13),
+		Visible = false, -- включается клиентом, если сюда поставили картинку
+		ZIndex = 2,
+	})
 	text(wanted, "Text", {
 		Text = "💰 $0",
+		Style = "Number",
 		Size = UDim2.new(1, -6, 1, -2),
 		Position = UDim2.fromOffset(3, 1),
-		Color = Color3.fromRGB(255, 220, 90),
+		Color = Theme.Colors.Money,
 		Stroke = 1.5,
 		MaxTextSize = 12,
 	})
@@ -190,7 +146,7 @@ local function buildComboCounter(parent)
 		Size = UDim2.new(1, 0, 0.3, 0),
 		Position = UDim2.fromScale(0, 0.7),
 		Color = Color3.fromRGB(255, 255, 255),
-		Font = Enum.Font.GothamBlack,
+		Style = "Heading",
 	})
 	return frame
 end
@@ -218,19 +174,14 @@ local function buildPopup(parent)
 		Size = UDim2.new(1, 0, 0.34, 0),
 		Position = UDim2.fromScale(0, 0.64),
 		Color = Color3.fromRGB(255, 225, 120),
-		Font = Enum.Font.GothamBlack,
+		Style = "Heading",
 	})
 	return frame
 end
 
 function Builder.Build()
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "CombatUi"
-	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
-	gui.DisplayOrder = 12
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	gui:SetAttribute("BuilderVersion", (Config.Stagger and Config.Stagger.UiVersion) or 1)
+	local gui = UiKit.Screen("CombatUi", { DisplayOrder = 12 })
+	gui:SetAttribute("BuilderVersion", math.max((Config.Stagger and Config.Stagger.UiVersion) or 1, Builder.VERSION))
 	buildStaggerTemplate(gui)
 	buildComboCounter(gui)
 	buildPopup(gui)
