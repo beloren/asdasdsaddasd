@@ -148,10 +148,8 @@ end
 -- v9: окна строит GeodeUiBuilder («аметистовая пещера»; подиум банка —
 -- BankPodiumUiBuilder). Нет в StarterGui или старая версия — строим сами.
 local GeodeUiBuilder = require(ReplicatedStorage.Shared.GeodeUiBuilder)
-local gui = playerGui:FindFirstChild("GeodeUi")
-if not gui and StarterGui:FindFirstChild("GeodeUi") then
-	gui = playerGui:WaitForChild("GeodeUi", 5)
-end
+-- v20: StarterGui/GeodeUi (tools/BuildAllUI.lua); нет — соберётся билдером.
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("GeodeUi")
 if not gui or (tonumber(gui:GetAttribute("BuilderVersion")) or 0) < GeodeUiBuilder.VERSION then
 	if gui then gui:Destroy() end
 	gui = GeodeUiBuilder.Build()
@@ -1650,7 +1648,21 @@ end
 -- краёв (не заезжает за пределы и не прячется под HUD по углам).
 spawnCrackBall = function()
 	destroyCrackBall()
-	local ball = Instance.new("ImageButton")
+	-- v20: шарик — клон CrackBallTemplate из билдера (его вид правится в Studio).
+	local ballTemplate = opening:FindFirstChild("CrackBallTemplate")
+	local ball
+	if ballTemplate then
+		ball = ballTemplate:Clone()
+		ball.Visible = true
+	else
+		ball = Instance.new("ImageButton")
+		ball.BackgroundColor3 = Color3.fromRGB(255, 210, 60)
+		ball.ScaleType = Enum.ScaleType.Fit
+		ball.ZIndex = 25
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(1, 0)
+		corner.Parent = ball
+	end
 	ball.Name = "CrackBall"
 	ball.AnchorPoint = Vector2.new(0.5, 0.5)
 	local size = 92 * DROP_SCALE
@@ -1659,19 +1671,9 @@ spawnCrackBall = function()
 	local x = marginX + math.random() * (1 - marginX * 2)
 	local y = marginY + math.random() * (1 - marginY * 2)
 	ball.Position = UDim2.fromScale(x, y)
-	ball.BackgroundColor3 = Color3.fromRGB(255, 210, 60)
-	ball.Image = imageUri(Config.Geodes.Images.CrackBall or 0)
-	ball.ScaleType = Enum.ScaleType.Fit
-	ball.AutoButtonColor = true
-	ball.ZIndex = 25
+	local ballImage = imageUri(Config.Geodes.Images.CrackBall or 0)
+	if ballImage ~= "" then ball.Image = ballImage end
 	ball.Parent = opening
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(1, 0)
-	corner.Parent = ball
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 3
-	stroke.Color = Color3.new(0, 0, 0)
-	stroke.Parent = ball
 	ball.Activated:Connect(function() onCrackHit(false) end)
 	activeCrackBall = ball
 	TweenService:Create(ball, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
@@ -1782,132 +1784,86 @@ end
 
 local function openCollectionContext(oreId, entry)
 	if collectionContext then collectionContext:Destroy() end
+	-- v20: меню — клон шаблона CollectionContextTemplate из билдера
+	-- (Shared.GeodeUiBuilder), подложка — CollectionContextBackdrop.
 	if not collectionContextBackdrop then
-		-- Клик мимо меню — тоже закрывает его (стандартное поведение для
-		-- контекстных меню), без этого раньше единственный способ выйти —
-		-- обязательно нажать одну из трёх кнопок.
-		collectionContextBackdrop = Instance.new("TextButton")
-		collectionContextBackdrop.Name = "CollectionContextBackdrop"
-		collectionContextBackdrop.Size = UDim2.fromScale(1, 1)
-		collectionContextBackdrop.BackgroundColor3 = Color3.new(0, 0, 0)
-		collectionContextBackdrop.BackgroundTransparency = 0.5
-		collectionContextBackdrop.BorderSizePixel = 0
-		collectionContextBackdrop.AutoButtonColor = false
-		collectionContextBackdrop.Text = ""
-		collectionContextBackdrop.ZIndex = 79
-		collectionContextBackdrop.Visible = false
-		collectionContextBackdrop.Parent = gui
-		collectionContextBackdrop.Activated:Connect(closeCollectionContext)
+		collectionContextBackdrop = gui:FindFirstChild("CollectionContextBackdrop")
+		if collectionContextBackdrop and collectionContextBackdrop:IsA("GuiButton") then
+			collectionContextBackdrop.Activated:Connect(closeCollectionContext)
+		end
 	end
-	collectionContextBackdrop.Visible = true
-		collectionContext = Instance.new("Frame")
-		collectionContext.Name = "CollectionContext"
-		collectionContext.AnchorPoint = Vector2.new(0.5, 0.5)
-		collectionContext.Position = UDim2.fromScale(0.5, 0.5)
-		collectionContext.Size = UDim2.fromOffset(260, 190)
-		collectionContext.BackgroundColor3 = Color3.fromRGB(28, 34, 48)
-		collectionContext.BorderSizePixel = 0
-		collectionContext.ZIndex = 80
-		collectionContext.Parent = gui
-		local title = label("Title", "CRYSTAL", Enum.Font.Arcade)
-		title.Position = UDim2.fromOffset(12, 8)
-		title.Size = UDim2.new(1, -34, 0, 30)
-		title.ZIndex = 81
-		title.Parent = collectionContext
-		local closeButton = Instance.new("TextButton")
-		closeButton.Name = "Close"
-		closeButton.AnchorPoint = Vector2.new(1, 0)
-		closeButton.Position = UDim2.new(1, -8, 0, 8)
-		closeButton.Size = UDim2.fromOffset(24, 24)
-		closeButton.BackgroundColor3 = Color3.fromRGB(48, 55, 70)
-		closeButton.BorderSizePixel = 0
-		closeButton.Font = Enum.Font.Arcade
-		closeButton.TextSize = 16
-		closeButton.TextColor3 = Color3.fromRGB(220, 225, 230)
-		closeButton.Text = "X"
-		closeButton.ZIndex = 82
-		closeButton.Parent = collectionContext
-		closeButton.Activated:Connect(closeCollectionContext)
-		local actions = {
-			{ "Install", "PUT ON PODIUM", Color3.fromRGB(55, 125, 90) },
-			{ "Extract", "TAKE IN HANDS", Color3.fromRGB(60, 105, 160) },
-			{ "Delete", "DELETE", Color3.fromRGB(145, 65, 65) },
-		}
-		for index, action in actions do
-			local actionButton = button(action[1], action[2], action[3])
-			actionButton.Position = UDim2.fromOffset(12, 42 + (index - 1) * 45)
-			actionButton.Size = UDim2.new(1, -24, 0, 37)
-			actionButton.ZIndex = 81
-			actionButton.Parent = collectionContext
+	if collectionContextBackdrop then collectionContextBackdrop.Visible = true end
+	local template = gui:FindFirstChild("CollectionContextTemplate")
+	if not template then
+		template = GeodeUiBuilder.Build():FindFirstChild("CollectionContextTemplate")
+	end
+	collectionContext = template:Clone()
+	collectionContext.Name = "CollectionContext"
+	collectionContext.Parent = gui
+	local closeButton = collectionContext:FindFirstChild("Close")
+	if closeButton then closeButton.Activated:Connect(closeCollectionContext) end
+	local confirm = collectionContext:FindFirstChild("ConfirmDelete")
+	local cancel = collectionContext:FindFirstChild("CancelDelete")
+	local deleteButton = collectionContext:FindFirstChild("Delete")
+	local confirmed = false
+	if confirm then
+		confirm.Activated:Connect(function()
+			if confirmed then return end
+			confirmed = true
+			state.Collection[oreId] = nil
+			if state.InstalledOre == oreId then state.InstalledOre = "" end
+			remote:FireServer("DeleteOre", oreId)
+			closeCollectionContext()
+			renderPodium()
+		end)
+	end
+	if cancel then
+		cancel.Activated:Connect(function()
+			if confirm then confirm.Visible = false end
+			cancel.Visible = false
+			if deleteButton then deleteButton.Visible = true end
+		end)
+	end
+	for _, actionName in { "Install", "Extract", "Delete" } do
+		local actionButton = collectionContext:FindFirstChild(actionName)
+		if actionButton then
 			actionButton.Activated:Connect(function()
-				if action[1] == "Install" then
-					-- АНТИ-ДАБЛ-КЛИК. Эти две переменные объявлены выше и
-					-- РАНЬШЕ только записывались, но не читались нигде — то
-					-- есть защита была мёртвой, и закликивание кнопки слало
-					-- на сервер пачку запросов подряд. Украсть этим ничего
-					-- нельзя (у PassiveIncomeService:Install свой кулдаун
-					-- Config.Geodes.CrystalSwitchCooldown и транзакционная
-					-- блокировка), но трафик и мигание карточек были лишними.
-					--
-					-- Условие намеренно самозалечивающееся: флаг блокирует не
-					-- «навсегда до ответа сервера», а только в пределах окна
-					-- кулдауна. Даже если ответ вообще не дойдёт (обрыв сети),
-					-- кнопка разблокируется сама через CrystalSwitchCooldown.
+				if actionName == "Install" then
+					-- АНТИ-ДАБЛ-КЛИК: флаг блокирует только в пределах окна
+					-- кулдауна Config.Geodes.CrystalSwitchCooldown — даже без
+					-- ответа сервера кнопка разблокируется сама.
 					local now = os.clock()
 					if podiumRequestPending and now < podiumSwitchReadyAt then return end
 					podiumRequestPending = true
 					podiumSwitchReadyAt = now + math.max(0.1, tonumber(Config.Geodes.CrystalSwitchCooldown) or 0.6)
 					local installing = state.InstalledOre ~= oreId
-					-- Мгновенное локальное обновление — не ждём ответа сервера,
-					-- чтобы клик отзывался сразу, а не с задержкой на round-trip.
-					-- SendState всё равно прилетит следом и подтвердит/поправит.
+					-- Мгновенное локальное обновление, SendState подтвердит.
 					state.InstalledOre = installing and oreId or ""
 					renderPodium()
 					remote:FireServer(installing and "InstallOre" or "RemoveOre", oreId)
-				elseif action[1] == "Extract" then
-					local entry = state.Collection[oreId]
-					if entry then
-						if not entry.Copies or entry.Copies <= 1 then
+					closeCollectionContext()
+				elseif actionName == "Extract" then
+					local collectionEntry = state.Collection[oreId]
+					if collectionEntry then
+						if not collectionEntry.Copies or collectionEntry.Copies <= 1 then
 							state.Collection[oreId] = nil
 							if state.InstalledOre == oreId then state.InstalledOre = "" end
 						else
-							entry.Copies -= 1
+							collectionEntry.Copies -= 1
 						end
 						renderPodium()
 					end
 					remote:FireServer("ExtractOre", oreId)
+					closeCollectionContext()
 				else
-					local confirmed = false
-					local confirm = button("ConfirmDelete", "YES", Color3.fromRGB(190, 55, 55))
-					confirm.Position = UDim2.fromOffset(12, 42 + (index - 1) * 45)
-					confirm.Size = UDim2.new(0.5, -15, 0, 37)
-					confirm.ZIndex = 82
-					confirm.Parent = collectionContext
-					confirm.Activated:Connect(function()
-						if confirmed then return end
-						confirmed = true
-						state.Collection[oreId] = nil
-						if state.InstalledOre == oreId then state.InstalledOre = "" end
-						remote:FireServer("DeleteOre", oreId)
-						confirm:Destroy()
-						local no = collectionContext:FindFirstChild("CancelDelete")
-						if no then no:Destroy() end
-						closeCollectionContext()
-						renderPodium()
-					end)
-					local cancel = button("CancelDelete", "NO", Color3.fromRGB(75, 85, 105))
-					cancel.Position = UDim2.new(0.5, 3, 0, 42 + (index - 1) * 45)
-					cancel.Size = UDim2.new(0.5, -15, 0, 37)
-					cancel.ZIndex = 82
-					cancel.Parent = collectionContext
-					cancel.Activated:Connect(function()
-						confirm:Destroy()
-						cancel:Destroy()
-					end)
+					-- Удаление — через подтверждение YES / NO.
+					actionButton.Visible = false
+					if confirm then confirm.Visible = true end
+					if cancel then cancel.Visible = true end
 				end
-				if action[1] ~= "Delete" then closeCollectionContext() end
 			end)
 		end
+	end
 	local title = collectionContext:FindFirstChild("Title")
 	if title then title.Text = (entry.DisplayName or oreId):upper() end
 	collectionContext.Visible = true
@@ -2049,21 +2005,24 @@ renderPodium = function()
 		card:FindFirstChild("Income").Text = "$" .. NumberFormat.perSecond(entry.IncomePerMinute) .. "/SEC"
 		local installedLabel = card:FindFirstChild("Installed")
 		if installedLabel then installedLabel.Visible = false end
-		local selectionFrame = Instance.new("Frame")
-		selectionFrame.Name = "SelectionFrame"
-		selectionFrame.Position = UDim2.fromOffset(3, 3)
-		selectionFrame.Size = UDim2.new(1, -6, 1, -6)
-		selectionFrame.BackgroundTransparency = 1
-		selectionFrame.ZIndex = slotBackground.ZIndex + 2
+		-- Рамка «стоит на подиуме» — из шаблона карточки (BankPodiumUiBuilder).
+		local selectionFrame = slotBackground:FindFirstChild("SelectionFrame")
+		if not selectionFrame then
+			selectionFrame = Instance.new("Frame")
+			selectionFrame.Name = "SelectionFrame"
+			selectionFrame.Position = UDim2.fromOffset(3, 3)
+			selectionFrame.Size = UDim2.new(1, -6, 1, -6)
+			selectionFrame.BackgroundTransparency = 1
+			selectionFrame.ZIndex = slotBackground.ZIndex + 2
+			selectionFrame.Parent = slotBackground
+			local selectionStroke = Instance.new("UIStroke")
+			selectionStroke.Name = "SelectionStroke"
+			selectionStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			selectionStroke.Color = Color3.fromRGB(255, 215, 80) -- v9: золото банка
+			selectionStroke.Thickness = 3
+			selectionStroke.Parent = selectionFrame
+		end
 		selectionFrame.Visible = state.InstalledOre == oreId
-		selectionFrame.Parent = slotBackground
-		local selectionStroke = Instance.new("UIStroke")
-		selectionStroke.Name = "SelectionStroke"
-		selectionStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		selectionStroke.Color = Color3.fromRGB(255, 215, 80) -- v9: золото банка
-		selectionStroke.Thickness = 3
-		selectionStroke.Transparency = 0
-		selectionStroke.Parent = selectionFrame
 		card.Parent = crystalGrid
 		card.Activated:Connect(function() openCollectionContext(oreId, entry) end)
 	end
@@ -2201,48 +2160,62 @@ local function populateResultCards(results)
 		resultCardsLayout.FillDirectionMaxCells = #results <= 6 and 3 or 5
 	end
 	for index, result in results do
-		local card = Instance.new("Frame")
+		-- v20: карточка — клон ResultCardTemplate из билдера (GeodeUiBuilder).
+		local cardTemplate = opening:FindFirstChild("ResultCardTemplate")
+		local card, image, text
+		local imageSize = gridResults and math.max(70, cardWidth - 18) or 220
+		if cardTemplate then
+			card = cardTemplate:Clone()
+			card.Visible = true
+			image = card:FindFirstChild("ResultImage")
+			text = card:FindFirstChild("ResultText")
+		else
+			card = Instance.new("Frame")
+			card.BackgroundTransparency = 1
+			card.ZIndex = 22
+			image = Instance.new("ImageLabel")
+			image.Name = "ResultImage"
+			image.AnchorPoint = Vector2.new(0.5, 0)
+			image.BackgroundTransparency = 1
+			image.ScaleType = Enum.ScaleType.Fit
+			image.ZIndex = 22
+			image.Parent = card
+			local outline = Instance.new("UIStroke")
+			outline.Name = "DropOutline"
+			outline.Thickness = 0
+			outline.Transparency = 1
+			outline.Parent = image
+			text = label("ResultText", "")
+			text.TextStrokeColor3 = Color3.new(0, 0, 0)
+			text.TextStrokeTransparency = 0
+			text.ZIndex = 22
+			text.Parent = card
+		end
 		card.Name = "ResultCard" .. index
 		card.Size = UDim2.fromOffset(cardWidth, cardHeight)
-		card.BackgroundTransparency = 1
 		card.LayoutOrder = index
-		card.ZIndex = 22
 		card.Parent = resultCards
 
-		local image = Instance.new("ImageLabel")
-		image.Name = "ResultImage"
-		image.AnchorPoint = Vector2.new(0.5, 0)
 		image.Position = UDim2.new(0.5, 0, 0, 8)
-		local imageSize = gridResults and math.max(70, cardWidth - 18) or 220
 		image.Size = UDim2.fromOffset(imageSize, imageSize)
-		image.BackgroundTransparency = 1
-		image.ScaleType = Enum.ScaleType.Fit
-		image.ZIndex = 22
-		image.Parent = card
 		local configuredImage = imageUri(result.ImageId)
+		local rarityTint = rarityColors[result.Rarity] or Color3.new(1, 1, 1)
+		local imageStroke = image:FindFirstChild("SkinStroke")
+		if imageStroke then imageStroke.Color = rarityTint end
 		if configuredImage ~= "" then
 			image.Image = configuredImage
+			image.BackgroundTransparency = 1
 		else
-			image.BackgroundColor3 = rarityColors[result.Rarity] or Color3.new(1, 1, 1)
+			image.BackgroundColor3 = rarityTint
 			image.BackgroundTransparency = 0
 		end
-		local outline = Instance.new("UIStroke")
-		outline.Name = "DropOutline"
-		outline.Thickness = 0
-		outline.Transparency = 1
-		outline.Parent = image
 		applyMutationBadge(image, result.Mutations)
 
-		local text = label("ResultText", "")
 		text.Position = UDim2.fromOffset(4, gridResults and imageSize + 5 or 232)
 		text.Size = UDim2.new(1, -8, 0, gridResults and cardHeight - imageSize - 8 or 108)
-		text.TextColor3 = rarityColors[result.Rarity] or Color3.new(1, 1, 1)
-		text.TextStrokeColor3 = Color3.new(0, 0, 0)
-		text.TextStrokeTransparency = 0
-		text.ZIndex = 22
+		text.TextColor3 = rarityTint
 		local mutationLine = result.MutationNames and ("\n" .. result.MutationNames) or ""
 		text.Text = (result.Title or "REWARD"):upper() .. mutationLine .. "\n" .. resultDetail(result)
-		text.Parent = card
 	end
 	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800, 520)
 	local columns = gridResults and (#results <= 6 and 3 or 5) or #results

@@ -57,8 +57,11 @@ local function getGui(name, build)
 	return gui
 end
 
-local gui = getGui("MerchantUi", MerchantUiBuilder.Build)
-local tickerGui = getGui("MarketTicker", MerchantUiBuilder.BuildMarketTicker)
+-- v20: оба экрана собираются билдером (StarterGui/MerchantUi, MarketTicker).
+local UiRegistry = require(ReplicatedStorage.Shared.UiRegistry)
+local UiKit = require(ReplicatedStorage.Shared.UiKit)
+local gui = UiRegistry.Get("MerchantUi") or getGui("MerchantUi", MerchantUiBuilder.Build)
+local tickerGui = UiRegistry.Get("MarketTicker") or getGui("MarketTicker", MerchantUiBuilder.BuildMarketTicker)
 
 local window = gui.Window
 local header = window.Header
@@ -135,6 +138,19 @@ local busy = false
 local renderList -- forward
 
 local function makeTabButton(tab)
+	-- Кнопка из билдера (StarterGui) — только подключаем клик.
+	local existing = tabsBar:FindFirstChild(tab.Id)
+	if existing and existing:IsA("GuiButton") then
+		local label = existing:FindFirstChild("Label")
+		if label then label.Text = tr(tab.Label) end
+		existing.MouseButton1Click:Connect(function()
+			sfx("UiButtonClick")
+			currentTab = tab.Id
+			renderList()
+		end)
+		tabButtons[tab.Id] = existing
+		return
+	end
 	local b = Instance.new("TextButton")
 	b.Name = tab.Id
 	b.Text = ""
@@ -219,18 +235,31 @@ local function buildRow(data)
 	main.Rarity.BackgroundColor3 = rarityColor(data.Rarity)
 	main.Rarity.Label.Text = tr(data.Rarity or "")
 	frame.BuyRow.Position = UDim2.fromOffset(10, 150)
-	local effect = Instance.new("TextLabel")
-	effect.Name = "Effect"
-	effect.BackgroundTransparency = 1
-	effect.Position = UDim2.fromOffset(12, 120)
-	effect.Size = UDim2.new(1, -24, 0, 26)
-	effect.Font = Enum.Font.FredokaOne
-	effect.TextScaled = true
-	effect.TextXAlignment = Enum.TextXAlignment.Left
-	effect.TextColor3 = Color3.fromRGB(255, 230, 170)
-	effect.Parent = frame
-	Instance.new("UIStroke", effect).Thickness = 1.6
-	if data.Limited then
+	local effect = frame:FindFirstChild("Effect")
+	if not effect then
+		effect = Instance.new("TextLabel")
+		effect.Name = "Effect"
+		effect.BackgroundTransparency = 1
+		effect.Position = UDim2.fromOffset(12, 120)
+		effect.Size = UDim2.new(1, -24, 0, 26)
+		effect.Font = Enum.Font.FredokaOne
+		effect.TextScaled = true
+		effect.TextXAlignment = Enum.TextXAlignment.Left
+		effect.TextColor3 = Color3.fromRGB(255, 230, 170)
+		effect.Parent = frame
+		Instance.new("UIStroke", effect).Thickness = 1.6
+	end
+	local builtBadge = main.IconBox:FindFirstChild("LimitedBadge")
+	if data.Limited and builtBadge then
+		builtBadge.Visible = true
+		local badgeText = builtBadge:FindFirstChild("Text")
+		if badgeText then badgeText.Text = tr("LIMITED") end
+		local glow = frame:FindFirstChild("SkinStroke") or frame:FindFirstChildOfClass("UIStroke")
+		if glow then
+			glow.Color = Color3.fromRGB(255, 70, 100)
+			TweenService:Create(glow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Color = Color3.fromRGB(255, 200, 80) }):Play()
+		end
+	elseif data.Limited then
 		local badge = Instance.new("TextLabel")
 		badge.Name = "LimitedBadge"
 		badge.AnchorPoint = Vector2.new(0.5, 0)
@@ -285,7 +314,11 @@ end
 
 renderList = function()
 	for id, button in tabButtons do
-		button.BackgroundColor3 = id == currentTab and Color3.fromRGB(96, 196, 64) or Color3.fromRGB(86, 46, 22)
+		if button:GetAttribute("UiSkin") then
+			UiKit.ApplySkin(button, id == currentTab and "TabActive" or "Tab")
+		else
+			button.BackgroundColor3 = id == currentTab and Color3.fromRGB(96, 196, 64) or Color3.fromRGB(86, 46, 22)
+		end
 	end
 	local state = lastState
 	if not state then return end

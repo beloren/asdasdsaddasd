@@ -6395,12 +6395,8 @@ local function setupToast()
 	local ToastUiBuilder = require(ReplicatedStorage.Shared.ToastUiBuilder)
 	local NCFG = Config.Notify
 
-	local toastGui = playerGui:FindFirstChild("Toast") or playerGui:WaitForChild("Toast", 3)
-	if toastGui and (toastGui:GetAttribute("ToastUiVersion") or 0) < ToastUiBuilder.VERSION then
-		warn("[CustomCartUI] StarterGui/Toast устарел — собираю новый вид кодом. Перезапусти tools/BuildNotificationUI.lua, чтобы править его в Studio.")
-		toastGui:Destroy()
-		toastGui = nil
-	end
+	-- v20: StarterGui/Toast (tools/BuildAllUI.lua); нет — соберётся билдером.
+	local toastGui = require(ReplicatedStorage.Shared.UiRegistry).Get("Toast")
 	if not toastGui then
 		toastGui = ToastUiBuilder.Build()
 		toastGui.Parent = playerGui
@@ -6542,6 +6538,8 @@ local function setupToast()
 		if viewport then viewport.Visible = viewportShown end
 		if icon then icon.Visible = not viewportShown and icon.Image ~= "" end
 		if accent then accent.BackgroundColor3 = accentFor(opts) end
+		local panelStroke = panel:FindFirstChild("SkinStroke")
+		if panelStroke then panelStroke.Color = accentFor(opts) end
 
 		if text then
 			text.RichText = opts and opts.RichText == true or false

@@ -1,322 +1,222 @@
 --------------------------------------------------------------------------------
--- PerkUiBuilder v2 (v9) — окно ПРЕСТИЖА деревом. Свой стиль: «звёздная
--- ночь» — тёмно-индиговая панель с золотой каймой, узлы-кружки как звёзды
--- созвездия, линии между ними. tools/BuildPerkUI.lua (или общий
--- tools/BuildAllUI.lua) кладёт в StarterGui/PerkUi; PerkUI.client.lua при
--- отсутствии/старой версии строит сам.
+-- PerkUiBuilder (v20) — окно ПЕРКОВ ПРЕСТИЖА деревом + святилища.
+-- Единый стиль UiKit (акцент Gold). tools/BuildAllUI.lua → StarterGui/PerkUi;
+-- PerkUI.client.lua при отсутствии/старой версии строит сам.
 --
--- СТРУКТУРА (имена — контракт):
+-- СТРУКТУРА (имена — контракт; всё — прямые дети Panel):
 --   ScreenGui "PerkUi" (BuilderVersion)
---   └─ Frame "Panel" (UIScale "AutoScale")
---        ├─ Frame "Tab" → TextLabel "Title"
---        ├─ Frame "Points" → TextLabel "Text"          — "⭐ 5"
---        ├─ TextButton "CloseButton"
---        ├─ Frame "Tree"
---        │    ├─ Frame "BranchTemplate" → Frame "Header" → "Text"; Frame "Nodes"
---        │    ├─ TextButton "NodeTemplate" → "Icon", Frame "LevelChip" → "Level", "Lock", "CanBuy"
---        │    └─ Frame "LinkTemplate"
---        └─ Frame "Detail"
+--   └─ ImageLabel "Panel" (окно; UIScale "AutoScale")
+--        ├─ TitleBar → "Title", "Ribbon"
+--        ├─ ImageButton "CloseButton"
+--        ├─ ImageLabel "Points" [Pill] → TextLabel "Text"          — "⭐ 5"
+--        ├─ Frame "Tabs" → ImageButton "PerksTab" / "ShrinesTab" (→ "Text")
+--        ├─ ScrollingFrame "Shrines" → ImageButton "ShrineTemplate" (Icon, Title, Status)
+--        ├─ ImageLabel "Tree" [Inset]
+--        │    ├─ Frame "BranchTemplate" → ImageLabel "Header" → "Text"; Frame "Nodes"
+--        │    ├─ ImageButton "NodeTemplate" → "Icon", ImageLabel "LevelChip" → "Level", "Lock", "CanBuy"
+--        │    └─ ImageLabel "LinkTemplate"
+--        └─ ImageLabel "Detail" [Card]
 --             ├─ TextLabel "Icon", "Title", "Level", "Now", "Next", "Hint"
---             └─ TextButton "UpgradeButton" → TextLabel "Text"
+--             └─ ImageButton "UpgradeButton" → TextLabel "Text"
 --------------------------------------------------------------------------------
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
+local UiKit = require(script.Parent.UiKit)
+local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.Width = 780
-Builder.Height = 480
+Builder.Width = 800
+Builder.Height = 520
+Builder.VERSION = 20
 
-local INK = Color3.fromRGB(10, 8, 24)          -- контур
-local NIGHT = Color3.fromRGB(30, 22, 64)       -- панель
-local NIGHT_DEEP = Color3.fromRGB(18, 13, 42)  -- дерево/подложки
-local GOLD = Color3.fromRGB(255, 200, 70)
-local GOLD_TEXT = Color3.fromRGB(255, 220, 110)
-local STAR = Color3.fromRGB(80, 70, 150)       -- узел по умолчанию
+local GOLD = Theme.Accents.Gold
+local STAR = Color3.fromRGB(80, 70, 150)
 
-local function corner(parent, radius)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = radius or UDim.new(0, 12)
-	c.Parent = parent
-end
-local function stroke(parent, thickness, color, contextual, name)
-	local s = Instance.new("UIStroke")
-	s.Name = name or "Outline"
-	s.Thickness = thickness
-	s.Color = color
-	s.ApplyStrokeMode = contextual and Enum.ApplyStrokeMode.Contextual or Enum.ApplyStrokeMode.Border
-	s.Parent = parent
-	return s
-end
-local function gradient(parent, top, bottom, rotation)
-	local g = Instance.new("UIGradient")
-	g.Rotation = rotation or 90
-	g.Color = ColorSequence.new(top, bottom)
-	g.Parent = parent
-end
-local function text(parent, name, size, position, content, color, font, zIndex)
-	local t = Instance.new("TextLabel")
-	t.Name = name
-	t.Size = size
-	t.Position = position or UDim2.new()
-	t.BackgroundTransparency = 1
-	t.Text = content or ""
-	t.TextColor3 = color or Color3.new(1, 1, 1)
-	t.Font = font or Enum.Font.FredokaOne
-	t.TextScaled = true
-	t.RichText = true
-	if zIndex then t.ZIndex = zIndex end
-	t.Parent = parent
-	stroke(t, 2, INK, true)
-	return t
-end
-local function button(parent, name, size, position, color, label, zIndex)
-	local b = Instance.new("TextButton")
-	b.Name = name
-	b.Text = ""
-	b.AutoButtonColor = false
-	b.Size = size
-	b.Position = position or UDim2.new()
-	b.BackgroundColor3 = color
-	if zIndex then b.ZIndex = zIndex end
-	b.Parent = parent
-	corner(b, UDim.new(0, 12))
-	stroke(b, 3, INK)
-	gradient(b, Color3.new(1, 1, 1), Color3.fromRGB(195, 195, 205))
-	text(b, "Text", UDim2.new(1, -12, 1, -10), UDim2.fromOffset(6, 5), label or "", nil, nil, zIndex and zIndex + 1)
+local function button(parent, name, label, variant, props)
+	local b, caption = UiKit.Button(parent, name, label, variant, props)
+	caption.Name = "Text"
 	return b
 end
 
+local function emojiText(parent, name, content, props)
+	local t = UiKit.Text(parent, name, content, props)
+	t.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+	return t
+end
+
 function Builder.Build()
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "PerkUi"
-	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	gui.DisplayOrder = 31
-	gui.Enabled = false
-	gui:SetAttribute("BuilderVersion", Config.Prestige.PerkUiVersion or 2)
+	local gui = UiKit.Screen("PerkUi", { DisplayOrder = 31, Enabled = false })
+	gui:SetAttribute("BuilderVersion", math.max(Config.Prestige and Config.Prestige.PerkUiVersion or 2, Builder.VERSION))
 
-	local panel = Instance.new("Frame")
-	panel.Name = "Panel"
-	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Position = UDim2.fromScale(0.5, 0.53)
-	panel.Size = UDim2.fromOffset(Builder.Width, Builder.Height)
-	panel.BackgroundColor3 = NIGHT
-	panel.Parent = gui
-	corner(panel, UDim.new(0, 18))
-	stroke(panel, 5, INK)
-	gradient(panel, Color3.fromRGB(255, 255, 255), Color3.fromRGB(150, 140, 200))
-	local scale = Instance.new("UIScale")
-	scale.Name = "AutoScale"
-	scale.Parent = panel
-	-- Золотая кайма внутри.
-	local trim = Instance.new("Frame")
-	trim.Name = "GoldTrim"
-	trim.BackgroundTransparency = 1
-	trim.Position = UDim2.fromOffset(6, 6)
-	trim.Size = UDim2.new(1, -12, 1, -12)
-	trim.Parent = panel
-	corner(trim, UDim.new(0, 14))
-	stroke(trim, 2, GOLD, false, "Trim")
-	-- Россыпь «звёзд» на фоне.
-	local rng = Random.new(7)
-	for i = 1, 26 do
-		local dot = Instance.new("Frame")
-		dot.Name = "Star" .. i
-		local size = rng:NextInteger(2, 4)
-		dot.Size = UDim2.fromOffset(size, size)
-		dot.Position = UDim2.fromScale(rng:NextNumber(0.03, 0.97), rng:NextNumber(0.05, 0.95))
-		dot.BackgroundColor3 = Color3.fromRGB(255, 240, 200)
-		dot.BackgroundTransparency = rng:NextNumber(0.3, 0.7)
-		dot.BorderSizePixel = 0
-		dot.Parent = panel
-		corner(dot, UDim.new(1, 0))
-	end
+	local panel, parts = UiKit.Window(gui, "Panel", {
+		Title = "⭐ Prestige Perks",
+		Accent = "Gold",
+		Size = UDim2.fromOffset(Builder.Width, Builder.Height),
+		Position = UDim2.fromScale(0.5, 0.53),
+		Visible = true,
+		Flat = true,
+		CloseInRoot = true,
+		TitleAlign = "Left",
+	})
+	UiKit.Scale(panel, "AutoScale", 1)
+	local top, pad = parts.Top, parts.Pad
 
-	local tab = Instance.new("Frame")
-	tab.Name = "Tab"
-	tab.Position = UDim2.fromOffset(-12, -26)
-	tab.Size = UDim2.fromOffset(270, 50)
-	tab.BackgroundColor3 = GOLD
-	tab.ZIndex = 5
-	tab.Parent = panel
-	corner(tab, UDim.new(0, 10))
-	stroke(tab, 3, INK)
-	gradient(tab, Color3.fromRGB(255, 245, 200), Color3.fromRGB(230, 160, 40))
-	text(tab, "Title", UDim2.new(1, -24, 1, -10), UDim2.fromOffset(14, 5), "⭐ PRESTIGE", nil, nil, 6).TextXAlignment = Enum.TextXAlignment.Left
+	-- Очки престижа — справа в полосе заголовка.
+	local points = UiKit.Plate(panel, "Points", "Pill", {
+		_Accent = GOLD,
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -60, 0, 27),
+		Size = UDim2.fromOffset(120, 34),
+		ZIndex = 6,
+	})
+	UiKit.Text(points, "Text", "⭐ 0", {
+		_Style = "Number",
+		Position = UDim2.fromOffset(6, 3),
+		Size = UDim2.new(1, -12, 1, -6),
+		TextColor3 = GOLD.Light,
+		ZIndex = 7,
+	})
 
-	local points = Instance.new("Frame")
-	points.Name = "Points"
-	points.Position = UDim2.new(1, -196, 0, 14)
-	points.Size = UDim2.fromOffset(130, 36)
-	points.BackgroundColor3 = NIGHT_DEEP
-	points.Parent = panel
-	corner(points, UDim.new(1, 0))
-	stroke(points, 2, GOLD)
-	text(points, "Text", UDim2.new(1, -14, 1, -8), UDim2.fromOffset(7, 4), "⭐ 0", GOLD_TEXT, Enum.Font.GothamBlack)
+	-- Вкладки PERKS / SHRINES.
+	local tabs = UiKit.Group(panel, "Tabs", {
+		Position = UDim2.fromOffset(pad, top),
+		Size = UDim2.fromOffset(290, 36),
+		ZIndex = 3,
+	})
+	UiKit.List(tabs, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8) })
+	button(tabs, "PerksTab", "PERKS", "Yellow", { LayoutOrder = 1, Size = UDim2.fromOffset(120, 36), ZIndex = 3 })
+	button(tabs, "ShrinesTab", "🗿 SHRINES", "Dark", { LayoutOrder = 2, Size = UDim2.fromOffset(150, 36), ZIndex = 3 })
 
-	button(panel, "CloseButton", UDim2.fromOffset(46, 46), UDim2.new(1, -27, 0, -19), Color3.fromRGB(225, 50, 70), "X", 7)
+	local contentTop = top + 46
+	local contentSize = UDim2.new(1, -(pad * 2 + 300), 1, -(contentTop + pad))
 
-	-- v4: ВКЛАДКИ PERKS / SHRINES (святилища за очки престижа).
-	local tabs = Instance.new("Frame")
-	tabs.Name = "Tabs"
-	tabs.BackgroundTransparency = 1
-	tabs.Position = UDim2.fromOffset(276, 14)
-	tabs.Size = UDim2.fromOffset(290, 36)
-	tabs.Parent = panel
-	local tabsLayout = Instance.new("UIListLayout")
-	tabsLayout.FillDirection = Enum.FillDirection.Horizontal
-	tabsLayout.Padding = UDim.new(0, 8)
-	tabsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	tabsLayout.Parent = tabs
-	local perksTab = button(tabs, "PerksTab", UDim2.fromOffset(120, 36), nil, GOLD, "PERKS", 3)
-	perksTab.LayoutOrder = 1
-	local shrinesTab = button(tabs, "ShrinesTab", UDim2.fromOffset(140, 36), nil, STAR, "🗿 SHRINES", 3)
-	shrinesTab.LayoutOrder = 2
+	-- СВЯТИЛИЩА.
+	local shrines = UiKit.Scroll(panel, "Shrines", {
+		Position = UDim2.fromOffset(pad, contentTop),
+		Size = contentSize,
+		Visible = false,
+		ZIndex = 3,
+	})
+	UiKit.Grid(shrines, UDim2.fromOffset(142, 96), UDim2.fromOffset(10, 10), { HorizontalAlignment = Enum.HorizontalAlignment.Center })
+	UiKit.Padding(shrines, 10, 4, 10, 10)
+	local shrine = UiKit.CardButton(shrines, "ShrineTemplate", STAR, { Visible = false, ZIndex = 3 })
+	shrine.BackgroundColor3 = Color3.fromRGB(34, 30, 60)
+	emojiText(shrine, "Icon", "🗿", { _Stroke = 0, Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(40, 40), ZIndex = 4 })
+	UiKit.Text(shrine, "Title", "Shrine", {
+		_Style = "Heading",
+		Position = UDim2.fromOffset(52, 10),
+		Size = UDim2.new(1, -60, 0, 36),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 4,
+	})
+	UiKit.Text(shrine, "Status", "⭐ 3", {
+		_Style = "Number",
+		Position = UDim2.new(0, 8, 1, -34),
+		Size = UDim2.new(1, -16, 0, 26),
+		TextColor3 = GOLD.Light,
+		ZIndex = 4,
+	})
 
-	-- СПИСОК СВЯТИЛИЩ (на месте дерева, видим во вкладке SHRINES).
-	local shrines = Instance.new("ScrollingFrame")
-	shrines.Name = "Shrines"
-	shrines.Visible = false
-	shrines.BackgroundColor3 = NIGHT_DEEP
-	shrines.BackgroundTransparency = 0.2
-	shrines.BorderSizePixel = 0
-	shrines.Position = UDim2.fromOffset(18, 62)
-	shrines.Size = UDim2.new(1, -322, 1, -80)
-	shrines.ScrollBarThickness = 6
-	shrines.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	shrines.CanvasSize = UDim2.new()
-	shrines.Parent = panel
-	corner(shrines, UDim.new(0, 14))
-	stroke(shrines, 3, INK)
-	local grid = Instance.new("UIGridLayout")
-	grid.CellSize = UDim2.fromOffset(142, 96)
-	grid.CellPadding = UDim2.fromOffset(10, 10)
-	grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	grid.SortOrder = Enum.SortOrder.LayoutOrder
-	grid.Parent = shrines
-	local shrinesPad = Instance.new("UIPadding")
-	shrinesPad.PaddingTop = UDim.new(0, 10)
-	shrinesPad.PaddingBottom = UDim.new(0, 10)
-	shrinesPad.Parent = shrines
+	-- ДЕРЕВО.
+	local tree = UiKit.Plate(panel, "Tree", "Inset", {
+		Position = UDim2.fromOffset(pad, contentTop),
+		Size = contentSize,
+		ZIndex = 3,
+	})
+	UiKit.List(tree, {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Padding = UDim.new(0, 10),
+	})
+	UiKit.Padding(tree, 0, 0, 10, 10)
 
-	local card = Instance.new("TextButton")
-	card.Name = "ShrineTemplate"
-	card.Visible = false
-	card.Text = ""
-	card.AutoButtonColor = false
-	card.BackgroundColor3 = STAR
-	card.Parent = shrines
-	corner(card, UDim.new(0, 12))
-	stroke(card, 3, INK)
-	gradient(card, Color3.new(1, 1, 1), Color3.fromRGB(170, 170, 200))
-	text(card, "Icon", UDim2.fromOffset(40, 40), UDim2.fromOffset(8, 8), "🗿", nil, nil, 3)
-	text(card, "Title", UDim2.new(1, -60, 0, 36), UDim2.fromOffset(52, 10), "Shrine", nil, nil, 3).TextXAlignment = Enum.TextXAlignment.Left
-	text(card, "Status", UDim2.new(1, -16, 0, 26), UDim2.new(0, 8, 1, -34), "⭐ 3", GOLD_TEXT, Enum.Font.GothamBlack, 3)
+	local branch = UiKit.Group(tree, "BranchTemplate", { Visible = false, Size = UDim2.new(0.31, 0, 1, 0) })
+	local header = UiKit.Plate(branch, "Header", "Pill", {
+		_Accent = GOLD,
+		Size = UDim2.new(1, 0, 0, 30),
+		BackgroundColor3 = GOLD.Main,
+		BackgroundTransparency = 0,
+		ZIndex = 4,
+	})
+	UiKit.Text(header, "Text", "BRANCH", {
+		_Style = "Heading",
+		Position = UDim2.fromOffset(7, 4),
+		Size = UDim2.new(1, -14, 1, -8),
+		ZIndex = 5,
+	})
+	UiKit.Group(branch, "Nodes", { Position = UDim2.fromOffset(0, 40), Size = UDim2.new(1, 0, 1, -40) })
 
-	-- ДЕРЕВО
-	local tree = Instance.new("Frame")
-	tree.Name = "Tree"
-	tree.BackgroundColor3 = NIGHT_DEEP
-	tree.BackgroundTransparency = 0.2
-	tree.Position = UDim2.fromOffset(18, 62)
-	tree.Size = UDim2.new(1, -322, 1, -80)
-	tree.Parent = panel
-	corner(tree, UDim.new(0, 14))
-	stroke(tree, 3, INK)
-	local treeLayout = Instance.new("UIListLayout")
-	treeLayout.FillDirection = Enum.FillDirection.Horizontal
-	treeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	treeLayout.Padding = UDim.new(0, 10)
-	treeLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	treeLayout.Parent = tree
-	local treePad = Instance.new("UIPadding")
-	treePad.PaddingTop = UDim.new(0, 10)
-	treePad.PaddingBottom = UDim.new(0, 10)
-	treePad.Parent = tree
-
-	local branch = Instance.new("Frame")
-	branch.Name = "BranchTemplate"
-	branch.Visible = false
-	branch.BackgroundTransparency = 1
-	branch.Size = UDim2.new(0.31, 0, 1, 0)
-	branch.Parent = tree
-	local header = Instance.new("Frame")
-	header.Name = "Header"
-	header.Size = UDim2.new(1, 0, 0, 30)
-	header.BackgroundColor3 = GOLD
-	header.Parent = branch
-	corner(header, UDim.new(1, 0))
-	stroke(header, 3, INK)
-	text(header, "Text", UDim2.new(1, -14, 1, -8), UDim2.fromOffset(7, 4), "BRANCH")
-	local nodes = Instance.new("Frame")
-	nodes.Name = "Nodes"
-	nodes.BackgroundTransparency = 1
-	nodes.Position = UDim2.fromOffset(0, 40)
-	nodes.Size = UDim2.new(1, 0, 1, -40)
-	nodes.Parent = branch
-
-	local node = Instance.new("TextButton")
+	-- Узел-«звезда»: круглая кнопка, заливку красит клиент по ветке.
+	local node = Instance.new("ImageButton")
 	node.Name = "NodeTemplate"
-	node.Visible = false
-	node.Text = ""
 	node.AutoButtonColor = false
+	node.Visible = false
 	node.AnchorPoint = Vector2.new(0.5, 0)
 	node.Size = UDim2.fromOffset(70, 70)
+	UiKit.ApplySkin(node, "Round")
 	node.BackgroundColor3 = STAR
-	node.ZIndex = 2
+	node.BackgroundTransparency = 0
+	node.ZIndex = 5
 	node.Parent = tree
-	corner(node, UDim.new(1, 0)) -- круглые «звёзды»
-	stroke(node, 4, INK)
-	gradient(node, Color3.new(1, 1, 1), Color3.fromRGB(170, 170, 200))
-	local press = Instance.new("UIScale")
-	press.Name = "PressScale"
-	press.Parent = node
-	text(node, "Icon", UDim2.new(1, -20, 1, -26), UDim2.fromOffset(10, 6), "💰", nil, nil, 3)
-	local levelChip = Instance.new("Frame")
-	levelChip.Name = "LevelChip"
-	levelChip.AnchorPoint = Vector2.new(0.5, 0.5)
-	levelChip.Position = UDim2.new(0.5, 0, 1, -2)
-	levelChip.Size = UDim2.fromOffset(58, 22)
-	levelChip.BackgroundColor3 = INK
-	levelChip.ZIndex = 4
-	levelChip.Parent = node
-	corner(levelChip, UDim.new(1, 0))
-	stroke(levelChip, 2, GOLD)
-	text(levelChip, "Level", UDim2.new(1, -8, 1, -4), UDim2.fromOffset(4, 2), "0/25", GOLD_TEXT, Enum.Font.GothamBlack, 5)
-	local lock = text(node, "Lock", UDim2.fromOffset(28, 28), UDim2.new(1, -22, 0, -8), "🔒", nil, nil, 6)
-	lock.Visible = false
-	local canBuy = text(node, "CanBuy", UDim2.fromOffset(26, 26), UDim2.new(1, -18, 0, -8), "+", Color3.fromRGB(120, 255, 150), nil, 6)
-	canBuy.Visible = false
+	local skinStroke = node:FindFirstChild("SkinStroke")
+	if skinStroke then skinStroke:Destroy() end
+	UiKit.Stroke(node, Color3.fromRGB(10, 8, 24), 3, 0, "Outline")
+	UiKit.Gradient(node, Color3.new(1, 1, 1), Color3.fromRGB(175, 175, 200), 90, "Shade")
+	UiKit.Scale(node, "PressScale", 1)
+	emojiText(node, "Icon", "💰", { _Stroke = 0, Position = UDim2.fromOffset(12, 8), Size = UDim2.new(1, -24, 1, -28), ZIndex = 6 })
+	local chip = UiKit.Plate(node, "LevelChip", "Pill", {
+		_Accent = GOLD,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 1, -2),
+		Size = UDim2.fromOffset(58, 22),
+		BackgroundTransparency = 0.1,
+		ZIndex = 7,
+	})
+	UiKit.Text(chip, "Level", "0/25", {
+		_Style = "Number",
+		Position = UDim2.fromOffset(4, 2),
+		Size = UDim2.new(1, -8, 1, -4),
+		TextColor3 = GOLD.Light,
+		ZIndex = 8,
+	})
+	emojiText(node, "Lock", "🔒", { _Stroke = 0, Position = UDim2.new(1, -22, 0, -8), Size = UDim2.fromOffset(28, 28), Visible = false, ZIndex = 9 })
+	UiKit.Text(node, "CanBuy", "+", {
+		_Style = "Title",
+		Position = UDim2.new(1, -18, 0, -8),
+		Size = UDim2.fromOffset(26, 26),
+		TextColor3 = Theme.Colors.Positive,
+		Visible = false,
+		ZIndex = 9,
+	})
 
-	local link = Instance.new("Frame")
-	link.Name = "LinkTemplate"
-	link.Visible = false
-	link.AnchorPoint = Vector2.new(0.5, 0)
-	link.Size = UDim2.fromOffset(8, 26)
-	link.BackgroundColor3 = GOLD
-	link.BorderSizePixel = 0
-	link.ZIndex = 1
-	link.Parent = tree
-	stroke(link, 2, INK)
+	local link = UiKit.Plate(tree, "LinkTemplate", "Divider", {
+		_Accent = GOLD,
+		Visible = false,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Size = UDim2.fromOffset(6, 26),
+		ZIndex = 4,
+	})
+	link.BackgroundColor3 = GOLD.Main
 
-	-- ПАНЕЛЬ ПЕРКА
-	local detail = Instance.new("Frame")
-	detail.Name = "Detail"
-	detail.BackgroundColor3 = NIGHT_DEEP
-	detail.Position = UDim2.new(1, -292, 0, 62)
-	detail.Size = UDim2.new(0, 274, 1, -80)
-	detail.Parent = panel
-	corner(detail, UDim.new(0, 14))
-	stroke(detail, 3, GOLD)
-	text(detail, "Icon", UDim2.fromOffset(90, 90), UDim2.new(0.5, -45, 0, 14), "💰")
-	text(detail, "Title", UDim2.new(1, -20, 0, 34), UDim2.fromOffset(10, 110), "Money")
-	text(detail, "Level", UDim2.new(1, -20, 0, 22), UDim2.fromOffset(10, 146), "LV 0/25", GOLD_TEXT, Enum.Font.GothamBlack)
-	text(detail, "Now", UDim2.new(1, -20, 0, 24), UDim2.fromOffset(10, 184), "+0%", Color3.fromRGB(190, 190, 220), Enum.Font.GothamBold)
-	text(detail, "Next", UDim2.new(1, -20, 0, 28), UDim2.fromOffset(10, 212), "▶ +4%", Color3.fromRGB(120, 255, 150), Enum.Font.GothamBlack)
-	local hint = text(detail, "Hint", UDim2.new(1, -20, 0, 22), UDim2.new(0, 10, 1, -104), "", Color3.fromRGB(255, 160, 110), Enum.Font.GothamBold)
-	hint.Visible = false
-	button(detail, "UpgradeButton", UDim2.new(1, -28, 0, 60), UDim2.new(0, 14, 1, -74), Color3.fromRGB(70, 200, 95), "⭐ 1")
+	-- ПАНЕЛЬ ПЕРКА справа.
+	local detail = UiKit.Card(panel, "Detail", GOLD, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -pad, 0, top),
+		Size = UDim2.new(0, 290, 1, -(top + pad)),
+		ZIndex = 3,
+	})
+	emojiText(detail, "Icon", "💰", { _Stroke = 0, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 14), Size = UDim2.fromOffset(90, 90), ZIndex = 4 })
+	UiKit.Text(detail, "Title", "Money", { _Style = "Title", Position = UDim2.fromOffset(10, 110), Size = UDim2.new(1, -20, 0, 36), ZIndex = 4 })
+	UiKit.Text(detail, "Level", "LV 0/25", { _Style = "Number", Position = UDim2.fromOffset(10, 148), Size = UDim2.new(1, -20, 0, 24), TextColor3 = GOLD.Light, ZIndex = 4 })
+	UiKit.Text(detail, "Now", "+0%", { _Style = "Body", Position = UDim2.fromOffset(10, 186), Size = UDim2.new(1, -20, 0, 24), TextColor3 = Theme.Colors.SubText, ZIndex = 4 })
+	UiKit.Text(detail, "Next", "▶ +4%", { _Style = "Heading", Position = UDim2.fromOffset(10, 214), Size = UDim2.new(1, -20, 0, 28), TextColor3 = Theme.Colors.Positive, ZIndex = 4 })
+	UiKit.Text(detail, "Hint", "", { _Style = "Small", Position = UDim2.new(0, 10, 1, -108), Size = UDim2.new(1, -20, 0, 22), TextColor3 = Color3.fromRGB(255, 160, 110), Visible = false, ZIndex = 4 })
+	button(detail, "UpgradeButton", "⭐ 1", "Green", {
+		Position = UDim2.new(0, 14, 1, -74),
+		Size = UDim2.new(1, -28, 0, 60),
+		ZIndex = 4,
+		_TextStyle = "Title",
+	})
 	return gui
 end
 

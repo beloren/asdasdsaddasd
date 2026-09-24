@@ -21,21 +21,18 @@ local function tr(text, args)
 	return ok and result or text
 end
 
-local gui = playerGui:WaitForChild("SkinUi", 3)
-if not gui or (tonumber(gui:GetAttribute("BuilderVersion")) or 0) < (Config.SkinUiVersion or 1) then
-	if gui then gui:Destroy() end -- старое меню без BuilderVersion — заменяем
-	gui = require(ReplicatedStorage.Shared.SkinUiBuilder).Build()
-	gui.Parent = playerGui
-end
+-- v20: меню собирается билдером (Shared.SkinUiBuilder → StarterGui/SkinUi).
+local UiKit = require(ReplicatedStorage.Shared.UiKit)
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("SkinUi")
 gui.ResetOnSpawn = false
 
 local dimmer = gui:WaitForChild("Dimmer")
 local panel = gui:WaitForChild("Panel")
-local closeButton = panel:WaitForChild("CloseButton")
-local gridView = panel:WaitForChild("GridView")
+local closeButton = panel:FindFirstChild("CloseButton", true)
+local gridView = panel:FindFirstChild("GridView", true)
 local grid = gridView:WaitForChild("Grid")
 local cardTemplate = grid:WaitForChild("CardTemplate")
-local detail = panel:WaitForChild("DetailView")
+local detail = panel:FindFirstChild("DetailView", true)
 local backButton = detail:WaitForChild("BackButton")
 local previewCard = detail:WaitForChild("PreviewCard")
 local nameLabel = detail:WaitForChild("Name")
@@ -59,7 +56,9 @@ end
 local function resize()
 	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800, 540)
 	local scale = panel:FindFirstChild("ResponsiveScale")
-	if scale then scale.Scale = math.min(1, (viewport.X - 24) / 680, (viewport.Y - 40) / 470) end
+	local baseWidth = panel:GetAttribute("BaseWidth") or 680
+	local baseHeight = panel:GetAttribute("BaseHeight") or 470
+	if scale then scale.Scale = math.min(1, (viewport.X - 24) / baseWidth, (viewport.Y - 40) / baseHeight) end
 end
 
 -- Строки баффов: сначала плюсы, потом минусы.
@@ -87,7 +86,7 @@ local function fillCard(card, entry)
 		rarity.Text = tr(string.upper(entry.Rarity or ""))
 		rarity.TextColor3 = rarityColor(entry.Rarity)
 	end
-	local rarityStroke = card:FindFirstChild("RarityStroke")
+	local rarityStroke = card:FindFirstChild("RarityStroke") or card:FindFirstChild("SkinStroke")
 	if rarityStroke then rarityStroke.Color = rarityColor(entry.Rarity) end
 end
 
@@ -129,7 +128,11 @@ local function renderDetail()
 	local equipped = state.Equipped and state.Equipped.Pickaxe == entry.Id
 	local text = equipButton:FindFirstChild("Text")
 	if text then text.Text = equipped and tr("UNEQUIP") or tr("EQUIP") end
-	equipButton.BackgroundColor3 = equipped and Color3.fromRGB(95, 98, 110) or Color3.fromRGB(70, 200, 95)
+	if equipButton:GetAttribute("UiSkin") then
+		UiKit.ApplySkin(equipButton, equipped and "Button_Dark" or "Button_Green")
+	else
+		equipButton.BackgroundColor3 = equipped and Color3.fromRGB(95, 98, 110) or Color3.fromRGB(70, 200, 95)
+	end
 end
 
 local function showGrid()
@@ -148,7 +151,7 @@ end
 
 local function renderGrid()
 	for _, child in grid:GetChildren() do
-		if child:IsA("TextButton") and child ~= cardTemplate then child:Destroy() end
+		if child:IsA("GuiButton") and child ~= cardTemplate then child:Destroy() end
 	end
 	local list = {}
 	for _, entry in state.Owned or {} do

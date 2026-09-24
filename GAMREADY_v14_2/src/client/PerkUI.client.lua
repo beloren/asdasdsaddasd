@@ -48,10 +48,11 @@ local function tr(text, args)
 	return ok and result or text
 end
 
-local gui = playerGui:WaitForChild("PerkUi", 3)
-if not gui or (tonumber(gui:GetAttribute("BuilderVersion")) or 0) < (cfg.PerkUiVersion or 2) or not gui:FindFirstChild("Tree", true)
-	or not gui:FindFirstChild("Shrines", true) then
-	if gui then gui:Destroy() end
+-- v20: окно собирается билдером (Shared.PerkUiBuilder → StarterGui/PerkUi).
+local UiKit = require(ReplicatedStorage.Shared.UiKit)
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("PerkUi")
+if not (gui:FindFirstChild("Tree", true) and gui:FindFirstChild("Shrines", true)) then
+	gui:Destroy()
 	gui = Builder.Build()
 	gui.Parent = playerGui
 end
@@ -251,8 +252,13 @@ local function setMode(newMode)
 	mode = newMode
 	tree.Visible = mode == "Perks"
 	shrinesList.Visible = mode == "Shrines"
-	perksTab.BackgroundColor3 = mode == "Perks" and Color3.fromRGB(255, 200, 70) or COLOR_STAR
-	shrinesTab.BackgroundColor3 = mode == "Shrines" and Color3.fromRGB(255, 200, 70) or COLOR_STAR
+	if perksTab:GetAttribute("UiSkin") then
+		UiKit.ApplySkin(perksTab, mode == "Perks" and "Button_Yellow" or "Button_Dark")
+		UiKit.ApplySkin(shrinesTab, mode == "Shrines" and "Button_Yellow" or "Button_Dark")
+	else
+		perksTab.BackgroundColor3 = mode == "Perks" and Color3.fromRGB(255, 200, 70) or COLOR_STAR
+		shrinesTab.BackgroundColor3 = mode == "Shrines" and Color3.fromRGB(255, 200, 70) or COLOR_STAR
+	end
 	if mode == "Shrines" then
 		selectedShrine = selectedShrine or (SHRINES.Order and SHRINES.Order[1])
 		renderShrines()

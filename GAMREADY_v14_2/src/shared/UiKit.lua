@@ -585,6 +585,14 @@ function UiKit.Window(parent, name, opts)
 	local close
 	if opts.Close ~= false then
 		close = UiKit.CloseButton(titleBar)
+		-- CloseInRoot: кнопка — прямой ребёнок окна (для скриптов, которые
+		-- ищут её через panel:WaitForChild("CloseButton")).
+		if opts.CloseInRoot then
+			close.AnchorPoint = Vector2.new(1, 0.5)
+			close.Position = UDim2.new(1, -10, 0, math.floor(titleH / 2))
+			close.ZIndex = 8
+			close.Parent = panel
+		end
 	end
 
 	local frame = UiKit.Plate(panel, "Frame", "Panel", {
@@ -593,6 +601,14 @@ function UiKit.Window(parent, name, opts)
 		Size = UDim2.new(1, 0, 1, -(titleH + gap)),
 		ZIndex = 2,
 	})
+
+	-- Flat: содержимое кладётся прямо в корень окна (для скриптов, которые
+	-- ищут детали через panel:WaitForChild(...)). parts.Top — отступ сверху,
+	-- с которого начинается тело, parts.Pad — внутренний отступ.
+	if opts.Flat then
+		panel.Parent = parent
+		return panel, { TitleBar = titleBar, Title = title, CloseButton = close, Ribbon = ribbon, Body = panel, Frame = frame, Accent = a, Top = titleH + gap + m.Padding, Pad = m.Padding }
+	end
 
 	local bodyName = opts.BodyName or "Body"
 	local body
@@ -611,7 +627,7 @@ function UiKit.Window(parent, name, opts)
 	end
 
 	panel.Parent = parent
-	return panel, { TitleBar = titleBar, Title = title, CloseButton = close, Ribbon = ribbon, Body = body, Frame = frame, Accent = a }
+	return panel, { TitleBar = titleBar, Title = title, CloseButton = close, Ribbon = ribbon, Body = body, Frame = frame, Accent = a, Top = titleH + gap + m.Padding, Pad = m.Padding }
 end
 
 -- Полноэкранное затемнение (TextButton — клик мимо окна закрывает его).

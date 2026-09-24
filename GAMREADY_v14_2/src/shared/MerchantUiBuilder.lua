@@ -1,315 +1,271 @@
 --------------------------------------------------------------------------------
--- MerchantUiBuilder — окно лавки торговца в стиле стока Grow a Garden:
--- травяная шапка с таймером "New stock in 3m 17s", синяя RESTOCK, красный X,
--- деревянная панель с заклёпками, строки товаров (иконка в светлой рамке,
--- крупное имя с обводкой, "X11 Stock", зелёная цена, плашка редкости).
---
--- Под шапкой — табло БИРЖИ: текущий курс продажи руды крупно, цветом
--- корзины (CRASH…JACKPOT). Курс и сток меняются одним таймером.
+-- MerchantUiBuilder (v20) — лавка торговца + табло биржи руды.
+-- Единый стиль UiKit (акцент Green). tools/BuildAllUI.lua → StarterGui;
+-- client/MerchantUI.client.lua собирает сам, если в PlayerGui ничего нет.
 --
 -- КОНТРАКТ ИМЁН (читает client/MerchantUI.client.lua):
---   MerchantUi/Window/Header/{Timer, Restock, Close}
---   MerchantUi/Window/Market/{Value, Bucket, Hint}
+--   MerchantUi/Window/Header/{Timer, Restock(Label), Close(Label)}
+--   MerchantUi/Window/Market/{Caption, Hint, Value, Bucket/Label}
+--   MerchantUi/Window/Tabs/<Tab.Id> (ImageButton → Label)
 --   MerchantUi/Window/Body/List            — ScrollingFrame
 --   MerchantUi/Window/Body/List/ItemTemplate — строка (Visible = false)
 --       ItemTemplate/Main/{IconBox/{Icon, Emoji}, Name, Stock, Price, Rarity/Label}
---       ItemTemplate/BuyRow/Buy/Label
---   MarketTicker (отдельный ScreenGui) / Pill/{Value, Timer}
+--       ItemTemplate/Effect, ItemTemplate/BuyRow/Buy/Label
+--   MarketTicker (отдельный ScreenGui) / Pill/{Value, Timer, Pop}
 --------------------------------------------------------------------------------
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UiKit = require(script.Parent.UiKit)
+local Theme = UiKit.Theme
+
 local MerchantUiBuilder = {}
+MerchantUiBuilder.VERSION = 20
 
-local FONT = Enum.Font.FredokaOne
-local WOOD = Color3.fromRGB(128, 74, 40)
-local WOOD_DARK = Color3.fromRGB(86, 46, 22)
-local WOOD_DEEP = Color3.fromRGB(70, 36, 16)
-local CARD = Color3.fromRGB(74, 36, 16)
-local ICON_BOX = Color3.fromRGB(142, 90, 55)
-local GRASS = Color3.fromRGB(96, 196, 64)
-local GRASS_DARK = Color3.fromRGB(62, 150, 40)
+local ACCENT = "Green"
 
-local function corner(parent, radius)
-	local instance = Instance.new("UICorner")
-	instance.CornerRadius = UDim.new(0, radius or 8)
-	instance.Parent = parent
-	return instance
-end
-
-local function stroke(parent, color, thickness, mode)
-	local instance = Instance.new("UIStroke")
-	instance.Color = color
-	instance.Thickness = thickness or 3
-	if mode then instance.ApplyStrokeMode = mode end
-	instance.Parent = parent
-	return instance
-end
-
-local function frame(name, parent, props)
-	local instance = Instance.new("Frame")
-	instance.Name = name
-	instance.BorderSizePixel = 0
-	for key, value in props or {} do instance[key] = value end
-	instance.Parent = parent
-	return instance
-end
-
--- Крупный текст с чёрной обводкой — фирменный вид GaG.
-local function text(name, parent, props)
-	local label = Instance.new("TextLabel")
-	label.Name = name
-	label.BackgroundTransparency = 1
-	label.Font = FONT
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextScaled = true
-	for key, value in props or {} do
-		-- MaxText/StrokeThickness — параметры хелпера, не свойства Instance.
-		if key ~= "MaxText" and key ~= "StrokeThickness" then label[key] = value end
-	end
-	label.Parent = parent
-	stroke(label, Color3.fromRGB(0, 0, 0), props and props.StrokeThickness or 2.5)
-	local limit = Instance.new("UITextSizeConstraint")
-	limit.MaxTextSize = props and props.MaxText or 40
-	limit.Parent = label
-	return label
-end
-
-local function button(name, parent, color, borderColor, props)
-	local instance = Instance.new("TextButton")
-	instance.Name = name
-	instance.AutoButtonColor = true
-	instance.BackgroundColor3 = color
-	instance.BorderSizePixel = 0
-	instance.Text = ""
-	for key, value in props or {} do instance[key] = value end
-	instance.Parent = parent
-	corner(instance, 6)
-	stroke(instance, borderColor, 3, Enum.ApplyStrokeMode.Border)
-	return instance
-end
-
--- Ряд "заклёпок" — мелких квадратиков по краю, как по периметру окна GaG.
-local function studs(parent, color, count, y)
-	local row = frame("Studs", parent, {
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, -16, 0, 8),
-		Position = UDim2.new(0, 8, 0, y),
-	})
-	local layout = Instance.new("UIListLayout")
-	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	layout.Padding = UDim.new(0, 10)
-	layout.Parent = row
-	for _ = 1, count do
-		local stud = frame("Stud", row, { BackgroundColor3 = color, Size = UDim2.fromOffset(12, 8) })
-		corner(stud, 2)
-	end
-	return row
+-- Кнопка UiKit с подписью "Label" (так её ищет клиент).
+local function button(parent, name, label, variant, props)
+	local b, caption = UiKit.Button(parent, name, label, variant, props)
+	caption.Name = "Label"
+	return b
 end
 
 function MerchantUiBuilder.Build()
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "MerchantUi"
-	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	gui.DisplayOrder = 30
-	gui.Enabled = false
+	local okConfig, Config = pcall(require, ReplicatedStorage.Shared.Config)
+	local tabs = okConfig and Config.Merchant and Config.Merchant.Tabs or { { Id = "Shop", Label = "SHOP" } }
+	local accent = UiKit.Accent(ACCENT)
 
-	local window = frame("Window", gui, {
+	local gui = UiKit.Screen("MerchantUi", { DisplayOrder = 30, Enabled = false })
+	gui:SetAttribute("BuilderVersion", MerchantUiBuilder.VERSION)
+
+	local window = UiKit.Plate(gui, "Window", "Panel", {
+		_Accent = accent,
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.52),
 		Size = UDim2.fromScale(0.44, 0.8),
-		BackgroundColor3 = WOOD,
 	})
-	corner(window, 8)
-	stroke(window, WOOD_DEEP, 4)
 	local sizeLimit = Instance.new("UISizeConstraint")
 	sizeLimit.MaxSize = Vector2.new(640, 720)
-	sizeLimit.MinSize = Vector2.new(320, 360)
+	sizeLimit.MinSize = Vector2.new(340, 380)
 	sizeLimit.Parent = window
-	local windowScale = Instance.new("UIScale")
-	windowScale.Name = "OpenScale"
-	windowScale.Parent = window
+	UiKit.Scale(window, "OpenScale", 1)
 
-	----------------------------------------------------------------------
-	-- ШАПКА
-	----------------------------------------------------------------------
-	local header = frame("Header", window, {
-		Size = UDim2.new(1, 0, 0, 70),
-		BackgroundColor3 = GRASS,
+	-- ШАПКА: таймер нового стока, RESTOCK, X.
+	local header = UiKit.Plate(window, "Header", "TitleBar", {
+		_Accent = accent,
+		Size = UDim2.new(1, 0, 0, 58),
+		ZIndex = 2,
 	})
-	corner(header, 8)
-	local grassGradient = Instance.new("UIGradient")
-	grassGradient.Rotation = 90
-	grassGradient.Color = ColorSequence.new(Color3.fromRGB(140, 225, 90), GRASS)
-	grassGradient.Parent = header
-	-- Нижний край шапки без скругления + травяная кромка с заклёпками.
-	frame("Lip", header, { Size = UDim2.new(1, 0, 0, 14), Position = UDim2.new(0, 0, 1, -14), BackgroundColor3 = GRASS_DARK })
-	studs(header, Color3.fromRGB(120, 215, 80), 20, 58)
-
-	text("Timer", header, {
-		Text = "New stock in 5m 00s",
-		Size = UDim2.new(1, -250, 0, 44),
-		Position = UDim2.fromOffset(14, 8),
+	UiKit.Ribbon(header, accent)
+	UiKit.TitleText(header, "Timer", "New stock in 5m 00s", accent, {
+		Position = UDim2.fromOffset(56, 8),
+		Size = UDim2.new(1, -250, 0, 42),
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxText = 34, StrokeThickness = 3,
+		ZIndex = 3,
+		_MaxTextSize = 34,
 	})
-	local restock = button("Restock", header, Color3.fromRGB(30, 130, 255), Color3.fromRGB(10, 60, 170), {
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -70, 0, 9),
-		Size = UDim2.fromOffset(160, 42),
+	button(header, "Restock", "RESTOCK", "Blue", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -60, 0.5, 0),
+		Size = UDim2.fromOffset(130, 38),
+		ZIndex = 3,
 	})
-	text("Label", restock, { Text = "RESTOCK", Size = UDim2.fromScale(0.9, 0.8), Position = UDim2.fromScale(0.05, 0.1), MaxText = 28 })
-	local close = button("Close", header, Color3.fromRGB(225, 35, 35), Color3.fromRGB(120, 10, 10), {
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -12, 0, 9),
-		Size = UDim2.fromOffset(46, 42),
-	})
-	text("Label", close, { Text = "X", Size = UDim2.fromScale(0.8, 0.85), Position = UDim2.fromScale(0.1, 0.07), MaxText = 32 })
+	local close = UiKit.CloseButton(header, { ZIndex = 4 })
+	close.Name = "Close"
+	close.Caption.Name = "Label"
 
-	----------------------------------------------------------------------
-	-- БИРЖА
-	----------------------------------------------------------------------
-	local market = frame("Market", window, {
+	-- БИРЖА.
+	local market = UiKit.Plate(window, "Market", "Inset", {
+		Position = UDim2.fromOffset(12, 68),
 		Size = UDim2.new(1, -24, 0, 58),
-		Position = UDim2.fromOffset(12, 80),
-		BackgroundColor3 = WOOD_DEEP,
+		ZIndex = 2,
 	})
-	corner(market, 8)
-	stroke(market, Color3.fromRGB(50, 24, 10), 3)
-	text("Caption", market, {
-		Text = "ORE PRICE", Size = UDim2.new(0.3, 0, 0, 26), Position = UDim2.fromOffset(12, 6),
-		TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(230, 210, 180), MaxText = 22,
+	UiKit.Text(market, "Caption", "ORE PRICE", {
+		_Style = "Heading",
+		Position = UDim2.fromOffset(12, 5),
+		Size = UDim2.new(0.3, 0, 0, 26),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = accent.Light,
+		ZIndex = 3,
 	})
-	text("Hint", market, {
-		Text = "Sell your ore now or wait?", Size = UDim2.new(0.34, 0, 0, 18), Position = UDim2.fromOffset(12, 33),
-		TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(200, 180, 150), MaxText = 16, StrokeThickness = 1.5,
+	UiKit.Text(market, "Hint", "Sell your ore now or wait?", {
+		_Style = "Small",
+		Position = UDim2.fromOffset(12, 33),
+		Size = UDim2.new(0.34, 0, 0, 18),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Theme.Colors.SubText,
+		ZIndex = 3,
 	})
-	text("Value", market, {
-		Text = "x1.00", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.52, 0.5),
-		Size = UDim2.new(0.3, 0, 0, 46), MaxText = 44, StrokeThickness = 3,
+	UiKit.Text(market, "Value", "x1.00", {
+		_Style = "Number",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.52, 0.5),
+		Size = UDim2.new(0.3, 0, 0, 44),
+		ZIndex = 3,
 	})
-	local bucket = frame("Bucket", market, {
-		AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0),
-		Size = UDim2.new(0.26, 0, 0, 34), BackgroundColor3 = Color3.fromRGB(120, 120, 120),
+	local bucket = UiKit.Plate(market, "Bucket", "Pill", {
+		_Accent = Theme.Accents.Grey,
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.new(0.26, 0, 0, 34),
+		BackgroundColor3 = Color3.fromRGB(120, 120, 120),
+		BackgroundTransparency = 0,
+		ZIndex = 3,
 	})
-	corner(bucket, 17)
-	stroke(bucket, Color3.fromRGB(30, 30, 30), 2.5, Enum.ApplyStrokeMode.Border)
-	text("Label", bucket, { Text = "NORMAL", Size = UDim2.fromScale(0.9, 0.78), Position = UDim2.fromScale(0.05, 0.11), MaxText = 22 })
+	UiKit.Text(bucket, "Label", "NORMAL", {
+		_Style = "Heading",
+		Position = UDim2.fromScale(0.05, 0.1),
+		Size = UDim2.fromScale(0.9, 0.8),
+		ZIndex = 4,
+	})
 
-	----------------------------------------------------------------------
-	-- СПИСОК
-	----------------------------------------------------------------------
-	local body = frame("Body", window, {
-		Size = UDim2.new(1, -24, 1, -162),
-		Position = UDim2.fromOffset(12, 150),
-		BackgroundColor3 = WOOD_DARK,
+	-- ВКЛАДКИ.
+	local tabsBar = UiKit.Group(window, "Tabs", {
+		Position = UDim2.fromOffset(12, 134),
+		Size = UDim2.new(1, -24, 0, 38),
+		ZIndex = 2,
 	})
-	corner(body, 8)
-	stroke(body, WOOD_DEEP, 3)
+	UiKit.List(tabsBar, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8) })
+	for index, tab in tabs do
+		local b = Instance.new("ImageButton")
+		b.Name = tab.Id
+		b.AutoButtonColor = false
+		b.LayoutOrder = index
+		b.Size = UDim2.new(1 / #tabs, -6, 1, 0)
+		UiKit.ApplySkin(b, index == 1 and "TabActive" or "Tab", accent)
+		UiKit.Text(b, "Label", tab.Label, {
+			_Style = "Heading",
+			Position = UDim2.fromScale(0.05, 0.12),
+			Size = UDim2.fromScale(0.9, 0.76),
+			ZIndex = 3,
+		})
+		b.ZIndex = 2
+		b.Parent = tabsBar
+	end
 
-	local list = Instance.new("ScrollingFrame")
-	list.Name = "List"
-	list.BackgroundTransparency = 1
-	list.BorderSizePixel = 0
-	list.Size = UDim2.new(1, -8, 1, -12)
-	list.Position = UDim2.fromOffset(4, 6)
-	list.ScrollBarThickness = 8
-	list.ScrollBarImageColor3 = Color3.fromRGB(230, 200, 160)
-	list.CanvasSize = UDim2.new()
-	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	list.ScrollingDirection = Enum.ScrollingDirection.Y
-	list.Parent = body
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 10)
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	layout.Parent = list
-	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 6)
-	padding.PaddingBottom = UDim.new(0, 6)
-	padding.Parent = list
+	-- СПИСОК.
+	local body = UiKit.Plate(window, "Body", "Inset", {
+		Position = UDim2.fromOffset(12, 180),
+		Size = UDim2.new(1, -24, 1, -192),
+		ZIndex = 2,
+	})
+	local list = UiKit.Scroll(body, "List", {
+		Position = UDim2.fromOffset(4, 6),
+		Size = UDim2.new(1, -8, 1, -12),
+		ZIndex = 3,
+	})
+	UiKit.List(list, { Padding = UDim.new(0, 10), HorizontalAlignment = Enum.HorizontalAlignment.Center })
+	UiKit.Padding(list, 6, 0, 6, 6)
 
-	-- Строка товара. Высота = 118 свёрнута / 186 раскрыта (BuyRow).
-	local item = frame("ItemTemplate", list, {
+	-- Строка товара: 118 свёрнута / 214 раскрыта (BuyRow).
+	local item = UiKit.Card(list, "ItemTemplate", accent, {
 		Size = UDim2.new(1, -18, 0, 118),
-		BackgroundColor3 = CARD,
 		Visible = false,
 		ClipsDescendants = true,
+		ZIndex = 3,
 	})
-	corner(item, 8)
-	stroke(item, Color3.fromRGB(50, 22, 8), 3)
-
 	local main = Instance.new("TextButton")
 	main.Name = "Main"
 	main.BackgroundTransparency = 1
 	main.Text = ""
 	main.AutoButtonColor = false
 	main.Size = UDim2.new(1, 0, 0, 118)
+	main.ZIndex = 3
+	main:SetAttribute("DisableGlobalHover", true)
 	main.Parent = item
 
-	local iconBox = frame("IconBox", main, {
-		Size = UDim2.fromOffset(98, 98),
+	local iconBox = UiKit.Slot(main, "IconBox", {
 		Position = UDim2.fromOffset(10, 10),
-		BackgroundColor3 = ICON_BOX,
+		Size = UDim2.fromOffset(98, 98),
+		ZIndex = 4,
 	})
-	corner(iconBox, 6)
-	stroke(iconBox, Color3.fromRGB(60, 30, 12), 3)
-	local icon = Instance.new("ImageLabel")
-	icon.Name = "Icon"
-	icon.BackgroundTransparency = 1
-	icon.Size = UDim2.fromScale(0.8, 0.8)
-	icon.Position = UDim2.fromScale(0.1, 0.1)
-	icon.ScaleType = Enum.ScaleType.Fit
-	icon.Parent = iconBox
-	local emoji = Instance.new("TextLabel")
-	emoji.Name = "Emoji"
-	emoji.BackgroundTransparency = 1
-	emoji.Size = UDim2.fromScale(0.8, 0.8)
-	emoji.Position = UDim2.fromScale(0.1, 0.1)
-	emoji.TextScaled = true
-	emoji.Font = Enum.Font.GothamBold
-	emoji.Text = ""
-	emoji.Parent = iconBox
+	UiKit.Icon(iconBox, "Icon", "", {
+		Position = UDim2.fromScale(0.1, 0.1),
+		Size = UDim2.fromScale(0.8, 0.8),
+		ZIndex = 5,
+	})
+	local emoji = UiKit.Text(iconBox, "Emoji", "", {
+		_Stroke = 0,
+		Position = UDim2.fromScale(0.1, 0.1),
+		Size = UDim2.fromScale(0.8, 0.8),
+		ZIndex = 5,
+	})
+	emoji.FontFace = Font.fromEnum(Enum.Font.GothamBold)
 
-	text("Name", main, {
-		Text = "Item", Size = UDim2.new(1, -134, 0, 40), Position = UDim2.fromOffset(122, 8),
-		TextXAlignment = Enum.TextXAlignment.Left, MaxText = 34, StrokeThickness = 3,
+	-- Плашка «LIMITED» над иконкой (включает клиент у лимитных товаров).
+	local limited = UiKit.Plate(iconBox, "LimitedBadge", "Badge", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, -6),
+		Size = UDim2.new(1, 8, 0, 22),
+		Visible = false,
+		ZIndex = 7,
 	})
-	text("Stock", main, {
-		Text = "X0 Stock", Size = UDim2.new(0.4, 0, 0, 24), Position = UDim2.fromOffset(122, 52),
-		TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(205, 205, 205), MaxText = 24, StrokeThickness = 2,
-	})
-	text("Price", main, {
-		Text = "$0", Size = UDim2.new(0.4, 0, 0, 34), Position = UDim2.fromOffset(122, 78),
-		TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(40, 255, 40), MaxText = 34, StrokeThickness = 3,
-	})
-	local rarity = frame("Rarity", main, {
-		AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -12, 1, -12),
-		Size = UDim2.fromOffset(150, 40), BackgroundColor3 = Color3.fromRGB(170, 170, 170),
-	})
-	corner(rarity, 6)
-	stroke(rarity, Color3.fromRGB(235, 235, 235), 2.5, Enum.ApplyStrokeMode.Border)
-	local rarityShade = Instance.new("UIGradient")
-	rarityShade.Rotation = 90
-	rarityShade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(190, 190, 190))
-	rarityShade.Parent = rarity
-	text("Label", rarity, { Text = "Common", Size = UDim2.fromScale(0.9, 0.8), Position = UDim2.fromScale(0.05, 0.1), MaxText = 28 })
+	UiKit.Corner(limited, 0)
+	UiKit.Text(limited, "Text", "LIMITED", { _Style = "Heading", ZIndex = 8 })
 
-	-- Раскрывающаяся полоса покупки.
-	local buyRow = frame("BuyRow", item, {
+	UiKit.Text(main, "Name", "Item", {
+		_Style = "Title",
+		Position = UDim2.fromOffset(122, 8),
+		Size = UDim2.new(1, -134, 0, 38),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 4,
+		_MaxTextSize = 34,
+	})
+	UiKit.Text(main, "Stock", "X0 Stock", {
+		_Style = "Heading",
+		Position = UDim2.fromOffset(122, 50),
+		Size = UDim2.new(0.4, 0, 0, 24),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Theme.Colors.SubText,
+		ZIndex = 4,
+	})
+	UiKit.Text(main, "Price", "$0", {
+		_Style = "Number",
+		Position = UDim2.fromOffset(122, 76),
+		Size = UDim2.new(0.4, 0, 0, 32),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Theme.Colors.Positive,
+		ZIndex = 4,
+	})
+	local rarity = UiKit.Plate(main, "Rarity", "Pill", {
+		_Accent = Theme.Accents.Grey,
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -12, 1, -12),
+		Size = UDim2.fromOffset(150, 38),
+		BackgroundColor3 = Color3.fromRGB(170, 170, 170),
+		BackgroundTransparency = 0,
+		ZIndex = 4,
+	})
+	UiKit.Gradient(rarity, Color3.new(1, 1, 1), Color3.fromRGB(180, 180, 180), 90, "Shade")
+	UiKit.Text(rarity, "Label", "Common", {
+		_Style = "Heading",
+		Position = UDim2.fromScale(0.05, 0.1),
+		Size = UDim2.fromScale(0.9, 0.8),
+		ZIndex = 5,
+	})
+
+	UiKit.Text(item, "Effect", "", {
+		_Style = "Body",
+		Position = UDim2.fromOffset(12, 120),
+		Size = UDim2.new(1, -24, 0, 26),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Color3.fromRGB(255, 230, 170),
+		ZIndex = 4,
+	})
+	local buyRow = UiKit.Group(item, "BuyRow", {
+		Position = UDim2.fromOffset(10, 150),
 		Size = UDim2.new(1, -20, 0, 56),
-		Position = UDim2.fromOffset(10, 122),
-		BackgroundTransparency = 1,
+		ZIndex = 4,
 	})
-	local buy = button("Buy", buyRow, Color3.fromRGB(60, 200, 60), Color3.fromRGB(20, 100, 20), {
-		Size = UDim2.fromScale(1, 1),
-	})
-	local buyShade = Instance.new("UIGradient")
-	buyShade.Rotation = 90
-	buyShade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(200, 200, 200))
-	buyShade.Parent = buy
-	text("Label", buy, { Text = "BUY", Size = UDim2.fromScale(0.9, 0.72), Position = UDim2.fromScale(0.05, 0.14), MaxText = 32, StrokeThickness = 3 })
+	button(buyRow, "Buy", "BUY", "Green", { Size = UDim2.fromScale(1, 1), ZIndex = 4, _TextStyle = "Title" })
 
+	UiKit.Text(list, "EmptyNote", "Nothing in stock — wait for the next restock!", {
+		_Style = "Heading",
+		LayoutOrder = 99999,
+		Size = UDim2.new(1, -30, 0, 70),
+		TextColor3 = Theme.Colors.SubText,
+		Visible = false,
+		ZIndex = 3,
+	})
 	return gui
 end
 
@@ -317,34 +273,30 @@ end
 -- ТАБЛО БИРЖИ (HUD): курс и время до смены — видно всегда, не только у банка.
 --------------------------------------------------------------------------------
 function MerchantUiBuilder.BuildMarketTicker()
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "MarketTicker"
-	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 4
-
-	local pill = Instance.new("TextButton")
-	pill.Name = "Pill"
-	pill.Text = ""
-	pill.AutoButtonColor = false
-	pill.AnchorPoint = Vector2.new(0.5, 0)
-	pill.Position = UDim2.new(0.5, 0, 0, 6)
-	pill.Size = UDim2.fromOffset(250, 40)
-	pill.BackgroundColor3 = WOOD_DARK
-	pill.BorderSizePixel = 0
-	pill.Parent = gui
-	corner(pill, 20)
-	stroke(pill, WOOD_DEEP, 3, Enum.ApplyStrokeMode.Border)
-	text("Value", pill, {
-		Text = "ORE x1.00", Size = UDim2.new(0.6, 0, 0.8, 0), Position = UDim2.fromScale(0.05, 0.1),
-		TextXAlignment = Enum.TextXAlignment.Left, MaxText = 24,
+	local gui = UiKit.Screen("MarketTicker", { DisplayOrder = 4, IgnoreGuiInset = false })
+	local pill = UiKit.PlateButton(gui, "Pill", "Pill", {
+		_Accent = ACCENT,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 6),
+		Size = UDim2.fromOffset(250, 40),
 	})
-	text("Timer", pill, {
-		Text = "5:00", Size = UDim2.new(0.32, 0, 0.7, 0), Position = UDim2.fromScale(0.63, 0.15),
-		TextXAlignment = Enum.TextXAlignment.Right, TextColor3 = Color3.fromRGB(230, 210, 180), MaxText = 20,
+	pill:SetAttribute("DisableGlobalHover", true)
+	UiKit.Text(pill, "Value", "ORE x1.00", {
+		_Style = "Number",
+		Position = UDim2.fromScale(0.05, 0.1),
+		Size = UDim2.new(0.6, 0, 0.8, 0),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 2,
 	})
-	local scale = Instance.new("UIScale")
-	scale.Name = "Pop"
-	scale.Parent = pill
+	UiKit.Text(pill, "Timer", "5:00", {
+		_Style = "Heading",
+		Position = UDim2.fromScale(0.63, 0.15),
+		Size = UDim2.new(0.32, 0, 0.7, 0),
+		TextXAlignment = Enum.TextXAlignment.Right,
+		TextColor3 = Theme.Colors.SubText,
+		ZIndex = 2,
+	})
+	UiKit.Scale(pill, "Pop", 1)
 	return gui
 end
 
