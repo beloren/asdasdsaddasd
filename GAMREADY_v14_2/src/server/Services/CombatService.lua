@@ -1953,7 +1953,12 @@ function CombatService:PlaySwingVisual(player)
 		track:Play(0.05)
 		track.TimePosition = 0
 		track:AdjustSpeed(1.4)
-		local stopAfter = track.Length > 0 and track.Length / 1.4 or 0.8
+		-- v20: клиент мини-игры замедляет этот взмах (замах, стоп-кадр,
+		-- разгон — BoulderGameUI). Раньше сервер гасил трек по таймеру
+		-- ОБЫЧНОЙ скорости и обрывал замедленную анимацию посередине.
+		-- Теперь трек не зациклен и доигрывает сам; сервер лишь страхует
+		-- остановку с большим запасом (на случай зависшего трека).
+		local stopAfter = (track.Length > 0 and track.Length / 1.4 or 0.8) + 2
 		task.delay(math.max(0, stopAfter - Config.Combat.SwingReturnFadeTime), function()
 			if swingPlaybackId[player.UserId] == playbackId and track.IsPlaying then
 				track:Stop(Config.Combat.SwingReturnFadeTime)

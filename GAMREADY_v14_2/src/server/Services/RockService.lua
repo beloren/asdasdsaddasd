@@ -973,28 +973,25 @@ function RockService:FindInHitbox(attacker, hrp, hitboxSize, forwardOffset)
 	return best
 end
 
--- Небольшая тряска при каждом ударе киркой — понятная анимация "по камню
--- реально бьют", а не только при финальном разрушении. Двигаем именно
--- PrimaryPart (Root) — декорации кастомной модели должны быть приварены к
--- нему через WeldConstraint (см. PLACEHOLDERS_GUIDE.md), тогда едут вместе.
-local function shakeBoulder(root)
-	if not root or not root.Parent then return end
-	local baseCFrame = root.CFrame
-	local baseSize = root.Size
-	local jolt = CFrame.new((math.random() - 0.5) * 0.6, 0, (math.random() - 0.5) * 0.6)
-		* CFrame.Angles(0, math.rad((math.random() - 0.5) * 8), 0)
-	local shakeOut = TweenService:Create(root, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { CFrame = baseCFrame * jolt })
-	shakeOut:Play()
-	-- Небольшой "punch" размера поверх смещения — по прямому запросу
-	-- "чтобы камень немного как-то интереснее трясся", без усложнения:
-	-- один короткий твин туда-обратно, никакой новой геометрии/партиклов.
-	root.Size = baseSize * 1.04
-	TweenService:Create(root, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = baseSize }):Play()
-	shakeOut.Completed:Once(function()
-		if root.Parent then
-			TweenService:Create(root, TweenInfo.new(0.12, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { CFrame = baseCFrame }):Play()
-		end
-	end)
+-- ТРЯСКА ПРИ УДАРЕ (v20). Сервер камень больше НЕ двигает: раньше твин
+-- CFrame/Size на сервере при серии ударов запоминал «базу» посреди прошлой
+-- тряски, и валун постепенно уползал/раздувался, а по сети анимация дёргалась.
+-- Теперь сервер только отмечает удар атрибутами модели (реплицируются всем):
+--   HitPulse — счётчик ударов, HitFrom — откуда били, HitPower — сила.
+-- Саму анимацию «толчок → пружина обратно» плавно рисует каждый клиент
+-- (client/BoulderHitFX, Config.BoulderHitFx.Wobble).
+local GRADE_POWER = { Miss = 0.55, Good = 1, Perfect = 1.5, Final = 1.8 }
+local function shakeBoulder(model, fromPosition, grade)
+	if not model or not model.Parent then return end
+	if model:IsA("BasePart") then model = model:FindFirstAncestorOfClass("Model") or model end
+	model:SetAttribute("HitFrom", fromPosition)
+	model:SetAttribute("HitPower", GRADE_POWER[grade or "Good"] or 1)
+	model:SetAttribute("HitPulse", (tonumber(model:GetAttribute("HitPulse")) or 0) + 1)
+end
+
+local function hitterPosition(player)
+	local hrp = player and player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	return hrp and hrp.Position or nil
 end
 
 -- ОСКОЛКИ ПРИ УДАРЕ — маленькие кубические Part'ы, цвет по тиру (см.
@@ -1361,7 +1358,7 @@ function RockService:Damage(state, player, damage)
 			hitHrp and boulderSurfacePoint(state.Model, hitHrp.Position) or nil)
 	end
 	if state.Health > 0 then
-		shakeBoulder(state.Model.PrimaryPart)
+		shakeBoulder(state.Model, hitterPosition(player), "Good")
 		-- Осколки строятся от МОДЕЛИ (её реальных габаритов) и от точки на
 		-- поверхности со стороны бьющего, а не от PrimaryPart: у кастомного
 		-- ассета PrimaryPart может быть крошечной служебной деталью внутри
@@ -1753,7 +1750,7 @@ local function applyProgress(self, state, player, gain, grade)
 	-- v14: клиент подсвечивает трещины изнутри по этому атрибуту.
 	state.Model:SetAttribute("CrackProgress", state.Progress)
 	if state.Progress < 1 then
-		shakeBoulder(state.Model.PrimaryPart or rootOf(state.Model))
+		shakeBoulder(state.Model, hitterPosition(player), grade)
 		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		spawnHitDebris(state.Model, state.Tier, hrp and boulderSurfacePoint(state.Model, hrp.Position) or nil)
 	else
@@ -1928,7 +1925,7 @@ function RockService:_strike(player, value)
 		Sfx.play("PickaxeHit", state.Model)
 		if (state.Progress or 0) + gain >= 1 then
 			-- Контакт финального удара: трясём, но ломаем после паузы (слоу-мо).
-			shakeBoulder(state.Model.PrimaryPart or rootOf(state.Model))
+			shakeBoulder(state.Model, hitterPosition(player), "Final")
 			task.delay(finalPause, function()
 				if state.Model.Parent and (state.Progress or 0) < 1 then
 					applyProgress(self, state, player, gain, grade)

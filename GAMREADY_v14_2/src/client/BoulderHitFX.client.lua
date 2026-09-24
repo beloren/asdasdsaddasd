@@ -18,6 +18,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
@@ -221,8 +222,92 @@ local function buildPlate(model)
 	return record
 end
 
+--------------------------------------------------------------------------------
+-- 0. ТРЯСКА ВАЛУНА (v20): толчок ОТ бьющего → пружина обратно с перелётом →
+-- затухание. Сервер только отмечает удар атрибутами (HitPulse/HitFrom/
+-- HitPower), анимацию плавно рисует каждый клиент — её видят все игроки.
+-- Камень качается вокруг нижней точки (не «летает»), в конце возвращается
+-- ровно на своё место, серия ударов не сдвигает его.
+--------------------------------------------------------------------------------
+local WOBBLE = CFG.Wobble or {}
+local wobbling = {} -- [model] = { Base, Bottom, Dir, Start, Power }
+
+local function stopWobble(model, st)
+	wobbling[model] = nil
+	if model.Parent then
+		pcall(function() model:PivotTo(st.Base) end)
+	end
+end
+
+local function startWobble(model)
+	if WOBBLE.Enabled == false or not model.Parent then return end
+	local health = tonumber(model:GetAttribute("Health"))
+	local st = wobbling[model]
+	if not st then
+		local ok, boxCFrame, size = pcall(function() return model:GetBoundingBox() end)
+		if not ok then return end
+		st = {
+			Base = model:GetPivot(),
+			Bottom = boxCFrame.Position - Vector3.new(0, size.Y * 0.5, 0),
+		}
+		wobbling[model] = st
+	end
+	local from = model:GetAttribute("HitFrom")
+	local dir = typeof(from) == "Vector3" and (st.Bottom - from) or Vector3.zero
+	dir = Vector3.new(dir.X, 0, dir.Z)
+	if dir.Magnitude < 0.01 then
+		local angle = math.random() * math.pi * 2
+		dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
+	end
+	st.Dir = dir.Unit
+	st.Start = os.clock()
+	st.Power = math.clamp(tonumber(model:GetAttribute("HitPower")) or 1, 0.3, 2.5)
+	if health and health <= 0 then st.Power *= 0.6 end
+end
+
+RunService.RenderStepped:Connect(function()
+	if not next(wobbling) then return end
+	local now = os.clock()
+	local duration = WOBBLE.Duration or 0.7
+	local freq = WOBBLE.Frequency or 22
+	local damping = WOBBLE.Damping or 7.5
+	for model, st in wobbling do
+		local t = now - st.Start
+		if not model.Parent or t >= duration or model:GetAttribute("Breaking") == true then
+			stopWobble(model, st)
+		else
+			-- sin: сначала отклонение ОТ удара, потом перелёт назад, затухание.
+			local k = math.exp(-damping * t) * math.sin(freq * t) * st.Power
+			local push = st.Dir * (WOBBLE.Push or 0.45) * k
+			local axis = Vector3.yAxis:Cross(st.Dir)
+			local tilt = CFrame.fromAxisAngle(axis.Magnitude > 0 and axis.Unit or Vector3.xAxis, math.rad(WOBBLE.Tilt or 9) * k)
+			local pivot = CFrame.new(st.Bottom + push) * tilt * CFrame.new(-st.Bottom) * st.Base
+			pcall(function() model:PivotTo(pivot) end)
+		end
+	end
+end)
+
+local watchedWobble = setmetatable({}, { __mode = "k" })
+local function watchWobble(model)
+	if watchedWobble[model] then return end
+	watchedWobble[model] = true
+	model:GetAttributeChangedSignal("HitPulse"):Connect(function()
+		startWobble(model)
+	end)
+	-- Добит — сразу вернуть на место, дальше камнем управляет анимация разрушения.
+	model:GetAttributeChangedSignal("Health"):Connect(function()
+		local health = tonumber(model:GetAttribute("Health"))
+		local st = wobbling[model]
+		if st and health and health <= 0 and (os.clock() - st.Start) > 0.3 then
+			stopWobble(model, st)
+		end
+	end)
+end
+
 local function track(model)
-	if plates[model] or not isBoulder(model) then return end
+	if not isBoulder(model) then return end
+	watchWobble(model)
+	if plates[model] ~= nil then return end -- false = уже ждём атрибуты
 	plates[model] = false -- ждём атрибуты
 	task.spawn(function()
 		local deadline = os.clock() + 8

@@ -297,25 +297,62 @@ end
 -- стоп-кадр (HitStop), после — плавный разгон (AnimSlow.Recover), финальный
 -- удар — почти замирание на всю паузу (AnimSlow.Final). Скорость держится
 -- покадрово, поэтому замедляется и взмах, который запустил сервер чуть позже.
-local animScale, animScaleUntil = 1, 0
+-- v20: скорость задаётся КРИВОЙ (точки время→множитель), а не «держим N
+-- секунд и резко отпускаем»: после замедления анимация плавно разгоняется,
+-- чуть обгоняет обычную скорость (CatchUp — догоняет потерянное время) и
+-- мягко возвращается к 1. Поэтому взмах доигрывается до конца, а не рвётся.
+local animCurve = nil -- { {time, scale}, ... } в os.clock()
 local scaledTracks = {} -- [track] = исходная скорость
-local function setAnimScale(scale, duration)
-	animScale = scale
-	animScaleUntil = os.clock() + math.max(0, duration)
+
+local function rampTail(fromTime, fromScale)
+	local ramp = cfg.AnimRamp or {}
+	local catchUp = ramp.CatchUp or 1.3
+	local t1 = fromTime + (ramp.RampSeconds or 0.12)
+	local t2 = t1 + (ramp.CatchUpSeconds or 0.25)
+	local t3 = t2 + (ramp.SettleSeconds or 0.2)
+	return { t1, catchUp }, { t2, catchUp }, { t3, 1 }
 end
+
+-- scale держится duration секунд, затем — плавный разгон и возврат к 1.
+local function setAnimScale(scale, duration)
+	local now = os.clock()
+	local hold = now + math.max(0, duration)
+	local p1, p2, p3 = rampTail(hold, scale)
+	animCurve = { { now, scale }, { hold, scale }, p1, p2, p3 }
+end
+
+local function curveValue(now)
+	if not animCurve then return nil end
+	local last = animCurve[#animCurve]
+	if now >= last[1] then return nil end
+	for i = 1, #animCurve - 1 do
+		local a, b = animCurve[i], animCurve[i + 1]
+		if now < b[1] then
+			local span = b[1] - a[1]
+			local alpha = span > 0 and math.clamp((now - a[1]) / span, 0, 1) or 1
+			-- smoothstep — без рывков на стыках отрезков
+			alpha = alpha * alpha * (3 - 2 * alpha)
+			return a[2] + (b[2] - a[2]) * alpha
+		end
+	end
+	return nil
+end
+
 RunService_.RenderStepped:Connect(function()
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
 	if not animator then return end
-	if os.clock() < animScaleUntil then
+	local scale = curveValue(os.clock())
+	if scale then
 		for _, track in animator:GetPlayingAnimationTracks() do
 			if scaledTracks[track] == nil then
 				scaledTracks[track] = track.Speed ~= 0 and track.Speed or 1
 			end
-			track:AdjustSpeed(scaledTracks[track] * animScale)
+			track:AdjustSpeed(scaledTracks[track] * scale)
 		end
 	elseif next(scaledTracks) then
+		animCurve = nil
 		for track, speed in scaledTracks do
 			if track.IsPlaying then track:AdjustSpeed(speed) end
 		end
@@ -323,12 +360,15 @@ RunService_.RenderStepped:Connect(function()
 	end
 end)
 
+-- Стоп-кадр на контакте → короткое замедление → разгон (без обрыва).
 local function hitStop(seconds)
 	local slow = cfg.AnimSlow or {}
-	setAnimScale(0, seconds)
-	task.delay(seconds, function()
-		setAnimScale(slow.Recover or 0.55, slow.RecoverSeconds or 0.2)
-	end)
+	local now = os.clock()
+	local stopEnd = now + seconds
+	local recover = slow.Recover or 0.55
+	local recoverEnd = stopEnd + (slow.RecoverSeconds or 0.2)
+	local p1, p2, p3 = rampTail(recoverEnd, recover)
+	animCurve = { { now, 0 }, { stopEnd, 0 }, { stopEnd + 0.03, recover }, { recoverEnd, recover }, p1, p2, p3 }
 end
 
 -- Необязательная анимация тяжёлого замаха (Config.BoulderGame.StrikeAnimationId).
