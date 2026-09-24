@@ -262,22 +262,28 @@ local function worldCFrame(plot, record)
 	return base * CFrame.Angles(0, math.rad(record.R or 0), 0)
 end
 
--- v20.3: подпись над тотемом/трофеем — ВСЕГДА одного размера на экране
--- (размер в пикселях, не в студах), шрифт как у денег в HUD, TextScaled:
--- имя цветом предмета, ниже — строки поменьше. Билборды, пришедшие со своей моделью из Assets,
--- тоже переводятся в фиксированный размер.
+-- Подпись над тотемом/трофеем: шрифт как у денег в HUD, имя цветом
+-- предмета, ниже — строки поменьше.
+-- v20.12: подпись — «табличка» в мире (как советуют на DevForum): размер
+-- BillboardGui в SCALE (стадах), текст TextScaled по всей высоте строки.
+-- Тогда надпись держит один размер относительно тотема/трофея: камера
+-- отъехала — табличка уменьшилась вместе с предметом, а не раздувается,
+-- как было с размером в пикселях. DistanceLowerLimit не даёт ей стать
+-- огромной вплотную. https://devforum.roblox.com/t/3247495
+local LABEL_WIDTH = 7 -- стадов
+local LABEL_TITLE_HEIGHT = 1.1
+local LABEL_LINE_HEIGHT = 0.75
+
 local function addLabel(model, anchor, lines, maxDistance, heightOffset)
-	for _, descendant in model:GetDescendants() do
-		if descendant:IsA("BillboardGui") then WorldUi.FixedScreenSize(descendant) end
-	end
+	local total = LABEL_TITLE_HEIGHT + LABEL_LINE_HEIGHT * math.max(0, #lines - 1)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "DecorLabel"
 	billboard.Adornee = anchor
-	billboard.Size = UDim2.fromOffset(280, 36 + 26 * math.max(0, #lines - 1))
-	billboard.StudsOffsetWorldSpace = Vector3.new(0, heightOffset, 0)
+	billboard.Size = UDim2.fromScale(LABEL_WIDTH, total)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, heightOffset + total / 2, 0)
 	billboard.AlwaysOnTop = true
-	billboard.DistanceStep = 0
 	billboard.LightInfluence = 0
+	billboard.DistanceLowerLimit = 8
 	billboard.MaxDistance = maxDistance
 	billboard.Parent = model
 	local layout = Instance.new("UIListLayout")
@@ -285,12 +291,10 @@ local function addLabel(model, anchor, lines, maxDistance, heightOffset)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = billboard
 	for index, line in lines do
-		-- TextScaled: текст вписан в рамку в ПИКСЕЛЯХ — на
-		-- экране всегда один размер, как бы близко/далеко ни была камера.
 		local label = WorldUi.Text(nil, "Text", index == 1 and "Label" or "LabelSub")
 		label.LayoutOrder = index
 		label.BackgroundTransparency = 1
-		label.Size = UDim2.new(1, 0, 0, index == 1 and 36 or 26)
+		label.Size = UDim2.fromScale(1, (index == 1 and LABEL_TITLE_HEIGHT or LABEL_LINE_HEIGHT) / total)
 		label.TextScaled = true
 		label.Text = line.Text
 		if line.Color then label.TextColor3 = line.Color end
