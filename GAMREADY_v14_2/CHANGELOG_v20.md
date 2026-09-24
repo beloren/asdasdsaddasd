@@ -99,3 +99,8 @@
 * Пересобрать: `BuildAllUI` (QuestUi, QuestMarkerUi, RebirthDialogButtons, ShopUi, DailyRewardUi, StarterPackOffer,
   PlacementUi, TutorialUi, WorldUiTemplates, SkinUi, PerkUi, GeodeUi, IslandUi, DropPreviewUi, UpgradeShopUi) —
   или просто весь BuildAllUI; устаревшие копии и так пересоберутся кодом при запуске.
+
+## Окно жеод (v20.10)
+
+* Убрана вкладка «<жеода> DROPS» со списком шансов. Когда жеода выбрана, в правой колонке окна
+  выезжают две кнопки: «ALL DROPS» (окно шансов с 3D-предпросмотром) и под ней большая «CRACK».

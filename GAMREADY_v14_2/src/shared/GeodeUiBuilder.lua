@@ -10,8 +10,8 @@
 --   ImageLabel "VaultPanel" → Header/Title, CloseButton(Caption),
 --     ScrollingFrame "GeodeGrid" → "GeodeCardTemplate" (Name, IconBackground/Icon,
 --     Count, InfoButton), ImageButton "BuyGeodesButton"(Caption),
---     ImageLabel "DropInfoPanel" → InfoTitle, InfoRarity, ChanceScroll/InfoChances,
---     ImageButton "CrackButton"(Caption), ImageButton "AllDropsButton"(Caption);
+--     Frame "DropInfoPanel" → ImageButton "AllDropsButton"(Caption),
+--     ImageButton "CrackButton"(Caption)  (v20.10: без списка шансов);
 --   ImageLabel "BuyGeodesPanel" → CloseButton, "BuyGeodesGrid" → "BuyGeodeCardTemplate"
 --     (Name, IconBackground/Icon, Owned, BuyButton(Caption, ProductIcon));
 --   "PodiumPanel" — BankPodiumUiBuilder;
@@ -28,7 +28,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 21
+Builder.VERSION = 22
 
 local ACCENT = UiKit.Accent("Pink")
 
@@ -126,60 +126,36 @@ function Builder.Build()
 		ZIndex = 6,
 	})
 
-	local drop = UiKit.Card(vault, "DropInfoPanel", ACCENT, {
-		Position = UDim2.new(1, 14, 0, 60),
-		Size = UDim2.fromOffset(290, 440),
+	-- v20.10: без вкладки «… DROPS» со списком шансов — только две кнопки
+	-- в правой колонке окна: «ALL DROPS» (окно шансов с 3D, DropPreviewUi) и под
+	-- ней «CRACK». Появляются, когда выбрана жеода.
+	-- Правая колонка окна отдана под кнопки — сетка жеод сужается.
+	geodeGrid.Size = UDim2.new(1, -vaultParts.Pad * 2 - 236, 1, -(vaultParts.Top + vaultParts.Pad))
+	local drop = UiKit.Group(vault, "DropInfoPanel", {
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -vaultParts.Pad, 1, -vaultParts.Pad),
+		Size = UDim2.fromOffset(222, 130),
 		Visible = false,
 		ZIndex = 5,
 	})
-	UiKit.Text(drop, "InfoTitle", "DROPS", {
-		_Style = "Title",
-		Position = UDim2.fromOffset(14, 12),
-		Size = UDim2.new(1, -130, 0, 32),
-		TextXAlignment = Enum.TextXAlignment.Left,
+	local allDrops = UiKit.Button(drop, "AllDropsButton", "🔍 ALL DROPS", "Purple", {
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.new(1, 0, 0, 48),
 		ZIndex = 6,
+		_TextStyle = "Heading",
 	})
-	UiKit.Text(drop, "InfoRarity", "", {
-		_Style = "Heading",
-		Position = UDim2.fromOffset(14, 46),
-		Size = UDim2.new(1, -28, 0, 22),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = ACCENT.Light,
-		ZIndex = 6,
-	})
-	local chanceScroll = UiKit.Scroll(drop, "ChanceScroll", {
-		Position = UDim2.fromOffset(14, 76),
-		Size = UDim2.new(1, -28, 1, -146),
-		ZIndex = 6,
-	})
-	chanceScroll.BackgroundTransparency = 0.5
-	chanceScroll.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
-	local chances = UiKit.Text(chanceScroll, "InfoChances", "", {
-		_Style = "Body",
-		_Stroke = 1,
-		Position = UDim2.fromOffset(6, 4),
-		Size = UDim2.new(1, -12, 0, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Top,
-		ZIndex = 7,
-	})
-	chances.TextScaled = false
-	chances.TextSize = 15
-	UiKit.Button(drop, "CrackButton", "⛏ CRACK", "Green", {
+	local crack = UiKit.Button(drop, "CrackButton", "⛏ CRACK", "Green", {
 		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.new(0, 14, 1, -12),
-		Size = UDim2.new(1, -28, 0, 50),
+		Position = UDim2.new(0, 0, 1, 0),
+		Size = UDim2.new(1, 0, 0, 66),
 		Active = false,
 		ZIndex = 6,
 		_TextStyle = "Title",
 	})
-	UiKit.Button(drop, "AllDropsButton", "🔍 ALL DROPS", "Purple", {
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -8, 0, 10),
-		Size = UDim2.fromOffset(112, 30),
-		ZIndex = 20,
-	})
+	for _, button in { allDrops, crack } do
+		local caption = button:FindFirstChild("Caption")
+		if caption then caption.TextWrapped = false end
+	end
 
 	-- ПОКУПКА
 	local buyPanel, buyParts = cavePanel(gui, "BuyGeodesPanel", "🛒 Buy Geodes")

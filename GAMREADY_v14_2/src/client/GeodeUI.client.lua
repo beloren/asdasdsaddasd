@@ -175,6 +175,8 @@ local crackButton = dropInfoPanel and dropInfoPanel:FindFirstChild("CrackButton"
 local infoTitle = dropInfoPanel and dropInfoPanel:FindFirstChild("InfoTitle", true)
 local infoRarity = dropInfoPanel and dropInfoPanel:FindFirstChild("InfoRarity", true)
 local infoChances = dropInfoPanel and dropInfoPanel:FindFirstChild("InfoChances", true)
+-- v20.10: старые сборки (карточка со списком шансов) выезжали внутрь окна.
+local dropInfoShownPosition = dropInfoPanel and (infoChances and UDim2.new(1, -282, 0, 76) or dropInfoPanel.Position)
 local crystalTemplate = crystalGrid and crystalGrid:FindFirstChild("CrystalCardTemplate")
 local eggImage = opening and opening:FindFirstChild("EggImage")
 local crackGlow = opening and opening:FindFirstChild("CrackGlow")
@@ -222,7 +224,7 @@ end
 local goblinResultActive = false
 local skipButtonLabel = skipButton and skipButton:FindFirstChildWhichIsA("TextLabel", true)
 if not (dimmer and vaultPanel and podiumPanel and opening and geodeGrid and crystalGrid
-	and geodeTemplate and crystalTemplate and dropInfoPanel and crackButton and infoTitle and infoRarity and infoChances
+	and geodeTemplate and crystalTemplate and dropInfoPanel and crackButton
 	and eggImage and flash and resultImage and resultText and skipButton) then
 	warn("[GeodeUI] GeodeUi contract is incomplete. Re-run tools/BuildAllUI.lua.")
 	return
@@ -574,14 +576,18 @@ local function renderVault()
 			if (state and tonumber(state.GeodeHearts) or 0) > 0 then
 				table.insert(chanceLines, ('<font color="#FF6FB4">💖 NEXT GEODE x%d (HEARTS: %d)</font>'):format(Config.Geodes.Heart.Rewards, state.GeodeHearts))
 			end
-			infoTitle.Text = geodeInfo.DisplayName:upper() .. " DROPS"
-			infoRarity.Text = geodeInfo.Rarity:upper()
-			infoRarity.TextColor3 = rarityColor
-			infoChances.Text = table.concat(chanceLines, "\n")
+			-- v20.10: старая сборка ещё со списком шансов — заполняем, если он есть.
+			if infoTitle then infoTitle.Text = geodeInfo.DisplayName:upper() .. " DROPS" end
+			if infoRarity then
+				infoRarity.Text = geodeInfo.Rarity:upper()
+				infoRarity.TextColor3 = rarityColor
+			end
+			if infoChances then infoChances.Text = table.concat(chanceLines, "\n") end
 			dropInfoPanel.Visible = true
 			crackButton.Active = count > 0 and not openRequestActive
-			local shownPosition = UDim2.new(1, -282, 0, 76)
-			dropInfoPanel.Position = UDim2.new(1, 12, 0, 76)
+			-- Кнопки выезжают на своё место из билдера (правая колонка окна).
+			local shownPosition = dropInfoShownPosition
+			dropInfoPanel.Position = shownPosition + UDim2.fromOffset(16, 0)
 			TweenService:Create(dropInfoPanel, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { Position = shownPosition }):Play()
 		end
 		local infoButton = card:FindFirstChild("InfoButton")

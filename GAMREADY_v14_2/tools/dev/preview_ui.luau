@@ -332,7 +332,7 @@ local function render(inst, x, y, w, h, depth, clipParent)
 		local size = inst.TextSize
 		if inst.TextScaled then
 			local lines = 1
-			size = math.min(h * 0.92, (w / (len * 0.52)))
+			size = math.min(h * 0.92, (w / (len * (inst.TextWrapped and 0.52 or 0.62))))
 			if size < h * 0.45 and inst.TextWrapped then
 				-- многострочный
 				for n = 2, 4 do
@@ -351,6 +351,7 @@ local function render(inst, x, y, w, h, depth, clipParent)
 		local va = inst.TextYAlignment == roblox.Enum.TextYAlignment.Top and "flex-start" or inst.TextYAlignment == roblox.Enum.TextYAlignment.Bottom and "flex-end" or "center"
 		local tstyle = ("position:absolute;inset:0;display:flex;align-items:%s;justify-content:%s;text-align:%s;font-family:'Source Sans 3','Source Sans Pro',Arial,sans-serif;font-size:%.1fpx;line-height:1.05;font-weight:%d;font-style:%s;color:%s;")
 			:format(va, ta == "left" and "flex-start" or ta == "right" and "flex-end" or "center", ta, size, weight, italic and "italic" or "normal", css(inst.TextColor3, 1 - inst.TextTransparency))
+		if not inst.TextWrapped then tstyle ..= "white-space:nowrap;" end
 		local tg = gradientFor(inst)
 		if tg then
 			local k0 = tg.Color.Keypoints[1].Value
