@@ -11,7 +11,8 @@
 --   ├─ ImageLabel "QuestModal" (окно) → TitleBar(Title, Ribbon, CloseButton)
 --   │    └─ Frame → Body → Frame "Tabs" (StoryTab/DailyTab/WeeklyTab), ScrollingFrame "List"
 --   └─ Folder "Templates"
---        ├─ ImageButton "TrackerRow" [Pill] → Title, Progress, Bar(Fill), Why, Cycle
+--        ├─ ImageButton "TrackerRow" (без подложки) → Header(Icon, Title, Caret, Line), Why,
+--        │    Objective(Bullet, Text); скрытые Progress/Cycle/Bar — для совместимости
 --        ├─ Frame "SectionTitle" → Label, Line
 --        ├─ ImageLabel "QuestCard" [Inset] → Title, Progress, Description, Why,
 --        │     Bar(Fill), Frame "Chips", Points, Blocked, ImageButton "TrackButton"(Caption)
@@ -32,46 +33,91 @@ local function buildTemplates(gui)
 	templates.Name = "Templates"
 	templates.Parent = gui
 
-	-- Трекер (плашка над портретом, слева снизу).
-	local row = UiKit.PlateButton(templates, "TrackerRow", "Pill", {
-		_Accent = "Gold",
-		Size = UDim2.new(1, 0, 0, 78),
+	-- ТРЕКЕР (v20.3, референс «Sensei Moro Final»): без подложки. Ромб-значок,
+	-- засечный заголовок, тонкая линия с «^» (свернуть), описание и строки
+	-- целей «◇ - Get X: 0/3». Строка растёт по высоте сама (AutomaticSize).
+	local row = Instance.new("ImageButton")
+	row.Name = "TrackerRow"
+	row.AutoButtonColor = false
+	row.BackgroundTransparency = 1
+	row.Image = ""
+	row.Size = UDim2.new(1, 0, 0, 0)
+	row.AutomaticSize = Enum.AutomaticSize.Y
+	row.Parent = templates
+	UiKit.List(row, { Padding = UDim.new(0, 2) })
+
+	local header = UiKit.Group(row, "Header", { Size = UDim2.new(1, 0, 0, 28), LayoutOrder = 1 })
+	UiKit.ThemeIcon(header, "Icon", "QuestDiamond", "◈", {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 0, 0.5, 0),
+		Size = UDim2.fromOffset(24, 24),
+		ImageColor3 = Theme.Accents.Gold.Main,
 	})
-	UiKit.Padding(row, 0, 10, 6, 6)
-	UiKit.Text(row, "Title", "📍 Quest", {
-		_Style = "Heading",
-		Size = UDim2.new(1, -74, 0, 22),
+	local diamond = header.Icon:FindFirstChild("Emoji")
+	if diamond then
+		diamond.TextColor3 = Theme.Accents.Gold.Main
+		diamond.FontFace = Theme.Fonts.Serif
+	end
+	UiKit.Text(header, "Title", "Quest", {
+		_Style = "Serif",
+		_MaxTextSize = 22,
+		Position = UDim2.fromOffset(32, 0),
+		Size = UDim2.new(1, -56, 1, -4),
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = Theme.Accents.Gold.Light,
-		ZIndex = 2,
+		TextWrapped = false,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 	})
-	UiKit.Text(row, "Progress", "0/1", {
-		_Style = "Number",
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, 0, 0, 0),
-		Size = UDim2.fromOffset(72, 22),
-		TextXAlignment = Enum.TextXAlignment.Right,
-		TextColor3 = Theme.Colors.Positive,
-		ZIndex = 2,
+	UiKit.Text(header, "Caret", "^", {
+		_Style = "SerifBody",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, 0, 0.5, 2),
+		Size = UDim2.fromOffset(20, 20),
+		TextColor3 = Theme.Colors.SubText,
 	})
-	UiKit.Bar(row, "Bar", "Gold", { Position = UDim2.fromOffset(0, 26), Size = UDim2.new(1, 0, 0, 8), ZIndex = 2 })
-	UiKit.Text(row, "Why", "➜ Why", {
-		_Style = "Small",
-		Position = UDim2.fromOffset(0, 38),
-		Size = UDim2.new(1, -44, 0, 26),
+	local line = UiKit.Group(header, "Line", {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 30, 1, 0),
+		Size = UDim2.new(1, -30, 0, 1),
+		BackgroundTransparency = 0.45,
+		BackgroundColor3 = Color3.fromRGB(235, 225, 200),
+	})
+	UiKit.Gradient(line, Color3.new(1, 1, 1), Color3.new(1, 1, 1), 0, "Fade").Transparency = UiKit.NSeq(0, 0.85)
+
+	local desc = UiKit.Text(row, "Why", "Find the rarest ores to the forge!", {
+		_Style = "SerifBody",
+		Size = UDim2.new(1, 0, 0, 20),
+		AutomaticSize = Enum.AutomaticSize.Y,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = Theme.Colors.SubText,
-		ZIndex = 2,
+		LayoutOrder = 2,
 	})
-	UiKit.Text(row, "Cycle", "⇄ 1/2", {
-		_Style = "Small",
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, 0, 0, 44),
-		Size = UDim2.fromOffset(44, 18),
-		TextXAlignment = Enum.TextXAlignment.Right,
-		TextColor3 = Theme.Colors.SubText,
-		ZIndex = 2,
+	desc.TextScaled = false
+	desc.TextSize = 15
+
+	-- Строка цели: «◇ - Get Fireite: 0/3». Progress — число справа в той же строке.
+	local objective = UiKit.Group(row, "Objective", { Size = UDim2.new(1, 0, 0, 22), LayoutOrder = 3 })
+	UiKit.Text(objective, "Bullet", "◇", {
+		_Style = "SerifBody",
+		Position = UDim2.fromOffset(4, 0),
+		Size = UDim2.fromOffset(18, 22),
 	})
+	local objText = UiKit.Text(objective, "Text", "- Get Fireite:", {
+		_Style = "SerifBody",
+		Position = UDim2.fromOffset(28, 0),
+		Size = UDim2.new(1, -28, 1, 0),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextWrapped = false,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+	})
+	objText.TextScaled = false
+	objText.TextSize = 16
+	-- Контракт клиента: Title/Progress/Why/Cycle/Bar — оставлены (Progress и
+	-- Cycle теперь просто подписи, Bar скрыт: на референсе полоски нет).
+	local progress = UiKit.Text(row, "Progress", "0/1", { _Style = "SerifBody", Visible = false, Size = UDim2.fromOffset(0, 0) })
+	progress.LayoutOrder = 9
+	UiKit.Text(row, "Cycle", "", { _Style = "SerifBody", Visible = false, Size = UDim2.fromOffset(0, 0), LayoutOrder = 10 })
+	local _, fill = UiKit.Bar(row, "Bar", "Gold", { Size = UDim2.fromOffset(0, 0), Visible = false })
+	fill.Visible = false
+	UiKit.Group(row, "Gap", { Size = UDim2.new(1, 0, 0, 8), LayoutOrder = 20 })
 
 	-- Заголовок секции окна («Daily Quests (23h 59m)»).
 	local section = UiKit.SectionHeader(templates, "SectionTitle", "Daily Quests", "Blue", { _Layout = "Left", _Height = 30 })
@@ -217,12 +263,13 @@ function Builder.Build()
 	}).FontFace = Font.fromEnum(Enum.Font.GothamBold)
 	UiKit.Badge(toggle, "Badge", "", { Size = UDim2.fromOffset(12, 12), Position = UDim2.new(1, -4, 0, 4), Visible = false })
 
+	-- Трекер слева над портретом: строки растут ВВЕРХ от нижнего края.
 	local tracker = UiKit.Group(gui, "QuestTracker", {
 		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.new(0, 12, 1, -140),
-		Size = UDim2.fromOffset(280, 80),
+		Position = UDim2.new(0, 14, 1, -140),
+		Size = UDim2.fromOffset(320, 300),
 	})
-	UiKit.List(tracker, { Padding = UDim.new(0, 6) })
+	UiKit.List(tracker, { Padding = UDim.new(0, 4), VerticalAlignment = Enum.VerticalAlignment.Bottom })
 
 	UiKit.Dimmer(gui, { Size = UDim2.new(1, 0, 1, 80), Position = UDim2.fromOffset(0, -60), ZIndex = 10 })
 

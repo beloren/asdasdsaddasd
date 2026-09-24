@@ -9,6 +9,7 @@
 --
 --   WorldUi.Text(parent, name, style, props)  → TextLabel по образцу стиля
 --        style: "Title" | "Heading" | "Number" | "Money" | "Body" | "Small" | "Glyph"
+--               | "NpcName" | "NpcSub" | "NpcArrow"
 --   WorldUi.Restyle(label, style)             → перекрасить готовый TextLabel
 --   WorldUi.Billboard(template, props)        → клон Billboards/<template>
 --        (или пустой BillboardGui, если такого шаблона нет)
@@ -123,6 +124,20 @@ function WorldUi.Billboard(templateName, props)
 	end
 	board.Enabled = true
 	apply(board, props)
+	return board
+end
+
+-- Билборд одного и того же размера на экране при любом отдалении камеры:
+-- Scale-часть Size (студы) переводится в пиксели (studsToPixels ≈ вид с
+-- ~20 студов). Дети в Scale растягиваются вместе с холстом.
+function WorldUi.FixedScreenSize(board, studsToPixels)
+	if not (board and board:IsA("BillboardGui")) then return board end
+	local k = studsToPixels or 26
+	local size = board.Size
+	if size.X.Scale ~= 0 or size.Y.Scale ~= 0 then
+		board.Size = UDim2.fromOffset(size.X.Offset + size.X.Scale * k, size.Y.Offset + size.Y.Scale * k)
+	end
+	board.DistanceStep = 0
 	return board
 end
 

@@ -41,10 +41,16 @@ Theme.Fonts = {
 	Small = Font.new(FAMILY, Enum.FontWeight.SemiBold, Enum.FontStyle.Italic),-- подписи, прогресс «0/20»
 	Number = Font.new(FAMILY, Enum.FontWeight.Heavy, Enum.FontStyle.Italic),  -- цены, деньги, счётчики
 	Plain = Font.new(FAMILY, Enum.FontWeight.SemiBold, Enum.FontStyle.Normal),-- ввод текста
+	-- v20.3: засечный шрифт — имена NPC над головой и трекер квестов слева
+	-- (референс «Ice Man» / «Sensei Moro Final»).
+	Serif = Font.new("rbxasset://fonts/families/Merriweather.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal),
+	SerifBody = Font.new("rbxasset://fonts/families/Merriweather.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
 }
 
 -- Толщина тёмной обводки текста по стилю.
 Theme.TextStroke = {
+	Serif = 1.6,
+	SerifBody = 1.2,
 	Title = 2.5,
 	Heading = 1.8,
 	Body = 1.4,
@@ -182,6 +188,7 @@ Theme.Icons = {
 	Rewards = "",
 	Social = "",
 	Book = "",
+	QuestDiamond = "", -- золотой ромб у квеста в трекере; пусто = «◈»
 }
 
 -- Размеры по умолчанию.

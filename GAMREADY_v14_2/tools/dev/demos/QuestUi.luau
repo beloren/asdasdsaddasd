@@ -15,7 +15,15 @@ return function(gui, shared, require)
 		end
 	end
 	add("DoneCard", 10)
-	gui.QuestModal.Visible = true
-	gui.Dimmer.Visible = true
-	local row = t.TrackerRow:Clone(); row.Parent = gui.QuestTracker; row.Bar.Fill.Size = UDim2.fromScale(0.4, 1)
+	gui.QuestModal.Visible = _G.PREVIEW_MODAL == true
+	gui.Dimmer.Visible = _G.PREVIEW_MODAL == true
+	for i, q in { { "Goblin King 2", "Give items to 'Goblin King'.", "- Bring 3 Topaz and 10000 gold." }, { "Sensei Moro Final", "Find the rarest ores to the forge!", "- Get Fireite: 0/3" } } do
+		local row = t.TrackerRow:Clone()
+		row.Visible = true
+		row.LayoutOrder = i
+		row.Header.Title.Text = q[1]
+		row.Why.Text = q[2]
+		row.Objective.Text.Text = q[3]
+		row.Parent = gui.QuestTracker
+	end
 end

@@ -187,7 +187,33 @@ end
 -- ТРЕКЕР
 --------------------------------------------------------------------------------
 local trackerRows = {}
+local collapsedRows = {} -- [questId] = true — свёрнут кнопкой «^»
+local MAX_TRACKED = 3
 
+local function titleCase(text)
+	return (string.gsub(string.lower(text), "(%a)([%w']*)", function(first, rest) return string.upper(first) .. rest end))
+end
+
+-- Заголовок — название квеста, ниже — описание, строка цели — короткая
+-- формулировка (Short) с прогрессом: «◇ - Clear The Way: 0/3».
+local function fillTrackerRow(row, quest)
+	local header = row:WaitForChild("Header")
+	header.Title.Text = tr(quest.Title or quest.Short or "")
+	local objective = row:FindFirstChild("Objective")
+	if objective then
+		local goal = quest.Short and titleCase(tr(quest.Short)) or tr("Progress")
+		objective.Text.Text = ("- %s: %s%s"):format(goal, progressText(quest), distanceSuffix(quest))
+	end
+	local description = quest.Description and quest.Description ~= "" and quest.Description or whyOf(quest)
+	row.Why.Text = tr(description)
+	local collapsed = collapsedRows[quest.Id] == true
+	row.Why.Visible = not collapsed and row.Why.Text ~= ""
+	if objective then objective.Visible = not collapsed end
+	header.Caret.Text = collapsed and "v" or "^"
+end
+
+-- v20.3: трекер как на референсе — до MAX_TRACKED квестов списком, без
+-- подложек; «^» сворачивает квест до заголовка, клик по заголовку — тоже.
 local function renderTracker(state)
 	for _, row in trackerRows do row:Destroy() end
 	trackerRows = {}
@@ -197,50 +223,35 @@ local function renderTracker(state)
 	end
 	local list = trackedQuests(state)
 	applyNavigation(list)
-	-- На экране только ОДИН закреплённый квест. Остальные — в окне 📜
-	-- (кнопка Track закрепляет), а клик по плашке листает к следующему.
-	local quest, pinnedIndex = nil, 1
-	for index, candidate in list do
-		if candidate.Id == selectedId then quest, pinnedIndex = candidate, index end
-	end
-	tracker.Visible = quest ~= nil
-	if not quest then return end
-	local accent = KIND_ACCENT[quest.Kind] or KIND_ACCENT.Daily
-	local row = clone("TrackerRow")
-	row.Name = "Row_" .. tostring(quest.Id)
-	row.LayoutOrder = 1
-	setStroke(row, accent.Main)
-	row.Title.Text = "📍 " .. tr(quest.Short or quest.Title)
-	row.Title.TextColor3 = accent.Light
-	row.Progress.Text = progressText(quest)
-	setBar(row, (tonumber(quest.Progress) or 0) / math.max(1, tonumber(quest.Target) or 1), accent)
-	row.Why.Text = "➜ " .. tr(whyOf(quest)) .. distanceSuffix(quest)
-	row.Cycle.Visible = #list > 1
-	row.Cycle.Text = ("⇄  %d/%d"):format(pinnedIndex, #list)
-	if #list <= 1 then
-		row.Why.Size = UDim2.new(1, 0, row.Why.Size.Y.Scale, row.Why.Size.Y.Offset)
-	end
-	row.Parent = tracker
-	row.Activated:Connect(function()
-		UiSfx.play("UiButtonClick")
-		if #list <= 1 then return end
-		local nextQuest = list[(pinnedIndex % #list) + 1]
-		selectedId = nextQuest and nextQuest.Id or selectedId
-		renderTracker(latestState)
+	-- Закреплённый (Track) — первым.
+	table.sort(list, function(a, b)
+		if (a.Id == selectedId) ~= (b.Id == selectedId) then return a.Id == selectedId end
+		return false
 	end)
-	table.insert(trackerRows, row)
+	tracker.Visible = #list > 0
+	for index, quest in list do
+		if index > MAX_TRACKED then break end
+		local row = clone("TrackerRow")
+		row.Name = "Row_" .. tostring(quest.Id)
+		row.LayoutOrder = index
+		fillTrackerRow(row, quest)
+		row.Parent = tracker
+		local questId = quest.Id
+		row.Activated:Connect(function()
+			UiSfx.play("UiButtonClick")
+			collapsedRows[questId] = not collapsedRows[questId] or nil
+			fillTrackerRow(row, quest)
+		end)
+		table.insert(trackerRows, row)
+	end
 end
 
 -- Расстояние в трекере обновляется навигатором через атрибут.
 player:GetAttributeChangedSignal("QuestNavDistance"):Connect(function()
-	local row = selectedId and tracker:FindFirstChild("Row_" .. tostring(selectedId))
-	local whyLabel = row and row:FindFirstChild("Why")
-	if whyLabel and latestState then
-		for _, candidate in trackedQuests(latestState) do
-			if candidate.Id == selectedId then
-				whyLabel.Text = "➜ " .. tr(whyOf(candidate)) .. distanceSuffix(candidate)
-			end
-		end
+	if not latestState then return end
+	for _, candidate in trackedQuests(latestState) do
+		local row = tracker:FindFirstChild("Row_" .. tostring(candidate.Id))
+		if row then fillTrackerRow(row, candidate) end
 	end
 end)
 

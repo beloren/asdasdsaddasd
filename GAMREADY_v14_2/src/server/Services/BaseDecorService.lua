@@ -262,12 +262,21 @@ local function worldCFrame(plot, record)
 	return base * CFrame.Angles(0, math.rad(record.R or 0), 0)
 end
 
+-- v20.3: подпись над тотемом/трофеем — ВСЕГДА одного размера на экране
+-- (размер в пикселях, не в студах) и в стиле имён NPC: белое засечное имя,
+-- ниже — строки поменьше. Билборды, пришедшие со своей моделью из Assets,
+-- тоже переводятся в фиксированный размер.
 local function addLabel(model, anchor, lines, maxDistance, heightOffset)
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BillboardGui") then WorldUi.FixedScreenSize(descendant) end
+	end
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "DecorLabel"
 	billboard.Adornee = anchor
-	billboard.Size = UDim2.fromOffset(220, 26 * #lines)
+	billboard.Size = UDim2.fromOffset(240, 30 + 22 * math.max(0, #lines - 1))
 	billboard.StudsOffsetWorldSpace = Vector3.new(0, heightOffset, 0)
+	billboard.AlwaysOnTop = true
+	billboard.DistanceStep = 0
 	billboard.LightInfluence = 0
 	billboard.MaxDistance = maxDistance
 	billboard.Parent = model
@@ -276,13 +285,13 @@ local function addLabel(model, anchor, lines, maxDistance, heightOffset)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = billboard
 	for index, line in lines do
-		local label = WorldUi.Text(nil, "Text", "Heading")
+		local label = WorldUi.Text(nil, "Text", index == 1 and "NpcName" or "NpcSub")
 		label.LayoutOrder = index
 		label.BackgroundTransparency = 1
-		label.Size = UDim2.new(1, 0, 0, index == 1 and 28 or 22)
+		label.Size = UDim2.new(1, 0, 0, index == 1 and 30 or 22)
 		label.TextScaled = true
 		label.Text = line.Text
-		label.TextColor3 = line.Color or Color3.new(1, 1, 1)
+		if index > 1 and line.Color then label.TextColor3 = line.Color end
 		label.Parent = billboard
 	end
 end

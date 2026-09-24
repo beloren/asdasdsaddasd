@@ -10,7 +10,8 @@
 -- СТРУКТУРА (контракт):
 --   ScreenGui "WorldUiTemplates" (Enabled=false — сам ничего не рисует)
 --   ├─ Folder "TextStyles" — образцы TextLabel (FontFace + UIStroke "TextStroke"):
---   │    "Title", "Heading", "Number", "Money", "Body", "Small", "Glyph"
+--   │    "Title", "Heading", "Number", "Money", "Body", "Small", "Glyph",
+--   │    "NpcName", "NpcSub", "NpcArrow" (имена NPC, подписи трофеев)
 --   ├─ Folder "Plates" — образцы подложек (ImageLabel со скином):
 --   │    "Pill", "Card", "Dark", "Bar" (→ "Fill")
 --   └─ Folder "Billboards" — готовые билборды:
@@ -36,6 +37,11 @@ Builder.TEXT_STYLES = {
 	Body = { Font = "Body", Stroke = 2, Color = Theme.Colors.Text },
 	Small = { Font = "Small", Stroke = 1.5, Color = Theme.Colors.SubText },
 	Glyph = { Font = "Title", Stroke = 3, Color = Theme.Accents.Gold.Main },
+	-- v20.3: имена NPC и подписи трофеев/тотемов (референс «Ice Man»):
+	-- белый засечный шрифт с тёмной обводкой, «v»-стрелка под именем.
+	NpcName = { Font = "Serif", Stroke = 2, Color = Color3.new(1, 1, 1) },
+	NpcSub = { Font = "SerifBody", Stroke = 1.6, Color = Color3.fromRGB(225, 225, 230) },
+	NpcArrow = { Font = "SerifBody", Stroke = 1.2, Color = Color3.fromRGB(200, 200, 205) },
 }
 
 local function textSample(parent, name, spec)
