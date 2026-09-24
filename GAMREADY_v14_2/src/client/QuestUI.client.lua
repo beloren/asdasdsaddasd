@@ -281,7 +281,7 @@ local function questCard(quest, order, accent, done)
 		local card = clone("DoneCard")
 		card.Name = "Quest_" .. tostring(quest.Id)
 		card.LayoutOrder = order
-		card.Title.Text = "✔ " .. tr(quest.Title or "")
+		card.Title.Text = "✅ " .. tr(quest.Title or "")
 		card.Parent = content
 		return card
 	end
@@ -419,7 +419,7 @@ local function renderWeekly(state)
 		setStroke(card, color)
 		card.Title.Text = ("🎁 %s"):format(chestInfo and chestInfo.DisplayName or chest.Rarity)
 		card.Title.TextColor3 = color
-		card.Status.Text = chest.Claimed and ("✔ " .. tr("RECEIVED")) or ("%d/%d ⭐"):format(math.min(points, chest.Points), chest.Points)
+		card.Status.Text = chest.Claimed and ("✅ " .. tr("RECEIVED")) or ("%d/%d ⭐"):format(math.min(points, chest.Points), chest.Points)
 		card.Status.TextColor3 = chest.Claimed and Theme.Colors.Positive or Theme.Colors.SubText
 		card.Parent = content
 	end

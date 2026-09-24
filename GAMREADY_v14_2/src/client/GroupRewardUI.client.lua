@@ -42,7 +42,7 @@ local function refreshRewards()
 	local bonus = math.floor((tonumber(state.IncomeBonus or Config.GroupReward.IncomeBonus) or 0) * 100 + 0.5)
 	local chestInfo = Config.Chests and Config.Chests.Types and Config.Chests.Types[state.ChestRarity or Config.GroupReward.ChestRarity or "Common"]
 	local chestName = chestInfo and chestInfo.DisplayName or "Chest"
-	ui.SetRewards(("💰 +%d%% CASH FOREVER"):format(bonus), state.Claimed and "✔ CHEST CLAIMED" or ("🎁 FREE %s"):format(chestName:upper()))
+	ui.SetRewards(("💰 +%d%% CASH FOREVER"):format(bonus), state.Claimed and "✅ CHEST CLAIMED" or ("🎁 FREE %s"):format(chestName:upper()))
 end
 refreshRewards()
 
@@ -53,7 +53,7 @@ end
 local function showPopup(force)
 	if (state.Claimed and state.Member and not force) or ui.Open then return end
 	joinGroupButton.Active = true
-	ui.SetCaption((state.Claimed and state.Member) and "✔ YOU'RE IN THE GROUP" or ACTION_TEXT)
+	ui.SetCaption((state.Claimed and state.Member) and "✅ YOU'RE IN THE GROUP" or ACTION_TEXT)
 	UiSfx.play("GroupPrompt")
 	ui.Show()
 end

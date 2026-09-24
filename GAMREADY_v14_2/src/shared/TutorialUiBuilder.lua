@@ -23,7 +23,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local TutorialUiBuilder = {}
-TutorialUiBuilder.VERSION = 20
+TutorialUiBuilder.VERSION = 21
 
 -- narrow = true для узкого экрана (телефон). Влияет только на стартовые
 -- размеры; клиент пересчитывает их сам при смене размера окна.
@@ -83,7 +83,7 @@ function TutorialUiBuilder.Build(narrow)
 	body.TextScaled = false
 	body.TextSize = 18
 
-	UiKit.Text(dialog, "Continue", "▼", {
+	local continueArrow = UiKit.Text(dialog, "Continue", "", {
 		_Style = "Heading",
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -16, 1, -8),
@@ -92,6 +92,7 @@ function TutorialUiBuilder.Build(narrow)
 		Visible = false,
 		ZIndex = 3,
 	})
+	UiKit.GlyphToShape(continueArrow, "ChevronDown") -- v20.9: фигура вместо ▼
 
 	-- Тап в любое место окна продвигает диалог.
 	local advance = Instance.new("TextButton")

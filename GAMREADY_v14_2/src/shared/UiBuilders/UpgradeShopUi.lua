@@ -159,7 +159,7 @@ function Builder.Build()
 
 	-- ЭКРАН 2: ВЫБРАННАЯ ВЕТКА
 	local detail = UiKit.Group(content, "DetailView", { Visible = false, ZIndex = 3 })
-	UiKit.Button(detail, "Back", "◀ BACK", "Blue", {
+	UiKit.Button(detail, "Back", "BACK", "Blue", {
 		Position = UDim2.fromOffset(2, 2),
 		Size = UDim2.fromOffset(110, 38),
 		ZIndex = 4,

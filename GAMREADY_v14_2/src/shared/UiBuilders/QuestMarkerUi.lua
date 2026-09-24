@@ -5,23 +5,21 @@
 -- СТРУКТУРА (контракт):
 --   ScreenGui "QuestMarkerUi"
 --   ├─ Frame "EdgeArrow" (вращается клиентом) → ImageLabel "Image" (свой
---   │    ассет стрелки, смотрит ВПРАВО), TextLabel "Glyph" (запасной ➤)
+--   │    ассет стрелки, смотрит ВПРАВО), Frame "Glyph" (запасная стрелка-фигура)
 --   └─ Folder "Templates" → SurfaceGui "Chevron" → ImageLabel "Image",
---        TextLabel "Glyph" (▲)
+--        Frame "Glyph" (шеврон-фигура)
 --------------------------------------------------------------------------------
 local UiKit = require(script.Parent.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 20
+Builder.VERSION = 21
 
-local function glyphPair(parent, glyph, stroke)
+-- v20.9: запасной значок — фигура из рамок (UiKit.Shape): символов ➤ и ▲
+-- в шрифтах Roblox нет, был «квадратик».
+local function glyphPair(parent, kind)
 	UiKit.Icon(parent, "Image", "", { ZIndex = 2 })
-	UiKit.Text(parent, "Glyph", glyph, {
-		_Style = "Title",
-		_Stroke = stroke,
-		TextColor3 = Theme.Accents.Gold.Main,
-	})
+	UiKit.Shape(parent, "Glyph", kind, { Color = Theme.Accents.Gold.Main, Size = UDim2.fromScale(0.9, 0.9) })
 end
 
 function Builder.Build()
@@ -33,7 +31,7 @@ function Builder.Build()
 		Size = UDim2.fromOffset(46, 46),
 		Visible = false,
 	})
-	glyphPair(arrow, "➤", 3)
+	glyphPair(arrow, "ArrowRight")
 
 	local templates = Instance.new("Folder")
 	templates.Name = "Templates"
@@ -44,7 +42,7 @@ function Builder.Build()
 	chevron.LightInfluence = 0
 	chevron.AlwaysOnTop = false
 	chevron.Parent = templates
-	glyphPair(chevron, "▲", 0)
+	glyphPair(chevron, "ChevronUp")
 	UiKit.HideTemplates(gui) -- шаблоны выключены с рождения
 	return gui
 end

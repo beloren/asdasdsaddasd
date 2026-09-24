@@ -175,47 +175,9 @@ end
 --------------------------------------------------------------------------------
 -- ВИЗУАЛ В РУКЕ
 --------------------------------------------------------------------------------
-local function assetFolder(path)
-	local node = ReplicatedStorage
-	for _, name in path do
-		node = node and node:FindFirstChild(name)
-	end
-	return node
-end
-
+-- v20.9: модель сундука общая с клиентом (призрак установки) — PlaceableFactory.BuildChest.
 local function chestAsset(rarity)
-	local info = Config.Chests.Types[rarity]
-	local folder = assetFolder(Config.Chests.AssetFolderPath)
-	local asset = folder and info and folder:FindFirstChild(info.ModelName)
-	if asset then
-		local clone = asset:Clone()
-		if clone:IsA("Model") and not clone.PrimaryPart then
-			clone.PrimaryPart = clone:FindFirstChildWhichIsA("BasePart", true)
-		end
-		return clone
-	end
-	-- Заглушка: ящик с крышкой цвета редкости.
-	local model = Instance.new("Model")
-	model.Name = info and info.ModelName or "Chest"
-	local body = Instance.new("Part")
-	body.Name = "Body"
-	body.Size = Vector3.new(3, 2, 2)
-	body.Color = Color3.fromRGB(120, 80, 45)
-	body.Material = Enum.Material.Wood
-	body.Parent = model
-	local lid = Instance.new("Part")
-	lid.Name = "Lid"
-	lid.Size = Vector3.new(3.1, 0.7, 2.1)
-	lid.Color = info and info.Color or Color3.new(1, 1, 1)
-	lid.Material = Enum.Material.Metal
-	lid.CFrame = body.CFrame * CFrame.new(0, 1.35, 0)
-	lid.Parent = model
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = body
-	weld.Part1 = lid
-	weld.Parent = body
-	model.PrimaryPart = body
-	return model
+	return require(ReplicatedStorage.Shared.PlaceableFactory).BuildChest(rarity)
 end
 
 local function dynamiteModel(key)
@@ -766,6 +728,9 @@ function GearService:_placeChest(player, position)
 	if not (rarity and data and Config.Chests.Types[rarity]) or gearCount(data, key) <= 0 then return end
 	local pad = plotPad(player)
 	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	-- v20.9: призрак установки (PlacementGhost) присылает CFrame — с поворотом.
+	local placedCFrame = typeof(position) == "CFrame" and position or nil
+	if placedCFrame then position = placedCFrame.Position end
 	if not (pad and hrp) or typeof(position) ~= "Vector3" then return end
 	if not insidePad(pad, position) then
 		Services.NotifyService:Show(player, "Place chests on YOUR base!", { Icon = "Geode" })
@@ -781,6 +746,10 @@ function GearService:_placeChest(player, position)
 	local localPoint = pad.CFrame:PointToObjectSpace(position)
 	local look = (hrp.Position - position) * Vector3.new(1, 0, 1)
 	local yaw = look.Magnitude > 0.1 and math.atan2(-look.X, -look.Z) or 0
+	if placedCFrame then
+		local _, localYaw = pad.CFrame.Rotation:ToObjectSpace(placedCFrame.Rotation):ToOrientation()
+		yaw = localYaw
+	end
 	local entry = {
 		Id = HttpService:GenerateGUID(false),
 		Rarity = rarity,

@@ -207,7 +207,7 @@ local function renderShrineDetail()
 	detail.Next.Text = tr("Place it on your base")
 	detail.Hint.Visible = false
 	if info.Owned then
-		upgradeText.Text = "✔ " .. tr("OWNED")
+		upgradeText.Text = "✅ " .. tr("OWNED")
 		upgradeButton.BackgroundColor3 = COLOR_GREY
 	else
 		local affordable = state.Points >= (def.Cost or math.huge)
@@ -232,7 +232,7 @@ local function renderShrines()
 			card.LayoutOrder = index
 			card.Icon.Text = def.Icon or "🗿"
 			card.Title.Text = tr(def.DisplayName)
-			card.Status.Text = info.Owned and ("✔ " .. tr("OWNED")) or ("⭐ " .. tostring(def.Cost or 0))
+			card.Status.Text = info.Owned and ("✅ " .. tr("OWNED")) or ("⭐ " .. tostring(def.Cost or 0))
 			card.Status.TextColor3 = info.Owned and COLOR_GREEN_TEXT or COLOR_GOLD_TEXT
 			card.BackgroundColor3 = (selectedShrine == shrineId) and COLOR_STAR:Lerp(Color3.new(1, 1, 1), 0.25)
 				or (info.Owned and COLOR_GREEN:Lerp(COLOR_INK, 0.35) or COLOR_STAR)
@@ -290,18 +290,18 @@ renderDetail = function()
 	local hint = detail.Hint
 	hint.Visible = false
 	if info.Level >= perk.MaxLevel then
-		detail.Next.Text = "✔ MAX"
+		detail.Next.Text = "✅ MAX"
 		upgradeText.Text = "MAX"
 		upgradeButton.BackgroundColor3 = COLOR_GREY
 	elseif info.Locked then
 		local required = info.Requires and PERK_BY_ID[info.Requires]
-		detail.Next.Text = "▶ " .. effectText(perk, info.Level + 1)
+		detail.Next.Text = "> " .. effectText(perk, info.Level + 1)
 		hint.Visible = true
 		hint.Text = "🔒 " .. tr("Needs {p}", { p = required and tr(required.Title) or "?" })
 		upgradeText.Text = "🔒"
 		upgradeButton.BackgroundColor3 = COLOR_GREY
 	else
-		detail.Next.Text = "▶ " .. effectText(perk, info.Level + 1)
+		detail.Next.Text = "> " .. effectText(perk, info.Level + 1)
 		local affordable = state.Points >= (info.Cost or math.huge)
 		upgradeText.Text = "⭐ " .. tostring(info.Cost or 0)
 		upgradeButton.BackgroundColor3 = affordable and COLOR_GREEN or COLOR_ORANGE

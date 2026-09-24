@@ -146,11 +146,11 @@ function LikeGoalService:_buildBoard()
 		local done = reached(goal)
 		local text
 		if done and goal.Kind == "Code" then
-			text = ("✔ %s  —  CODE: %s"):format(NumberFormat.abbreviate(goal.Likes), tostring(goal.Code))
+			text = ("✅ %s  —  CODE: %s"):format(NumberFormat.abbreviate(goal.Likes), tostring(goal.Code))
 		elseif done and goal.Kind == "Event" then
-			text = ("✔ %s  —  %s %s"):format(NumberFormat.abbreviate(goal.Likes), goal.Text or "", eventActive(goal) and "(ACTIVE!)" or "(ended)")
+			text = ("✅ %s  —  %s %s"):format(NumberFormat.abbreviate(goal.Likes), goal.Text or "", eventActive(goal) and "(ACTIVE!)" or "(ended)")
 		else
-			text = ("%s %s  —  %s"):format(done and "✔" or "🔒", NumberFormat.abbreviate(goal.Likes), goal.Text or "")
+			text = ("%s %s  —  %s"):format(done and "✅" or "🔒", NumberFormat.abbreviate(goal.Likes), goal.Text or "")
 		end
 		label(list, {
 			Text = text, LayoutOrder = index, Size = UDim2.fromScale(1, 1 / count - 0.03),

@@ -14,7 +14,7 @@ local UiKit = require(script.Parent.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 20
+Builder.VERSION = 21
 
 local function hintPill(parent, props)
 	local pill = UiKit.Plate(parent, "Hint", "Pill", props)
@@ -57,8 +57,10 @@ function Builder.Build()
 		HorizontalAlignment = Enum.HorizontalAlignment.Right,
 		Padding = UDim.new(0, 10),
 	})
-	UiKit.Button(bar, "Rotate", "↻", "Blue", { _TextStyle = "Title", Size = UDim2.fromOffset(62, 62), LayoutOrder = 1 })
-	UiKit.Button(bar, "Place", "✔", "Green", { _TextStyle = "Title", Size = UDim2.fromOffset(62, 62), LayoutOrder = 2 })
+	-- v20.9: без символов ↻/✔ (в шрифтах Roblox их нет → «квадратик»).
+	UiKit.Button(bar, "Rotate", "R", "Blue", { _TextStyle = "Title", Size = UDim2.fromOffset(62, 62), LayoutOrder = 1 })
+	local place = UiKit.Button(bar, "Place", "", "Green", { _TextStyle = "Title", Size = UDim2.fromOffset(62, 62), LayoutOrder = 2 })
+	UiKit.Shape(place, "Icon", "Check", { Size = UDim2.fromScale(0.6, 0.6), ZIndex = place.ZIndex + 2 })
 	return gui
 end
 

@@ -27,7 +27,7 @@ local Theme = UiKit.Theme
 local Builder = {}
 Builder.Width = 800
 Builder.Height = 520
-Builder.VERSION = 20
+Builder.VERSION = 21
 
 local GOLD = Theme.Accents.Gold
 local STAR = Color3.fromRGB(80, 70, 150)
@@ -209,7 +209,7 @@ function Builder.Build()
 	UiKit.Text(detail, "Title", "Money", { _Style = "Title", Position = UDim2.fromOffset(10, 110), Size = UDim2.new(1, -20, 0, 36), ZIndex = 4 })
 	UiKit.Text(detail, "Level", "LV 0/25", { _Style = "Number", Position = UDim2.fromOffset(10, 148), Size = UDim2.new(1, -20, 0, 24), TextColor3 = GOLD.Light, ZIndex = 4 })
 	UiKit.Text(detail, "Now", "+0%", { _Style = "Body", Position = UDim2.fromOffset(10, 186), Size = UDim2.new(1, -20, 0, 24), TextColor3 = Theme.Colors.SubText, ZIndex = 4 })
-	UiKit.Text(detail, "Next", "▶ +4%", { _Style = "Heading", Position = UDim2.fromOffset(10, 214), Size = UDim2.new(1, -20, 0, 28), TextColor3 = Theme.Colors.Positive, ZIndex = 4 })
+	UiKit.Text(detail, "Next", "> +4%", { _Style = "Heading", Position = UDim2.fromOffset(10, 214), Size = UDim2.new(1, -20, 0, 28), TextColor3 = Theme.Colors.Positive, ZIndex = 4 })
 	UiKit.Text(detail, "Hint", "", { _Style = "Small", Position = UDim2.new(0, 10, 1, -108), Size = UDim2.new(1, -20, 0, 22), TextColor3 = Color3.fromRGB(255, 160, 110), Visible = false, ZIndex = 4 })
 	button(detail, "UpgradeButton", "⭐ 1", "Green", {
 		Position = UDim2.new(0, 14, 1, -74),

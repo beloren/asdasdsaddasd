@@ -3242,7 +3242,7 @@ end
 			paintCard(visual, COLORS.Grey, true)
 			visual.Icon.TextTransparency = 0.35
 			visual.Shine.Visible = false
-			visual.ChipText.Text = '<font color="#9CFFB4">✔ ' .. tr("MAX") .. "</font>"
+			visual.ChipText.Text = '<font color="#9CFFB4">✅ ' .. tr("MAX") .. "</font>"
 		elseif status.State == "NeedRebirth" then
 			paintCard(visual, COLORS.Grey, true)
 			visual.Icon.TextTransparency = 0.6
@@ -3482,7 +3482,7 @@ end
 			if before and after then
 				text = ('%s: <font color="#C8CCDA">%s</font>  →  <font color="#6CFF9A">%s</font>'):format(rowInfo.Name, before, after)
 			elseif after then
-				text = ('<font color="#6CFF9A">✔</font> %s: <font color="#6CFF9A">%s</font>'):format(rowInfo.Name, after)
+				text = ('<font color="#6CFF9A">✅</font> %s: <font color="#6CFF9A">%s</font>'):format(rowInfo.Name, after)
 			elseif before then
 				text = ('%s: <font color="#C8CCDA">%s</font>'):format(rowInfo.Name, before)
 			end

@@ -1002,9 +1002,130 @@ function UiKit.ThemeIcon(parent, name, iconKey, emoji, props)
 	local uri = UiKit.ImageUri(Theme.Icons[iconKey])
 	local i = UiKit.Icon(parent, name, uri, props)
 	i:SetAttribute("UiIcon", iconKey)
-	local e = UiKit.Text(i, "Emoji", emoji or "", { _Stroke = 0, Visible = uri == "", ZIndex = i.ZIndex })
+	-- «@Check», «@Cross», «@Diamond»… — запасной значок рисуется фигурой
+	-- (UiKit.Shape), а не символом: у шрифтов Roblox нет ✔ ✕ ◈ ➤ ▼.
+	local shapeKind = typeof(emoji) == "string" and emoji:match("^@(%a+)$")
+	local e = UiKit.Text(i, "Emoji", shapeKind and "" or emoji or "", { _Stroke = 0, Visible = uri == "", ZIndex = i.ZIndex })
 	e.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+	if shapeKind then
+		UiKit.Shape(e, "Shape", shapeKind, { ZIndex = i.ZIndex })
+	end
 	return i
+end
+
+--------------------------------------------------------------------------------
+-- Фигуры вместо «квадратиков» (v20.9). У шрифтов Roblox нет ✔ ✕ ➤ ▲ ▼ ◈ ◇,
+-- они рисуются пустым квадратом. UiKit.Shape собирает такие значки из Frame:
+-- тёмный контур (Outline*) + цветная заливка (Fill*), всё в долях квадрата.
+--   UiKit.Shape(parent, name, kind, { Color, ZIndex, Size, Position, AnchorPoint, Visible })
+--   UiKit.PaintShape(shape, color, transparency)
+-- kind: Check, Cross, ArrowRight, ChevronUp, ChevronDown, ChevronLeft,
+--       ChevronRight, Diamond (◈), DiamondHollow (◇).
+--------------------------------------------------------------------------------
+local SHAPES = {
+	Check = { { 0.1, 0.52, 0.4, 0.8 }, { 0.4, 0.8, 0.9, 0.2 } },
+	Cross = { { 0.18, 0.18, 0.82, 0.82 }, { 0.82, 0.18, 0.18, 0.82 } },
+	ChevronRight = { { 0.32, 0.14, 0.72, 0.5 }, { 0.32, 0.86, 0.72, 0.5 } },
+	ChevronLeft = { { 0.68, 0.14, 0.28, 0.5 }, { 0.68, 0.86, 0.28, 0.5 } },
+	ChevronUp = { { 0.14, 0.68, 0.5, 0.28 }, { 0.86, 0.68, 0.5, 0.28 } },
+	ChevronDown = { { 0.14, 0.32, 0.5, 0.72 }, { 0.86, 0.32, 0.5, 0.72 } },
+	ArrowRight = { { 0.12, 0.5, 0.8, 0.5 }, { 0.46, 0.14, 0.84, 0.5 }, { 0.46, 0.86, 0.84, 0.5 } },
+}
+local SHAPE_THICKNESS = 0.2
+local SHAPE_OUTLINE = 0.07
+
+local function shapeBar(shape, name, x1, y1, x2, y2, thickness, extend, color, z)
+	local dx, dy = x2 - x1, y2 - y1
+	local bar = Instance.new("Frame")
+	bar.Name = name
+	bar.BorderSizePixel = 0
+	bar.AnchorPoint = Vector2.new(0.5, 0.5)
+	bar.Position = UDim2.fromScale((x1 + x2) / 2, (y1 + y2) / 2)
+	bar.Size = UDim2.fromScale(math.sqrt(dx * dx + dy * dy) + thickness + extend * 2, thickness + extend * 2)
+	bar.Rotation = math.deg(math.atan2(dy, dx))
+	bar.BackgroundColor3 = color
+	bar.ZIndex = z
+	UiKit.Corner(bar, 999)
+	bar.Parent = shape
+	return bar
+end
+
+local function shapeSquare(shape, name, size, color, z)
+	local square = Instance.new("Frame")
+	square.Name = name
+	square.BorderSizePixel = 0
+	square.AnchorPoint = Vector2.new(0.5, 0.5)
+	square.Position = UDim2.fromScale(0.5, 0.5)
+	square.Size = UDim2.fromScale(size, size)
+	square.Rotation = 45
+	square.BackgroundColor3 = color
+	square.ZIndex = z
+	UiKit.Corner(square, 3)
+	square.Parent = shape
+	return square
+end
+
+function UiKit.Shape(parent, name, kind, props)
+	props = props or {}
+	local color = props.Color or Color3.new(1, 1, 1)
+	local outline = props.OutlineColor or Theme.Colors.TextStroke or Color3.new(0, 0, 0)
+	local z = props.ZIndex or (parent and parent:IsA("GuiObject") and parent.ZIndex) or 1
+	local shape = Instance.new("Frame")
+	shape.Name = name or "Shape"
+	shape.BackgroundTransparency = 1
+	shape.BorderSizePixel = 0
+	shape.AnchorPoint = props.AnchorPoint or Vector2.new(0.5, 0.5)
+	shape.Position = props.Position or UDim2.fromScale(0.5, 0.5)
+	shape.Size = props.Size or UDim2.fromScale(1, 1)
+	shape.Visible = props.Visible ~= false
+	shape.ZIndex = z
+	shape:SetAttribute("ShapeKind", kind)
+	UiKit.Aspect(shape, 1)
+
+	local bars = SHAPES[kind]
+	if bars then
+		local thickness = props.Thickness or SHAPE_THICKNESS
+		for index, b in bars do
+			shapeBar(shape, "Outline" .. index, b[1], b[2], b[3], b[4], thickness, SHAPE_OUTLINE, outline, z)
+		end
+		for index, b in bars do
+			shapeBar(shape, "Fill" .. index, b[1], b[2], b[3], b[4], thickness, 0, color, z + 1)
+		end
+	elseif kind == "Diamond" then
+		shapeSquare(shape, "Outline1", 0.74, outline, z)
+		shapeSquare(shape, "Fill1", 0.6, color, z + 1)
+	elseif kind == "DiamondHollow" then
+		shapeSquare(shape, "Outline1", 0.72, outline, z)
+		shapeSquare(shape, "Fill1", 0.58, color, z + 1)
+		shapeSquare(shape, "Outline2", 0.3, outline, z + 2)
+	end
+	shape.Parent = parent
+	return shape
+end
+
+function UiKit.PaintShape(shape, color, transparency)
+	if not shape then return end
+	for _, child in shape:GetChildren() do
+		if child:IsA("Frame") then
+			if child.Name:match("^Fill") and color then
+				child.BackgroundColor3 = color
+			end
+			child.BackgroundTransparency = transparency or 0
+		end
+	end
+end
+
+-- Надпись со «знаком» → фигура: текст убирается, внутрь кладётся Shape того
+-- же цвета. Для подписей, которые сервер/старые билдеры создали символом.
+function UiKit.GlyphToShape(label, kind, props)
+	if not (label and label:IsA("TextLabel")) then return nil end
+	local existing = label:FindFirstChild("Shape")
+	if existing then return existing end
+	props = props or {}
+	props.Color = props.Color or label.TextColor3
+	props.ZIndex = props.ZIndex or label.ZIndex
+	label.Text = ""
+	return UiKit.Shape(label, "Shape", kind, props)
 end
 
 return UiKit

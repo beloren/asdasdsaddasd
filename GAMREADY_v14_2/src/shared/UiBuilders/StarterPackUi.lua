@@ -79,14 +79,13 @@ function Builder.Build()
 			LayoutOrder = index,
 			Size = UDim2.new(1, 0, 0, 38),
 		})
-		local check = UiKit.Text(row, "Checkmark", "✔", {
-			_Style = "Title",
-			Position = UDim2.fromOffset(8, 2),
-			Size = UDim2.fromOffset(30, 34),
-			TextColor3 = Theme.Colors.Positive,
+		UiKit.Shape(row, "Checkmark", "Check", { -- v20.9: фигура вместо ✔
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(0, 10, 0.5, 0),
+			Size = UDim2.fromOffset(24, 24),
+			Color = Theme.Colors.Positive,
 			ZIndex = 2,
 		})
-		check.FontFace = Font.fromEnum(Enum.Font.GothamBold)
 		UiKit.Text(row, "Text", line, {
 			_Style = "Heading",
 			Position = UDim2.fromOffset(44, 4),

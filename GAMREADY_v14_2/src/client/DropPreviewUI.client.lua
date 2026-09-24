@@ -147,7 +147,7 @@ local function showDetail(row)
 	detailRarity.Text = (row.Rarity or ""):upper()
 	detailRarity.TextColor3 = color
 	local owned = row.Kind == "Skin" and ownedSkins[row.SkinId]
-	detailName.Text = rowTitle(row):upper() .. (owned and "  ✔" or "")
+	detailName.Text = rowTitle(row):upper() .. (owned and "  ✅" or "")
 	detailChance.Text = chanceString(row)
 	detailDesc.Text = (row.Description or "") .. (owned and "\nYou already own it (duplicate → cash)." or "")
 	bigControl = { Angle = 0 }
@@ -205,7 +205,7 @@ local function buildRow(row, order)
 	local view = b:FindFirstChild("Preview", true)
 	if view then table.insert(rowCleanups, ItemPreview.Mount(view, row, { Spin = false, Tilt = 15 })) end
 	local owned = row.Kind == "Skin" and ownedSkins[row.SkinId]
-	b.Title.Text = rowTitle(row):upper() .. (owned and "  ✔" or "")
+	b.Title.Text = rowTitle(row):upper() .. (owned and "  ✅" or "")
 	b.Rarity.Text = (row.Rarity or ""):upper()
 	b.Rarity.TextColor3 = color
 	b.Chance.Text = DropTables.ChanceText(row.Chance)

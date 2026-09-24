@@ -298,7 +298,7 @@ local function ensureRebirthDialogGui(npc, primaryPart)
 	nameLabel.Text = "PRESTIGE MAYOR"
 
 	local arrowLabel = label("arrow", UDim2.new(1, 0, 0.18, 0), UDim2.new(0, 0, 0.28, 0), Color3.new(1, 1, 1))
-	arrowLabel.Text = "▼"
+	arrowLabel.Text = "" -- v20.9: стрелку-фигуру рисует клиент (NpcNameStyle); символа ▼ в шрифтах нет
 
 	local dialogLabel = label("dialog", UDim2.new(1, 0, 0.7, 0), UDim2.new(0, 0, 0, 0), Color3.new(1, 1, 1))
 	dialogLabel.Visible = false

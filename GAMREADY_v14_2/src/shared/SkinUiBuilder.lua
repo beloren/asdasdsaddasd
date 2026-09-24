@@ -25,7 +25,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 20
+Builder.VERSION = 21
 
 -- Кнопка UiKit, у которой подпись называется "Text" (так её ищет клиент).
 local function button(parent, name, label, variant, props)
@@ -74,7 +74,7 @@ function Builder.Build()
 		TextColor3 = Theme.Rarity.Rare,
 		ZIndex = 2,
 	})
-	UiKit.Text(card, "Equipped", "✔ EQUIPPED", {
+	UiKit.Text(card, "Equipped", "✅ EQUIPPED", {
 		_Style = "Small",
 		Position = UDim2.fromOffset(5, 154),
 		Size = UDim2.new(1, -10, 0, 14),
@@ -84,7 +84,7 @@ function Builder.Build()
 	})
 
 	local detail = UiKit.Group(body, "DetailView", { Visible = false })
-	button(detail, "BackButton", "◀ BACK", "Blue", { Size = UDim2.fromOffset(110, 38) })
+	button(detail, "BackButton", "BACK", "Blue", { Size = UDim2.fromOffset(110, 38) })
 	local preview = UiKit.Card(detail, "PreviewCard", Theme.Rarity.Common, {
 		Position = UDim2.fromOffset(20, 50),
 		Size = UDim2.fromOffset(170, 250),
@@ -112,7 +112,7 @@ function Builder.Build()
 		Size = UDim2.new(1, -220, 0, 220),
 	})
 	UiKit.List(stats, { Padding = UDim.new(0, 8) })
-	UiKit.Text(stats, "StatTemplate", "▲ +10% Ore sell price", {
+	UiKit.Text(stats, "StatTemplate", "+10% Ore sell price", {
 		_Style = "Heading",
 		Size = UDim2.new(1, 0, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,

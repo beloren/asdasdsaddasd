@@ -20,7 +20,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 20
+Builder.VERSION = 21 -- v20.9: галочка/крестик фигурами
 
 local function requirementRow(parent)
 	local row = UiKit.Plate(parent, "RequirementRow", "Inset", { Size = UDim2.new(1, 0, 0, 36), BackgroundTransparency = 0.6 })
@@ -31,22 +31,20 @@ local function requirementRow(parent)
 		ZIndex = 2,
 	})
 	-- Галочка/крестик картинкой (Theme.Icons.Check) или символом.
-	local check = UiKit.ThemeIcon(box, "Check", "Check", "✔", {
+	local check = UiKit.ThemeIcon(box, "Check", "Check", "@Check", {
 		Size = UDim2.new(1, -4, 1, -4),
 		Position = UDim2.fromOffset(2, 2),
 		ZIndex = 3,
 	})
 	check.Emoji.TextColor3 = Theme.Colors.Positive
-	check.Emoji.FontFace = Theme.Fonts.Heading
-	local cross = UiKit.Text(box, "Cross", "✕", {
-		_Style = "Heading",
-		Size = UDim2.new(1, -4, 1, -4),
-		Position = UDim2.fromOffset(2, 2),
-		TextColor3 = Theme.Colors.MutedText,
+	UiKit.PaintShape(check.Emoji:FindFirstChild("Shape"), Theme.Colors.Positive)
+	-- v20.9: крестик — фигура (символа ✕ в шрифтах Roblox нет → был «квадратик»).
+	UiKit.Shape(box, "Cross", "Cross", {
+		Size = UDim2.new(1, -8, 1, -8),
+		Color = Theme.Colors.MutedText,
 		Visible = false,
 		ZIndex = 3,
 	})
-	cross.FontFace = Font.fromEnum(Enum.Font.GothamBold)
 	UiKit.Text(row, "Label", "Upgrade Mine to tier 5", {
 		_Style = "Body",
 		Position = UDim2.fromOffset(42, 4),

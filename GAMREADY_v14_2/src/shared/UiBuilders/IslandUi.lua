@@ -26,7 +26,7 @@ local UiKit = require(script.Parent.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 20
+Builder.VERSION = 21
 Builder.PANEL_SIZE = Vector2.new(640, 470)
 Builder.CARD_W = 140
 Builder.CARD_H = 212
@@ -187,13 +187,13 @@ function Builder.Build()
 		Padding = UDim.new(0, 16),
 	})
 	UiKit.Padding(grid.Cards, 0, 10, 8, 14)
-	UiKit.Button(grid, "Left", "◀", "Blue", {
+	UiKit.Button(grid, "Left", "&lt;", "Blue", {
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 0, 0.45, 0),
 		Size = UDim2.fromOffset(36, 60),
 		ZIndex = 4,
 	})
-	UiKit.Button(grid, "Right", "▶", "Blue", {
+	UiKit.Button(grid, "Right", ">", "Blue", {
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, 0, 0.45, 0),
 		Size = UDim2.fromOffset(36, 60),
@@ -219,7 +219,7 @@ function Builder.Build()
 
 	-- ЭКРАН 2: выбранный остров
 	local detail = canvas(content, "DetailView", false)
-	UiKit.Button(detail, "Back", "◀ BACK", "Blue", {
+	UiKit.Button(detail, "Back", "BACK", "Blue", {
 		Position = UDim2.fromOffset(4, 4),
 		Size = UDim2.fromOffset(110, 38),
 		ZIndex = 4,
@@ -307,7 +307,7 @@ function Builder.Build()
 	templates.Name = "Templates"
 	templates.Parent = panel
 	Builder.BuildCard(templates)
-	UiKit.Text(templates, "PerkLine", "✔ Perk", {
+	UiKit.Text(templates, "PerkLine", "✅ Perk", {
 		_Style = "Body",
 		_MaxTextSize = 16,
 		Size = UDim2.new(1, 0, 0, 20),

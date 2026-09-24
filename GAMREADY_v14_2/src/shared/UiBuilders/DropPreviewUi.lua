@@ -23,7 +23,7 @@ local UiKit = require(script.Parent.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 20
+Builder.VERSION = 21
 Builder.W, Builder.H = 800, 540
 
 local function viewport(parent, name, props)
@@ -119,7 +119,7 @@ function Builder.Build()
 			ZIndex = 5,
 		})
 	end
-	line("DragHint", "⟲ drag to rotate", 162, 14, "Small", Theme.Colors.SubText).TextXAlignment = Enum.TextXAlignment.Center
+	line("DragHint", "drag to rotate", 162, 14, "Small", Theme.Colors.SubText).TextXAlignment = Enum.TextXAlignment.Center
 	line("Rarity", "LEGENDARY", 186, 18, "Heading")
 	line("ItemName", "CRYSTAL", 204, 30, "Title")
 	line("Chance", "1%  ·  1 in 100", 236, 22, "Number", Theme.Colors.Money)

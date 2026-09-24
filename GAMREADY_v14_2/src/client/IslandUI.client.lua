@@ -104,7 +104,7 @@ local actionText = actionButton:WaitForChild("Caption")
 panel:WaitForChild("TitleBar"):WaitForChild("Title").Text = tr("Islands")
 panel:WaitForChild("Subtitle").Text = tr("Unlock islands behind your base!")
 gridView:WaitForChild("Hint").Text = tr("Tap a card to see what it gives")
-backButton:WaitForChild("Caption").Text = "◀ " .. tr("BACK")
+backButton:WaitForChild("Caption").Text = tr("BACK")
 
 --------------------------------------------------------------------------------
 -- КАРТОЧКА (общая для сетки и превью на экране улучшения) — клон шаблона.
@@ -144,7 +144,7 @@ local function applyCard(visual, entry)
 		if visual.Rim then visual.Rim.Color = Color3.fromRGB(120, 122, 132) end
 		if visual.Shine then visual.Shine.Visible = false end
 		local levelText = entry.UpgradeLevel and ("  LV %d/%d"):format(entry.UpgradeLevel, entry.UpgradeMax) or ""
-		visual.ChipText.Text = '<font color="#9CFFB4">✔ ' .. tr("OWNED") .. "</font>" .. levelText
+		visual.ChipText.Text = '<font color="#9CFFB4">✅ ' .. tr("OWNED") .. "</font>" .. levelText
 	elseif not entry.RequiresMet then
 		visual.Card.BackgroundColor3 = DARK_CARD
 		visual.Icon.TextTransparency = 0.6
@@ -241,7 +241,7 @@ local function renderDetail()
 	for index, perk in entry.Perks or {} do
 		local line = templates:WaitForChild("PerkLine"):Clone()
 		line.Visible = true -- шаблоны в Templates скрыты
-		line.Text = '<font color="#6CFF9A">✔</font>  ' .. tr(perk)
+		line.Text = '<font color="#6CFF9A">✅</font>  ' .. tr(perk)
 		line.LayoutOrder = index
 		line.Parent = perksList
 	end

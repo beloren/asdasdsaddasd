@@ -56,7 +56,7 @@ local function showPopup(force, preview)
 	previewOpen = preview == true
 	if not previewOpen then showsThisSession += 1 end
 	favoriteButton.Active = true
-	ui.SetCaption(state.Claimed and "✔ ALREADY CLAIMED" or ACTION_TEXT)
+	ui.SetCaption(state.Claimed and "✅ ALREADY CLAIMED" or ACTION_TEXT)
 	UiSfx.play("LikePrompt")
 	ui.Show()
 end
@@ -80,7 +80,7 @@ end)
 
 local waitingFavorite = false
 local function claim()
-	ui.SetCaption("✔ VERIFIED!")
+	ui.SetCaption("✅ VERIFIED!")
 	if not state.Claimed then remote:FireServer("Claim") end
 end
 

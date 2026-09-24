@@ -79,15 +79,14 @@ local function card(strip, day, position)
 		ZIndex = 5,
 		_MaxTextSize = 24,
 	})
-	local check = UiKit.ThemeIcon(c, "Check", "Check", "✔", {
+	local check = UiKit.ThemeIcon(c, "Check", "Check", "@Check", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.45),
 		Size = UDim2.fromOffset(70, 70),
 		Visible = false,
 		ZIndex = 7,
 	})
-	check.Emoji.FontFace = Theme.Fonts.Title
-	check.Emoji.TextColor3 = Color3.fromRGB(40, 220, 60)
+	UiKit.PaintShape(check.Emoji:FindFirstChild("Shape"), Color3.fromRGB(40, 220, 60))
 	local stroke = Instance.new("UIStroke")
 	stroke.Name = "TextStroke"
 	stroke.Thickness = 3

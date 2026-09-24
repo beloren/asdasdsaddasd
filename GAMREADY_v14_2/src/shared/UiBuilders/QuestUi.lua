@@ -47,7 +47,7 @@ local function buildTemplates(gui)
 	UiKit.List(row, { Padding = UDim.new(0, 2) })
 
 	local header = UiKit.Group(row, "Header", { Size = UDim2.new(1, 0, 0, 42), LayoutOrder = 1 })
-	UiKit.ThemeIcon(header, "Icon", "QuestDiamond", "◈", {
+	UiKit.ThemeIcon(header, "Icon", "QuestDiamond", "@Diamond", {
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 0, 0.5, 0),
 		Size = UDim2.fromOffset(30, 30),
@@ -55,8 +55,7 @@ local function buildTemplates(gui)
 	})
 	local diamond = header.Icon:FindFirstChild("Emoji")
 	if diamond then
-		diamond.TextColor3 = Theme.Accents.Gold.Main
-		diamond.FontFace = Theme.Fonts.Number
+		UiKit.PaintShape(diamond:FindFirstChild("Shape"), Theme.Accents.Gold.Main)
 	end
 	-- Заголовок квеста («Treasure Time») — крупнее всего остального текста трекера.
 	local title = UiKit.Text(header, "Title", "Quest", {
@@ -98,10 +97,11 @@ local function buildTemplates(gui)
 
 	-- Строка цели: «◇ - Get Fireite: 0/3». Progress — число справа в той же строке.
 	local objective = UiKit.Group(row, "Objective", { Size = UDim2.new(1, 0, 0, 28), LayoutOrder = 3 })
-	UiKit.Text(objective, "Bullet", "◇", {
-		_Style = "Heading",
-		Position = UDim2.fromOffset(4, 0),
-		Size = UDim2.fromOffset(22, 28),
+	-- v20.9: маркер ◇ — фигура (в шрифтах Roblox символа нет).
+	UiKit.Shape(objective, "Bullet", "DiamondHollow", {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 4, 0.5, 0),
+		Size = UDim2.fromOffset(20, 20),
 	})
 	local objText = UiKit.Text(objective, "Text", "- Get Fireite:", {
 		_Style = "Heading",
@@ -201,7 +201,7 @@ local function buildTemplates(gui)
 	-- Выполненный квест (одна строка).
 	local done = UiKit.Plate(templates, "DoneCard", "Inset", { Size = UDim2.new(1, -8, 0, 40), BackgroundTransparency = 0.7 })
 	UiKit.Padding(done, 0, 12, 6, 6)
-	UiKit.Text(done, "Title", "✔ Quest", {
+	UiKit.Text(done, "Title", "Quest", {
 		_Style = "Heading",
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextColor3 = Theme.Colors.MutedText,
@@ -295,7 +295,7 @@ function Builder.Build()
 	})
 	UiKit.List(list, { Padding = UDim.new(0, 8), HorizontalAlignment = Enum.HorizontalAlignment.Center })
 	UiKit.Padding(list, 4, 0, 6, 10)
-	gui:SetAttribute("UiKitVersion", 24) -- v20.8: трекер шрифтом денег, крупный заголовок
+	gui:SetAttribute("UiKitVersion", 25) -- v20.9: значки фигурами вместо символов
 	modal:SetAttribute("BaseWidth", 640)
 	modal:SetAttribute("BaseHeight", 480)
 

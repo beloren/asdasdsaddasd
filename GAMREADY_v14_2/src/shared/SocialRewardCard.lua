@@ -336,7 +336,7 @@ function Card.Controller(gui, opts)
 
 	-- Короткое «празднование» после получения награды, затем закрытие.
 	function self.Celebrate(text)
-		caption.Text = text or "CLAIMED! ✔"
+		caption.Text = text or "CLAIMED! ✅"
 		pulse.Scale = 1.15
 		TweenService:Create(pulse, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 		task.delay(1.2, function() self.Hide() end)

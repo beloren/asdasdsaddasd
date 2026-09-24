@@ -25,7 +25,7 @@ local UiKit = require(script.Parent.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 20
+Builder.VERSION = 21
 
 -- Стили мирового текста: шрифт темы + более толстая обводка (надписи
 -- читаются поверх любого фона сцены).
@@ -94,7 +94,8 @@ function Builder.Build()
 	-- Имя NPC + стрелка + реплика (продавцы, мэр престижа).
 	local npc = billboard(boards, "NpcDialog", UDim2.fromOffset(300, 120))
 	UiKit.Text(npc, "name", "NPC", { _Style = "Title", _Stroke = 3, Size = UDim2.fromScale(1, 0.4), TextColor3 = Theme.Accents.Gold.Light })
-	UiKit.Text(npc, "arrow", "▼", { _Style = "Title", _Stroke = 3, Position = UDim2.fromScale(0, 0.4), Size = UDim2.fromScale(1, 0.25) })
+	local npcArrow = UiKit.Text(npc, "arrow", "", { _Style = "Title", _Stroke = 3, Position = UDim2.fromScale(0, 0.4), Size = UDim2.fromScale(1, 0.25) })
+	UiKit.GlyphToShape(npcArrow, "ChevronDown") -- v20.9: фигура вместо ▼
 	UiKit.Text(npc, "dialog", "", { _Style = "Heading", _Stroke = 3, Size = UDim2.fromScale(1, 1), Visible = false })
 	UiKit.Text(npc, "bonus", "", { _Style = "Number", _Stroke = 3, Position = UDim2.fromScale(0, 0.7), Size = UDim2.fromScale(1, 0.3), TextColor3 = Theme.Colors.Positive, Visible = false })
 
@@ -142,7 +143,8 @@ function Builder.Build()
 	-- Стрелка-указатель (к банку, к цели).
 	local arrow = billboard(boards, "Arrow", UDim2.fromOffset(60, 60))
 	UiKit.Icon(arrow, "Image", "", { ZIndex = 2 })
-	UiKit.Text(arrow, "Glyph", "▼", { _Style = "Title", _Stroke = 3, TextColor3 = Theme.Accents.Gold.Main })
+	local glyph = UiKit.Text(arrow, "Glyph", "", { _Style = "Title", _Stroke = 3, TextColor3 = Theme.Accents.Gold.Main })
+	UiKit.GlyphToShape(glyph, "ChevronDown")
 	return gui
 end
 

@@ -463,4 +463,45 @@ function PlaceableFactory.BuildRelic(relicId)
 	return holder
 end
 
+-- v20.9: сундук (свой — ReplicatedStorage.Assets.Chests.<ModelName>, иначе
+-- ящик с крышкой цвета редкости). Общий для сервера (GearService) и
+-- призрака установки (PlacementGhost).
+function PlaceableFactory.BuildChest(rarity)
+	local info = Config.Chests.Types[rarity]
+	local folder = ReplicatedStorage
+	for _, name in Config.Chests.AssetFolderPath or {} do
+		folder = folder and folder:FindFirstChild(name)
+	end
+	local asset = folder and info and folder:FindFirstChild(info.ModelName)
+	if asset then
+		local clone = asset:Clone()
+		if clone:IsA("Model") and not clone.PrimaryPart then
+			clone.PrimaryPart = clone:FindFirstChildWhichIsA("BasePart", true)
+		end
+		return clone
+	end
+	-- Заглушка: ящик с крышкой цвета редкости.
+	local model = Instance.new("Model")
+	model.Name = info and info.ModelName or "Chest"
+	local body = Instance.new("Part")
+	body.Name = "Body"
+	body.Size = Vector3.new(3, 2, 2)
+	body.Color = Color3.fromRGB(120, 80, 45)
+	body.Material = Enum.Material.Wood
+	body.Parent = model
+	local lid = Instance.new("Part")
+	lid.Name = "Lid"
+	lid.Size = Vector3.new(3.1, 0.7, 2.1)
+	lid.Color = info and info.Color or Color3.new(1, 1, 1)
+	lid.Material = Enum.Material.Metal
+	lid.CFrame = body.CFrame * CFrame.new(0, 1.35, 0)
+	lid.Parent = model
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = body
+	weld.Part1 = lid
+	weld.Parent = body
+	model.PrimaryPart = body
+	return model
+end
+
 return PlaceableFactory

@@ -38,7 +38,7 @@ local UiKit = require(Shared.UiKit)
 local Config = require(ReplicatedStorage.Shared.Config)
 
 local Builder = {}
-Builder.VERSION = 21
+Builder.VERSION = 22
 
 local DEFAULT_TAB_ACCENTS = {
 	Cash = "Green", Boosts = "Gold", Passes = "Purple", Weather = "Blue",
@@ -216,12 +216,11 @@ local function buildStep(parent, index, width)
 		ZIndex = 5,
 	})
 	button:SetAttribute("StepIndex", index)
-	UiKit.Text(step, "Done", "✔", {
-		_Style = "Title",
+	UiKit.Shape(step, "Done", "Check", { -- v20.9: галочка фигурой (✔ в шрифтах нет)
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.fromOffset(60, 60),
-		TextColor3 = UiKit.Theme.Colors.Positive,
+		Color = UiKit.Theme.Colors.Positive,
 		Visible = false,
 		ZIndex = 7,
 	})

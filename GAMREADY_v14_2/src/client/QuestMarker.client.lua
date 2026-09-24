@@ -213,9 +213,15 @@ local function paintGlyph(holder, transparency)
 	local glyph = holder:FindFirstChild("Glyph")
 	local hasImage = image and image.Image ~= ""
 	if image then image.ImageColor3 = markerColor end
+	if glyph and glyph:IsA("TextLabel") then
+		-- Старая сборка: символ ➤/▲ → фигура (иначе в игре «квадратик»).
+		local kind = holder.Name == "EdgeArrow" and "ArrowRight" or "ChevronUp"
+		glyph.Name = "OldGlyph"
+		glyph.Visible = false
+		glyph = require(ReplicatedStorage.Shared.UiKit).Shape(holder, "Glyph", kind, { Size = UDim2.fromScale(0.9, 0.9) })
+	end
 	if glyph then
-		glyph.TextColor3 = markerColor
-		glyph.TextTransparency = transparency or 0
+		require(ReplicatedStorage.Shared.UiKit).PaintShape(glyph, markerColor, transparency or 0)
 		glyph.Visible = not hasImage
 	end
 end

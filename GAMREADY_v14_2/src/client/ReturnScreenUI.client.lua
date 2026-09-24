@@ -117,7 +117,16 @@ local function present(payload)
 	subtitle.Text = "You were gone " .. formatDuration(payload.OfflineSeconds)
 
 	local cartOre = tonumber(payload.CartOre) or 0
-	if cartOre > 0 then
+	local offlineMoney = tonumber(payload.OfflineMoney) or 0
+	if offlineMoney > 0 then
+		-- v20.9: офлайн-доход деньгами (уже на счёте).
+		rowCart.Visible = true
+		local value = rowValue(rowCart)
+		if value then
+			value.Text = "+$" .. NumberFormat.abbreviate(math.floor(offlineMoney))
+			value.TextColor3 = rowCart:GetAttribute("RowValueColor") or value.TextColor3
+		end
+	elseif cartOre > 0 then
 		rowCart.Visible = true
 		local value = rowValue(rowCart)
 		if value then

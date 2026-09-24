@@ -116,10 +116,10 @@ local function renderDetail()
 		line.LayoutOrder = index
 		local percent = math.floor(math.abs(info.Value) * 100 + 0.5)
 		if info.Value > 0 then
-			line.Text = ("▲ +%d%%  %s"):format(percent, tr(info.Label))
+			line.Text = ("+%d%%  %s"):format(percent, tr(info.Label))
 			line.TextColor3 = Color3.fromRGB(110, 255, 150)
 		else
-			line.Text = ("▼ -%d%%  %s"):format(percent, tr(info.Label))
+			line.Text = ("-%d%%  %s"):format(percent, tr(info.Label))
 			line.TextColor3 = Color3.fromRGB(255, 110, 110)
 		end
 		line.Visible = true

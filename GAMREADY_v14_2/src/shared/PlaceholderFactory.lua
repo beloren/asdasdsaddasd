@@ -1797,7 +1797,7 @@ function PlaceholderFactory.UpgradeShopNPC()
 	nameLabel.Text = "Upgrade Shop"
 
 	local arrowLabel = label("arrow", UDim2.new(1, 0, 0.25, 0), UDim2.new(0, 0, 0.4, 0), Color3.new(1, 1, 1))
-	arrowLabel.Text = "▼"
+	arrowLabel.Text = "" -- v20.9: стрелку-фигуру рисует клиент (NpcNameStyle); символа ▼ в шрифтах нет
 
 	local dialogLabel = label("dialog", UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), Color3.new(1, 1, 1))
 	dialogLabel.Visible = false
@@ -1889,7 +1889,7 @@ function PlaceholderFactory.ShopNPC()
 	nameLabel.Text = "Item Shop"
 
 	local arrowLabel = label("arrow", UDim2.new(1, 0, 0.25, 0), UDim2.new(0, 0, 0.4, 0), Color3.new(1, 1, 1))
-	arrowLabel.Text = "▼"
+	arrowLabel.Text = "" -- v20.9: стрелку-фигуру рисует клиент (NpcNameStyle); символа ▼ в шрифтах нет
 
 	local dialogLabel = label("dialog", UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), Color3.new(1, 1, 1))
 	dialogLabel.Visible = false
@@ -1976,7 +1976,7 @@ function PlaceholderFactory.MinerNPC()
 	nameLabel.Text = "Miner"
 
 	local arrowLabel = label("arrow", UDim2.new(1, 0, 0.25, 0), UDim2.new(0, 0, 0.4, 0), Color3.new(1, 1, 1))
-	arrowLabel.Text = "▼"
+	arrowLabel.Text = "" -- v20.9: стрелку-фигуру рисует клиент (NpcNameStyle); символа ▼ в шрифтах нет
 
 	local dialogLabel = label("dialog", UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), Color3.new(1, 1, 1))
 	dialogLabel.Visible = false

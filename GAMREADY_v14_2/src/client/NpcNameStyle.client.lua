@@ -13,6 +13,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local WorldUi = require(ReplicatedStorage.Shared.WorldUi)
+local UiKit = require(ReplicatedStorage.Shared.UiKit)
 
 local styled = setmetatable({}, { __mode = "k" })
 
@@ -34,12 +35,14 @@ local function style(label)
 		limit.MaxTextSize = 42
 		limit.Parent = label
 	else
+		-- v20.9: стрелка — фигура-шеврон (символа ▼ в шрифтах Roblox нет).
 		WorldUi.Restyle(label, "NpcArrow")
-		label.Text = "v"
-		label.TextScaled = true
-		local limit = label:FindFirstChildOfClass("UITextSizeConstraint") or Instance.new("UITextSizeConstraint")
-		limit.MaxTextSize = 20
-		limit.Parent = label
+		local shape = UiKit.GlyphToShape(label, "ChevronDown", { Color = Color3.fromRGB(235, 235, 240) })
+		if shape and not shape:FindFirstChildOfClass("UISizeConstraint") then
+			local limit = Instance.new("UISizeConstraint")
+			limit.MaxSize = Vector2.new(22, 22)
+			limit.Parent = shape
+		end
 	end
 end
 

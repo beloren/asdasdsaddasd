@@ -4,7 +4,9 @@
 -- Отвечает за ДВЕ связанные вещи, которые для игрока являются одним событием
 -- «пока меня не было»:
 --
---   1) ОФЛАЙН-ШАХТА. Тележка на парковке участка встречает игрока уже
+--   1) ОФЛАЙН-ШАХТА. v20.9: по умолчанию (Config.OfflineCart.Mode = "Money")
+--      игрок просто получает немного денег за время отсутствия — см.
+--      GrantOfflineMoney. Старая схема ниже («Ore»): тележка на парковке участка встречает игрока уже
 --      наполненной рудой — ровно настолько, насколько успела бы её набить
 --      шахта за время отсутствия (на пониженной скорости, см.
 --      Config.OfflineCart).
@@ -60,7 +62,7 @@ end
 local function bucket(player)
 	local entry = pending[player]
 	if not entry then
-		entry = { Safe = 0, CartOre = 0, CartValue = 0 }
+		entry = { Safe = 0, CartOre = 0, CartValue = 0, OfflineMoney = 0 }
 		pending[player] = entry
 	end
 	return entry
@@ -81,9 +83,29 @@ end
 -- не создаём и не двигаем, только наполняем: место спавна, физика, ХП и всё
 -- остальное остаются ровно теми же, что и у обычной тележки.
 --------------------------------------------------------------------------------
+-- v20.9: офлайн-доход деньгами. Доля активного дохода в минуту за время
+-- отсутствия (Config.OfflineCart.MoneyRate, потолок MaxMoneySeconds).
+function ReturnScreenService:GrantOfflineMoney(player)
+	local cfg = Config.OfflineCart
+	local offline = tonumber(player:GetAttribute("OfflineSeconds")) or 0
+	if offline < (tonumber(cfg.MinOfflineSeconds) or 0) then return end
+	if not Services.CartService:IsCartUnlocked(player) then return end -- ещё не начал играть по-настоящему
+	offline = math.min(offline, tonumber(cfg.MaxMoneySeconds) or offline)
+	local tiers = Services.DataService:GetTiers(player)
+	local perMinute = Config.IncomePerMinute(tiers.Mine, tiers.Cart)
+	local ok, multiplier = pcall(Services.DataService.GetCrystalMultiplier, Services.DataService, player)
+	local money = math.floor(perMinute * (offline / 60) * (tonumber(cfg.MoneyRate) or 0) * (ok and tonumber(multiplier) or 1))
+	if money <= 0 then return end
+	if Services.DataService:AddMoney(player, money, nil, true) == false then return end
+	bucket(player).OfflineMoney += money
+end
+
 function ReturnScreenService:FillOfflineCart(player)
 	local cfg = Config.OfflineCart
 	if not (cfg and cfg.Enabled) then return end
+	if (cfg.Mode or "Money") == "Money" then
+		return self:GrantOfflineMoney(player)
+	end
 
 	local offline = tonumber(player:GetAttribute("OfflineSeconds")) or 0
 	-- Порог отсечки. Без него перезаход раз в минуту был бы выгоднее игры:
@@ -184,7 +206,7 @@ function ReturnScreenService:Present(player)
 
 	local offline = tonumber(player:GetAttribute("OfflineSeconds")) or 0
 	if offline < (tonumber(cfg.MinOfflineSeconds) or 0) then return end
-	if entry.Safe <= 0 and entry.CartOre <= 0 then return end
+	if entry.Safe <= 0 and entry.CartOre <= 0 and (entry.OfflineMoney or 0) <= 0 then return end
 
 	local streak, streakDeadline
 	local data = Services.DataService:GetGeodeData(player)
@@ -205,6 +227,7 @@ function ReturnScreenService:Present(player)
 		Safe = entry.Safe,
 		CartOre = entry.CartOre,
 		CartValue = entry.CartValue,
+		OfflineMoney = entry.OfflineMoney,
 		Streak = streak,
 		StreakSeconds = streakDeadline,
 	}

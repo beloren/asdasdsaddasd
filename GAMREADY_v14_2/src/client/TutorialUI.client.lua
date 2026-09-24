@@ -69,6 +69,9 @@ local speakerLabel = nameplate:WaitForChild("Speaker")
 local portrait = dialog:WaitForChild("Portrait")
 local body = dialog:WaitForChild("Body")
 local continueArrow = dialog:WaitForChild("Continue")
+if continueArrow:IsA("TextLabel") and continueArrow.Text ~= "" then -- старая сборка с символом ▼
+	require(game:GetService("ReplicatedStorage").Shared.UiKit).GlyphToShape(continueArrow, "ChevronDown")
+end
 local advanceButton = dialog:WaitForChild("AdvanceArea")
 
 local task_ = gui:WaitForChild("Task")
@@ -123,8 +126,10 @@ worldArrowLabel.BackgroundTransparency = 1
 require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(worldArrowLabel, "Heading") -- v20: шрифт темы
 worldArrowLabel.TextColor3 = Config.Tutorial.TrailColor
 worldArrowLabel.TextScaled = true
-worldArrowLabel.Text = "▼"
+worldArrowLabel.Text = ""
 worldArrowLabel.Parent = worldArrow
+-- v20.9: стрелка — фигура (символа ▼ в шрифтах Roblox нет → «квадратик»).
+require(game:GetService("ReplicatedStorage").Shared.UiKit).GlyphToShape(worldArrowLabel, "ChevronDown")
 
 local trailGroundAnchor = Instance.new("Part")
 trailGroundAnchor.Name = "TutorialTrailGroundAnchor"

@@ -9,6 +9,8 @@
 --   ПК:      ЛКМ — поставить, R — повернуть.
 --   Телефон: тап — куда, кнопки ↻ и ✔.
 -- Убрать из руки — тем же слотом хотбара, как любое снаряжение.
+-- v20.9: сундуки (HeldGear = "Chest_…") тоже с призраком: стоят на полу
+-- участка, по умолчанию смотрят на игрока, R — повернуть.
 --------------------------------------------------------------------------------
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -32,8 +34,13 @@ local function tr(text)
 	return ok and result or text
 end
 
+local function isChest(key)
+	local rarity = typeof(key) == "string" and key:match("^Chest_(%a+)$")
+	return rarity ~= nil and Config.Chests and Config.Chests.Types[rarity] ~= nil
+end
+
 local function isPlaceable(key)
-	return typeof(key) == "string" and (PlaceableCatalog.Info(key) ~= nil or key:match("^Relic:") ~= nil)
+	return typeof(key) == "string" and (PlaceableCatalog.Info(key) ~= nil or key:match("^Relic:") ~= nil or isChest(key))
 end
 
 --------------------------------------------------------------------------------
@@ -81,7 +88,9 @@ end
 local function buildGhost(key)
 	destroyGhost()
 	local model
-	if key:match("^Relic:") then
+	if isChest(key) then
+		model = PlaceableFactory.BuildChest((key:gsub("^Chest_", "")))
+	elseif key:match("^Relic:") then
 		local relicId = key:match("^Relic:([%w]+):")
 		model = relicId and PlaceableFactory.BuildRelic(relicId)
 	else
@@ -107,7 +116,8 @@ local function buildGhost(key)
 	ghost, ghostKey = model, key
 	local touchOnly = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 	mobileBar.Visible = touchOnly
-	hint.Text = touchOnly and tr("Tap a spot on your base, then ✔") or tr("Click a spot on your base to place • R rotate")
+	hint.Text = touchOnly and tr("Tap a spot on your base, then ✅") or tr("Click a spot on your base to place • R rotate")
+	yaw = 0
 	ghostHud.Visible = true
 end
 
@@ -155,6 +165,31 @@ RunService.RenderStepped:Connect(function()
 	local onSurface, surfacePosition, surfaceNormal = GroundCheck.Surface(position, normal, ignore)
 	if onSurface then
 		position, normal = surfacePosition, surfaceNormal
+	end
+	if isChest(ghostKey) then
+		-- Сундук: как на сервере (GearService:_placeChest) — на полу участка,
+		-- лицом к игроку (+ поворот R), не ближе 2 стадов к краю, до 30 стадов.
+		local ok = false
+		local cf
+		if pad then
+			local flat = Vector3.new(hit.Position.X, 0, hit.Position.Z)
+			local look = Vector3.new(hrp.Position.X, 0, hrp.Position.Z) - flat
+			local facing = look.Magnitude > 0.1 and CFrame.lookAt(Vector3.zero, look) or CFrame.new()
+			local rotation = facing * CFrame.Angles(0, math.rad(yaw), 0)
+			local _, size = ghost:GetBoundingBox()
+			local floorY = pad.Position.Y + pad.Size.Y / 2
+			ghost:PivotTo(CFrame.new(hit.Position.X, floorY + size.Y / 2, hit.Position.Z) * rotation)
+			cf = CFrame.new(hit.Position.X, floorY, hit.Position.Z) * rotation
+			local localPoint = pad.CFrame:PointToObjectSpace(hit.Position)
+			ok = math.abs(localPoint.X) <= pad.Size.X / 2 - 2 and math.abs(localPoint.Z) <= pad.Size.Z / 2 - 2
+				and (hrp.Position - hit.Position).Magnitude <= 30
+		end
+		targetCFrame = cf
+		valid = ok
+		local color = ok and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(255, 70, 70)
+		highlight.FillColor = color
+		highlight.OutlineColor = color
+		return
 	end
 	local cf = CFrame.new(position) * GroundCheck.Orientation(normal, yaw)
 	ghost:PivotTo(cf)

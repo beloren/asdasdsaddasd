@@ -1721,9 +1721,9 @@ beginCrack = function()
 	-- v10: кнопка «скип» доступна СРАЗУ — она просто дотапывает жеоду за тебя.
 	skipButton.Visible = true
 	if skipButton:IsA("TextButton") then
-		skipButton.Text = "SKIP ▶"
+		skipButton.Text = "SKIP >"
 	elseif skipButtonLabel then
-		skipButtonLabel.Text = "SKIP ▶"
+		skipButtonLabel.Text = "SKIP >"
 	end
 
 	-- 3D-ПОСТАНОВКА (по прямому запросу — "камера отдаётся и вращается

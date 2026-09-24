@@ -28,7 +28,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 20
+Builder.VERSION = 21
 
 local ACCENT = UiKit.Accent("Pink")
 
@@ -272,7 +272,7 @@ function Builder.Build()
 		Visible = false,
 		ZIndex = 22,
 	})
-	UiKit.Button(opening, "SkipButton", "SKIP ▶", "Purple", {
+	UiKit.Button(opening, "SkipButton", "SKIP >", "Purple", {
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -20, 1, -20),
 		Size = UDim2.fromOffset(130, 46),

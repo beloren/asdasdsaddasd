@@ -56,7 +56,15 @@ local function showGuide(cargoKind)
 	arrowText.Size = UDim2.fromScale(1, 1)
 	arrowText.BackgroundTransparency = 1
 	arrowText.TextScaled = true
-	arrowText.Text = "▼\nBANK"
+	arrowText.Text = "BANK"
+	arrowText.Size = UDim2.fromScale(1, 0.55)
+	-- v20.9: стрелка под надписью — фигура (символа ▼ в шрифтах Roblox нет).
+	require(ReplicatedStorage.Shared.UiKit).Shape(arrow, "Arrow", "ChevronDown", {
+		Color = Config.Tutorial.TrailColor,
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.fromScale(0.5, 1),
+		Size = UDim2.fromScale(1, 0.42),
+	})
 	arrowText.TextColor3 = Config.Tutorial.TrailColor
 	arrowText.Parent = arrow
 

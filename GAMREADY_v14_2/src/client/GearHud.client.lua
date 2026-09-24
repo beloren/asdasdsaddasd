@@ -263,7 +263,8 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	local held = player:GetAttribute("HeldGear") or ""
 	if held == "" or processed then return end
 	-- v14: тотемы/декор/реликвии ставит PlacementGhost.client.lua (со своим CFrame).
-	if held:match("^Totem_") or held:match("^Decor_") or held:match("^Relic:") then return end
+	-- v20.9: сундуки — тоже через призрак PlacementGhost.
+	if held:match("^Totem_") or held:match("^Decor_") or held:match("^Relic:") or held:match("^Chest_") then return end
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		local mouse = UserInputService:GetMouseLocation()
 		local instance, position = aimFrom(mouse, false)
