@@ -639,11 +639,19 @@ local function pickupRadiusFor(player)
 	return Config.Inventory.PickupRadius
 end
 
+local function tutorialCount(player, key)
+	if Services.TutorialService then
+		pcall(function() Services.TutorialService:Count(player, key, 1) end)
+	end
+end
+
 function InventoryService:TryPickup(player, crystal)
 	local heldCart = Services.CartService and Services.CartService:GetHeldCart(player)
 	if heldCart and #heldCart.Crystals < heldCart.Capacity then
 		local ok, root = pcall(CrystalUtil.GetRoot, crystal)
-		return Services.CartService:AddCrystal(heldCart, crystal, false, ok and root and root.Position or nil) == true
+		local added = Services.CartService:AddCrystal(heldCart, crystal, false, ok and root and root.Position or nil) == true
+		if added then tutorialCount(player, "OrePickedUp") end -- v20.36: шаг «собери руду»
+		return added
 	end
 
 	local added = self:AddOre(
@@ -658,6 +666,7 @@ function InventoryService:TryPickup(player, crystal)
 	)
 	if added then
 		crystal:Destroy()
+		tutorialCount(player, "OrePickedUp")
 	end
 	return added
 end

@@ -109,6 +109,13 @@ function NotifyService:Show(player, text, opts)
 			and (opts.Critical == true or opts.Icon == "Error" or opts.Icon == "Refund")
 		if not critical then return end
 	end
+	-- v20.36: во время мини-игры шахты — никаких всплывающих оповещений
+	-- (редкая руда и так видна над куском). Ошибки и Critical — проходят.
+	if player:GetAttribute("MineExpeditionActive") == true then
+		local critical = typeof(opts) == "table"
+			and (opts.Critical == true or opts.Icon == "Error" or opts.Icon == "Refund")
+		if not critical then return end
+	end
 	notifyRemote:FireClient(player, text, opts)
 end
 

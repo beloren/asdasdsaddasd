@@ -129,20 +129,16 @@ Config.Tutorial = {
 	--   KeepEarlyProgress — не обнулять счётчик при входе в шаг.
 	--   GrantMoney — разовая выдача денег при входе в шаг.
 	--------------------------------------------------------------------------
+	-- v20.36: тексты короткие, без длинных тире. Highlight — какая карточка в
+	-- окне улучшений крутит лучи (Mine / Cheapest), HighlightColor — цвет.
+	-- ResetCounters — счётчики, которые обнуляются при входе в шаг.
 	Steps = {
 		{
 			Id = "Intro",
-			-- Первая реплика называет цель игры целиком: без неё новичок
-			-- выполняет задания, не понимая, к чему они ведут.
-			Lines = {
-				"Welcome! Here we dig ore, sell it and upgrade our gear.",
-				"But first — the mine entrance is blocked. Break those boulders.",
-			},
+			Lines = { "The mine broke! Mine some stone to fix it." },
 			Short = "CLEAR THE WAY",
 			Task = "Break the boulders",
 			Goal = { Kind = "Ack" },
-			-- Стрелка с первой секунды ведёт к ВАЛУНАМ, а не к НПС: шахтёр
-			-- уже стоит перед игроком и говорит с ним.
 			Target = "BaseBoulder",
 		},
 		{
@@ -151,91 +147,92 @@ Config.Tutorial = {
 			Short = "CLEAR THE WAY",
 			Task = "Break the boulders",
 			Goal = { Kind = "Counter", Key = "BaseBouldersBroken", Target = 2 },
-			-- Валуны, разбитые, пока игрок дочитывал вступление, засчитываются.
 			KeepEarlyProgress = true,
 			Target = "BaseBoulder",
-			Done = {
-				"The way is clear, but the mine has no power. The trader next to it will fix it — I've already paid.",
-				"The ore you picked up is in your bag. You can sell it at the bank any time.",
-			},
+			Done = { "Nice! Now fix the mine at the trader. It's free." },
 		},
 		{
 			Id = "RepairMine",
 			Lines = {},
 			Short = "FIX THE MINE",
-			Task = "Talk to the trader and repair the mine (free)",
+			Task = "Fix the mine at the trader",
 			Goal = { Kind = "Flag", Key = "MineRepaired" },
 			Target = "UpgradeShopNPC",
-			Done = { "The mine is working again. Let's go down!" },
+			Highlight = "Mine",
+			HighlightColor = Color3.fromRGB(255, 70, 70),
+			Done = { "The mine works again. Let's go down!" },
 		},
 		{
 			Id = "FirstExpedition",
-			-- Правило мини-игры идёт последней репликой прямо перед
-			-- заданием: между ним и самой мини-игрой — только подход к НПС.
-			Lines = {
-				"Talk to me and we'll go down together.",
-				"Inside, tap when the marker is on the green part of the vein.",
-			},
+			Lines = { "Talk to me to go down.", "Tap when the marker is on green." },
 			Short = "GO MINING",
 			Task = "Talk to the miner",
 			Goal = { Kind = "Counter", Key = "ExpeditionsDone", Target = 1 },
 			Target = "MinerNPC",
-			Done = { "Nice haul! The ore is waiting outside — you'll need a cart to carry it." },
+			ResetCounters = { "OrePickedUp" },
+			Done = { "Great haul! Walk over the ore to pick it up." },
+		},
+		{
+			Id = "CollectOre",
+			Lines = {},
+			Short = "PICK UP ORE",
+			Task = "Walk over the ore to pick it up",
+			Goal = { Kind = "Counter", Key = "OrePickedUp", Target = 1 },
+			KeepEarlyProgress = true,
+			CompleteWhenBagFull = true, -- рюкзак уже полон — подобрать нечем, шаг засчитан
+			Target = nil,
+			Done = { "Your bag is small. You need a cart." },
 		},
 		{
 			Id = "GetCart",
-			Lines = { "Your first cart is free — get it from the trader." },
+			Lines = { "Your first cart is free. Get it at the trader." },
 			Short = "GET A CART",
-			Task = "Get the free cart from the trader",
-			-- Отдельно от постановки: покупка выдаёт УПАКОВКУ, и то, что её
-			-- надо взять в руки, иначе не объясняет никто (тост GrantPackage
-			-- во время обучения заглушен, см. NotifyService:Show).
+			Task = "Get the free cart at the trader",
 			Goal = { Kind = "Flag", Key = "CartUnlocked" },
 			Target = "UpgradeShopNPC",
 		},
 		{
 			Id = "PlaceCart",
-			Lines = { "The cart comes in a box. Take the box from your hotbar and tap where the cart should stand." },
+			Lines = { "Take the box from your hotbar. Click where the cart should stand." },
 			Short = "PLACE THE CART",
-			Task = "Take the box from your hotbar and place the cart",
-			-- Атрибут CartDeployed держит CartService (_refreshCartAttributes)
-			-- — он же выставляется сразу после постановки.
+			Task = "Place the cart from your hotbar",
 			Goal = { Kind = "Flag", Key = "CartDeployed" },
 			Target = nil,
-			Done = { "Push the cart over the ore — it collects it by itself." },
+			ResetCounters = { "OreDepositedToCart" },
+		},
+		{
+			Id = "LoadCart",
+			Lines = { "Walk up to the cart. Your ore goes in by itself." },
+			Short = "LOAD THE CART",
+			Task = "Walk up to the cart",
+			Goal = { Kind = "Counter", Key = "OreDepositedToCart", Target = 1 },
+			KeepEarlyProgress = true,
+			CompleteWhenBagEmpty = true, -- руды в рюкзаке нет (продал раньше) — шаг засчитан
+			Target = "Cart",
 		},
 		{
 			Id = "SellCart",
-			Lines = {},
+			Lines = { "Take the cart to the bank." },
 			Short = "DELIVER THE CART",
-			Task = "Fill the cart and take it to the bank",
-			-- НЕСКОЛЬКО СПОСОБОВ ЗАКРЫТЬ ШАГ: рейс тележкой или продажа руды
-			-- из рюкзака. Счётчик обнуляется при входе в шаг (см.
-			-- TutorialService:_enterStep) — продажи на прошлых шагах его
-			-- больше не закрывают.
+			Task = "Take the cart to the bank",
 			Goal = { Kind = "Counter", Keys = { "CartSold", "OreSoldFromBag" }, Target = 1 },
 			Target = "Bank",
-			Done = { "Fuller cart, bigger payout. Now let's spend it." },
+			Done = { "Fuller cart, bigger payout. Let's spend it." },
 		},
 		{
 			Id = "FirstUpgrade",
-			-- ЗАМЫКАЕТ ЦИКЛ «заработал → улучшил». Без этого шага деньги в
-			-- прологе ни на что не тратились, и игрок не видел, зачем они.
-			-- GrantMoney выдаётся при входе в шаг один раз за профиль
-			-- (Data.TutorialRewardGiven) и заменяет награду за прохождение:
-			-- её хватает на первый шаг кирки (Config.PickaxeChain[1]).
-			Lines = { "Here's a bonus from me. Spend it at the trader — a better pickaxe breaks rocks faster." },
+			Lines = { "Here's a bonus. Buy an upgrade at the trader." },
 			Short = "FIRST UPGRADE",
-			Task = "Buy any upgrade from the trader",
+			Task = "Buy any upgrade at the trader",
 			Goal = { Kind = "Counter", Key = "UpgradesBought", Target = 1 },
 			GrantMoney = 150,
 			Target = "UpgradeShopNPC",
-			Done = { "That's the whole loop: dig, sell, upgrade. Your next goals are in the quests panel — good luck!" },
+			Highlight = "Cheapest",
+			HighlightColor = Color3.fromRGB(255, 200, 50),
+			Done = { "That's the loop: dig, sell, upgrade. More goals are in Quests. Good luck!" },
 		},
 	},
 
-	-- Пауза между подсказками, отложенными на время пролога (см.
-	-- TutorialService:_flushQueuedHints).
 	QueuedHintGapSeconds = 8,
 
 	--------------------------------------------------------------------------
@@ -252,13 +249,13 @@ Config.Tutorial = {
 	-- появилась у игрока на глазах и ей есть куда примениться.
 	--------------------------------------------------------------------------
 	Hints = {
-		FirstGeode = "A geode! Those don't sell — you crack them open in the vault on your base.",
-		FirstChest = "A chest. It opens on its own after a while — or open it now if you can't wait.",
-		FirstGoblin = "Goblins are raiding their camp! Beat them with your pickaxe — every kill pays out.",
-		FirstDynamite = "Dynamite breaks rocks your pickaxe can't. Place it right on the boulder.",
-		FirstMutation = "Mutated ore is worth far more than plain ore. Try not to lose it.",
-		FirstPvpHit = "You just got hit. The shield buys you a breather — but it drops if you strike back.",
-		FirstIsland = "Island unlocked. It brings mechanics your base doesn't have.",
+		FirstGeode = "A geode! Crack it open in the vault on your base.",
+		FirstChest = "A chest! It opens by itself after a while. Or open it now.",
+		FirstGoblin = "Goblins! Hit them with your pickaxe. Every kill pays.",
+		FirstDynamite = "Dynamite breaks big rocks. Place it on a boulder.",
+		FirstMutation = "Mutated ore is worth a lot more. Don't lose it!",
+		FirstPvpHit = "You got hit! Your shield protects you. It drops if you hit back.",
+		FirstIsland = "Island unlocked! It adds new things to do.",
 	},
 }
 

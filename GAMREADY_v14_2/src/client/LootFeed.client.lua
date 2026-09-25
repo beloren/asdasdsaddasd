@@ -169,6 +169,9 @@ end
 
 local function handle(items, header)
 	if typeof(items) ~= "table" then return end
+	-- v20.36: во время мини-игры шахты лента и баннер «RARE DROP!» молчат —
+	-- редкость и так видна над рудой.
+	if game:GetService("Players").LocalPlayer:GetAttribute("MineExpeditionActive") == true then return end
 	local bannerItem = nil
 	for index, item in items do
 		if typeof(item) == "table" then

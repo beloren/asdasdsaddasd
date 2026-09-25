@@ -3603,6 +3603,53 @@ end
 		end
 		renderAll()
 	end
+
+	-- v20.36: ПОДСВЕТКА КАРТОЧКИ В ОБУЧЕНИИ. Пока идёт шаг с Highlight
+	-- (атрибут игрока TutorialHighlight: "Mine" — починить шахту, "Cheapest" —
+	-- самое дешёвое доступное улучшение), за карточкой крутятся лучи
+	-- (UiTheme.Backdrops). Слой лежит в GridView ПОД карточками и каждый кадр
+	-- встаёт за нужной. После обучения атрибута нет — подсветки нет.
+	local function setupTutorialHighlight()
+		local rays = UiKit.Backdrop(gridView, "TutorialHighlightRays", "Epic2", {
+			Visible = false,
+			ZIndex = math.max(0, (row.ZIndex or 1) - 1),
+			Transparency = 0.05,
+		})
+		rays.AnchorPoint = Vector2.new(0.5, 0.5)
+		local function targetKind()
+			local wanted = player:GetAttribute("TutorialHighlight")
+			if typeof(wanted) ~= "string" then return nil end
+			if wanted ~= "Cheapest" then return gridCards[wanted] and wanted or nil end
+			local best, bestCost = nil, math.huge
+			for _, kind in { "Mine", "Cart", "Pickaxe" } do
+				local status = latestStatuses[kind]
+				local cost = status and tonumber(status.Cost)
+				if status and status.State == "Buyable" and cost and cost < bestCost then
+					best, bestCost = kind, cost
+				end
+			end
+			return best
+		end
+		RunService.RenderStepped:Connect(function(dt)
+			local kind = dialogOpen and gridView.Visible and targetKind() or nil
+			local visual = kind and gridCards[kind]
+			if not visual then
+				rays.Visible = false
+				return
+			end
+			local color = player:GetAttribute("TutorialHighlightColor")
+			rays.ImageColor3 = typeof(color) == "Color3" and color or Color3.fromRGB(255, 200, 50)
+			local scale = math.max(panelScale.Scale, 0.01)
+			local card = visual.Card
+			local center = (card.AbsolutePosition + card.AbsoluteSize / 2 - gridView.AbsolutePosition) / scale
+			local side = math.max(card.AbsoluteSize.X, card.AbsoluteSize.Y) / scale * 1.9
+			rays.Position = UDim2.fromOffset(center.X, center.Y)
+			rays.Size = UDim2.fromOffset(side, side)
+			rays.Rotation = (rays.Rotation + dt * 25) % 360
+			rays.Visible = true
+		end)
+	end
+	setupTutorialHighlight()
 	addUpgradeCooldownListener(function()
 		if dialogOpen and detailView.Visible then renderDetail() end
 	end)

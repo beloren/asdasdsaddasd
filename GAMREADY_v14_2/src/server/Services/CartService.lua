@@ -2619,9 +2619,14 @@ function CartService:AddCrystal(data, crystal, instant, dropWorldPosition, silen
 		if player and Services.DataService:IsTutorialRequired(player) and not data.FullCartTipShown then
 			data.FullCartTipShown = true
 			if Services.NotifyService then
-				Services.NotifyService:Show(player, '<font color="#5CFF8A">CART FULL</font> — bring it to the bank and sell!', { Icon = "Cart", Critical = true })
+				Services.NotifyService:Show(player, '<font color="#5CFF8A">CART FULL!</font> Take it to the bank.', { Icon = "Cart", Critical = true })
 			end
 		end
+	end
+	-- v20.36: обучение, шаг «загрузи руду в тележку».
+	local cartOwner = data.OwnerUserId and Players:GetPlayerByUserId(data.OwnerUserId)
+	if cartOwner and Services.TutorialService then
+		pcall(function() Services.TutorialService:Count(cartOwner, "OreDepositedToCart", 1) end)
 	end
 	return true
 end

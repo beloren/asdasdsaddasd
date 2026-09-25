@@ -350,6 +350,18 @@ function TutorialService:_enterStep(player, index, restoring)
 	-- секунду, как игрок до него доходил. KeepEarlyProgress — для шагов,
 	-- где забегать вперёд правильно (валуны, разбитые под вступительную
 	-- реплику, засчитываются).
+	-- v20.36: ResetCounters — обнулить чужие счётчики при входе в шаг
+	-- (например, «подобрал руду» считаем только ПОСЛЕ экспедиции: всё,
+	-- что игрок подберёт во время прощальной реплики, уже засчитается
+	-- следующему шагу с KeepEarlyProgress).
+	for _, key in step.ResetCounters or {} do
+		state.Counters[key] = nil
+	end
+	-- v20.36: Highlight — какую карточку в окне улучшений подсветить
+	-- крутящимися лучами ("Mine", "Cheapest"…); нет поля — подсветки нет.
+	player:SetAttribute("TutorialHighlight", step.Highlight)
+	player:SetAttribute("TutorialHighlightColor", step.HighlightColor)
+
 	local goal = step.Goal
 	if goal and goal.Kind == "Counter" and not step.KeepEarlyProgress then
 		for _, key in goal.Keys or { goal.Key } do
@@ -494,6 +506,15 @@ function TutorialService:_checkGoal(player)
 	if not step or not step.Goal then return end
 	if step.Goal.Kind == "Ack" then return end -- закрывается только кнопкой
 	local current, target = self:_goalProgress(player, step)
+	-- v20.36: нечего грузить в тележку — шаг не должен стать тупиком.
+	if current < target and step.CompleteWhenBagEmpty and Services.InventoryService then
+		local ok, count = pcall(Services.InventoryService.CountItems, Services.InventoryService, player)
+		if ok and tonumber(count) == 0 then current = target end
+	end
+	if current < target and step.CompleteWhenBagFull and Services.InventoryService then
+		local ok, hasRoom = pcall(Services.InventoryService.HasAnyRoom, Services.InventoryService, player)
+		if ok and hasRoom == false then current = target end
+	end
 	if current >= target then
 		self:_finishStep(player)
 	end
@@ -561,6 +582,8 @@ function TutorialService:_finish(player, rewarded)
 		data.TutorialStep = #steps()
 	end
 	player:SetAttribute("NeedsTutorial", false)
+	player:SetAttribute("TutorialHighlight", nil) -- подсветка карточек только в обучении
+	player:SetAttribute("TutorialHighlightColor", nil)
 	self:_setHiddenUi(player, false)
 
 	if rewarded then
