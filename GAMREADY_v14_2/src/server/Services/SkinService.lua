@@ -247,8 +247,17 @@ function SkinService:GetState(player)
 		end
 	end
 	table.sort(owned, function(a, b) return a.DisplayName < b.DisplayName end)
+	-- v20.27: ВСЕ скины кирок (для «?»-карточек ещё не открытых во вкладке
+	-- SKINS). Только редкость и Id — имя/картинку закрытого не раскрываем.
+	local all = {}
+	for skinId, definition in Config.Skins.Definitions do
+		if definition.Kind == "Pickaxe" and kindEnabled("Pickaxe") and data.OwnedSkins[skinId] ~= true then
+			table.insert(all, { Id = skinId, Kind = definition.Kind, Rarity = definition.Rarity })
+		end
+	end
 	return {
 		Owned = owned,
+		Locked = all,
 		Equipped = {
 			Pickaxe = kindEnabled("Pickaxe") and data.EquippedSkins.Pickaxe or "",
 			Cart = kindEnabled("Cart") and data.EquippedSkins.Cart or "",

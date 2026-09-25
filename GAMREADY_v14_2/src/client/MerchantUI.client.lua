@@ -215,6 +215,23 @@ local function refreshRow(itemId)
 	main.Stock.TextColor3 = soldOut and Color3.fromRGB(255, 110, 110) or Color3.fromRGB(205, 205, 205)
 	main.IconBox.Icon.ImageTransparency = soldOut and 0.55 or 0
 	main.IconBox.Emoji.TextTransparency = soldOut and 0.55 or 0
+	-- v20.27: не в стоке — вся строка слегка темнее (товар виден, но не купить).
+	local shade = row.Frame:FindFirstChild("SoldOutShade")
+	if not shade then
+		shade = Instance.new("Frame")
+		shade.Name = "SoldOutShade"
+		shade.BackgroundColor3 = Color3.new(0, 0, 0)
+		shade.BorderSizePixel = 0
+		shade.Size = UDim2.fromScale(1, 1)
+		shade.ZIndex = 50
+		shade.Active = false
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 8)
+		corner.Parent = shade
+		shade.Parent = row.Frame
+	end
+	shade.BackgroundTransparency = soldOut and 0.5 or 1
+	shade.Visible = soldOut
 	if data.Lock then
 		paintBuy(row, tr(data.Lock), Color3.fromRGB(120, 120, 120))
 	elseif soldOut then

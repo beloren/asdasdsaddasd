@@ -100,7 +100,15 @@ local function present(payload)
 	-- офлайн-заработка ещё физически нет, а для уже игравшего, которому
 	-- гайд включили заново (например, версию гайда подняли), один пропуск
 	-- сводки — приемлемая цена за то, чтобы не отвлекать от карточки гайда.
-	if player:GetAttribute("NeedsTutorial") == true then return end
+	if player:GetAttribute("NeedsTutorial") == true then
+		-- Сводку не показываем, но пополнение денег — всё равно видно.
+		local money = tonumber(payload.OfflineMoney) or 0
+		if money > 0 then
+			local ok, CoinShower = pcall(require, ReplicatedStorage.Shared.CoinShower)
+			if ok then task.delay(1.5, CoinShower.Play, money) end
+		end
+		return
+	end
 
 	local token = {}
 	activeToken = token
@@ -177,9 +185,22 @@ local function present(payload)
 		collectButton.Text = cfg.ButtonText or "COLLECT ALL"
 	end
 
+	-- v20.27: деньги за офлайн уже на счёте — на закрытии экрана монетки
+	-- вылетают из кнопки и «пополняют» счётчик денег (shared/CoinShower).
+	local showered = false
+	local function shower()
+		if showered or offlineMoney <= 0 then return end
+		showered = true
+		local ok, CoinShower = pcall(require, ReplicatedStorage.Shared.CoinShower)
+		if ok then
+			local from = collectButton.AbsoluteSize.X > 0 and CoinShower.ScreenCenter(collectButton) or nil
+			task.defer(CoinShower.Play, offlineMoney, from)
+		end
+	end
 	local connection
 	connection = collectButton.MouseButton1Click:Connect(function()
 		connection:Disconnect()
+		shower()
 		close()
 	end)
 	local closeButton = panel:FindFirstChild("CloseButton", true)
@@ -188,6 +209,7 @@ local function present(payload)
 		closeConnection = closeButton.MouseButton1Click:Connect(function()
 			closeConnection:Disconnect()
 			if connection.Connected then connection:Disconnect() end
+			shower()
 			close()
 		end)
 	end
@@ -198,6 +220,7 @@ local function present(payload)
 	task.delay(tonumber(cfg.AutoCloseAfter) or 20, function()
 		if activeToken == token then
 			if connection.Connected then connection:Disconnect() end
+			shower()
 			close()
 		end
 	end)

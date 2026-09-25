@@ -6892,9 +6892,14 @@ Config.Merchant.Tabs = {
 }
 Config.Merchant.BaseOffers = {
 	TotemSlots = 6, -- legacy: v4 катает Config.Placeables.TotemsPerTier на каждый тир
-	DecorSlots = 3,
+	DecorSlots = 3, -- legacy: с v20.27 мебель показывается вся (см. ниже)
 	TotemStock = { 1, 2 },
 	DecorStock = { 1, 3 },
+	-- v20.27: шанс мебели оказаться в стоке цикла — от DecorMinChance (самая
+	-- редкая по DecorWeights) до DecorMaxChance (самая частая). Своё число —
+	-- Config.Placeables.Decor.<Id>.StockChance. Не в стоке — видна затемнённой.
+	DecorMinChance = 0.12,
+	DecorMaxChance = 0.8,
 }
 -- ЛИМИТИРОВАННАЯ КИРКА ЦИКЛА. С шансом Chance в цикле появляется ОДНА
 -- кирка из Pool (только из тех, у кого есть ассет). Ушедшая не возвращается

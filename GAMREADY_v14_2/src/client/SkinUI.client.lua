@@ -173,6 +173,57 @@ local function renderGrid()
 		card.Activated:Connect(function() showDetail(entry.Id) end)
 		card.Parent = grid
 	end
+	-- v20.27: ещё не открытые скины — после своих, карточкой «?»: видна
+	-- только редкость (цвет рамки), имя и картинка скрыты, нажать нельзя.
+	local locked = {}
+	for _, entry in state.Locked or {} do
+		if entry.Kind == "Pickaxe" then table.insert(locked, entry) end
+	end
+	table.sort(locked, function(a, b)
+		local ra, rb = RARITY_ORDER[a.Rarity] or 0, RARITY_ORDER[b.Rarity] or 0
+		if ra ~= rb then return ra < rb end
+		return a.Id < b.Id
+	end)
+	for index, entry in locked do
+		local card = cardTemplate:Clone()
+		card.Name = "Locked_" .. entry.Id
+		card.LayoutOrder = #list + index
+		fillCard(card, { DisplayName = "???", Rarity = entry.Rarity, ImageId = 0 })
+		local badge = card:FindFirstChild("Equipped")
+		if badge then badge.Visible = false end
+		local image = card:FindFirstChild("Image")
+		if image then image.ImageTransparency = 1 end
+		local mark = Instance.new("TextLabel")
+		mark.Name = "LockedMark"
+		mark.BackgroundTransparency = 1
+		-- «?» там же, где картинка скина, и ПОВЕРХ затемнения — яркий.
+		mark.Size = image and image.Size or UDim2.fromScale(0.6, 0.55)
+		mark.AnchorPoint = image and image.AnchorPoint or Vector2.new(0.5, 0.5)
+		mark.Position = image and image.Position or UDim2.fromScale(0.5, 0.42)
+		UiKit.StyleText(mark, "Title")
+		mark.Text = "?"
+		mark.TextScaled = true
+		mark.TextColor3 = rarityColor(entry.Rarity):Lerp(Color3.new(1, 1, 1), 0.35)
+		mark.ZIndex = (image and image.ZIndex or card.ZIndex) + 20
+		mark.Parent = card
+		-- Затемнение и без нажатия.
+		card.Active = false
+		card.AutoButtonColor = false
+		card.Selectable = false
+		card:SetAttribute("DisableGlobalHover", true)
+		local shade = Instance.new("Frame")
+		shade.Name = "LockedShade"
+		shade.BackgroundColor3 = Color3.new(0, 0, 0)
+		shade.BackgroundTransparency = 0.45
+		shade.BorderSizePixel = 0
+		shade.Size = UDim2.fromScale(1, 1)
+		shade.ZIndex = mark.ZIndex - 1 -- над картинкой и подписями, под «?»
+		local corner = card:FindFirstChildOfClass("UICorner")
+		if corner then corner:Clone().Parent = shade end
+		shade.Parent = card
+		card.Visible = true
+		card.Parent = grid
+	end
 	if selectedId and detail.Visible then renderDetail() end
 end
 

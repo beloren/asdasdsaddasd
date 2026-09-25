@@ -102,20 +102,13 @@ local function rollStock(rng)
 		end
 	end
 	for _, offer in cycleOffers do
-		stock[offer.Id] = rng:NextInteger(offer.Stock[1], offer.Stock[2])
+		if rng:NextNumber() <= (offer.Chance or 1) then
+			stock[offer.Id] = rng:NextInteger(offer.Stock[1], offer.Stock[2])
+		else
+			stock[offer.Id] = 0 -- v20.27: мебель не в стоке — видна, но не купить
+		end
 	end
 	return stock
-end
-
-local function weightedIndex(rng, weights)
-	local total = 0
-	for _, weight in weights do total += weight end
-	local pick = rng:NextNumber() * total
-	for index, weight in weights do
-		pick -= weight
-		if pick <= 0 then return index end
-	end
-	return #weights
 end
 
 local function skinAvailable(skinId)
@@ -158,22 +151,28 @@ local function rollOffers(rng)
 				end
 			end
 		end
-		local decorIds, decorWeights = {}, {}
+		-- v20.27: МЕБЕЛЬ ПОКАЗЫВАЕТСЯ ВСЯ (Config.Placeables.DecorOrder), у
+		-- каждой свой шанс оказаться в стоке этого цикла: StockChance у самой
+		-- мебели или по весу DecorWeights (частая — почти всегда, редкая —
+		-- изредка). Не выпала — строка видна, но затемнена и не покупается.
+		local maxWeight = 0
 		for _, decorId in placeables.DecorOrder do
-			table.insert(decorIds, decorId)
-			table.insert(decorWeights, placeables.DecorWeights[decorId] or 1)
+			maxWeight = math.max(maxWeight, placeables.DecorWeights[decorId] or 1)
 		end
-		for _ = 1, base.DecorSlots or 0 do
-			local decorId = decorIds[weightedIndex(rng, decorWeights)]
+		local minChance, maxChance = base.DecorMinChance or 0.12, base.DecorMaxChance or 0.8
+		for index, decorId in placeables.DecorOrder do
 			local placeableId = PlaceableCatalog.DecorId(decorId)
 			local info = PlaceableCatalog.Info(placeableId)
-			if info and not used[placeableId] then
+			local def = placeables.Decor[decorId]
+			if info and def and not used[placeableId] then
 				used[placeableId] = true
+				local weight = placeables.DecorWeights[decorId] or 1
+				local chance = def.StockChance or math.clamp(minChance + (weight / math.max(maxWeight, 1)) * (maxChance - minChance), 0, 1)
 				table.insert(offers, {
 					Id = "P_" .. placeableId, Kind = "Placeable", PlaceableId = placeableId, Tab = "Base",
 					Rarity = info.Rarity, DisplayName = info.DisplayName, Icon = info.Icon,
-					Price = info.Price, Stock = base.DecorStock or { 1, 1 },
-					SortTier = 0,
+					Price = info.Price, Stock = base.DecorStock or { 1, 1 }, Chance = chance,
+					SortTier = 0, DecorIndex = index,
 				})
 			end
 		end
@@ -304,6 +303,10 @@ function MerchantService:BuildState(player)
 	local function add(item)
 		order += 1
 		local name, icon, image, effect = describe(item)
+		local left = stockLeft(player, item.Id)
+		local sortOrder = item.Limited and -100 or (item.SortTier and (order - item.SortTier * 20) or order)
+		-- v20.27: мебель не в стоке — в конец списка (видна, но затемнена).
+		if item.DecorIndex and left <= 0 then sortOrder += 500 end
 		table.insert(items, {
 			Id = item.Id,
 			Tab = item.Tab or "Shop",
@@ -314,8 +317,8 @@ function MerchantService:BuildState(player)
 			Effect = effect,
 			Rarity = item.Rarity,
 			Limited = item.Limited == true,
-			Order = item.Limited and -100 or (item.SortTier and (order - item.SortTier * 20) or order),
-			Stock = stockLeft(player, item.Id),
+			Order = sortOrder,
+			Stock = left,
 			Price = priceFor(player, item),
 			Lock = lockReason(player, item),
 		})
