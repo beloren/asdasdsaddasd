@@ -336,9 +336,19 @@ function RebirthService:SetupPlot(player, plot)
 		end
 	end
 
+	-- v20.21: везде «Prestige Mayor» — и в своей модели: надпись name с
+	-- «rebirth», имя Humanoid над головой (Roblox показывает имя модели).
+	for _, descendant in npc:GetDescendants() do
+		if descendant:IsA("TextLabel") and descendant.Text:lower():find("rebirth") then
+			descendant.Text = descendant.Text:gsub("[Rr][Ee][Bb][Ii][Rr][Tt][Hh]", "PRESTIGE")
+		elseif descendant:IsA("Humanoid") then
+			descendant.DisplayName = "Prestige Mayor"
+		end
+	end
+
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ObjectText = ""
-	prompt.ActionText = "REBIRTH"
+	prompt.ObjectText = "Prestige Mayor"
+	prompt.ActionText = "PRESTIGE"
 	prompt.HoldDuration = 0 -- решение больше не принимается ЗДЕСЬ — открывает диалог с явным Confirm/Cancel, случайно ничего не срабатывает
 	prompt.RequiresLineOfSight = false
 	prompt.MaxActivationDistance = 10

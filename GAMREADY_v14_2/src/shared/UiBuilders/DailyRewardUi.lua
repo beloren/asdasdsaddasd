@@ -123,13 +123,13 @@ function Builder.Build()
 	})
 
 	local toggle = UiKit.PlateButton(gui, "DailyToggleButton", "Round", { Size = UDim2.fromOffset(44, 44) })
-	UiKit.Text(toggle, "Caption", "🎁", {
-		_Stroke = 0,
+	-- v20.21: иконка — ImageLabel "Icon" (UiTheme.Icons.Rewards или Image в Studio).
+	UiKit.ThemeIcon(toggle, "Icon", "Rewards", "🎁", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromScale(0.6, 0.6),
+		Size = UDim2.fromScale(0.62, 0.62),
 		ZIndex = 2,
-	}).FontFace = Font.fromEnum(Enum.Font.GothamBold)
+	})
 	UiKit.Badge(toggle, "Badge", "", { Size = UDim2.fromOffset(12, 12), Position = UDim2.new(1, -4, 0, 4), Visible = false })
 
 	UiKit.Dimmer(gui)

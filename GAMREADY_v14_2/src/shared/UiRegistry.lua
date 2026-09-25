@@ -28,7 +28,7 @@ local UiRegistry = {}
 UiRegistry.Entries = {
 	-- HUD
 	{ Name = "Hud", Module = "UiBuilders.HudUi", MinVersion = 20, What = "портрет, деньги, престиж" },
-	{ Name = "TopbarDock", Module = "UiBuilders.HudUi", Fn = "BuildTopbar", MinVersion = 20, What = "ряд кнопок в топбаре" },
+	{ Name = "TopbarDock", Module = "UiBuilders.HudUi", Fn = "BuildTopbar", MinVersion = 21, What = "ряд кнопок в топбаре" },
 	{ Name = "CartInteractionUi", Module = "UiBuilders.CartInteractionUi", MinVersion = 20, What = "экранные подсказки промптов" },
 	{ Name = "HotbarUi", Module = "UiBuilders.InventoryUi", Fn = "BuildHotbar", MinVersion = 20, What = "хотбар" },
 	{ Name = "SatchelInventory", Module = "UiBuilders.InventoryUi", Fn = "BuildSatchel", MinVersion = 20, What = "рюкзак (клавиша ~)" },
@@ -45,12 +45,12 @@ UiRegistry.Entries = {
 	{ Name = "ShopUi", Module = "UiBuilders.ShopUi", MinVersion = 22, What = "магазин за Robux" },
 	{ Name = "UpgradeShopUi", Module = "UiBuilders.UpgradeShopUi", MinVersion = 21, What = "прокачка (Upgrade Mole)" },
 	{ Name = "SettingsMenu", Module = "UiBuilders.SettingsUi", MinVersion = 20, What = "настройки и промокоды" },
-	{ Name = "DailyRewardUi", Module = "UiBuilders.DailyRewardUi", MinVersion = 21, What = "награды за вход / время" },
+	{ Name = "DailyRewardUi", Module = "UiBuilders.DailyRewardUi", MinVersion = 22, What = "награды за вход / время" },
 	{ Name = "ReturnScreenUi", Module = "UiBuilders.ReturnScreenUi", MinVersion = 20, What = "экран возвращения" },
 	{ Name = "StarterPackOffer", Module = "UiBuilders.StarterPackUi", MinVersion = 21, What = "стартовый набор" },
 	{ Name = "CollectionMenu", Module = "UiBuilders.CollectionMenuUi", MinVersion = 21, What = "книга-меню" },
 	{ Name = "SkinUi", Module = "SkinUiBuilder", MinVersion = 21, What = "скины" },
-	{ Name = "PerkUi", Module = "PerkUiBuilder", MinVersion = 21, What = "перки престижа" },
+	{ Name = "PerkUi", Module = "PerkUiBuilder", MinVersion = 22, What = "перки престижа" },
 	{ Name = "RebirthDialogButtons", Module = "PrestigeUiBuilder", MinVersion = 21, What = "окно престижа у NPC" },
 	{ Name = "MerchantUi", Module = "MerchantUiBuilder", MinVersion = 20, What = "торговец" },
 	{ Name = "MarketTicker", Module = "MerchantUiBuilder", Fn = "BuildMarketTicker", MinVersion = 21, What = "табло курса руды" },
@@ -58,7 +58,7 @@ UiRegistry.Entries = {
 	{ Name = "DropPreviewUi", Module = "UiBuilders.DropPreviewUi", MinVersion = 21, What = "окно шансов" },
 	{ Name = "IslandUi", Module = "UiBuilders.IslandUi", MinVersion = 22, What = "острова и путешествия" },
 	{ Name = "GearUi", Module = "GearUiBuilder", MinVersion = 22, What = "снаряжение, лут сундуков" },
-	{ Name = "OfferUi", Module = "OfferUiBuilder", MinVersion = 20, What = "предложения" },
+	{ Name = "OfferUi", Module = "OfferUiBuilder", MinVersion = 21, What = "предложения" },
 	{ Name = "GroupRewardUi", Module = "SocialRewardCard", Fn = "BuildGroup", MinVersion = 20, What = "награда за группу" },
 	{ Name = "LikeRewardUi", Module = "SocialRewardCard", Fn = "BuildLike", MinVersion = 20, What = "награда за лайк" },
 

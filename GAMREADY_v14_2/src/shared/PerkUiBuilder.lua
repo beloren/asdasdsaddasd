@@ -27,7 +27,7 @@ local Theme = UiKit.Theme
 local Builder = {}
 Builder.Width = 800
 Builder.Height = 520
-Builder.VERSION = 21
+Builder.VERSION = 22
 
 local GOLD = Theme.Accents.Gold
 local STAR = Color3.fromRGB(80, 70, 150)
@@ -35,7 +35,19 @@ local STAR = Color3.fromRGB(80, 70, 150)
 local function button(parent, name, label, variant, props)
 	local b, caption = UiKit.Button(parent, name, label, variant, props)
 	caption.Name = "Text"
+	caption.TextWrapped = false -- v20.21: «🗿 SHRINES» не разваливается на две строки
 	return b
+end
+
+-- v20.21: иконка на кнопке — ImageLabel "Icon" (впиши Image в Studio или
+-- ImageId в Config), без картинки виден эмодзи-запасной "Emoji" внутри.
+local function iconSlot(parent, name, emoji, props)
+	local zIndex = props.ZIndex or 4
+	props._Stroke = nil
+	local icon = UiKit.Icon(parent, name, "", props)
+	local text = UiKit.Text(icon, "Emoji", emoji, { _Stroke = 0, ZIndex = zIndex })
+	text.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+	return icon
 end
 
 local function emojiText(parent, name, content, props)
@@ -101,7 +113,7 @@ function Builder.Build()
 	UiKit.Padding(shrines, 10, 4, 10, 10)
 	local shrine = UiKit.CardButton(shrines, "ShrineTemplate", STAR, { Visible = false, ZIndex = 3 })
 	shrine.BackgroundColor3 = Color3.fromRGB(34, 30, 60)
-	emojiText(shrine, "Icon", "🗿", { _Stroke = 0, Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(40, 40), ZIndex = 4 })
+	iconSlot(shrine, "Icon", "🗿", { Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(40, 40), ZIndex = 4 })
 	UiKit.Text(shrine, "Title", "Shrine", {
 		_Style = "Heading",
 		Position = UDim2.fromOffset(52, 10),
@@ -163,7 +175,7 @@ function Builder.Build()
 	UiKit.Stroke(node, Color3.fromRGB(10, 8, 24), 3, 0, "Outline")
 	UiKit.Gradient(node, Color3.new(1, 1, 1), Color3.fromRGB(175, 175, 200), 90, "Shade")
 	UiKit.Scale(node, "PressScale", 1)
-	emojiText(node, "Icon", "💰", { _Stroke = 0, Position = UDim2.fromOffset(12, 8), Size = UDim2.new(1, -24, 1, -28), ZIndex = 6 })
+	iconSlot(node, "Icon", "💰", { Position = UDim2.new(0.18, 0, 0.1, 0), Size = UDim2.fromScale(0.64, 0.6), ZIndex = 6 })
 	local chip = UiKit.Plate(node, "LevelChip", "Pill", {
 		_Accent = GOLD,
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -205,7 +217,7 @@ function Builder.Build()
 		Size = UDim2.new(0, 290, 1, -(top + pad)),
 		ZIndex = 3,
 	})
-	emojiText(detail, "Icon", "💰", { _Stroke = 0, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 14), Size = UDim2.fromOffset(90, 90), ZIndex = 4 })
+	iconSlot(detail, "Icon", "💰", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 14), Size = UDim2.fromOffset(90, 90), ZIndex = 4 })
 	UiKit.Text(detail, "Title", "Money", { _Style = "Title", Position = UDim2.fromOffset(10, 110), Size = UDim2.new(1, -20, 0, 36), ZIndex = 4 })
 	UiKit.Text(detail, "Level", "LV 0/25", { _Style = "Number", Position = UDim2.fromOffset(10, 148), Size = UDim2.new(1, -20, 0, 24), TextColor3 = GOLD.Light, ZIndex = 4 })
 	UiKit.Text(detail, "Now", "+0%", { _Style = "Body", Position = UDim2.fromOffset(10, 186), Size = UDim2.new(1, -20, 0, 24), TextColor3 = Theme.Colors.SubText, ZIndex = 4 })

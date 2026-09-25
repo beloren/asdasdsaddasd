@@ -142,7 +142,9 @@ end
 if demo then
 	-- Демо на каждый экран из «A+B+C» (если есть tools/dev/demos/<экран>.luau).
 	local names = { screenName }
-	for name in string.gmatch(screenName, "[^+]+") do table.insert(names, name) end
+	for name in string.gmatch(screenName, "[^+]+") do
+		if name ~= screenName then table.insert(names, name) end
+	end
 	for _, name in names do
 		local demoPath = "tools/dev/demos/" .. name .. ".luau"
 		if fs.isFile(demoPath) then

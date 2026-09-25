@@ -1330,14 +1330,13 @@ do
 			Size = UDim2.fromOffset(50, 50),
 			ClipsDescendants = false,
 		}, true)
-		local emoji = UiKit.Text(toggle, "Emoji", "🎒", {
-			_Stroke = 0,
+		-- Иконка — ImageLabel "Icon" (UiTheme.Icons.Inventory), без картинки — эмодзи.
+		UiKit.ThemeIcon(toggle, "Icon", "Inventory", "🎒", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.45),
 			Size = UDim2.fromScale(0.62, 0.62),
 			ZIndex = 3,
 		})
-		emoji.FontFace = Font.fromEnum(Enum.Font.GothamBold)
 		UiKit.Text(toggle, "KeyBadge", UserInputService.KeyboardEnabled and "~" or "", {
 			_Style = "Heading",
 			Position = UDim2.fromOffset(3, 1),

@@ -102,6 +102,19 @@ function Builder.BuildTopbar()
 		VerticalAlignment = Enum.VerticalAlignment.Center,
 		Padding = UDim.new(0, 12),
 	})
+	-- v20.21: кнопка магазина — первой в ряду (client/ShopDockButton).
+	-- Иконка — ImageLabel "Icon": впиши Image в Studio или UiTheme.Icons.Shop.
+	local shop = UiKit.PlateButton(row, "ShopDockButton", "Round", {
+		LayoutOrder = 1,
+		Size = UDim2.fromOffset(44, 44),
+	})
+	UiKit.ThemeIcon(shop, "Icon", "Shop", "🛒", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(0.62, 0.62),
+		ZIndex = 2,
+	})
+	gui:SetAttribute("UiKitVersion", 21)
 	return gui
 end
 

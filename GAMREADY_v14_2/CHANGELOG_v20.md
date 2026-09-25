@@ -212,3 +212,16 @@
 * **Статусы** (баффы, погода, сейв-зона) на телефоне — правый низ, над кнопкой прыжка.
 * **Топбар**: вместо кнопки квестов — кнопка магазина 🛒 (`client/ShopDockButton`); квесты — пункт QUESTS в меню-книге
   (SHOP в меню тоже остался). Пересобрать: `BuildAllUI` (CollectionMenu, GearUi) — иначе соберутся кодом.
+
+## Иконки, перки, Prestige Mayor (v20.21)
+
+* Кнопка магазина 🛒 в топбаре — теперь в билдере (`StarterGui/TopbarDock/Row/ShopDockButton`, иконка — ImageLabel
+  `Icon`; картинка — `UiTheme.Icons.Shop` или прямо Image в Studio).
+* Иконки на кнопках — ImageLabel `Icon` с эмодзи-запасным `Emoji` внутри (видно, пока Image пустой): награды за время
+  (`UiTheme.Icons.Rewards`), ракетная кирка (`Rocket`), рюкзак в хотбаре (`Inventory`), узлы перков и святилищ
+  (`ImageId` в Config.Prestige.Perks/Shrines или Image в Studio).
+* Prestige Perks: узлы 58 px с шагом 30 — линии между улучшениями видны целиком, 4 узла влезают в ветку;
+  «🗿 SHRINES» больше не переносится на две строки.
+* Мэр: промпт «PRESTIGE» / «Prestige Mayor»; в своей модели надписи с «Rebirth» → «PRESTIGE», имя Humanoid над
+  головой — «Prestige Mayor».
+* Пересобрать: `BuildAllUI` (TopbarDock, DailyRewardUi, OfferUi, PerkUi) — иначе соберутся кодом.

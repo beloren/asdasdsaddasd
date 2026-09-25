@@ -94,8 +94,30 @@ for _, branch in cfg.Branches or {} do
 	for _, perkId in branch.Perks do BRANCH_OF[perkId] = branch end
 end
 
-local NODE_SIZE = 70
-local NODE_GAP = 18
+-- v20.21: узлы чуть меньше, промежутки больше — линии между улучшениями
+-- видны целиком (не прячутся под плашкой уровня) и 4 узла влезают в ветку.
+-- Иконка: ImageLabel "Icon" (+ "Emoji" внутри) или старый TextLabel.
+local function setIcon(holder, emoji, imageId, transparency)
+	if not holder then return end
+	if holder:IsA("TextLabel") then
+		holder.Text = emoji or ""
+		holder.TextTransparency = transparency or 0
+		return
+	end
+	local id = tonumber(imageId) or 0
+	if id > 0 then holder.Image = "rbxassetid://" .. id end
+	if holder:IsA("ImageLabel") then holder.ImageTransparency = transparency or 0 end
+	local text = holder:FindFirstChild("Emoji")
+	if text then
+		text.Text = emoji or ""
+		text.TextTransparency = transparency or 0
+		text.Visible = holder.Image == ""
+	end
+end
+
+local NODE_SIZE = 58
+local NODE_GAP = 30
+local CHIP_OVERHANG = 10 -- плашка уровня «3/10» свисает ниже узла
 
 local state = { Points = 0 }
 local levels = {}
@@ -142,8 +164,9 @@ local function renderTree()
 					local line = linkTemplate:Clone()
 					line.Name = "Link"
 					line.Visible = true
-					line.Position = UDim2.new(0.5, 0, 0, y - NODE_GAP - 4)
-					line.Size = UDim2.fromOffset(line.Size.X.Offset, NODE_GAP + 8)
+					-- От низа плашки уровня предыдущего узла до верха этого.
+					line.Position = UDim2.new(0.5, 0, 0, y - NODE_GAP + CHIP_OVERHANG)
+					line.Size = UDim2.fromOffset(line.Size.X.Offset, NODE_GAP - CHIP_OVERHANG)
 					line.BackgroundColor3 = locked and COLOR_LOCKED or branch.Color
 					line.Parent = nodes
 				end
@@ -151,10 +174,10 @@ local function renderTree()
 				node.Name = "Node_" .. perkId
 				node.Visible = true
 				node.Position = UDim2.new(0.5, 0, 0, y)
+				node.Size = UDim2.fromOffset(NODE_SIZE, NODE_SIZE)
 				node.ZIndex = 2
 				node.BackgroundColor3 = locked and COLOR_LOCKED or (maxed and branch.Color:Lerp(COLOR_INK, 0.15) or branch.Color:Lerp(COLOR_STAR, 0.55))
-				node.Icon.Text = perk.Icon
-				node.Icon.TextTransparency = locked and 0.55 or 0
+				setIcon(node.Icon, perk.Icon, perk.ImageId, locked and 0.55 or 0)
 				node.LevelChip.Level.Text = maxed and "MAX" or ("%d/%d"):format(info.Level, perk.MaxLevel)
 				node.LevelChip.Level.TextColor3 = maxed and COLOR_GREEN_TEXT or COLOR_GOLD_TEXT
 				node.Lock.Visible = locked
@@ -199,7 +222,7 @@ local function renderShrineDetail()
 	end
 	detail.Visible = true
 	local info = shrineState[selectedShrine] or {}
-	detail.Icon.Text = def.Icon or "🗿"
+	setIcon(detail.Icon, def.Icon or "🗿", def.ImageId)
 	detail.Title.Text = tr(def.DisplayName)
 	detail.Title.TextColor3 = Color3.fromRGB(255, 220, 110)
 	detail.Level.Text = tr("SHRINE · never resets")
@@ -230,7 +253,7 @@ local function renderShrines()
 			card:SetAttribute("Generated", true)
 			card.Visible = true
 			card.LayoutOrder = index
-			card.Icon.Text = def.Icon or "🗿"
+			setIcon(card.Icon, def.Icon or "🗿", def.ImageId)
 			card.Title.Text = tr(def.DisplayName)
 			card.Status.Text = info.Owned and ("✅ " .. tr("OWNED")) or ("⭐ " .. tostring(def.Cost or 0))
 			card.Status.TextColor3 = info.Owned and COLOR_GREEN_TEXT or COLOR_GOLD_TEXT
@@ -282,7 +305,7 @@ renderDetail = function()
 	detail.Visible = true
 	local info = infoOf(perk.Id)
 	local branch = BRANCH_OF[perk.Id]
-	detail.Icon.Text = perk.Icon
+	setIcon(detail.Icon, perk.Icon, perk.ImageId)
 	detail.Title.Text = tr(perk.Title)
 	detail.Title.TextColor3 = branch and branch.Color or Color3.new(1, 1, 1)
 	detail.Level.Text = ("LV %d/%d"):format(info.Level, perk.MaxLevel)

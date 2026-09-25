@@ -17,7 +17,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 20
+Builder.VERSION = 21
 
 function Builder.Build()
 	local gui = UiKit.Screen("OfferUi", { DisplayOrder = 20 })
@@ -89,12 +89,12 @@ function Builder.Build()
 	})
 	local rocketGlow = UiKit.Stroke(rocket, Color3.fromRGB(255, 120, 60), 2, 1, "Glow")
 	rocketGlow.Transparency = 1
-	UiKit.Text(rocket, "Icon", "🚀", {
-		_Stroke = 0,
+	-- v20.21: иконка — ImageLabel "Icon" (UiTheme.Icons.Rocket или Image в Studio).
+	UiKit.ThemeIcon(rocket, "Icon", "Rocket", "🚀", {
 		Position = UDim2.fromOffset(11, 6),
 		Size = UDim2.new(1, -22, 1, -30),
 		ZIndex = 2,
-	}).FontFace = Font.fromEnum(Enum.Font.GothamBold)
+	})
 	UiKit.Text(rocket, "State", "OFF [R]", {
 		_Style = "Number",
 		Position = UDim2.new(0, 5, 1, -22),

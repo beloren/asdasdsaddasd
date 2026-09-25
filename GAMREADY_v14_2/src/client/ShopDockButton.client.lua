@@ -15,13 +15,19 @@ if not openRequest then
 	openRequest.Parent = ReplicatedStorage.Shared
 end
 
-local button = Instance.new("ImageButton")
-button.Name = "ShopDockButton"
-button.AutoButtonColor = false
-button.Image = UiKit.ImageUri(UiKit.Theme.Icons.Shop)
-button.ScaleType = Enum.ScaleType.Fit
-local emoji = UiKit.Text(button, "Icon", "🛒", { _Stroke = 0, Visible = button.Image == "" })
-emoji.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+-- v20.21: кнопка собирается билдером (StarterGui/TopbarDock/Row/ShopDockButton,
+-- иконка — ImageLabel "Icon"). Нет в StarterGui — собираем так же кодом.
+local dockGui = require(ReplicatedStorage.Shared.UiRegistry).Get("TopbarDock")
+local button = dockGui and dockGui:FindFirstChild("ShopDockButton", true)
+if not button then
+	button = UiKit.PlateButton(nil, "ShopDockButton", "Round", { Size = UDim2.fromOffset(44, 44) })
+	UiKit.ThemeIcon(button, "Icon", "Shop", "🛒", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(0.62, 0.62),
+		ZIndex = 2,
+	})
+end
 
 require(ReplicatedStorage.Shared.TopbarDock).Add(button, 1)
 
