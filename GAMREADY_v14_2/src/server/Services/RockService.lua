@@ -1177,7 +1177,7 @@ local function playBreakAnimation(model, tier)
 		-- вместе со всей остальной логикой Break(). Проверка на nil +
 		-- pcall делают эффект необязательным: не собрался — валун всё
 		-- равно нормально ломается, просто без частиц.
-		local okVfx, attachment = pcall(PlaceholderFactory.BoulderBreakVFX)
+		local okVfx, attachment = pcall(PlaceholderFactory.BoulderBreakVFX, model:GetAttribute("GoldenBoulder") and "Golden" or tier)
 		if not okVfx then
 			warn("[RockService] BoulderBreakVFX не собрался:", attachment)
 			attachment = nil
@@ -1202,7 +1202,8 @@ local function playBreakAnimation(model, tier)
 			for _, emitter in attachment:GetDescendants() do
 				if emitter:IsA("ParticleEmitter") then
 					emitter.Enabled = false
-					emitter.Color = ColorSequence.new(color)
+					-- Цвет тира — только плейсхолдеру; свой эффект — в своих цветах.
+					if emitter.Name:match("^Placeholder") then emitter.Color = ColorSequence.new(color) end
 					emitter:Emit(math.max(1, math.floor(tonumber(emitter:GetAttribute("EmitCount")) or 10)))
 					maxParticleLifetime = math.max(maxParticleLifetime, emitter.Lifetime.Max)
 				end
@@ -2185,20 +2186,25 @@ local function decorateGolden(model)
 	a0.Name = "GoldenBeamBottom"
 	a0.Parent = root
 	a0.WorldPosition = model:GetBoundingBox().Position + Vector3.new(0, size.Y * 0.5, 0)
-	local a1 = Instance.new("Attachment")
-	a1.Name = "GoldenBeamTop"
-	a1.Parent = root
-	a1.WorldPosition = a0.WorldPosition + Vector3.new(0, cfg.BeamHeight or 120, 0)
-	local beam = Instance.new("Beam")
-	beam.Attachment0 = a0
-	beam.Attachment1 = a1
-	beam.Color = ColorSequence.new(gold)
-	beam.LightEmission = 1
-	beam.Width0 = 3
-	beam.Width1 = 0.5
-	beam.FaceCamera = true
-	beam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
-	beam.Parent = root
+	-- v20.35: столб света над золотым валуном — только если включён
+	-- (Config.GoldenBoulder.ShowBeam). По умолчанию выключен: валун и так
+	-- светится, искрит и подписан; при разломе — BoulderBreakVFX_Golden.
+	if cfg.ShowBeam == true then
+		local a1 = Instance.new("Attachment")
+		a1.Name = "GoldenBeamTop"
+		a1.Parent = root
+		a1.WorldPosition = a0.WorldPosition + Vector3.new(0, cfg.BeamHeight or 120, 0)
+		local beam = Instance.new("Beam")
+		beam.Attachment0 = a0
+		beam.Attachment1 = a1
+		beam.Color = ColorSequence.new(gold)
+		beam.LightEmission = 1
+		beam.Width0 = 3
+		beam.Width1 = 0.5
+		beam.FaceCamera = true
+		beam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+		beam.Parent = root
+	end
 	local emitter = Instance.new("ParticleEmitter")
 	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
 	emitter.Color = ColorSequence.new(gold)

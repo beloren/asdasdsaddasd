@@ -585,7 +585,10 @@ mut_vfx = [k for k, v in cfg["Mutations"].items() if isinstance(v, dict) and v.g
 TABLE(["Имя ассета", "Класс", "Где играет / контракт"], [
     ["swing", "Attachment", "Замах киркой, один выброс у HumanoidRootPart. Атрибут `EmitCount` (по умолч. 10)."],
     ["PickaxeHitVFX", "Attachment", "Попадание киркой."],
-    ["BoulderBreakVFX", "Attachment", "Разрушение валуна."],
+    ["BoulderBreakVFX", "Attachment", "Разрушение валуна (итоговый эффект). Свой на тир — `BoulderBreakVFX_<тир>` (`BoulderBreakVFX_5`), на золотой — `BoulderBreakVFX_Golden`. Свои эффекты не перекрашиваются."],
+    ["Reveal_<Редкость>, Reveal_Mutation, RevealVFX", "Attachment / Part / Model / Folder", "Разовая вспышка при выпадении редкой руды (из валунов, золотого валуна, с мутацией) — вместо старого столба света. Эмиттеры стреляют один раз (атрибут `EmitCount`, по умолч. 20), Beam/Light горят `Duration` (0.6 с). Нет — плейсхолдер по редкости."],
+    ["Reveal_Chest_<Редкость>", "как Reveal_*", "Открытие сундука (вместо столба света). Нет — берётся `Reveal_<Редкость>`, потом плейсхолдер."],
+    ["PrestigeVFX", "Attachment / Part / Model / Folder", "Престиж: эффект на игроке (крепится к HumanoidRootPart, видят все). Нет — плейсхолдер «аура-корона»: вспышка у ног, золотая аура ~4 с, вращающаяся корона над головой."],
     ["SprintVFX", "BasePart / Model", "Бег с тележкой; корень приваривается к тележке в `SprintVFXPoint`. Эмиттеры могут быть в Attachment."],
     ["ShieldVfx, ShieldVfxVIP", "BasePart / Model", "Щит над головой игрока (обычный / VIP). Эмиттеры включает/выключает код."],
     ["BankSellVFX", "BasePart / Model", "Вспышка над тележкой при полной продаже (`Config.BankSellVfx`). Одноразовый: эмиттеры `Enabled = true` с `Rate`, `Emit()` не вызывается."],

@@ -349,17 +349,14 @@ local function playOpen(payload)
 			TweenService:Create(lid, TweenInfo.new(0.4), { Transparency = 1 }):Play()
 		end)
 	end
-	-- Столб света и вспышка.
-	local beam = part({
-		Shape = Enum.PartType.Cylinder, Size = Vector3.new(30, 2.5, 2.5), Material = Enum.Material.Neon,
-		Color = color, Transparency = 0.2,
-	})
-	beam.CFrame = CFrame.new(center + Vector3.new(0, 15, 0)) * CFrame.Angles(0, 0, math.rad(90))
-	beam.Parent = fxFolder
-	TweenService:Create(beam, TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-		Transparency = 1, Size = Vector3.new(30, 0.3, 0.3),
-	}):Play()
-	Debris:AddItem(beam, 1.3)
+	-- v20.35: вместо столба света — эффект открытия (shared/RevealVfx):
+	-- свой Assets/Reveal_Chest_<Редкость> или Reveal_<Редкость>, иначе плейсхолдер.
+	pcall(function()
+		require(ReplicatedStorage.Shared.RevealVfx).Play({ "Reveal_Chest_" .. rarity, "Reveal_" .. rarity, "RevealVFX" }, center + Vector3.new(0, 1, 0), {
+			Color = color,
+			Power = rarity == "Legendary" and 5 or rarity == "Epic" and 4 or rarity == "Rare" and 3 or 2,
+		})
+	end)
 	local flash = part({ Shape = Enum.PartType.Ball, Size = Vector3.one * 2, Material = Enum.Material.Neon, Color = color })
 	flash.CFrame = CFrame.new(center + Vector3.new(0, 1, 0))
 	flash.Parent = fxFolder

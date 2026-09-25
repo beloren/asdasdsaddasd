@@ -6933,6 +6933,7 @@ Config.GoldenBoulder = {
 	ExtraRolls = 2,
 	ContributorRelicChance = 0.15,
 	Color = Color3.fromRGB(255, 200, 40),
+	ShowBeam = false, -- v20.35: столб света над валуном (выключен — был «колхозным»)
 	BeamHeight = 120,
 }
 

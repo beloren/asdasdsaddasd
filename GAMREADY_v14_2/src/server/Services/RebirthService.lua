@@ -496,6 +496,8 @@ function RebirthService:_tryRebirth(player)
 	-- (уведомление клиенту, лог) не выполнялись.
 	local record = records[player]
 	Sfx.play("Rebirth", record and record.Npc and record.Npc.PrimaryPart)
+	-- v20.35: аура-корона вокруг игрока у всех клиентов (client/PrestigeAuraFX).
+	player:SetAttribute("PrestigeFxAt", workspace:GetServerTimeNow())
 	if rebirthNpcRemote then
 		rebirthNpcRemote:FireClient(player, "Result", true, "Success", ("%.1f"):format(multiplier))
 	end

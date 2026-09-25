@@ -416,8 +416,12 @@ function BaseDecorService:_refreshJar(player, record, model)
 		local title = stack.Smelted and (oreName(stack.Ore) .. " Ingot") or oreName(stack.Ore)
 		-- v20.34: редкость, название и стоимость — элемент коллекции.
 		local value = tonumber(stack.Value) or 0
+		-- Первая строка — шанс «1/N» (как в катсцене шахты) цветом редкости;
+		-- нет шанса (старая руда) — слово редкости.
+		local chance = tonumber(stack.Chance) or 0
+		local first = chance > 0 and ("1/" .. NumberFormat.abbreviate(math.max(1, math.round(1 / chance)))) or string.upper(rarity)
 		local lines = {
-			{ Text = string.upper(rarity), Color = PlaceableCatalog.RarityColor(rarity) },
+			{ Text = first, Color = PlaceableCatalog.RarityColor(rarity) },
 			{ Text = title, Color = Color3.fromRGB(235, 235, 235) },
 		}
 		if value > 0 then

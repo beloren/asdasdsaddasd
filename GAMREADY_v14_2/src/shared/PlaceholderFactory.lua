@@ -1262,9 +1262,13 @@ end
 -- в цвет тира и вызовет Emit по числу из атрибута EmitCount. Плейсхолдер —
 -- каменная крошка (тяжёлая, с гравитацией, летит наружу) плюс облако пыли,
 -- которое всплывает и тает.
-function PlaceholderFactory.BoulderBreakVFX()
+-- variant (v20.35) — необязательно: тир валуна (число) или "Golden". Сначала
+-- ищется Assets/BoulderBreakVFX_<variant> (например BoulderBreakVFX_5,
+-- BoulderBreakVFX_Golden), потом общий BoulderBreakVFX, потом плейсхолдер.
+function PlaceholderFactory.BoulderBreakVFX(variant)
+	local specific = variant ~= nil and (findAsset("BoulderBreakVFX_" .. tostring(variant))) or nil
 	local asset = extractVfxAttachment(
-		findAsset("BoulderBreakVFX") or findAsset("BoulderBreakVfx"),
+		specific or findAsset("BoulderBreakVFX") or findAsset("BoulderBreakVfx"),
 		"BoulderBreakVFX"
 	)
 	if asset then
