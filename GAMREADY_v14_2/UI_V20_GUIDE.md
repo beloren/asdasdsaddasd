@@ -108,3 +108,17 @@
 * Мировой текст: `WorldUi.Text(parent, name, "Number")`, готовый TextLabel → `WorldUi.Restyle(label, "Heading")`.
 * `CustomCartUI.client.lua` упирается в лимит 200 локальных регистров на верхнем уровне: новые `require`
   клади **внутрь функций**, а не в начало файла.
+
+
+## Телефон и ПК (v20.16)
+
+Интерфейс один, но под устройство подстраивается автоматически (`src/shared/UiLayout.lua`, `src/client/ResponsiveUi.client.lua`):
+
+* **Профиль**: Phone / Tablet / Desktop. Для проверки в Studio: `Config.UiLayout.ForceProfile = "Phone"` (или Device Emulator).
+* **Подгонка**: каждый верхний элемент каждого экрана получает UIScale = анимация × подгонка. Окна (по центру) — максимум
+  без выхода за экран; HUD — ещё и база профиля `Config.UiLayout.HudScale`.
+* **Раскладка телефона**: `Config.UiLayout.Overrides.Phone["Экран/Элемент/…"] = { Position = …, AnchorPoint = …, … }`.
+  Путь может вести и во вложенные объекты, например `"GearUi/GearBar/UIListLayout"`.
+* **Атрибуты в Studio**: `UiScale_Phone = 0.8` — своя база элемента на телефоне; `NoAutoFit = true` — не трогать элемент.
+* Свои окна подгонять вручную больше не нужно: не пишите масштаб «под экран» в клиентских скриптах — только анимацию.
+* Превью телефонной версии: `lune run tools/dev/preview_ui.luau "Hud+HotbarUi+…" 844 390 "" demo Phone`.

@@ -243,7 +243,8 @@ function Card.Controller(gui, opts)
 	local function fitScale()
 		local camera = workspace.CurrentCamera
 		local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
-		return math.min(1, (viewport.X - 24) / CARD_W, (viewport.Y - 40) / (CARD_H + 20))
+		local _ = viewport
+		return 1 -- v20.16: подгонка под экран — client/ResponsiveUi
 	end
 	if workspace.CurrentCamera then
 		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()

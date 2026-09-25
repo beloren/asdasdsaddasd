@@ -440,7 +440,8 @@ local function updateAutoScale()
 	if not ui then return end
 	local viewport = camera.ViewportSize
 	-- Контейнер ~660 px в ширину с кнопкой; на узких экранах ужимаем.
-	ui.AutoScale.Scale = math.clamp(viewport.X / 700, 0.55, 1)
+	local _ = viewport
+	ui.AutoScale.Scale = 1 -- v20.16: подгонка под экран — client/ResponsiveUi
 end
 
 local function ensureVeinUi()

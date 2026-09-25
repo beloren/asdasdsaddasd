@@ -107,6 +107,8 @@ local VH = tonumber(process.args[3]) or 720
 local show = {}
 for name in string.gmatch(process.args[4] or "", "[^,]+") do show[name] = true end
 local demo = process.args[5]
+-- 6-й аргумент — профиль (Phone/Tablet/Desktop): раскладка + подгонка как в игре.
+local profile = process.args[6]
 
 local UiRegistry = requireModule(shared.UiRegistry)
 -- Несколько экранов через «+»: Hud+HotbarUi — рисуются в один кадр.
@@ -114,6 +116,22 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "Preview"
 for name in string.gmatch(screenName, "[^+]+") do
 	local screen = UiRegistry.Build(name)
+	if profile and profile ~= "" then
+		local UiLayout = requireModule(shared.UiLayout)
+		UiLayout.ApplyOverrides(screen, profile)
+		for _, child in screen:GetChildren() do
+			if UiLayout.Manageable(name, child) then
+				local fit = UiLayout.FitScale(child, profile, roblox.Vector2.new(VW, VH))
+				local scale = child:FindFirstChildOfClass("UIScale")
+				if not scale then
+					scale = Instance.new("UIScale")
+					scale.Name = "ResponsiveScale"
+					scale.Parent = child
+				end
+				scale.Scale *= fit
+			end
+		end
+	end
 	for _, child in screen:GetChildren() do
 		child.Parent = gui
 	end
@@ -122,11 +140,17 @@ for _, d in gui:GetDescendants() do
 	if show[d.Name] and d:IsA("GuiObject") then d.Visible = true end
 end
 if demo then
-	local demoPath = "tools/dev/demos/" .. screenName .. ".luau"
-	if fs.isFile(demoPath) then
-		local env = makeEnv(nil)
-		local fn = luau.load(fs.readFile(demoPath), { debugName = demoPath, environment = env })
-		fn()(gui, shared, requireModule)
+	-- Демо на каждый экран из «A+B+C» (если есть tools/dev/demos/<экран>.luau).
+	local names = { screenName }
+	for name in string.gmatch(screenName, "[^+]+") do table.insert(names, name) end
+	for _, name in names do
+		local demoPath = "tools/dev/demos/" .. name .. ".luau"
+		if fs.isFile(demoPath) then
+			local env = makeEnv(nil)
+			local fn = luau.load(fs.readFile(demoPath), { debugName = demoPath, environment = env })
+			local ok, err = pcall(function() fn()(gui, shared, requireModule) end)
+			if not ok then print("[demo] " .. name .. ": " .. tostring(err)) end
+		end
 	end
 end
 
@@ -319,7 +343,13 @@ local function render(inst, x, y, w, h, depth, clipParent)
 	if stroke and (stroke.ApplyStrokeMode == roblox.Enum.ApplyStrokeMode.Border or not isText) then
 		table.insert(styles, ("box-shadow:0 0 0 %.1fpx %s;"):format(stroke.Thickness, css(stroke.Color, 1 - stroke.Transparency)))
 	end
-	if inst.Rotation ~= 0 then table.insert(styles, ("transform:rotate(%ddeg);"):format(inst.Rotation)) end
+	do
+		local uiScale = findClass(inst, "UIScale")
+		local k = uiScale and uiScale.Scale or 1
+		if inst.Rotation ~= 0 or math.abs(k - 1) > 1e-3 then
+			table.insert(styles, ("transform:rotate(%ddeg) scale(%.3f);transform-origin:%.0f%% %.0f%%;"):format(inst.Rotation, k, inst.AnchorPoint.X * 100, inst.AnchorPoint.Y * 100))
+		end
+	end
 	if inst.ClipsDescendants or inst:IsA("ScrollingFrame") then table.insert(styles, "overflow:hidden;") end
 	table.insert(styles, ("z-index:%d;"):format(inst.ZIndex))
 	emit(('<div title="%s" style="%s">'):format(inst:GetFullName(), table.concat(styles)))

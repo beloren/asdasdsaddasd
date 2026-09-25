@@ -48,7 +48,8 @@ local cardTemplate = gui:WaitForChild("Templates"):WaitForChild("CardTemplate")
 local function fitScale()
 	local camera = workspace.CurrentCamera
 	local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
-	columnScale.Scale = math.clamp(viewport.Y / 820, 0.6, 1.05)
+	local _ = viewport
+	columnScale.Scale = 1 -- v20.16: подгонка под экран — client/ResponsiveUi
 end
 fitScale()
 if workspace.CurrentCamera then

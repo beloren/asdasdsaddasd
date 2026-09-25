@@ -45,7 +45,8 @@ local rocketButton = gui:WaitForChild("RocketButton")
 local function fitScale()
 	local camera = workspace.CurrentCamera
 	local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
-	if autoScale then autoScale.Scale = math.clamp(viewport.Y / 820, 0.7, 1.1) end
+	local _ = viewport
+	if autoScale then autoScale.Scale = 1 end -- v20.16: подгонка под экран — client/ResponsiveUi
 end
 fitScale()
 if workspace.CurrentCamera then workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fitScale) end

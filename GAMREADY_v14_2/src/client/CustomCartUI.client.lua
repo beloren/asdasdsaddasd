@@ -90,13 +90,9 @@ local LARGE_UI = {
 	UpgradeShopCards = true,
 }
 
-local function applyAdditionalMobileScale(target)
-	if not (UserInputService.TouchEnabled and target and target:IsA("GuiObject")) then return end
-	local scale = target:FindFirstChild("AdditionalMobileScale") or Instance.new("UIScale")
-	scale.Name = "AdditionalMobileScale"
-	scale.Scale = 0.75
-	scale.Parent = target
-end
+-- v20.16: масштаб под телефон делает client/ResponsiveUi (единая система,
+-- см. shared/UiLayout). Здесь больше ничего не уменьшаем.
+local function applyAdditionalMobileScale(_target) end
 
 -- Настройки и магазин находятся в разных ScreenGui, поэтому выравниваем их
 -- одной схемой здесь. Это также исправляет позицию в уже собранных Studio-ассетах.
@@ -147,90 +143,15 @@ local function applyDeviceScale(gui)
 		gui.ClipToDeviceSafeArea = true
 	end)
 	applyLeftCornerButtonLayout(gui)
-	local viewport = workspace.CurrentCamera.ViewportSize
-	local target = gui:FindFirstChild("Panel", true) or gui:FindFirstChild("Responses", true) or gui:FindFirstChild("Bar", true)
-	if gui.Name == "SettingsMenu" and UserInputService.TouchEnabled then
-		if not target then
-			return
-		end
-		local baseWidth = target:GetAttribute("MobileBaseWidth")
-		local baseHeight = target:GetAttribute("MobileBaseHeight")
-		if not baseWidth or not baseHeight then
-			baseWidth = target.Size.X.Offset > 0 and target.Size.X.Offset or target.AbsoluteSize.X
-			baseHeight = target.Size.Y.Offset > 0 and target.Size.Y.Offset or target.AbsoluteSize.Y
-			baseWidth = baseWidth > 0 and baseWidth or 320
-			baseHeight = baseHeight > 0 and baseHeight or 430
-			target:SetAttribute("MobileBaseWidth", baseWidth)
-			target:SetAttribute("MobileBaseHeight", baseHeight)
-		end
-		local scale = target:FindFirstChild("DeviceScale")
-		if not scale then
-			scale = Instance.new("UIScale")
-			scale.Name = "DeviceScale"
-			scale.Parent = target
-		end
-		scale.Scale = math.min(0.7, (viewport.X - 24) / baseWidth, (viewport.Y - 48) / baseHeight)
-	elseif LARGE_UI[gui.Name] then
-		local oldScale = gui:FindFirstChild("DeviceScale")
-		if oldScale then
-			oldScale:Destroy()
-		end
-		if not target then
-			return
-		end
-		local scale = target:FindFirstChild("DeviceScale")
-		if not scale then
-			scale = Instance.new("UIScale")
-			scale.Name = "DeviceScale"
-			scale.Parent = target
-		end
-		scale.Scale = math.min(1, viewport.X / 820, viewport.Y / 540)
-	elseif gui.Name == "CartInteractionUi" and UserInputService.TouchEnabled then
-		local promptScale = (viewport.X < 350 and 0.95 or 1.08) * 0.75
-		for _, name in { "CartPromptGui", "CartDropHintGui", "TalkPromptGui" } do
-			local frame = gui:FindFirstChild(name, true)
-			if frame then
-				local scale = frame:FindFirstChild("MobileScale")
-				if not scale then
-					scale = Instance.new("UIScale")
-					scale.Name = "MobileScale"
-					scale.Parent = frame
-				end
-				scale.Scale = promptScale
-				frame.Position = UDim2.new(0.5, 45, 1, -20)
-			end
-		end
+	-- v20.16: масштабы окон/HUD под устройство (DeviceScale, MobileScale) и
+	-- телефонная позиция HUD перенесены в client/ResponsiveUi +
+	-- Config.UiLayout.Overrides.Phone. Оставлен только угол предложения
+	-- «заполнить тележку» — без масштаба.
+	if gui.Name == "CartInteractionUi" and UserInputService.TouchEnabled then
 		local fillOffer = gui:FindFirstChild("FillCartOffer", true)
 		if fillOffer then
-			local scale = fillOffer:FindFirstChild("MobileScale") or Instance.new("UIScale")
-			scale.Name = "MobileScale"
-			scale.Scale = (viewport.X < 500 and 0.82 or 1) * 0.75
-			scale.Parent = fillOffer
 			fillOffer.AnchorPoint = Vector2.new(1, 0.5)
 			fillOffer.Position = UDim2.new(1, -12, 0.5, 0)
-		end
-	elseif gui.Name == "Hud" and UserInputService.TouchEnabled then
-		local container = gui:FindFirstChild("HudGui", true)
-		if container then
-			local scale = container:FindFirstChild("MobileScale")
-			if not scale then
-				scale = Instance.new("UIScale")
-				scale.Name = "MobileScale"
-				scale.Parent = container
-			end
-			scale.Scale = 0.79
-
-			-- ФИКС "ДЕНЬГИ/РЕБИРТХИ ДОЛЖНЫ БЫТЬ ТОЧНО СПРАВА СВЕРХУ": раньше
-			-- позиция HudGui на телефоне была ЦЕЛИКОМ тем, что задал
-			-- билдер в Studio-ассете под десктоп — на некоторых
-			-- соотношениях сторон экрана это визуально съезжало не в
-			-- угол. Явно фиксируем якорь и позицию в правый верхний угол
-			-- каждый раз, когда применяется мобильный масштаб — не
-			-- полагаемся на то, что уже стоит в ассете.
-			if container:IsA("GuiObject") then
-				container.AnchorPoint = Vector2.new(1, 0)
-				container.Position = UDim2.new(1, -2, 0, 10)
-			end
 		end
 	end
 end
@@ -289,7 +210,9 @@ local function refreshMobileInteractionLayout()
 					frame.Position = UDim2.new(0.5, 0, 1, -112)
 					frame.Size = UDim2.fromOffset(150, 38)
 				else
-					frame.Position = UDim2.new(0.5, 45, 1, -20)
+					-- v20.16: позиция — Config.UiLayout.Overrides.Phone (над рядом
+					-- снаряжения, не поверх хотбара).
+					frame.Position = UDim2.new(0.5, 0, 1, -118)
 					local baseSize = frame:GetAttribute("MobileBaseSize")
 					if typeof(baseSize) == "Vector2" then
 						frame.Size = UDim2.fromOffset(baseSize.X, baseSize.Y)
@@ -6514,7 +6437,7 @@ local function setupToast()
 	local autoScale = stack:FindFirstChild("AutoScale")
 	local function updateScale()
 		if autoScale then
-			autoScale.Scale = UserInputService.TouchEnabled and (NCFG.MobileScale or 0.82) or 1
+			autoScale.Scale = 1 -- v20.16: масштаб под устройство — client/ResponsiveUi
 		end
 	end
 	updateScale()

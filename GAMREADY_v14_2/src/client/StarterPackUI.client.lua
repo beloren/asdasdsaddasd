@@ -254,7 +254,7 @@ local function resizeDetails()
 	if not responsiveScale then return end
 	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800, 600)
 	if details and details.Size.X.Offset > 0 and details.Size.Y.Offset > 0 then
-		responsiveScale.Scale = math.min(1, (viewport.X - 40) / details.Size.X.Offset, (viewport.Y - 40) / details.Size.Y.Offset)
+		responsiveScale.Scale = 1 -- v20.16: подгонка под экран — client/ResponsiveUi
 	end
 end
 if workspace.CurrentCamera then

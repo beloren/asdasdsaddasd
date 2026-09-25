@@ -730,6 +730,10 @@ Config.MineExpedition = {
 	-- пропадала при первом же клике мини-игры. Поэтому весь код роста
 	-- ниже (_stretchMine/_burstMine) считает от ЭТОЙ константы, а не от 1.
 	MineBaseScale = 1.3,
+	-- v20.16: анимацию масштаба шахты (растяжение, взрыв, плевок) проигрывает
+	-- клиент (client/MineScaleFX) — сервер не гоняет ScaleTo всей модели по
+	-- сети каждый кадр (это давало пролаг при перелёте камеры к руде).
+	ClientMineScale = true,
 
 	MineBulgeScale = 1.06,
 
@@ -5165,6 +5169,71 @@ Config.UI = {
 -- Output сюда. Пусто = все элементы работают как раньше, без изменений.
 --------------------------------------------------------------------------------
 Config.MobileLayout = {}
+
+--------------------------------------------------------------------------------
+-- v20.16: ДВЕ ВЕРСИИ UI — ПК И ТЕЛЕФОН (shared/UiLayout + client/ResponsiveUi).
+--
+-- Профиль: "Phone" (сенсор без клавиатуры, короткая сторона ≤ PhoneMaxShortSide),
+-- "Tablet" (сенсор, экран больше), "Desktop" (всё остальное).
+-- ForceProfile = "Phone" — проверить телефонную версию на ПК/в Studio.
+--
+-- Масштаб: любое окно и любая плашка ВСЕГДА целиком влезают в безопасную зону
+-- экрана (с отступом Margin). HUD на телефоне дополнительно мельче —
+-- HudScale[профиль] = clamp(короткая сторона / Ref, Min, Max).
+-- Своя база для одного элемента: атрибут UiScale_Phone = 0.8 прямо в Studio.
+-- Не трогать элемент вообще: атрибут NoAutoFit = true (или Skip ниже).
+--
+-- Раскладка: Overrides[профиль]["Экран/Элемент/…"] = { свойства } — любые
+-- свойства (Position, AnchorPoint, Size, Visible, FillDirection у
+-- UIListLayout…). Это и есть «телефонная версия»: правь здесь, код не нужен.
+--------------------------------------------------------------------------------
+Config.UiLayout = {
+	ForceProfile = nil, -- nil = автоопределение; "Phone" / "Tablet" / "Desktop" — принудительно
+	PhoneMaxShortSide = 600,
+	MinScale = 0.3,
+	Margin = { Phone = 6, Tablet = 10, Desktop = 12 },
+	HudScale = {
+		Phone = { Ref = 540, Min = 0.62, Max = 0.85 },
+		Tablet = { Ref = 900, Min = 0.8, Max = 1 },
+		Desktop = { Ref = 720, Min = 0.75, Max = 1 },
+	},
+	WindowMaxScale = { Phone = 1, Tablet = 1, Desktop = 1 },
+	-- Экраны/элементы, которые подгоняются сами (своя логика размера).
+	Skip = {
+		["RevealCards/Holder"] = true,
+	},
+	Overrides = {
+		Phone = {
+			-- Джойстик — левый низ, прыжок — правый низ: там ничего не ставим.
+			-- Деньги и престиж — правый верх.
+			["Hud/HudGui"] = { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 8) },
+			-- Баффы — слева от денег, растут вниз.
+			["BuffBar/Bar"] = { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -250, 0, 8) },
+			-- Лента добычи — под деньгами, покороче.
+			["LootFeedUi/Feed"] = { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 96), Size = UDim2.fromOffset(300, 300) },
+			-- Предложения — над кнопкой прыжка, левее неё.
+			["OfferUi/Stack"] = { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -120, 1, -70) },
+			-- Квест — левый верх под кнопками топбара (не в зоне джойстика).
+			["QuestUi/QuestTracker"] = { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 10, 0, 50) },
+			["QuestUi/QuestTracker/UIListLayout"] = { VerticalAlignment = Enum.VerticalAlignment.Top },
+			-- Снаряжение — ряд над хотбаром вместо колонки слева.
+			["GearUi/GearBar"] = { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -62), Size = UDim2.fromOffset(330, 64) },
+			["GearUi/GearBar/UIListLayout"] = {
+				FillDirection = Enum.FillDirection.Horizontal,
+				HorizontalAlignment = Enum.HorizontalAlignment.Center,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+			},
+			["GearUi/AimHint"] = { Position = UDim2.new(0.5, 0, 1, -118) },
+			-- Подсказки тележки/NPC — над рядом снаряжения.
+			["CartInteractionUi/CartPromptGui"] = { Position = UDim2.new(0.5, 0, 1, -118) },
+			["CartInteractionUi/CartDropHintGui"] = { Position = UDim2.new(0.5, 0, 1, -118) },
+			["CartInteractionUi/TalkPromptGui"] = { Position = UDim2.new(0.5, 0, 1, -118) },
+			["RubbleCrystalHotbar/Slot"] = { Position = UDim2.new(0.5, 0, 1, -118) },
+		},
+		Tablet = {},
+		Desktop = {},
+	},
+}
 
 --------------------------------------------------------------------------------
 -- ФОНОВАЯ МУЗЫКА — плейлист треков, играются ПО ОЧЕРЕДИ (не вперемешку),

@@ -1393,6 +1393,9 @@ local function easeOutBack(a)
 	local c1, c3 = 1.4, 2.4
 	return 1 + c3 * (a - 1) ^ 3 + c1 * (a - 1) ^ 2
 end
+local MINE_EASES = { OutQuad = easeOutQuad, InOutQuad = easeInOutQuad, OutBack = easeOutBack }
+local EASE_NAMES = {}
+for name, fn in MINE_EASES do EASE_NAMES[fn] = name end
 
 -- keyframes: { { T = секунды от старта (накопительно), S = абсолютный
 -- масштаб, Ease = функция }, ... }. Первый отрезок начинается с ТЕКУЩЕГО
@@ -1421,6 +1424,29 @@ end
 
 -- opts (необязательно): { Shake = амплитуда в стадах, ShakeSeconds = длительность }.
 -- Тряска затухает линейно и идёт параллельно с масштабом.
+-- v20.16: АНИМАЦИЯ ШАХТЫ — НА КЛИЕНТЕ. Раньше сервер каждый кадр делал
+-- Model:ScaleTo всей шахты, и размеры/позиции ВСЕХ её деталей улетали по сети
+-- каждый кадр — в момент выброса руды (взрыв + плевок на каждый кусок) это
+-- давало пролаг как раз во время перелёта камеры. Теперь сервер пишет только
+-- атрибут MineScaleAnim (ключи, тряска, серверное время старта), а
+-- client/MineScaleFX проигрывает то же самое локально. Геометрия шахты на
+-- сервере всё время в базовом масштабе.
+local function encodeMineAnim(mine, token, keyframes, opts)
+	local keys = {}
+	for _, frame in keyframes do
+		table.insert(keys, { T = frame.T, S = frame.S, E = EASE_NAMES[frame.Ease] or "OutQuad" })
+	end
+	local okScale, current = pcall(function() return mine:GetScale() end)
+	return HttpService:JSONEncode({
+		Seq = token,
+		Start = workspace:GetServerTimeNow(),
+		Current = okScale and current or mineBaseScale(),
+		Keys = keys,
+		Shake = opts and opts.Shake or 0,
+		ShakeSeconds = opts and opts.ShakeSeconds or 0,
+	})
+end
+
 function MineService:_animateMineScale(plot, keyframes, opts)
 	local mine = plot and plot.MineModel
 	if not (mine and mine.Parent) then return nil end
@@ -1429,6 +1455,11 @@ function MineService:_animateMineScale(plot, keyframes, opts)
 	state.Token += 1
 	local token = state.Token
 	clearMineShake(mine, state)
+	if Config.MineExpedition.ClientMineScale ~= false then
+		game:GetService("CollectionService"):AddTag(mine, "MineScaleAnimated")
+		mine:SetAttribute("MineScaleAnim", encodeMineAnim(mine, token, keyframes, opts))
+		return token
+	end
 
 	local okScale, startScale = pcall(function() return mine:GetScale() end)
 	if not okScale then return nil end
@@ -1495,6 +1526,9 @@ function MineService:_snapMineToBase(plot)
 	state.Token += 1
 	clearMineShake(mine, state)
 	pcall(setMineScale, mine, state, mineBaseScale())
+	if Config.MineExpedition.ClientMineScale ~= false then
+		mine:SetAttribute("MineScaleAnim", HttpService:JSONEncode({ Seq = state.Token, Snap = true }))
+	end
 end
 
 -- РЕАКЦИЯ ШАХТЫ НА УДАР — своя на каждый результат (по прямому запросу —
