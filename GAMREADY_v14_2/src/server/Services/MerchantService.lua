@@ -232,15 +232,67 @@ local function personalOf(player)
 	return entry
 end
 
+local dailyDealId -- объявлена ниже (скидка дня всегда в стоке)
 local function stockLeft(player, itemId)
 	local entry = personalOf(player)
 	local base = (entry.Stock or globalStock)[itemId] or 0
+	if dailyDealId and itemId == dailyDealId() then
+		base = math.max(base, (CFG.DailyDeal and CFG.DailyDeal.Stock) or 1)
+	end
 	return math.max(0, base - (entry.Bought[itemId] or 0))
 end
 
--- v4: цены фиксированные (item.Price) — не зависят от тиров игрока.
-local function priceFor(_player, item)
+--------------------------------------------------------------------------------
+-- v20.28: ЖЕОДЫ, «???», СКИДКА ДНЯ
+--------------------------------------------------------------------------------
+-- Две значащие цифры: 12 345 → 12 000 (ценники читаются сразу).
+local function niceRound(value)
+	value = math.max(1, value)
+	local magnitude = 10 ^ math.max(0, math.floor(math.log10(value)) - 1)
+	return math.floor(value / magnitude + 0.5) * magnitude
+end
+
+local function incomePerMinute(player)
+	local tiers = Services.DataService:GetTiers(player)
+	local ok, value = pcall(Config.IncomePerMinute, tiers.Mine or 1, tiers.Cart or 1)
+	return ok and tonumber(value) or 100
+end
+
+local function geodeTypeFor(player, offset)
+	local order = Config.Geodes.Order or {}
+	if #order == 0 then return nil end
+	local cave = Services.DataService:GetTiers(player).Mine or 1
+	return order[math.clamp(cave + (offset or 0), 1, #order)]
+end
+
+-- Скидка дня: один товар вкладки SHOP на сутки (UTC), одинаковый у всех.
+dailyDealId = function()
+	local deal = CFG.DailyDeal
+	if not (deal and deal.Enabled) then return nil end
+	local eligible = {}
+	for _, item in CFG.Items do
+		if (item.Tab or "Shop") == "Shop" and deal.Kinds[item.Kind] then table.insert(eligible, item.Id) end
+	end
+	if #eligible == 0 then return nil end
+	local day = math.floor(os.time() / 86400)
+	return eligible[Random.new(day * 7919):NextInteger(1, #eligible)]
+end
+
+local function basePrice(player, item)
+	if item.PriceMinutes then
+		return niceRound(incomePerMinute(player) * item.PriceMinutes)
+	end
 	return math.max(0, math.floor(tonumber(item.Price) or 0))
+end
+
+-- v4: цены фиксированные (item.Price); v20.28: жеоды и «???» — в минутах
+-- дохода игрока, товар дня — со скидкой.
+local function priceFor(player, item)
+	local price = basePrice(player, item)
+	if item.Id == dailyDealId() then
+		price = niceRound(price * (1 - (CFG.DailyDeal.Discount or 0.3)))
+	end
+	return price
 end
 
 -- v4: тотемы показываются только своего диапазона: тиры [свой-1 … свой+1],
@@ -278,8 +330,31 @@ end
 
 -- Всё, что клиенту нужно для отрисовки строки, — прямо в снимке: лавке
 -- на клиенте больше не нужен Config.Merchant.Items (товары цикла меняются).
-local function describe(item)
+local function skinEffect(skinId)
+	local buffs = Config.SkinBuffs and Config.SkinBuffs[skinId]
+	if not buffs then return "Pickaxe skin" end
+	local lines = {}
+	for stat, value in buffs do
+		local info = Config.SkinStats and Config.SkinStats[stat]
+		table.insert(lines, { value, ("%s%d%% %s"):format(value >= 0 and "+" or "-", math.floor(math.abs(value) * 100 + 0.5), info and info.Label or stat) })
+	end
+	table.sort(lines, function(a, b) return a[1] > b[1] end)
+	local out = {}
+	for _, line in lines do table.insert(out, line[2]) end
+	return table.concat(out, " · ")
+end
+
+local function describe(item, player)
 	local name, icon, image, effect = item.DisplayName, item.Icon, nil, nil
+	if item.Kind == "Geode" then
+		local geodeType = geodeTypeFor(player, item.GeodeOffset)
+		local info = geodeType and Config.Geodes.Types[geodeType]
+		name = info and info.DisplayName or "Geode"
+		effect = "Goes straight to your geode vault"
+		return name, icon or "🪨", image, effect
+	elseif item.Kind == "Mystery" then
+		return "???", "❓", nil, "A random surprise: potion, geode, furniture, cash… or a rare pickaxe!"
+	end
 	if item.Kind == "Potion" then
 		local potion = Config.Potions and Config.Potions.Types[item.Potion]
 		if potion then name, icon = potion.DisplayName, potion.Icon end
@@ -290,23 +365,42 @@ local function describe(item)
 		local imageId = definition and definition.ImageId or 0
 		if imageId and imageId ~= 0 then image = "rbxassetid://" .. tostring(imageId) end
 		name = name or (definition and definition.DisplayName)
-		effect = item.Limited and "LIMITED — gone after this restock" or "Pickaxe skin"
+		-- v20.28: бонусы кирки прямо в строке (+роль).
+		local role = Config.SkinRoles and Config.SkinRoles[item.SkinId]
+		effect = (role and (role:upper() .. ": ") or "") .. skinEffect(item.SkinId)
+		if item.Limited then effect = "LIMITED — gone after this restock. " .. effect end
 	elseif item.Kind == "Placeable" then
 		effect = PlaceableCatalog.EffectText(PlaceableCatalog.Info(item.PlaceableId))
 	end
 	return name or item.Id, icon or "?", image, effect
 end
 
+local function wishlistOf(player)
+	local data = Services.DataService:GetGeodeData(player)
+	if not data then return {} end
+	if type(data.MerchantWishlist) ~= "table" then data.MerchantWishlist = {} end
+	return data.MerchantWishlist
+end
+
 function MerchantService:BuildState(player)
 	local items = {}
 	local order = 0
+	local deal = dailyDealId()
+	local wishlist = wishlistOf(player)
 	local function add(item)
 		order += 1
-		local name, icon, image, effect = describe(item)
+		local name, icon, image, effect = describe(item, player)
 		local left = stockLeft(player, item.Id)
+		local isDeal = item.Id == deal
 		local sortOrder = item.Limited and -100 or (item.SortTier and (order - item.SortTier * 20) or order)
-		-- v20.27: мебель не в стоке — в конец списка (видна, но затемнена).
-		if item.DecorIndex and left <= 0 then sortOrder += 500 end
+		if isDeal then sortOrder = -90 end
+		-- v20.27/28: не в стоке — в конец списка (виден, но затемнён).
+		if left <= 0 then sortOrder += 500 end
+		local rarity = item.Rarity
+		if item.Kind == "Geode" then
+			local geodeType = geodeTypeFor(player, item.GeodeOffset)
+			rarity = geodeType and Config.Geodes.Types[geodeType] and Config.Geodes.Types[geodeType].Rarity or "Common"
+		end
 		table.insert(items, {
 			Id = item.Id,
 			Tab = item.Tab or "Shop",
@@ -315,12 +409,18 @@ function MerchantService:BuildState(player)
 			Icon = icon,
 			Image = image,
 			Effect = effect,
-			Rarity = item.Rarity,
+			Rarity = rarity,
 			Limited = item.Limited == true,
 			Order = sortOrder,
 			Stock = left,
 			Price = priceFor(player, item),
 			Lock = lockReason(player, item),
+			-- v20.28
+			SkinId = item.SkinId,
+			Buffs = item.SkinId and Config.SkinBuffs and Config.SkinBuffs[item.SkinId] or nil,
+			Deal = isDeal and math.floor((CFG.DailyDeal.Discount or 0.3) * 100 + 0.5) or nil,
+			OldPrice = isDeal and basePrice(player, item) or nil,
+			Wished = wishlist[item.Id] == true,
 		})
 	end
 	for _, offer in cycleOffers do
@@ -330,7 +430,9 @@ function MerchantService:BuildState(player)
 	for _, offer in cycleOffers do
 		if not offer.Limited and visibleFor(player, offer) then add(offer) end
 	end
+	local data = Services.DataService:GetGeodeData(player)
 	return {
+		EquippedSkin = data and data.EquippedSkins and data.EquippedSkins.Pickaxe or "",
 		Cycle = cycle,
 		RestockAt = nextRestockAt,
 		Market = marketMultiplier,
@@ -341,6 +443,7 @@ end
 
 function MerchantService:SendState(player, command)
 	if not (player and player.Parent) then return end
+	if command == "Open" then player:SetAttribute("MerchantWishAlert", nil) end -- v20.28: открыл — «!» гаснет
 	local ok, state = pcall(function() return self:BuildState(player) end)
 	if ok then
 		stateRemote:FireClient(player, command or "State", state)
@@ -364,8 +467,82 @@ local function grant(player, item)
 		return Services.SkinService:GrantSkin(player, item.SkinId) == true
 	elseif item.Kind == "Placeable" then
 		return Services.BaseDecorService and Services.BaseDecorService:GrantItem(player, item.PlaceableId, 1) == true
+	elseif item.Kind == "Geode" then
+		local geodeType = geodeTypeFor(player, item.GeodeOffset)
+		return geodeType ~= nil and Services.GeodeService:AddGeodeDirectly(player, geodeType) == true
+	elseif item.Kind == "Mystery" then
+		return MerchantService._openMystery(player)
 	end
 	return false
+end
+
+-- v20.28: «???» — выдаёт случайную награду, возвращает true, nil, reveal
+-- (карточка для клиента, формат RevealCards).
+local function grantMoneyMinutes(player, minutes)
+	local amount = niceRound(incomePerMinute(player) * (minutes or 10))
+	Services.DataService:AddMoney(player, amount)
+	return { Kind = "Money", Amount = amount, Rarity = "Rare" }
+end
+
+local function pickWeighted(rng, list, weightOf)
+	local total = 0
+	for _, entry in list do total += weightOf(entry) end
+	local roll = rng:NextNumber() * total
+	for _, entry in list do
+		roll -= weightOf(entry)
+		if roll <= 0 then return entry end
+	end
+	return list[#list]
+end
+
+function MerchantService._openMystery(player)
+	local pool = (CFG.Mystery and CFG.Mystery.Pool) or {}
+	if #pool == 0 then return true, nil, grantMoneyMinutes(player, 10) end
+	local rng = Random.new()
+	local pick = pickWeighted(rng, pool, function(entry) return entry.Weight or 1 end)
+	if pick.Kind == "Potion" then
+		local order = Config.Potions and Config.Potions.Order or {}
+		local key = order[rng:NextInteger(1, math.max(#order, 1))]
+		if key and Services.GearService:AddGear(player, key, 1) > 0 then
+			local rarity = "Rare"
+			for _, item in CFG.Items do
+				if item.Potion == key then rarity = item.Rarity or rarity end
+			end
+			return true, nil, { Kind = "Charm", Charm = key, Rarity = rarity }
+		end
+	elseif pick.Kind == "Geode" then
+		local geodeType = geodeTypeFor(player, pick.GeodeOffset)
+		if geodeType and Services.GeodeService:AddGeodeDirectly(player, geodeType) == true then
+			local info = Config.Geodes.Types[geodeType]
+			return true, nil, { Kind = "Geode", Title = info.DisplayName, Text = info.DisplayName, Rarity = info.Rarity }
+		end
+	elseif pick.Kind == "Decor" then
+		local placeables = Config.Placeables
+		local decorId = pickWeighted(rng, placeables.DecorOrder, function(id) return placeables.DecorWeights[id] or 1 end)
+		local placeableId = PlaceableCatalog.DecorId(decorId)
+		local info = PlaceableCatalog.Info(placeableId)
+		if info and Services.BaseDecorService and Services.BaseDecorService:GrantItem(player, placeableId, 1) == true then
+			return true, nil, { Kind = "Decor", Title = info.DisplayName, Text = info.DisplayName, Rarity = info.Rarity }
+		end
+	elseif pick.Kind == "Skin" then
+		local candidates = {}
+		for _, skinId in pick.Skins or {} do
+			if skinAvailable(skinId) and not Services.SkinService:OwnsSkin(player, skinId) then table.insert(candidates, skinId) end
+		end
+		if #candidates > 0 then
+			local skinId = candidates[rng:NextInteger(1, #candidates)]
+			if Services.SkinService:GrantSkin(player, skinId) == true then
+				local definition = Config.Skins.Definitions[skinId]
+				return true, nil, { Kind = "Skin", SkinId = skinId, Rarity = definition and definition.Rarity or "Epic", New = true }
+			end
+		end
+		local fallback = pick.Fallback or { Minutes = 20 }
+		return true, nil, grantMoneyMinutes(player, fallback.Minutes)
+	elseif pick.Kind == "Money" then
+		return true, nil, grantMoneyMinutes(player, pick.Minutes)
+	end
+	-- Что-то не выдалось (полный инвентарь, занята транзакция) — деньги.
+	return true, nil, grantMoneyMinutes(player, 10)
 end
 
 function MerchantService:Buy(player, itemId)
@@ -389,10 +566,11 @@ function MerchantService:Buy(player, itemId)
 	-- записал покупку.
 	entry.Busy = true
 	local purchaseCycle = cycle
-	local ok, granted, reason = pcall(grant, player, item)
+	local ok, granted, reason, reveal = pcall(grant, player, item)
 	entry.Busy = false
 	if not ok or not granted then
-		return false, reason or "Purchase failed"
+		if not ok then warn("[MerchantService] покупка", itemId, granted) end
+		return false, (ok and reason) or "Purchase failed"
 	end
 	Services.DataService:AddMoney(player, -cost)
 	-- Цикл мог смениться, пока сохранялся профиль: покупку записываем в
@@ -404,7 +582,41 @@ function MerchantService:Buy(player, itemId)
 		pcall(function() Services.QuestService:RecordMetric(player, "MerchantBuys", 1) end)
 	end
 	self:SendState(player)
+	return true, reveal
+end
+
+-- v20.28: «напомни мне» — звёздочка на товаре.
+function MerchantService:ToggleWish(player, itemId)
+	if not (CFG.Wishlist and CFG.Wishlist.Enabled) then return false end
+	if not itemById[itemId] and not staticById[itemId] and not itemId:match("^P_") then return false end
+	local wishlist = wishlistOf(player)
+	if wishlist[itemId] then
+		wishlist[itemId] = nil
+	else
+		local count = 0
+		for _ in wishlist do count += 1 end
+		if count >= (CFG.Wishlist.MaxWishes or 8) then return false, "Too many stars" end
+		wishlist[itemId] = true
+	end
+	self:SendState(player)
 	return true
+end
+
+-- Новый цикл: отмеченные товары в стоке — уведомление и «!» над торговцем.
+function MerchantService:_notifyWishes(player)
+	if not (CFG.Wishlist and CFG.Wishlist.Enabled) then return end
+	local names = {}
+	for itemId in wishlistOf(player) do
+		local item = itemById[itemId]
+		if item and visibleFor(player, item) and stockLeft(player, itemId) > 0 then
+			table.insert(names, (describe(item, player)))
+		end
+	end
+	if #names == 0 then return end
+	player:SetAttribute("MerchantWishAlert", table.concat(names, ", "))
+	if Services.NotifyService then
+		Services.NotifyService:Show(player, ("⭐ IN STOCK at the Ore Merchant: %s!"):format(table.concat(names, ", ")), { Icon = "Quest", Duration = 7 })
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -479,6 +691,7 @@ function MerchantService:_newCycle()
 	end
 	for _, player in Players:GetPlayers() do
 		self:SendState(player, "Restocked")
+		pcall(self._notifyWishes, self, player)
 	end
 end
 
@@ -588,7 +801,12 @@ function MerchantService:Init(services)
 		if action == "Buy" and typeof(arg) == "string" then
 			return self:Buy(player, arg)
 
+		elseif action == "Wish" and typeof(arg) == "string" then
+			return self:ToggleWish(player, arg)
+
 		elseif action == "GetState" then
+			-- Открыл лавку — «!» над торговцем гаснет.
+			player:SetAttribute("MerchantWishAlert", nil)
 			return true, self:BuildState(player)
 		end
 		return false, "Bad request"

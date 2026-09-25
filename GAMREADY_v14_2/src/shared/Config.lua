@@ -3598,7 +3598,41 @@ Config.Merchant = {
 		{ Id = "Skin_Crystal",    Kind = "Skin",   SkinId = "CrystalPickaxe",     DisplayName = "Crystal Pickaxe",     Icon = "⛏", Rarity = "Epic",     Chance = 0.13, Stock = { 1, 1 }, Price = 450000 },
 		{ Id = "Potion_MoneyX3",  Kind = "Potion", Potion = "Potion_MoneyX3",  Rarity = "Legendary", Chance = 0.07, Stock = { 1, 1 }, Price = 75000 },
 		{ Id = "Skin_Void",       Kind = "Skin",   SkinId = "VoidPickaxe",        DisplayName = "Void Pickaxe",        Icon = "⛏", Rarity = "Legendary", Chance = 0.05, Stock = { 1, 1 }, Price = 1500000 },
+		-- v20.28: ЖЕОДЫ. Тип — от пещеры игрока: GeodeOffset 0 = жеода своей
+		-- пещеры, +1 = следующей, +3 = на три выше (не выше последней).
+		-- Цена — PriceMinutes минут дохода игрока (Config.IncomePerMinute).
+		-- Купленная жеода сразу в хранилище жеод (как из тележки).
+		{ Id = "Geode_Own",     Kind = "Geode", GeodeOffset = 0, Icon = "🪨", Chance = 0.90, Stock = { 1, 3 }, PriceMinutes = 3 },
+		{ Id = "Geode_Next",    Kind = "Geode", GeodeOffset = 1, Icon = "🪨", Chance = 0.45, Stock = { 1, 2 }, PriceMinutes = 8 },
+		{ Id = "Geode_Jackpot", Kind = "Geode", GeodeOffset = 3, Icon = "💎", Chance = 0.08, Stock = { 1, 1 }, PriceMinutes = 25 },
+		-- v20.28: ТОВАР «???» — случайная награда из Config.Merchant.Mystery.Pool.
+		{ Id = "Mystery", Kind = "Mystery", DisplayName = "???", Icon = "❓", Rarity = "Mystery", Chance = 0.85, Stock = { 1, 2 }, PriceMinutes = 6 },
 	},
+
+	-- v20.28: ТОВАР «???». Что внутри — по весам Weight. Money — Minutes минут
+	-- дохода игрока. Skin — случайная ещё не открытая кирка из Skins (только
+	-- с ассетом); если все открыты — выпадает Fallback. Показывается
+	-- карточкой открытия (RevealCards), как награда из сундука.
+	Mystery = {
+		Pool = {
+			{ Kind = "Potion", Weight = 38 },                 -- любое зелье из Config.Potions
+			{ Kind = "Geode", GeodeOffset = 0, Weight = 22 },
+			{ Kind = "Geode", GeodeOffset = 1, Weight = 9 },
+			{ Kind = "Decor", Weight = 16 },                  -- случайная мебель (по DecorWeights)
+			{ Kind = "Money", Minutes = 10, Weight = 12 },
+			{ Kind = "Skin", Weight = 3, Skins = { "RadioactivePickaxe", "LovePickaxe", "BigWoodenPickaxe", "CrystalPickaxe", "VoidPickaxe" }, Fallback = { Kind = "Money", Minutes = 20 } },
+		},
+	},
+
+	-- v20.28: СКИДКА ДНЯ. Раз в сутки (UTC) выбирается один товар из вкладки
+	-- SHOP (не лимитка, не «???»): он всегда в стоке (Stock на игрока в
+	-- цикл) и дешевле на Discount. Строка с плашкой «DEAL −30%».
+	DailyDeal = { Enabled = true, Discount = 0.30, Stock = 1, Kinds = { Potion = true, Skin = true, Geode = true } },
+
+	-- v20.28: «НАПОМНИ МНЕ». Звёздочка на товаре; когда отмеченный товар
+	-- в новом цикле есть в стоке — уведомление игроку и «!» над торговцем.
+	-- До MaxWishes звёздочек.
+	Wishlist = { Enabled = true, MaxWishes = 8 },
 
 	-- Редкий товар в стоке объявляется всему серверу — повод доехать до
 	-- банка, пока не разобрали (сток личный, но цикл общий).
@@ -3612,6 +3646,7 @@ Config.Merchant = {
 
 	-- Цвета плашек редкости в окне лавки.
 	RarityColors = {
+		Mystery   = Color3.fromRGB(255, 120, 230),
 		Common    = Color3.fromRGB(170, 170, 170),
 		Uncommon  = Color3.fromRGB(90, 200, 90),
 		Rare      = Color3.fromRGB(60, 140, 255),
@@ -7037,6 +7072,63 @@ Config.SkinBuffs.SkeletonKey        = { ChestLuck = 0.25, Luck = 0.08, Damage = 
 Config.SkinBuffs.GoldenTrident      = { Money = 0.12, Damage = 0.20, Speed = -0.06 }
 Config.SkinBuffs.DoubloonAxe        = { Money = 0.18, ChestLuck = 0.15, Toughness = -0.12 }
 Config.SkinBuffs.CursedCaptainBlade = { Luck = 0.18, Mutation = 0.20, Money = 0.08, Toughness = -0.20 }
+
+--------------------------------------------------------------------------------
+-- v20.28: РЕБАЛАНС БОНУСОВ СКИНОВ ПО РЕДКОСТИ. У каждой кирки одна понятная
+-- РОЛЬ (Config.SkinRoles) и «бюджет» плюсов по редкости (сумма долей):
+--   Common 0.10 · Uncommon 0.14 · Rare 0.22 · Epic 0.32 · Legendary 0.46 · Mythic 0.62
+-- С Rare — один небольшой минус по теме (тяжёлая кирка — медленнее и т.п.).
+-- Бонусы видны в лавке торговца и в меню SKINS (с сравнением с надетой).
+--------------------------------------------------------------------------------
+local SKIN_REBALANCE = {
+	BonePick            = { Damage = 0.06, Stagger = 0.04 },
+	RustyShovel         = { Boulder = 0.07, ChestLuck = 0.03 },
+	AmethystPickaxe     = { Luck = 0.05, Mutation = 0.06, Money = 0.03 },
+	RadioactivePickaxe  = { Mutation = 0.10, Stagger = 0.04 },
+	AnchorPick          = { Toughness = 0.14, Stagger = 0.08, Speed = -0.05 },
+	BigWoodenPickaxe    = { Boulder = 0.15, Perfect = 0.07, Speed = -0.05 },
+	CactusSword         = { Damage = 0.14, Stagger = 0.08, Luck = -0.03 },
+	FishSkin            = { Money = 0.08, Speed = 0.08, ChestLuck = 0.06, Damage = -0.06 },
+	LovePickaxe         = { Mutation = 0.14, Luck = 0.08, Stagger = -0.05 },
+	PirateHook          = { ChestLuck = 0.14, Speed = 0.08, Toughness = -0.05 },
+	BigMole             = { Boulder = 0.20, ChestLuck = 0.12, Speed = -0.06 },
+	CrystalPickaxe      = { Perfect = 0.22, Luck = 0.10, Toughness = -0.06 },
+	GroupPickaxe        = { Speed = 0.10, Dynamite = 0.16, Luck = 0.06 },
+	KrakenTentacle      = { Mutation = 0.16, Stagger = 0.16, Money = -0.04 },
+	LikePickaxe         = { Speed = 0.12, Dynamite = 0.14, Money = 0.06 },
+	SkeletonKey         = { ChestLuck = 0.22, Luck = 0.10, Damage = -0.06 },
+	TungTungStick       = { Stagger = 0.22, Boulder = 0.10, Perfect = -0.06 },
+	LimitedCandyCane    = { Speed = 0.12, Mutation = 0.10, ChestLuck = 0.10 },
+	DoubloonAxe         = { ChestLuck = 0.20, Money = 0.16, Luck = 0.10, Toughness = -0.08 },
+	Gold                = { Money = 0.18, ChestLuck = 0.14, Dynamite = 0.14, Stagger = -0.08 },
+	GoldKunai           = { Perfect = 0.20, Speed = 0.16, Dynamite = 0.10, Money = -0.04 },
+	GoldSword           = { Damage = 0.26, Stagger = 0.14, ChestLuck = 0.06, Luck = -0.05 },
+	GoldenTrident       = { Damage = 0.20, Boulder = 0.14, Money = 0.12, Speed = -0.05 },
+	VoidPickaxe         = { ChestLuck = 0.18, Luck = 0.16, Mutation = 0.12, Money = -0.04 },
+	LimitedRuneblade    = { Damage = 0.18, Boulder = 0.16, Toughness = 0.12 },
+	LimitedSunforge     = { Perfect = 0.18, Money = 0.14, Dynamite = 0.14 },
+	CursedCaptainBlade  = { Mutation = 0.22, Luck = 0.18, ChestLuck = 0.12, Money = 0.10, Toughness = -0.10 },
+	DevSword            = { Luck = 0.20, Damage = 0.15, Speed = 0.15, Money = 0.12, Toughness = -0.08 },
+	Frostmorn           = { Perfect = 0.30, Toughness = 0.18, Boulder = 0.14, Money = -0.05 },
+	LimitedAbyssal      = { Mutation = 0.24, Stagger = 0.22, Luck = 0.16 },
+	LimitedPrismBreaker = { Boulder = 0.22, Perfect = 0.20, Money = 0.10, Dynamite = 0.10 },
+}
+for skinId, buffs in SKIN_REBALANCE do
+	Config.SkinBuffs[skinId] = buffs
+end
+
+-- Роль кирки одной строкой (лавка торговца, меню SKINS).
+Config.SkinRoles = {
+	BonePick = "Goblin hunter", RustyShovel = "Boulder breaker", AmethystPickaxe = "Lucky finder",
+	RadioactivePickaxe = "Mutation hunter", AnchorPick = "PvP tank", BigWoodenPickaxe = "Boulder breaker",
+	CactusSword = "Goblin hunter", FishSkin = "Money maker", LovePickaxe = "Mutation hunter", PirateHook = "Treasure hunter",
+	BigMole = "Boulder breaker", CrystalPickaxe = "Perfect striker", GroupPickaxe = "Explorer", KrakenTentacle = "Mutation brawler",
+	LikePickaxe = "Explorer", SkeletonKey = "Treasure hunter", TungTungStick = "PvP brawler", LimitedCandyCane = "Explorer",
+	DoubloonAxe = "Treasure hunter", Gold = "Money maker", GoldKunai = "Perfect striker", GoldSword = "Goblin hunter",
+	GoldenTrident = "Goblin hunter", VoidPickaxe = "Lucky finder", LimitedRuneblade = "Boulder breaker", LimitedSunforge = "Money maker",
+	CursedCaptainBlade = "Mutation hunter", DevSword = "All-rounder", Frostmorn = "Perfect striker", LimitedAbyssal = "Mutation brawler",
+	LimitedPrismBreaker = "Boulder breaker", TurboPickaxe = "Rocket launcher",
+}
 
 -- СУНДУКИ: новый лут. Rolls — сколько наград за открытие. Skin — пул
 -- скинов с Chests[редкость]; вес скина внутри пула — SkinRarityWeights.

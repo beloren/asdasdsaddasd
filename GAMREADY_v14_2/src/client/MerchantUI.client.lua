@@ -204,13 +204,93 @@ local function paintBuy(row, message, color)
 	buy.BackgroundColor3 = color
 end
 
+-- v20.28: бонусы кирки цветом + сравнение с надетой.
+local function buffText(data)
+	local equipped = lastState and lastState.EquippedSkin or ""
+	local mine = (equipped ~= "" and equipped ~= data.SkinId and Config.SkinBuffs and Config.SkinBuffs[equipped]) or {}
+	local lines = {}
+	for stat, value in data.Buffs do
+		table.insert(lines, { stat, value })
+	end
+	table.sort(lines, function(a, b) return a[2] > b[2] end)
+	local parts = {}
+	for _, line in lines do
+		local stat, value = line[1], line[2]
+		local info = Config.SkinStats and Config.SkinStats[stat]
+		local text = ("%s%d%% %s"):format(value >= 0 and "+" or "-", math.floor(math.abs(value) * 100 + 0.5), tr(info and info.Label or stat))
+		local color = value >= 0 and "#78FF96" or "#FF7070"
+		local compare = ""
+		local now = tonumber(mine[stat])
+		if now then
+			compare = (' <font color="#B4B4C8">(%s%d%%)</font>'):format(now >= 0 and "+" or "-", math.floor(math.abs(now) * 100 + 0.5))
+		end
+		table.insert(parts, ('<font color="%s">%s</font>%s'):format(color, text, compare))
+	end
+	local role = Config.SkinRoles and Config.SkinRoles[data.SkinId]
+	return (role and ('<font color="#FFE6AA">%s:</font> '):format(tr(role):upper()) or "") .. table.concat(parts, "  ")
+end
+
+local function ensureRowExtras(row)
+	local main = row.Frame.Main
+	local star = main:FindFirstChild("Wish")
+	if not star then
+		star = Instance.new("TextButton")
+		star.Name = "Wish"
+		star.AnchorPoint = Vector2.new(1, 0)
+		star.Position = UDim2.new(1, -10, 0, 8)
+		star.Size = UDim2.fromOffset(36, 36)
+		star.BackgroundTransparency = 1
+		star.Text = "⭐"
+		star.TextScaled = true
+		star.ZIndex = 8
+		star:SetAttribute("DisableGlobalHover", true)
+		star.Parent = main
+		local name = main:FindFirstChild("Name")
+		if name then name.Size = UDim2.new(1, -180, name.Size.Y.Scale, name.Size.Y.Offset) end
+		star.MouseButton1Click:Connect(function()
+			local current = row.Data
+			if not current then return end
+			sfx("UiButtonClick")
+			local ok, success, reason = pcall(function() return requestRemote:InvokeServer("Wish", current.Id) end)
+			if not (ok and success) and ok and reason then
+				sfx("UiError")
+			end
+		end)
+	end
+	local deal = main:FindFirstChild("DealBadge")
+	if not deal then
+		deal = Instance.new("TextLabel")
+		deal.Name = "DealBadge"
+		deal.AnchorPoint = Vector2.new(1, 1)
+		deal.Position = UDim2.new(1, -12, 1, -54)
+		deal.Size = UDim2.fromOffset(150, 26)
+		deal.BackgroundColor3 = Color3.fromRGB(235, 50, 70)
+		UiKit.StyleText(deal, "Heading")
+		deal.TextScaled = true
+		deal.TextColor3 = Color3.new(1, 1, 1)
+		deal.ZIndex = 8
+		Instance.new("UICorner", deal).CornerRadius = UDim.new(0, 6)
+		deal.Parent = main
+	end
+	return star, deal
+end
+
 local function refreshRow(itemId)
 	local row = rows[itemId]
 	local data = row and row.Data
 	if not data then return end
 	local main = row.Frame.Main
+	local star, dealBadge = ensureRowExtras(row)
+	star.TextTransparency = data.Wished and 0 or 0.7
+	dealBadge.Visible = data.Deal ~= nil
+	dealBadge.Text = data.Deal and ("DEAL -%d%%"):format(data.Deal) or ""
 	main.Stock.Text = tr("X{count} Stock", { count = data.Stock })
-	main.Price.Text = "$" .. NumberFormat.abbreviate(data.Price)
+	main.Price.RichText = true
+	if data.Deal and data.OldPrice then
+		main.Price.Text = ('<font color="#A0A0A0"><s>$%s</s></font>  $%s'):format(NumberFormat.abbreviate(data.OldPrice), NumberFormat.abbreviate(data.Price))
+	else
+		main.Price.Text = "$" .. NumberFormat.abbreviate(data.Price)
+	end
 	local soldOut = data.Stock <= 0
 	main.Stock.TextColor3 = soldOut and Color3.fromRGB(255, 110, 110) or Color3.fromRGB(205, 205, 205)
 	main.IconBox.Icon.ImageTransparency = soldOut and 0.55 or 0
@@ -241,7 +321,17 @@ local function refreshRow(itemId)
 		paintBuy(row, tr("BUY") .. "  $" .. NumberFormat.abbreviate(data.Price), Color3.fromRGB(60, 200, 60))
 	end
 	local effect = row.Frame:FindFirstChild("Effect")
-	if effect then effect.Text = tr(data.Effect or "") end
+	if effect then
+		if data.Buffs then
+			effect.RichText = true
+			effect.TextWrapped = true
+			effect.Size = UDim2.new(1, -24, 0, 30)
+			effect.Text = buffText(data)
+		else
+			effect.RichText = false
+			effect.Text = tr(data.Effect or "")
+		end
+	end
 end
 
 local function buildRow(data)
@@ -324,6 +414,13 @@ local function buildRow(data)
 			sfx("UiSuccess")
 			local scale = frame.Main.IconBox:FindFirstChildOfClass("UIScale") or Instance.new("UIScale", frame.Main.IconBox)
 			pop(scale, 1.3)
+			-- v20.28: «???» — что внутри, показывает карточка открытия.
+			if typeof(reason) == "table" and reason.Kind then
+				local okCards, RevealCards = pcall(require, ReplicatedStorage.Shared.RevealCards)
+				if okCards then
+					pcall(RevealCards.Show, { reason }, { Title = "MYSTERY ITEM", Color = rarityColor(reason.Rarity) })
+				end
+			end
 		else
 			sfx("UiError")
 			paintBuy(row, tr(ok and (reason or "Purchase failed") or "Try again"), Color3.fromRGB(200, 50, 50))
@@ -537,3 +634,47 @@ task.spawn(function()
 	if ok and success then applyState(state) end
 end)
 
+--------------------------------------------------------------------------------
+-- v20.28: «!» НАД ТОРГОВЦЕМ — отмеченный звёздочкой товар в стоке
+-- (атрибут игрока MerchantWishAlert, гаснет, когда открыл лавку).
+--------------------------------------------------------------------------------
+task.spawn(function()
+	local alert = nil
+	local function refreshAlert()
+		local names = player:GetAttribute("MerchantWishAlert")
+		if typeof(names) ~= "string" or names == "" then
+			if alert then alert.Enabled = false end
+			return
+		end
+		local npc = workspace:FindFirstChild("BankMerchant")
+		local anchor = npc and (npc.PrimaryPart or npc:FindFirstChild("Head", true) or npc:FindFirstChildWhichIsA("BasePart", true))
+		if not anchor then return end
+		if not (alert and alert.Parent) then
+			alert = Instance.new("BillboardGui")
+			alert.Name = "MerchantWishAlert"
+			alert.Size = UDim2.fromScale(6, 1.6)
+			alert.StudsOffsetWorldSpace = Vector3.new(0, 5.5, 0)
+			alert.AlwaysOnTop = true
+			alert.LightInfluence = 0
+			alert.DistanceLowerLimit = 10
+			alert.MaxDistance = 400
+			local text = Instance.new("TextLabel")
+			text.Name = "Text"
+			text.BackgroundTransparency = 1
+			text.Size = UDim2.fromScale(1, 1)
+			UiKit.StyleText(text, "Heading")
+			text.TextScaled = true
+			text.TextColor3 = Color3.fromRGB(255, 225, 90)
+			text.Parent = alert
+			local scale = Instance.new("UIScale")
+			scale.Parent = text
+			TweenService:Create(scale, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Scale = 1.15 }):Play()
+			alert.Parent = playerGui
+		end
+		alert.Adornee = anchor
+		alert.Text.Text = "⭐ " .. tr("IN STOCK!")
+		alert.Enabled = true
+	end
+	player:GetAttributeChangedSignal("MerchantWishAlert"):Connect(refreshAlert)
+	refreshAlert()
+end)

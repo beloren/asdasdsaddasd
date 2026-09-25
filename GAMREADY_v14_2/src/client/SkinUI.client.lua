@@ -103,6 +103,17 @@ local function renderDetail()
 		if child:IsA("TextLabel") and child ~= statTemplate then child:Destroy() end
 	end
 	local lines = statLines(entry.Id)
+	-- v20.28: роль кирки первой строкой (Config.SkinRoles).
+	local role = Config.SkinRoles and Config.SkinRoles[entry.Id]
+	if role then
+		local line = statTemplate:Clone()
+		line.Name = "Role"
+		line.LayoutOrder = 0
+		line.Text = tr(role):upper()
+		line.TextColor3 = Color3.fromRGB(255, 225, 150)
+		line.Visible = true
+		line.Parent = statsFrame
+	end
 	if #lines == 0 then
 		local line = statTemplate:Clone()
 		line.Text = tr("No bonuses — pure style")
