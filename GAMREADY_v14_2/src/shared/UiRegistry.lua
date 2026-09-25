@@ -115,7 +115,11 @@ function UiRegistry.Build(name)
 	local gui = fn()
 	hideTemplates(gui)
 	gui.Name = name
-	gui:SetAttribute("UiKitVersion", gui:GetAttribute("UiKitVersion") or entry.MinVersion or 0)
+	-- v20.18: не ниже MinVersion реестра. UiKit.Screen ставит общую версию
+	-- UiKit (20), и экраны, чей билдер сам свою версию не пишет, после
+	-- подъёма MinVersion навсегда считались «старыми» — даже сразу после
+	-- BuildAllUI (ложное «собран старым билдером» в Output).
+	gui:SetAttribute("UiKitVersion", math.max(tonumber(gui:GetAttribute("UiKitVersion")) or 0, entry.MinVersion or 0))
 	return gui
 end
 
