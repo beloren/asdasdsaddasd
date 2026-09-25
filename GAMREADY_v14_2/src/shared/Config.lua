@@ -4785,7 +4785,7 @@ Config.GroupReward = {
 	ChestRarity = "Common",
 	-- ОБЯЗАТЕЛЬНО впиши ID своей группы — без этого кнопка "JOIN GROUP" не
 	-- будет знать, какую группу предлагать (Group Join не сработает при 0).
-	GroupId = 888439607,
+	GroupId = 965694896, -- roblox.com/communities/965694896/laurentevich
 	SkinId = "DevSword",
 	GeodeType = "Topaz", -- отличается от Config.LikeReward.GeodeType (Crystal) — вступление в группу даёт награду получше
 	GeodeCount = 3,
