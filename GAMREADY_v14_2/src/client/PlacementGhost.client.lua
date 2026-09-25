@@ -49,7 +49,21 @@ end
 -- v20: вид — Shared.UiBuilders.PlacementUi (StarterGui/PlacementUi → GhostHud).
 local placementUi = require(ReplicatedStorage.Shared.UiRegistry).Get("PlacementUi")
 local ghostHud = placementUi:WaitForChild("GhostHud")
-local hint = ghostHud:WaitForChild("Hint"):WaitForChild("Text")
+local hintPill = ghostHud:WaitForChild("Hint")
+local hint = hintPill:WaitForChild("Text")
+-- v20.24: верхняя плашка-подсказка скрыта — то же самое уже пишет подсказка
+-- предмета над хотбаром (GearUi/AimHint). Плашка всплывает только на ошибку.
+hintPill.Visible = false
+local hintToken = 0
+local function flashHint(text)
+	hintToken += 1
+	local token = hintToken
+	hint.Text = text
+	hintPill.Visible = true
+	task.delay(1.5, function()
+		if hintToken == token then hintPill.Visible = false end
+	end)
+end
 local mobileBar = ghostHud:WaitForChild("MobileBar")
 local rotateButton = mobileBar:WaitForChild("Rotate")
 local placeButton = mobileBar:WaitForChild("Place")
@@ -116,7 +130,7 @@ local function buildGhost(key)
 	ghost, ghostKey = model, key
 	local touchOnly = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 	mobileBar.Visible = touchOnly
-	hint.Text = touchOnly and tr("Tap a spot on your base, then ✅") or tr("Click a spot on your base to place • R rotate")
+	hintPill.Visible = false
 	yaw = 0
 	ghostHud.Visible = true
 end
@@ -205,7 +219,7 @@ end)
 local function confirm()
 	if not (ghost and targetCFrame) then return end
 	if not valid then
-		hint.Text = tr("Only inside your own base!")
+		flashHint(tr("Only inside your own base!"))
 		return
 	end
 	remote:FireServer("Use", nil, targetCFrame)

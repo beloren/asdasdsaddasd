@@ -47,6 +47,7 @@ function Builder.Build()
 		Size = UDim2.fromOffset(560, 38),
 	})
 	hint.Text.TextColor3 = Theme.Accents.Gold.Light
+	hint.Visible = false -- v20.24: только для ошибок (PlacementGhost), подсказку пишет GearUi/AimHint
 	local bar = UiKit.Group(ghost, "MobileBar", {
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -20, 1, -150),
