@@ -101,11 +101,9 @@ local function present(payload)
 	-- гайд включили заново (например, версию гайда подняли), один пропуск
 	-- сводки — приемлемая цена за то, чтобы не отвлекать от карточки гайда.
 	if player:GetAttribute("NeedsTutorial") == true then
-		-- Сводку не показываем, но пополнение денег — всё равно видно.
-		local money = tonumber(payload.OfflineMoney) or 0
-		if money > 0 then
-			local ok, CoinShower = pcall(require, ReplicatedStorage.Shared.CoinShower)
-			if ok then task.delay(1.5, CoinShower.Play, money) end
+		-- Сводку не показываем, но монетки за офлайн — всё равно прилетают.
+		if (tonumber(payload.OfflineMoney) or 0) > 0 then
+			task.delay(1.5, function() remote:FireServer("Collected") end)
 		end
 		return
 	end
@@ -185,17 +183,13 @@ local function present(payload)
 		collectButton.Text = cfg.ButtonText or "COLLECT ALL"
 	end
 
-	-- v20.27: деньги за офлайн уже на счёте — на закрытии экрана монетки
-	-- вылетают из кнопки и «пополняют» счётчик денег (shared/CoinShower).
+	-- v20.31: деньги за офлайн уже на счёте — по COLLECT сервер проигрывает
+	-- обычное «появление монет», как при сборе в банке.
 	local showered = false
 	local function shower()
 		if showered or offlineMoney <= 0 then return end
 		showered = true
-		local ok, CoinShower = pcall(require, ReplicatedStorage.Shared.CoinShower)
-		if ok then
-			local from = collectButton.AbsoluteSize.X > 0 and CoinShower.ScreenCenter(collectButton) or nil
-			task.defer(CoinShower.Play, offlineMoney, from)
-		end
+		remote:FireServer("Collected")
 	end
 	local connection
 	connection = collectButton.MouseButton1Click:Connect(function()

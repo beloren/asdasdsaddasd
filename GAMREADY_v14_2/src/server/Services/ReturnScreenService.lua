@@ -31,6 +31,7 @@
 -- потолок: потолок и есть то, что защищает экономику.
 --------------------------------------------------------------------------------
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -48,6 +49,7 @@ local pending = {}
 -- но ещё не выданная: тележки в этот момент не существует (она лежит
 -- упаковкой). Высыпается в неё сразу после постановки.
 local pendingOfflineFill = {}
+local offlineFx = {} -- [player] = офлайн-деньги, ждущие «прилёта» монет по COLLECT
 
 function ReturnScreenService:Init(services)
 	Services = services
@@ -57,6 +59,21 @@ function ReturnScreenService:Init(services)
 		remote.Name = "ReturnScreenEvent"
 		remote.Parent = ReplicatedStorage.Shared
 	end
+	-- v20.31: игрок нажал COLLECT на экране возвращения — офлайн-деньги (уже
+	-- на счёте) «прилетают» обычной процедурой, как при сборе в банке:
+	-- 3D-монетки у игрока (BankService:SpawnCoinBurst) + «+$X» (MoneyGainEvent).
+	remote.OnServerEvent:Connect(function(player, action)
+		if action ~= "Collected" then return end
+		local amount = offlineFx[player]
+		offlineFx[player] = nil
+		if not (amount and amount > 0) then return end
+		if Services.BankService and Services.BankService.SpawnCoinBurst then
+			pcall(Services.BankService.SpawnCoinBurst, Services.BankService, player, nil, 6)
+		end
+		local moneyGain = ReplicatedStorage.Shared:FindFirstChild("MoneyGainEvent")
+		if moneyGain then moneyGain:FireClient(player, amount) end
+	end)
+	Players.PlayerRemoving:Connect(function(player) offlineFx[player] = nil end)
 end
 
 local function bucket(player)
@@ -222,6 +239,7 @@ function ReturnScreenService:Present(player)
 		end
 	end
 
+	if (entry.OfflineMoney or 0) > 0 then offlineFx[player] = entry.OfflineMoney end
 	local payload = {
 		OfflineSeconds = offline,
 		Safe = entry.Safe,
