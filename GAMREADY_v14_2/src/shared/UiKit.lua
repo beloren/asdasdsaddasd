@@ -1004,6 +1004,8 @@ end
 -- Вращают её клиенты (свойство Rotation), как раньше «лучи».
 function UiKit.BackdropKind(kindOrRarity)
 	if Theme.Backdrops and Theme.Backdrops[kindOrRarity] then return kindOrRarity end
+	local category = Theme.CategoryBackdrop and Theme.CategoryBackdrop[kindOrRarity]
+	if category then return category.Kind end
 	return (Theme.RarityBackdrop and Theme.RarityBackdrop[kindOrRarity]) or "Shine"
 end
 

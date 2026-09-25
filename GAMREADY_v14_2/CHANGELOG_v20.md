@@ -344,3 +344,9 @@
 * Лучи за карточкой редкости (Rare+) — теперь та же картинка-фон, что за товарами магазина
   (`UiTheme.RarityBackdrop`: Rare/Epic — полоски, Legendary — `Epic2`, Mythic — `Rarest`), в цвет редкости,
   вращается и проявляется вместо неоновых брусков.
+
+## Магазин: свой фон у каждой категории, Forever Pack — почти самое редкое свечение (v20.33)
+* `UiTheme.CategoryBackdrop`: у каждой вкладки своя картинка и вращение (скорость/направление) —
+  Forever (Epic2), Cash, Boosts, Passes, Weather, Geodes, Dynamite, Deals, Skins. Цвет — цвет категории.
+* Forever Pack (Mega Cash и цепочка) — `Epic2` (15513493035), как у Legendary. Применяется и к старой
+  сборке StarterGui (клиент перекрашивает на лету).

@@ -5494,7 +5494,10 @@ local function setupShopUi()
 				if tint then tint.Color = ColorSequence.new(accent.Main, accent.Dark or accent.Main) end
 				local rays = slot:FindFirstChild("Rays", true)
 				if rays and rays:IsA("ImageLabel") then
-					rays.ImageColor3 = accent.Light -- v20.30: фон-картинка (UiTheme.Backdrops)
+					-- v20.33: своя картинка и вращение у каждой категории (UiTheme.CategoryBackdrop).
+					local category = UiKit.Theme.CategoryBackdrop and UiKit.Theme.CategoryBackdrop[tabName]
+					UiKit.PaintBackdrop(rays, category and tabName or "Product", accent.Light)
+					rays:SetAttribute("SpinSpeed", category and category.Spin or 15)
 				elseif rays then
 					for _, ray in rays:GetChildren() do
 						if ray:IsA("GuiObject") then ray.BackgroundColor3 = accent.Light end
@@ -5648,6 +5651,12 @@ local function setupShopUi()
 			for _, d in foreverSection:GetDescendants() do
 				if d.Name == "Rays" and d ~= bigRays then table.insert(chainRays, d) end
 			end
+			-- v20.33: Forever Pack — почти самое редкое свечение (и в старой сборке StarterGui).
+			for _, forRays in { bigRays, table.unpack(chainRays) } do
+				if forRays and forRays:IsA("ImageLabel") then
+					UiKit.PaintBackdrop(forRays, "Forever", forRays.ImageColor3)
+				end
+			end
 			-- v20.31: полоски за ВСЕМИ товарами магазина (геймпассы и т.д.)
 			-- тоже крутятся; карточки клонируются позже — ловим по добавлению.
 			local cardRays = {}
@@ -5666,7 +5675,11 @@ local function setupShopUi()
 				if bigGlow then bigGlow.BackgroundTransparency = 0.55 + math.sin(t * 3) * 0.12 end
 				for _, rays in chainRays do rays.Rotation = (t * 12) % 360 end
 				for rays in cardRays do
-					if rays.Parent then rays.Rotation = (t * 15) % 360 else cardRays[rays] = nil end
+					if rays.Parent then
+						rays.Rotation = (t * (rays:GetAttribute("SpinSpeed") or 15)) % 360
+					else
+						cardRays[rays] = nil
+					end
 				end
 			end)
 			task.spawn(function()

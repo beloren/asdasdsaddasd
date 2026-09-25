@@ -197,6 +197,21 @@ Theme.RarityBackdrop = {
 	Money = "Rays",    -- деньги / «лучшая цена» в магазине
 	Product = "Rays",  -- геймпассы и прочие товары магазина
 }
+-- v20.33: ФОН ПО КАТЕГОРИИ МАГАЗИНА — у каждой вкладки своя картинка и своё
+-- вращение (Spin: градусы в секунду, минус — против часовой), чтобы
+-- категории отличались на глаз. Forever Pack — почти самое редкое свечение.
+Theme.CategoryBackdrop = {
+	Forever  = { Kind = "Epic2",    Spin = 22 },
+	Cash     = { Kind = "Rays",     Spin = 14 },
+	Boosts   = { Kind = "RaysSoft", Spin = -12 },
+	Passes   = { Kind = "Rays",     Spin = -18 },
+	Weather  = { Kind = "RaysSoft", Spin = 8 },
+	Geodes   = { Kind = "Rays",     Spin = 10 },
+	Dynamite = { Kind = "RaysSoft", Spin = -22 },
+	Deals    = { Kind = "Epic2",    Spin = -15 },
+	Skins    = { Kind = "Rarest",   Spin = 12 },
+}
+
 -- Не красить (картинка своего цвета). Пусто — красятся все.
 Theme.BackdropKeepColor = {}
 

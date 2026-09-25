@@ -186,7 +186,7 @@ local function buildStep(parent, index, width)
 		Size = UDim2.fromOffset(78, 78),
 		ZIndex = 4,
 	})
-	Builder.BuildRays(holder, 8, Color3.fromRGB(255, 210, 120), 0.25, "Money")
+	Builder.BuildRays(holder, 8, Color3.fromRGB(255, 210, 120), 0.2, "Forever")
 	local icon = UiKit.Icon(holder, "Icon", "", { ZIndex = 5 })
 	UiKit.Text(icon, "Emoji", "💵", { _Stroke = 0, ZIndex = 6 }).FontFace = Font.fromEnum(Enum.Font.GothamBold)
 	local button = UiKit.RobuxButton(step, "Button", "49", {
@@ -272,7 +272,7 @@ local function buildForever(body)
 		Size = UDim2.fromOffset(170, 170),
 		ZIndex = 3,
 	})
-	local rays = Builder.BuildRays(raysHolder, 12, Color3.fromRGB(255, 225, 130), 0.1, "Money")
+	local rays = Builder.BuildRays(raysHolder, 12, Color3.fromRGB(255, 225, 130), 0.05, "Forever")
 	rays.Name = "Rays"
 	UiKit.Plate(big, "Glow", "Glow", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
