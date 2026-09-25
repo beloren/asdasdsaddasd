@@ -168,6 +168,9 @@ local TEXT_FADE_COLOR = Color3.new(0, 0, 0)
 local FONT_SIZE = 14
 
 local DRAG_THRESHOLD = 8 -- пикселей: меньше — это клик, больше — перетаскивание
+-- v20.15: зажал слот и держишь дольше этого (сек) — начинается перетаскивание
+-- даже без движения. Короткий клик — взять/убрать предмет в руках.
+local HOLD_TO_DRAG = 0.25
 
 local function isSmallScreen()
 	local camera = workspace.CurrentCamera
@@ -919,30 +922,23 @@ end
 
 -- Один клик по любому слоту. kind = "Hotbar"|"Grid".
 handleSlotClick = function(kind, slotIndex, uid)
-	-- НИЧЕГО НЕ НЕСЁМ: клик берёт предмет. Пустой слот брать нечего —
-	-- тогда это обычный клик, и он просто берёт/убирает руду в руки.
+	-- v20.15: КЛИК = взять в руки / убрать из рук (и в сетке, и в хотбаре,
+	-- открыт инвентарь или нет). Переносят предметы зажатием и перетаскиванием
+	-- (bindDragSource), поэтому режим «клик-взял — клик-положил» больше не
+	-- включается кликом.
 	if not carried then
 		if not uid then return end
-		if kind == "Hotbar" then
-			-- ЗДЕСЬ БЫЛА ДЫРА: клик по слоту хотбара ВСЕГДА означал "взять в
-			-- руки", поэтому забрать предмет ИЗ хотбара кликами было нельзя
-			-- вообще — только перетаскиванием. Половина переноса (хотбар →
-			-- инвентарь) просто отсутствовала.
-			--
-			-- Решает контекст: инвентарь ОТКРЫТ — значит игрок раскладывает
-			-- вещи, и клик берёт предмет для переноса. Инвентарь закрыт —
-			-- значит он играет, и клик берёт руду в руки, как и раньше.
-			if isOpen then
-				setCarried({ Uid = uid, Origin = "Hotbar", OriginSlot = slotIndex })
-			else
-				toggleHotbarSlot(slotIndex)
-			end
-			return
+		if gearKeyOf(uid) then
+			holdStack(uid) -- снаряжение: сервер сам переключает взять/убрать
+		elseif heldStackIndex == uid then
+			clearHeld()
+		else
+			holdStack(uid)
 		end
-		setCarried({ Uid = uid, Origin = "Grid" })
+		renderHotbar()
+		renderGrid()
 		return
 	end
-
 	-- УЖЕ НЕСЁМ: этот клик — место назначения.
 	if kind == "Hotbar" then
 		if carried.Origin == "Hotbar" then
@@ -1015,6 +1011,17 @@ bindDragSource = function(button, buildInfo, onClick)
 		local started = false
 		local finished = false
 		local moveConnection, endConnection
+
+		-- Зажатие без движения тоже начинает перетаскивание.
+		task.delay(HOLD_TO_DRAG, function()
+			if finished or started or not info.StackIndex then return end
+			started = true
+			beginDrag(button, info)
+			if drag and drag.Ghost then
+				local position = pointerPosition()
+				drag.Ghost.Position = UDim2.fromOffset(position.X, position.Y)
+			end
+		end)
 
 		local function finish(commit)
 			if finished then return end
@@ -1220,11 +1227,7 @@ renderGrid = function()
 		bindDragSource(cell, function()
 			return { StackIndex = capturedIndex, Origin = "Grid" }
 		end, function()
-			-- Клик по ячейке сетки — это ПЕРЕНОС ("взял / положил"). Взять
-			-- руду В РУКИ можно слотом хотбара или клавишей 1..6; сетка
-			-- нужна прежде всего для раскладки, и смешивать два разных
-			-- действия на одном клике означало бы, что игрок никогда не
-			-- уверен, что произойдёт.
+			-- v20.15: клик — взять руду в руки / убрать; зажатие — перетащить.
 			handleSlotClick("Grid", nil, capturedIndex)
 		end)
 	end
