@@ -270,7 +270,7 @@ local function stockLeft(player, itemId)
 		base = math.max(base, (CFG.DailyDeal and CFG.DailyDeal.Stock) or 1)
 	end
 	local left = math.max(0, base - (entry.Bought[itemId] or 0))
-	-- v20.30: AlwaysInStock — товар не кончается (сундук цикла, хранилища руды).
+	-- v20.30: AlwaysInStock — товар не кончается (Storage Chest, Ore Jar).
 	local item = itemById[itemId]
 	if item and item.AlwaysInStock then left = math.max(left, 1) end
 	return left

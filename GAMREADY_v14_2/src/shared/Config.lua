@@ -3636,7 +3636,7 @@ Config.Merchant = {
 		Weights = { Common = 45, Rare = 32, Epic = 17, Legendary = 6 },
 		PriceMinutes = { Common = 4, Rare = 10, Epic = 25, Legendary = 60 },
 		Stock = { 1, 2 },
-		AlwaysInStock = true, -- v20.30: всегда можно купить (сток не кончается)
+		AlwaysInStock = false, -- v20.37: после покупки уходит из стока (бесконечны только Storage Chest и Ore Jar)
 	},
 
 	-- v20.28: СКИДКА ДНЯ. Раз в сутки (UTC) выбирается один товар из вкладки
