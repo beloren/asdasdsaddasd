@@ -6671,9 +6671,28 @@ Config.Placeables = {
 		MinerStatue    = { DisplayName = "Miner Statue",    Icon = "🗿", Rarity = "Epic",      Price = 80000, Asset = "Decor_MinerStatue" },
 		MoleStatue     = { DisplayName = "Golden Mole Statue", Icon = "🏆", Rarity = "Legendary", Price = 400000, Asset = "Decor_MoleStatue" },
 		PlushMole      = { DisplayName = "Plush Mole",      Icon = "🧸", Rarity = "Rare",      Price = 6000,  Asset = "Decor_PlushMole" },
+		-- v20.22: растения, скамейка и «рабочий» декор. Function:
+		--   "Seat"    — промпт SIT сажает на Seat внутри модели (сесть может любой);
+		--   "Storage" — сундук-хранилище руды, своё окно (Storage.Slots ячеек);
+		--   "Jar"     — банка-витрина: кладёшь 1 руду, она крутится внутри,
+		--               над банкой — редкость.
+		Flowers1       = { DisplayName = "Tulip Patch",     Icon = "🌷", Rarity = "Common",    Price = 150,   Asset = "Decor_Flowers1" },
+		Flowers2       = { DisplayName = "Sunflower Pot",   Icon = "🌻", Rarity = "Common",    Price = 250,   Asset = "Decor_Flowers2" },
+		Bush1          = { DisplayName = "Round Bush",      Icon = "🌿", Rarity = "Common",    Price = 200,   Asset = "Decor_Bush1" },
+		Bush2          = { DisplayName = "Berry Bush",      Icon = "🌳", Rarity = "Uncommon",  Price = 500,   Asset = "Decor_Bush2" },
+		Bench          = { DisplayName = "Wooden Bench",    Icon = "🪑", Rarity = "Uncommon",  Price = 800,   Asset = "Decor_Bench",        Function = "Seat" },
+		StorageChest   = { DisplayName = "Storage Chest",   Icon = "📦", Rarity = "Rare",      Price = 5000,  Asset = "Decor_StorageChest", Function = "Storage" },
+		OreJar         = { DisplayName = "Ore Jar",         Icon = "🏺", Rarity = "Uncommon",  Price = 1500,  Asset = "Decor_OreJar",       Function = "Jar" },
 	},
-	DecorOrder = { "IronLantern", "OreBarrel", "CrystalLantern", "PlushMole", "CrystalCluster", "MinerStatue", "MoleStatue" },
-	DecorWeights = { IronLantern = 30, OreBarrel = 25, CrystalLantern = 18, PlushMole = 12, CrystalCluster = 9, MinerStatue = 4, MoleStatue = 2 },
+	DecorOrder = { "Flowers1", "Bush1", "Flowers2", "IronLantern", "OreBarrel", "Bush2", "Bench", "OreJar", "CrystalLantern", "StorageChest", "PlushMole", "CrystalCluster", "MinerStatue", "MoleStatue" },
+	DecorWeights = { Flowers1 = 30, Bush1 = 28, Flowers2 = 26, IronLantern = 30, OreBarrel = 25, Bush2 = 20, Bench = 20, OreJar = 18, CrystalLantern = 18, StorageChest = 14, PlushMole = 12, CrystalCluster = 9, MinerStatue = 4, MoleStatue = 2 },
+	-- v20.22: сундук-хранилище (Decor Function = "Storage"). Slots — ячеек,
+	-- в каждой стопка одной руды (как в рюкзаке, до Inventory.StackSize).
+	-- Руда в сундуке НЕ теряется при смерти. Поднять сундук можно только пустым.
+	Storage = { Slots = 10, UseDistance = 14 },
+	-- v20.22: банка (Function = "Jar"): руда внутри ужимается до OreSize
+	-- стадов и крутится (SpinSpeed рад/с) — вращение на клиенте (DecorJarSpin).
+	Jar = { OreSize = 1.1, SpinSpeed = 1.2, BobHeight = 0.12 },
 }
 
 --------------------------------------------------------------------------------

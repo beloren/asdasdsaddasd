@@ -1002,6 +1002,37 @@ function InventoryService:GetStackByUid(player, uid)
 	return (findByUid(backpackOf(player), uid))
 end
 
+-- v20.22: сундук-хранилище на базе (BaseDecorService). Снять ВСЮ стопку
+-- по Uid — таблица, как у RemoveAt, или nil.
+function InventoryService:TakeStackByUid(player, uid)
+	local backpack = backpackOf(player)
+	local stack, index = findByUid(backpack, uid)
+	if not (stack and index) then return nil end
+	local removed = self:RemoveAt(player, index, stack.Count, true)
+	if removed and player:GetAttribute("HeldOreUid") == uid then
+		self:SetHeldOre(player, nil)
+	end
+	self:Sync(player)
+	return removed
+end
+
+-- Сколько кусков ЭТОЙ руды влезет в рюкзак (досыпать в стопки + свободные
+-- ячейки). AddOre на это количество гарантированно проходит целиком.
+function InventoryService:RoomFor(player, stack)
+	local backpack = backpackOf(player)
+	if not (backpack and stack) then return 0 end
+	local stackSize = Config.Inventory.StackSize
+	local slots = self:GetSlotCount(player)
+	if slots == math.huge then return math.huge end
+	local room = math.max(0, slots - #backpack) * stackSize
+	for _, other in backpack do
+		if sameStack(other, stack.Ore, stack.Variant, stack.Mutations, stack.Smelted, stack.Gigantic) then
+			room += math.max(0, stackSize - other.Count)
+		end
+	end
+	return room
+end
+
 -- v9: GearService зовёт при изменении снаряжения. Новое — сразу в
 -- свободный слот хотбара (как руда), затем обычный Sync.
 function InventoryService:OnGearChanged(player, key, added)

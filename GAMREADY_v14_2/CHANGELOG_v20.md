@@ -225,3 +225,23 @@
 * Мэр: промпт «PRESTIGE» / «Prestige Mayor»; в своей модели надписи с «Rebirth» → «PRESTIGE», имя Humanoid над
   головой — «Prestige Mayor».
 * Пересобрать: `BuildAllUI` (TopbarDock, DailyRewardUi, OfferUi, PerkUi) — иначе соберутся кодом.
+
+## Новый декор, хранилище, банка для руды (v20.22)
+* Декор у торговца: Tulip Patch (`Decor_Flowers1`), Sunflower Pot (`Decor_Flowers2`),
+  Round Bush (`Decor_Bush1`), Berry Bush (`Decor_Bush2`) — у всех кодовые плейсхолдеры.
+* Wooden Bench (`Decor_Bench`): промпт SIT сажает на `Seat` внутри модели (сесть может
+  любой игрок); по касанию не садит. Нет `Seat` в своей модели — код добавит невидимый.
+* Storage Chest (`Decor_StorageChest`): промпт OPEN (только владелец) → окно
+  `StarterGui/DecorStorageUi` (билдер `UiBuilders/DecorStorageUi`, клиент
+  `DecorStorageUI.client`): 10 ячеек-стопок, клик по руде — переложить, TAKE ALL / PUT ALL.
+  Руда хранится в записи предмета (`PlacedDecor[].Storage`), переживает перезаход и смерть.
+  Поднять сундук можно только пустым. Настройки — `Config.Placeables.Storage`.
+* Ore Jar (`Decor_OreJar`): с рудой в руке — PUT ORE, кусок уходит в банку, уменьшенная копия
+  крутится внутри (клиент `DecorJarSpin`, тег `DecorJarOre`), над банкой табличка — редкость
+  цветом и название. TAKE ORE / подбор банки возвращают руду. Точка руды — `OreSpot`.
+  Настройки — `Config.Placeables.Jar`.
+* У рабочего декора «поднять» — вторая строка промпта на R (E занята основным действием).
+* `InventoryService:TakeStackByUid` / `RoomFor` — снять стопку целиком / сколько влезет.
+* PDF-гайд: таблица руды — имя ассета и редкость в отдельных колонках (без лишних символов),
+  описание внешнего вида всего декора, раздел 8.5 «Рабочий декор», раздел 8.6 «Плавильня»
+  (контракт `Smelter_Level1..4`, `furnace_active/inactive`, `Mouth`, остров, вид каждого уровня).

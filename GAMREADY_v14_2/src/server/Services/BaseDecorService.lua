@@ -17,6 +17,16 @@
 --
 -- БАФФЫ (читают другие сервисы; суммарные потолки — Config.Placeables.Caps):
 --   GetLuckBonus / GetIncomeBonus / GetBoulderRespawnCut / MergeMutationBoosts.
+--
+-- v20.22: «РАБОЧИЙ» ДЕКОР (Config.Placeables.Decor[..].Function):
+--   Seat    — промпт SIT (E) сажает на Seat модели; сесть может любой игрок;
+--   Storage — сундук-хранилище: промпт OPEN (E, только владелец) открывает
+--             окно (client/DecorStorageUI, RemoteEvent DecorStorageRequest);
+--             руда лежит в record.Storage = { стопки как в рюкзаке };
+--   Jar     — банка: PUT ORE кладёт руду из рук (record.JarOre), она
+--             крутится внутри (client/DecorJarSpin), над банкой — редкость;
+--             TAKE ORE возвращает её в рюкзак.
+-- У таких предметов подбор — вторичный промпт на R (строка под основным).
 --------------------------------------------------------------------------------
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -28,6 +38,8 @@ local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили м�
 local PlaceableCatalog = require(ReplicatedStorage.Shared.PlaceableCatalog)
 local PlaceableFactory = require(ReplicatedStorage.Shared.PlaceableFactory)
 local GroundCheck = require(ReplicatedStorage.Shared.GroundCheck)
+local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
+local CollectionService = game:GetService("CollectionService")
 
 local BaseDecorService = {}
 
@@ -41,6 +53,10 @@ local buffCache = {} -- [player] = { Luck, Income, BoulderRespawn, Mutation = {}
 local placing = {}   -- [player] = true, пока идёт установка (защита от двойного клика)
 
 local GLOBAL_TOPIC = "RelicFound_v1"
+local STORAGE = CFG.Storage or { Slots = 10, UseDistance = 14 }
+local JAR = CFG.Jar or { OreSize = 1.1 }
+local storageRemote = nil
+local storageLast = {} -- [player] = os.clock() последнего запроса
 
 local function dataOf(player)
 	return Services.DataService:GetGeodeData(player)
@@ -300,6 +316,308 @@ local function addLabel(model, anchor, lines, maxDistance, heightOffset)
 		if line.Color then label.TextColor3 = line.Color end
 		label.Parent = billboard
 	end
+	return billboard
+end
+
+--------------------------------------------------------------------------------
+-- v20.22: РАБОЧИЙ ДЕКОР — СКАМЕЙКА, СУНДУК-ХРАНИЛИЩЕ, БАНКА
+--------------------------------------------------------------------------------
+local function fail(player, text)
+	if Services.NotifyService then Services.NotifyService:Show(player, text, { Icon = "Error", Duration = 2 }) end
+	return false, text
+end
+
+local function decorFunction(record)
+	local info = record and record.Item and PlaceableCatalog.Info(record.Item)
+	local def = info and info.Kind == "Decor" and CFG.Decor[info.Type]
+	return def and def.Function or nil
+end
+
+local function oreName(oreKey)
+	local info = Config.OreByKey[oreKey]
+	return info and info.DisplayName or tostring(oreKey)
+end
+
+-- Та же «одна стопка», что в рюкзаке: руда, вариация, мутации, слиток, гигант.
+local function sameOre(a, b)
+	return a.Ore == b.Ore and (a.Variant or 1) == (b.Variant or 1) and (a.Mutations or "") == (b.Mutations or "")
+		and (a.Smelted == true) == (b.Smelted == true) and (a.Gigantic == true) == (b.Gigantic == true)
+end
+
+local function copyOre(stack, count)
+	return {
+		Ore = stack.Ore, Variant = stack.Variant or 1, Mutations = stack.Mutations,
+		Value = tonumber(stack.Value) or 0, Count = count or stack.Count or 1,
+		Smelted = stack.Smelted == true or nil, Gigantic = stack.Gigantic == true or nil,
+		Tier = tonumber(stack.Tier), Chance = tonumber(stack.Chance),
+	}
+end
+
+local function giveBack(player, stack, count)
+	return Services.InventoryService:AddOre(player, stack.Ore, stack.Variant or 1, stack.Mutations, stack.Value, count,
+		stack.Smelted == true, { Gigantic = stack.Gigantic, Tier = stack.Tier, Chance = stack.Chance })
+end
+
+local function newPrompt(anchor, action, objectText, key)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = action
+	prompt.ObjectText = objectText or ""
+	prompt.HoldDuration = 0
+	prompt.KeyboardKeyCode = key or Enum.KeyCode.E
+	prompt.MaxActivationDistance = 9
+	prompt.RequiresLineOfSight = false
+	prompt.Style = Enum.ProximityPromptStyle.Custom
+	prompt.Parent = anchor
+	return prompt
+end
+
+-- Скамейка: SIT сажает на свободный Seat. Сесть может любой игрок.
+local function setupSeat(model, anchor, displayName)
+	local seat = model:FindFirstChildWhichIsA("Seat", true)
+	if not seat then return end
+	local prompt = newPrompt(anchor, "SIT", displayName)
+	prompt.Name = "DecorSit"
+	prompt:SetAttribute("PromptOffset", Vector3.new(0, 2, 0))
+	local function refresh()
+		prompt.Enabled = seat.Occupant == nil
+	end
+	seat:GetPropertyChangedSignal("Occupant"):Connect(refresh)
+	refresh()
+	prompt.Triggered:Connect(function(who)
+		local humanoid = who.Character and who.Character:FindFirstChildOfClass("Humanoid")
+		if not humanoid or humanoid.Health <= 0 or humanoid.SeatPart or seat.Occupant then return end
+		seat:Sit(humanoid)
+	end)
+end
+
+-- Банка: руда внутри (уменьшенная, крутится на клиенте) + редкость над ней.
+function BaseDecorService:_refreshJar(player, record, model)
+	model = model or (spawned[player] and spawned[player][record.Uid])
+	if not model then return end
+	for _, name in { "JarOre", "JarLabel" } do
+		local old = model:FindFirstChild(name)
+		if old then old:Destroy() end
+	end
+	local prompt = model:FindFirstChild("DecorJar", true)
+	if prompt then prompt.ActionText = record.JarOre and "TAKE ORE" or "PUT ORE" end
+	local stack = record.JarOre
+	local info = stack and Config.OreByKey[stack.Ore]
+	if not info then return end
+	local spot = model:FindFirstChild("OreSpot", true)
+	local center = spot and spot.Position or model:GetPivot().Position + Vector3.new(0, 1.5, 0)
+
+	local builder = stack.Smelted and PlaceholderFactory.OreIngot or PlaceholderFactory.OreCrystal
+	local ok, visual = pcall(builder, info, Config.OreVariants[stack.Variant or 1])
+	if ok and visual then
+		local ore = visual
+		if visual:IsA("BasePart") then
+			ore = Instance.new("Model")
+			visual.Parent = ore
+			ore.PrimaryPart = visual
+		end
+		ore.Name = "JarOre"
+		if stack.Mutations and stack.Mutations ~= "" then
+			local okMv, MutationVisuals = pcall(require, ReplicatedStorage.Shared.MutationVisuals)
+			if okMv then
+				local root = ore.PrimaryPart or ore:FindFirstChildWhichIsA("BasePart", true)
+				for _, id in string.split(stack.Mutations, ",") do
+					if Config.Mutations and Config.Mutations[id] then pcall(MutationVisuals.Apply, ore, id, root) end
+				end
+			end
+		end
+		for _, d in ore:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.Anchored = true
+				d.CanCollide = false
+				d.CanTouch = false
+				d.CanQuery = false
+			elseif d:IsA("BillboardGui") or d:IsA("ProximityPrompt") or d:IsA("ClickDetector") or d:IsA("Script") then
+				d:Destroy()
+			end
+		end
+		local okBox, _, size = pcall(function() return ore:GetBoundingBox() end)
+		local biggest = okBox and math.max(size.X, size.Y, size.Z) or 1
+		if biggest > 0 then
+			pcall(function() ore:ScaleTo(ore:GetScale() * (JAR.OreSize or 1.1) / biggest) end)
+		end
+		-- Пивот — в центр габарита: клиент крутит модель вокруг него, и руда
+		-- вращается на месте, а не описывает круг внутри банки.
+		local boxCFrame = select(1, ore:GetBoundingBox())
+		ore.WorldPivot = CFrame.new(boxCFrame.Position) * ore:GetPivot().Rotation
+		ore:PivotTo(CFrame.new(center) * ore:GetPivot().Rotation)
+		ore:SetAttribute("SpinSpeed", JAR.SpinSpeed or 1.2)
+		ore:SetAttribute("BobHeight", JAR.BobHeight or 0.12)
+		ore.Parent = model
+		CollectionService:AddTag(ore, "DecorJarOre")
+	end
+
+	local rarity = (Config.OreRarityFor and Config.OreRarityFor(stack.Ore, stack.Tier)) or info.Rarity or "Common"
+	local anchor = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+	local _, modelSize = model:GetBoundingBox()
+	local title = stack.Smelted and (oreName(stack.Ore) .. " Ingot") or oreName(stack.Ore)
+	local label = addLabel(model, anchor, {
+		{ Text = string.upper(rarity), Color = PlaceableCatalog.RarityColor(rarity) },
+		{ Text = title, Color = Color3.fromRGB(235, 235, 235) },
+	}, 45, modelSize.Y + 0.6)
+	if label then label.Name = "JarLabel" end
+end
+
+function BaseDecorService:UseJar(player, uid)
+	local data = dataOf(player)
+	local record = data and findPlaced(data, uid)
+	if not (record and decorFunction(record) == "Jar") then return end
+	local inventory = Services.InventoryService
+	if record.JarOre then
+		if inventory:RoomFor(player, record.JarOre) < 1 then
+			fail(player, "Your backpack is full!")
+			return
+		end
+		local stack = record.JarOre
+		giveBack(player, stack, 1)
+		record.JarOre = nil
+		self:_refreshJar(player, record)
+		Services.NotifyService:Show(player, ("%s → backpack"):format(oreName(stack.Ore)), { Icon = "Ore", Duration = 2 })
+		return
+	end
+	local heldUid = player:GetAttribute("HeldOreUid")
+	local stack = typeof(heldUid) == "string" and inventory:GetStackByUid(player, heldUid) or nil
+	if not (stack and Config.OreByKey[stack.Ore]) then
+		fail(player, "Hold an ore from your hotbar, then press the jar")
+		return
+	end
+	if Config.IsJunk and Config.IsJunk(stack.Ore) then
+		fail(player, "That's junk! Only ore fits in the jar.")
+		return
+	end
+	local removed = inventory:TakeOneByUid(player, heldUid)
+	if not removed then return end
+	record.JarOre = copyOre(removed, 1)
+	self:_refreshJar(player, record)
+end
+
+-- Сундук-хранилище: состояние для окна.
+function BaseDecorService:_storageState(player, record)
+	local data = dataOf(player)
+	local backpack = {}
+	for _, stack in (data and data.Backpack) or {} do
+		if typeof(stack) == "table" and stack.Uid and Config.OreByKey[stack.Ore] then
+			table.insert(backpack, {
+				Uid = stack.Uid, Ore = stack.Ore, Variant = stack.Variant or 1, Mutations = stack.Mutations,
+				Count = stack.Count, Smelted = stack.Smelted, Gigantic = stack.Gigantic, Tier = stack.Tier,
+			})
+		end
+	end
+	local info = PlaceableCatalog.Info(record.Item)
+	return {
+		Uid = record.Uid,
+		Name = info and info.DisplayName or "Storage Chest",
+		Slots = STORAGE.Slots or 10,
+		StackSize = Config.Inventory.StackSize,
+		Items = record.Storage or {},
+		Backpack = backpack,
+	}
+end
+
+local function nearModel(player, model)
+	local character = player.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+	if not (hrp and model and model.Parent) then return false end
+	return (hrp.Position - model:GetPivot().Position).Magnitude <= (STORAGE.UseDistance or 14)
+end
+
+function BaseDecorService:OpenStorage(player, uid)
+	local data = dataOf(player)
+	local record = data and findPlaced(data, uid)
+	if not (record and decorFunction(record) == "Storage" and storageRemote) then return end
+	record.Storage = type(record.Storage) == "table" and record.Storage or {}
+	storageRemote:FireClient(player, "Open", self:_storageState(player, record))
+end
+
+-- Положить стопку рюкзака (целиком, сколько влезет) в сундук.
+function BaseDecorService:_storageDeposit(player, record, stackUid)
+	local inventory = Services.InventoryService
+	local stack = inventory:GetStackByUid(player, stackUid)
+	if not (stack and Config.OreByKey[stack.Ore]) then return false end
+	local stackSize = Config.Inventory.StackSize
+	local items = record.Storage
+	local room = math.max(0, (STORAGE.Slots or 10) - #items) * stackSize
+	for _, stored in items do
+		if sameOre(stored, stack) then room += math.max(0, stackSize - stored.Count) end
+	end
+	if room <= 0 then
+		fail(player, "The chest is full!")
+		return false
+	end
+	local removed = inventory:TakeStackByUid(player, stackUid)
+	if not removed then return false end
+	local left = removed.Count
+	for _, stored in items do
+		if left <= 0 then break end
+		if sameOre(stored, removed) and stored.Count < stackSize then
+			local moved = math.min(stackSize - stored.Count, left)
+			stored.Count += moved
+			left -= moved
+		end
+	end
+	while left > 0 and #items < (STORAGE.Slots or 10) do
+		local moved = math.min(stackSize, left)
+		table.insert(items, copyOre(removed, moved))
+		left -= moved
+	end
+	if left > 0 then giveBack(player, removed, left) end -- не влезло — обратно (ячейка в рюкзаке только что освободилась)
+	return true
+end
+
+-- Забрать ячейку сундука в рюкзак (сколько влезет).
+function BaseDecorService:_storageWithdraw(player, record, index)
+	local stored = record.Storage[index]
+	if not stored then return false end
+	local moved = math.min(stored.Count, Services.InventoryService:RoomFor(player, stored))
+	if moved <= 0 then
+		fail(player, "Your backpack is full!")
+		return false
+	end
+	giveBack(player, stored, moved)
+	stored.Count -= moved
+	if stored.Count <= 0 then table.remove(record.Storage, index) end
+	return true
+end
+
+function BaseDecorService:_onStorageRequest(player, action, uid, value)
+	if typeof(action) ~= "string" or typeof(uid) ~= "string" then return end
+	local now = os.clock()
+	if now - (storageLast[player] or 0) < 0.12 then return end
+	storageLast[player] = now
+	local data = dataOf(player)
+	local record = data and findPlaced(data, uid)
+	if not (record and decorFunction(record) == "Storage") then return end
+	record.Storage = type(record.Storage) == "table" and record.Storage or {}
+	local model = spawned[player] and spawned[player][uid]
+	if not nearModel(player, model) then
+		storageRemote:FireClient(player, "Close")
+		return
+	end
+	if player:GetAttribute("EconomyTransactionLocked") == true then return end
+	if action == "Deposit" and typeof(value) == "string" then
+		self:_storageDeposit(player, record, value)
+	elseif action == "DepositAll" then
+		local uids = {}
+		for _, stack in data.Backpack or {} do
+			if typeof(stack) == "table" and stack.Uid and Config.OreByKey[stack.Ore] then table.insert(uids, stack.Uid) end
+		end
+		for _, stackUid in uids do
+			if not self:_storageDeposit(player, record, stackUid) then break end
+		end
+	elseif action == "Withdraw" and typeof(value) == "number" then
+		self:_storageWithdraw(player, record, math.floor(value))
+	elseif action == "WithdrawAll" then
+		for index = #record.Storage, 1, -1 do
+			if not self:_storageWithdraw(player, record, index) then break end
+		end
+	elseif action ~= "Refresh" then
+		return
+	end
+	storageRemote:FireClient(player, "State", self:_storageState(player, record))
 end
 
 function BaseDecorService:_spawnRecord(player, plot, record)
@@ -307,6 +625,7 @@ function BaseDecorService:_spawnRecord(player, plot, record)
 	local folder = folderFor(plot)
 	if not (data and folder) then return nil end
 	local model, displayName
+	local fn = decorFunction(record)
 	if record.Item then
 		local info = PlaceableCatalog.Info(record.Item)
 		if not info then return nil end
@@ -341,6 +660,28 @@ function BaseDecorService:_spawnRecord(player, plot, record)
 	model:SetAttribute("OwnerUserId", player.UserId)
 
 	local anchor = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+	if anchor and fn then
+		local uid = record.Uid
+		if fn == "Seat" then
+			setupSeat(model, anchor, displayName)
+		elseif fn == "Storage" then
+			local open = newPrompt(anchor, "OPEN", displayName)
+			open.Name = "DecorStorage"
+			open:SetAttribute("OwnerUserId", player.UserId)
+			open:SetAttribute("PromptOffset", Vector3.new(0, 2.2, 0))
+			open.Triggered:Connect(function(who)
+				if who == player then self:OpenStorage(player, uid) end
+			end)
+		elseif fn == "Jar" then
+			local use = newPrompt(anchor, record.JarOre and "TAKE ORE" or "PUT ORE", displayName)
+			use.Name = "DecorJar"
+			use:SetAttribute("OwnerUserId", player.UserId)
+			use:SetAttribute("PromptOffset", Vector3.new(0, 1.8, 0))
+			use.Triggered:Connect(function(who)
+				if who == player then self:UseJar(player, uid) end
+			end)
+		end
+	end
 	if anchor then
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.Name = "BaseDecorPickup"
@@ -353,6 +694,13 @@ function BaseDecorService:_spawnRecord(player, plot, record)
 		prompt.Style = Enum.ProximityPromptStyle.Custom
 		prompt:SetAttribute("OwnerUserId", player.UserId)
 		prompt:SetAttribute("PromptOffset", Vector3.new(0, 1.5, 0))
+		if fn then
+			-- У рабочего декора E занята (сесть/открыть/банка) — подбор
+			-- строкой под основным промптом, на R.
+			prompt:SetAttribute("SecondaryPrompt", true)
+			prompt.KeyboardKeyCode = Enum.KeyCode.R
+			prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
+		end
 		prompt.Parent = anchor
 		local uid = record.Uid
 		prompt.Triggered:Connect(function(who)
@@ -362,6 +710,9 @@ function BaseDecorService:_spawnRecord(player, plot, record)
 	model.Parent = folder
 	spawned[player] = spawned[player] or {}
 	spawned[player][record.Uid] = model
+	if fn == "Jar" and record.JarOre then
+		pcall(self._refreshJar, self, player, record, model)
+	end
 	return model
 end
 
@@ -444,10 +795,6 @@ end
 --------------------------------------------------------------------------------
 -- ПОСТАВИТЬ (из руки) / ПОДНЯТЬ
 --------------------------------------------------------------------------------
-local function fail(player, text)
-	if Services.NotifyService then Services.NotifyService:Show(player, text, { Icon = "Error", Duration = 2 }) end
-	return false, text
-end
 
 function BaseDecorService:PlaceFromGear(player, key, targetCFrame)
 	if typeof(key) ~= "string" or typeof(targetCFrame) ~= "CFrame" then return false end
@@ -562,6 +909,20 @@ function BaseDecorService:_itemsResting(player, uid)
 end
 
 function BaseDecorService:PickUp(player, uid, _cascade)
+	-- v20.22: сундук-хранилище поднимается только пустым; руда из банки
+	-- возвращается в рюкзак.
+	local guardData = dataOf(player)
+	local guardRecord = guardData and findPlaced(guardData, uid)
+	if guardRecord and type(guardRecord.Storage) == "table" and #guardRecord.Storage > 0 then
+		return fail(player, "Empty the storage chest first!")
+	end
+	if guardRecord and guardRecord.JarOre then
+		if Services.InventoryService:RoomFor(player, guardRecord.JarOre) < 1 then
+			return fail(player, "Your backpack is full!")
+		end
+		giveBack(player, guardRecord.JarOre, 1)
+		guardRecord.JarOre = nil
+	end
 	-- Сначала снимаем всё, что стоит сверху, — иначе оно повиснет в воздухе.
 	for _, restingUid in self:_itemsResting(player, uid) do
 		self:PickUp(player, restingUid, true)
@@ -702,6 +1063,17 @@ function BaseDecorService:Init(services)
 		spawned[player] = nil
 		buffCache[player] = nil
 		placing[player] = nil
+		storageLast[player] = nil
+	end)
+	storageRemote = ReplicatedStorage.Shared:FindFirstChild("DecorStorageRequest")
+	if not storageRemote then
+		storageRemote = Instance.new("RemoteEvent")
+		storageRemote.Name = "DecorStorageRequest"
+		storageRemote.Parent = ReplicatedStorage.Shared
+	end
+	storageRemote.OnServerEvent:Connect(function(player, action, uid, value)
+		local ok, err = pcall(self._onStorageRequest, self, player, action, uid, value)
+		if not ok then warn("[BaseDecorService] хранилище:", err) end
 	end)
 end
 

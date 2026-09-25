@@ -308,6 +308,166 @@ DECOR_BUILDERS.PlushMole = function()
 end
 
 --------------------------------------------------------------------------------
+-- v20.22: РАСТЕНИЯ, СКАМЕЙКА, СУНДУК-ХРАНИЛИЩЕ, БАНКА ДЛЯ РУДЫ.
+-- «Лицо» у всех — сторона -Z (как у плюшевого крота): туда смотрит сидящий
+-- на скамейке, туда открывается крышка сундука.
+--------------------------------------------------------------------------------
+-- Cylinder в Roblox лежит вдоль X; стоячий — поворот на 90° вокруг Z.
+local function builderKit()
+	local parts = {}
+	local function add(props, cf)
+		local p = part(props)
+		p.CFrame = cf
+		table.insert(parts, p)
+		return p
+	end
+	return parts, add
+end
+
+-- Цветок: стебель, два листа и головка.
+local function flower(add, position, height, headColor, headShape)
+	local stem = Color3.fromRGB(70, 150, 60)
+	add({ Size = Vector3.new(0.12, height, 0.12), Material = Enum.Material.Grass, Color = stem }, CFrame.new(position + Vector3.new(0, height / 2, 0)))
+	add({ Size = Vector3.new(0.45, 0.06, 0.2), Material = Enum.Material.Grass, Color = stem }, CFrame.new(position + Vector3.new(0.18, height * 0.35, 0)) * CFrame.Angles(0, 0, math.rad(25)))
+	add({ Size = Vector3.new(0.45, 0.06, 0.2), Material = Enum.Material.Grass, Color = stem }, CFrame.new(position + Vector3.new(-0.18, height * 0.55, 0)) * CFrame.Angles(0, 0, math.rad(-25)))
+	add({ Shape = headShape or Enum.PartType.Ball, Size = Vector3.new(0.42, 0.55, 0.42), Material = Enum.Material.SmoothPlastic, Color = headColor }, CFrame.new(position + Vector3.new(0, height + 0.2, 0)))
+end
+
+DECOR_BUILDERS.Flowers1 = function()
+	-- Грядка тюльпанов: холмик земли и шесть цветков разных цветов.
+	local parts, add = builderKit()
+	local root = part({ Size = Vector3.new(2.6, 0.1, 2.6), Transparency = 1, CastShadow = false })
+	root.CFrame = CFrame.new(0, 0.05, 0)
+	add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.35, 2.6, 2.6), Material = Enum.Material.Ground, Color = Color3.fromRGB(105, 72, 45) }, CFrame.new(0, 0.17, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	local colors = { Color3.fromRGB(235, 60, 80), Color3.fromRGB(255, 150, 190), Color3.fromRGB(255, 210, 60), Color3.fromRGB(235, 60, 80), Color3.fromRGB(200, 110, 255), Color3.fromRGB(255, 255, 240) }
+	for i, color in colors do
+		local angle = i / #colors * math.pi * 2
+		local radius = i % 2 == 0 and 0.75 or 0.4
+		flower(add, Vector3.new(math.cos(angle) * radius, 0.3, math.sin(angle) * radius), 0.9 + (i % 3) * 0.2, color)
+	end
+	return assemble("Flowers1", root, parts)
+end
+
+DECOR_BUILDERS.Flowers2 = function()
+	-- Подсолнухи в глиняном горшке: три высоких стебля с жёлтыми «тарелками».
+	local parts, add = builderKit()
+	local terracotta = Color3.fromRGB(190, 100, 60)
+	local root = part({ Size = Vector3.new(1.8, 0.1, 1.8), Transparency = 1, CastShadow = false })
+	root.CFrame = CFrame.new(0, 0.05, 0)
+	add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.3, 1.6, 1.6), Material = Enum.Material.Brick, Color = terracotta }, CFrame.new(0, 0.65, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.25, 1.85, 1.85), Material = Enum.Material.Brick, Color = terracotta:Lerp(Color3.new(1, 1, 1), 0.1) }, CFrame.new(0, 1.35, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.1, 1.5, 1.5), Material = Enum.Material.Ground, Color = Color3.fromRGB(80, 55, 35) }, CFrame.new(0, 1.44, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	for i, spec in { { -0.35, 2.4, -0.1, 12 }, { 0.35, 2.0, 0.15, -10 }, { 0, 2.8, 0.3, 4 } } do
+		local x, height, z, tilt = spec[1], spec[2], spec[3], spec[4]
+		local base = Vector3.new(x, 1.45, z)
+		add({ Size = Vector3.new(0.14, height, 0.14), Material = Enum.Material.Grass, Color = Color3.fromRGB(80, 150, 55) }, CFrame.new(base + Vector3.new(0, height / 2, 0)))
+		add({ Size = Vector3.new(0.55, 0.06, 0.3), Material = Enum.Material.Grass, Color = Color3.fromRGB(80, 150, 55) }, CFrame.new(base + Vector3.new(0.22, height * 0.45, 0)) * CFrame.Angles(0, 0, math.rad(20)))
+		local head = CFrame.new(base + Vector3.new(0, height + 0.1, 0)) * CFrame.Angles(math.rad(-70 + tilt), 0, 0)
+		add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.12, 1.1 - i * 0.05, 1.1 - i * 0.05), Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(255, 205, 40) }, head * CFrame.Angles(0, math.rad(90), 0))
+		add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.16, 0.5, 0.5), Material = Enum.Material.Fabric, Color = Color3.fromRGB(95, 60, 30) }, head * CFrame.new(0, 0, -0.04) * CFrame.Angles(0, math.rad(90), 0))
+	end
+	return assemble("Flowers2", root, parts)
+end
+
+-- Куст из шаров листвы. berries — сколько ягод рассыпать сверху.
+local function bush(name, specs, leaf, berries, berryColor)
+	local parts, add = builderKit()
+	local root = part({ Size = Vector3.new(2.6, 0.1, 2.6), Transparency = 1, CastShadow = false })
+	root.CFrame = CFrame.new(0, 0.05, 0)
+	local top = 0
+	for i, s in specs do
+		add({ Shape = Enum.PartType.Ball, Size = Vector3.one * s[4], Material = Enum.Material.Grass, Color = leaf:Lerp(Color3.new(0, 0, 0), (i % 3) * 0.06) }, CFrame.new(s[1], s[2], s[3]))
+		top = math.max(top, s[2] + s[4] / 2)
+	end
+	for i = 1, berries or 0 do
+		local angle = i * 2.4
+		local y = 0.8 + (i % 4) * 0.35
+		local r = 1.05 - math.abs(y - 1.2) * 0.25
+		add({ Shape = Enum.PartType.Ball, Size = Vector3.one * 0.24, Material = Enum.Material.SmoothPlastic, Color = berryColor, CastShadow = false }, CFrame.new(math.cos(angle) * r, y, math.sin(angle) * r))
+	end
+	return assemble(name, root, parts)
+end
+
+DECOR_BUILDERS.Bush1 = function()
+	return bush("Bush1", {
+		{ 0, 1.0, 0, 2.0 }, { 0.7, 0.75, 0.2, 1.5 }, { -0.7, 0.7, -0.1, 1.4 }, { 0.1, 0.7, 0.75, 1.3 }, { -0.1, 0.8, -0.7, 1.3 }, { 0, 1.7, 0, 1.2 },
+	}, Color3.fromRGB(85, 165, 70))
+end
+
+DECOR_BUILDERS.Bush2 = function()
+	return bush("Bush2", {
+		{ 0, 1.2, 0, 2.3 }, { 0.85, 0.85, 0.2, 1.7 }, { -0.85, 0.85, -0.1, 1.7 }, { 0.15, 0.85, 0.9, 1.5 }, { -0.1, 0.9, -0.85, 1.5 }, { 0.2, 2.0, 0.1, 1.4 }, { -0.4, 1.8, 0.3, 1.1 },
+	}, Color3.fromRGB(50, 120, 60), 12, Color3.fromRGB(220, 40, 70))
+end
+
+DECOR_BUILDERS.Bench = function()
+	-- Деревянная скамейка на чугунных ножках. Внутри — настоящий Seat "Seat":
+	-- на него сажает промпт SIT (сам по касанию не садит: CanTouch = false).
+	local parts, add = builderKit()
+	local wood = Color3.fromRGB(150, 100, 55)
+	local iron = Color3.fromRGB(45, 45, 50)
+	local root = part({ Size = Vector3.new(5, 0.1, 1.8), Transparency = 1, CastShadow = false })
+	root.CFrame = CFrame.new(0, 0.05, 0)
+	for _, x in { -2.1, 2.1 } do
+		add({ Size = Vector3.new(0.25, 1.5, 1.5), Material = Enum.Material.Metal, Color = iron }, CFrame.new(x, 0.75, 0))
+		add({ Size = Vector3.new(0.25, 1.9, 0.25), Material = Enum.Material.Metal, Color = iron }, CFrame.new(x, 2.1, 0.75) * CFrame.Angles(math.rad(-10), 0, 0))
+		add({ Size = Vector3.new(0.3, 0.2, 1.4), Material = Enum.Material.Metal, Color = iron }, CFrame.new(x, 2.05, 0.05))
+	end
+	for i, z in { -0.5, 0, 0.5 } do
+		add({ Size = Vector3.new(4.9, 0.18, 0.44), Material = Enum.Material.WoodPlanks, Color = wood:Lerp(Color3.new(0, 0, 0), (i % 2) * 0.08) }, CFrame.new(0, 1.55, z))
+	end
+	for i, y in { 2.2, 2.75 } do
+		add({ Size = Vector3.new(4.9, 0.4, 0.14), Material = Enum.Material.WoodPlanks, Color = wood:Lerp(Color3.new(0, 0, 0), (i % 2) * 0.08) }, CFrame.new(0, y, 0.72 + (y - 1.6) * 0.18) * CFrame.Angles(math.rad(-10), 0, 0))
+	end
+	local seat = Instance.new("Seat")
+	seat.Name = "Seat"
+	seat.Size = Vector3.new(4.4, 0.2, 1.4)
+	seat.CFrame = CFrame.new(0, 1.6, 0)
+	seat.Transparency = 1
+	seat.Anchored = true
+	seat.CanCollide = false
+	seat.CanTouch = false
+	seat.CanQuery = false
+	seat.CastShadow = false
+	table.insert(parts, seat)
+	return assemble("Bench", root, parts)
+end
+
+DECOR_BUILDERS.StorageChest = function()
+	-- Окованный деревянный сундук с золотым замком, из-под крышки — свет руды.
+	local parts, add = builderKit()
+	local wood = Color3.fromRGB(120, 75, 40)
+	local iron = Color3.fromRGB(60, 60, 68)
+	local gold = Color3.fromRGB(255, 200, 70)
+	local root = add({ Size = Vector3.new(3.4, 1.7, 2.2), Material = Enum.Material.WoodPlanks, Color = wood }, CFrame.new(0, 0.85, 0))
+	table.remove(parts, 1)
+	add({ Size = Vector3.new(3.5, 0.7, 2.3), Material = Enum.Material.WoodPlanks, Color = wood:Lerp(Color3.new(1, 1, 1), 0.06) }, CFrame.new(0, 2.05, 0))
+	add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(3.5, 1.2, 2.3), Material = Enum.Material.WoodPlanks, Color = wood:Lerp(Color3.new(1, 1, 1), 0.06) }, CFrame.new(0, 2.3, 0))
+	for _, x in { -1.3, 0, 1.3 } do
+		add({ Size = Vector3.new(0.22, 1.75, 2.28), Material = Enum.Material.Metal, Color = iron }, CFrame.new(x, 0.87, 0))
+		add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.24, 1.26, 2.36), Material = Enum.Material.Metal, Color = iron }, CFrame.new(x, 2.3, 0))
+	end
+	add({ Size = Vector3.new(0.6, 0.7, 0.2), Material = Enum.Material.Metal, Color = gold }, CFrame.new(0, 1.75, -1.2))
+	local glow = add({ Size = Vector3.new(3.1, 0.08, 1.9), Material = Enum.Material.Neon, Color = Color3.fromRGB(120, 220, 255), CastShadow = false }, CFrame.new(0, 1.72, 0))
+	light(glow, Color3.fromRGB(140, 220, 255), 0.8, 7)
+	return assemble("StorageChest", root, parts)
+end
+
+DECOR_BUILDERS.OreJar = function()
+	-- Стеклянная банка на деревянной подставке с медной крышкой. Невидимая
+	-- деталь "OreSpot" — центр, где крутится руда.
+	local parts, add = builderKit()
+	local root = add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.35, 2.3, 2.3), Material = Enum.Material.Wood, Color = Color3.fromRGB(110, 70, 40) }, CFrame.new(0, 0.175, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	table.remove(parts, 1)
+	add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.3, 1.9, 1.9), Material = Enum.Material.Glass, Color = Color3.fromRGB(210, 235, 255), Transparency = 0.65, CastShadow = false }, CFrame.new(0, 1.5, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3, 1.6, 1.6), Material = Enum.Material.Glass, Color = Color3.fromRGB(210, 235, 255), Transparency = 0.55, CastShadow = false }, CFrame.new(0, 2.8, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3, 1.75, 1.75), Material = Enum.Material.Metal, Color = Color3.fromRGB(190, 120, 70) }, CFrame.new(0, 3.05, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	add({ Shape = Enum.PartType.Ball, Size = Vector3.one * 0.4, Material = Enum.Material.Metal, Color = Color3.fromRGB(210, 150, 90) }, CFrame.new(0, 3.3, 0))
+	add({ Size = Vector3.new(0.3, 0.3, 0.3), Transparency = 1, CastShadow = false, CanQuery = false }, CFrame.new(0, 1.5, 0)).Name = "OreSpot"
+	return assemble("OreJar", root, parts)
+end
+
+--------------------------------------------------------------------------------
 -- РЕЛИКВИЯ: постамент + сам трофей с эмиттерами и светом.
 --------------------------------------------------------------------------------
 local RELIC_BUILDERS = {}
@@ -437,6 +597,37 @@ function PlaceableFactory.BuildItem(itemId)
 	end
 	if not model then return nil end
 	model.Name = itemId
+	-- v20.22: «рабочему» декору из своих моделей дорисовываем недостающее.
+	local decorDef = info.Kind == "Decor" and Config.Placeables.Decor[info.Type]
+	local fn = decorDef and decorDef.Function
+	if fn == "Seat" or fn == "Jar" then
+		local ok, boxCFrame, boxSize = pcall(function() return model:GetBoundingBox() end)
+		if ok then
+			if fn == "Seat" and not model:FindFirstChildWhichIsA("Seat", true) then
+				-- Нет Seat в модели — невидимое сиденье на 45% высоты.
+				local seat = Instance.new("Seat")
+				seat.Name = "Seat"
+				seat.Size = Vector3.new(math.max(1, boxSize.X * 0.8), 0.2, math.max(1, boxSize.Z * 0.6))
+				seat.CFrame = model:GetPivot() * CFrame.new(0, boxSize.Y * 0.45, 0)
+				seat.Transparency = 1
+				seat.Anchored = true
+				seat.CanCollide = false
+				seat.CanTouch = false
+				seat.CanQuery = false
+				seat.Parent = model
+			elseif fn == "Jar" and not model:FindFirstChild("OreSpot", true) then
+				local spot = part({ Name = "OreSpot", Size = Vector3.one * 0.3, Transparency = 1, CastShadow = false, CanQuery = false })
+				spot.CFrame = CFrame.new(boxCFrame.Position)
+				spot.Parent = model
+			end
+		end
+	end
+	for _, seat in model:GetDescendants() do
+		if seat:IsA("Seat") then
+			seat.CanTouch = false -- садит только промпт SIT, не случайное касание
+			seat.Disabled = false
+		end
+	end
 	-- У своих моделей тотемов тоже подсвечиваем тир: лёгкий свет цвета тира.
 	if info.Kind == "Totem" and model:GetAttribute("CustomAsset") and model.PrimaryPart then
 		light(model.PrimaryPart, info.TierColor or Color3.new(1, 1, 1), 1, 8)
