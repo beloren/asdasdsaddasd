@@ -6083,6 +6083,28 @@ Config.Notify = {
 -- Место НПС: workspace.IslandKeeperMarker (+ IslandKeeperMarkerLook),
 -- иначе рядом с банком (KeeperOffset).
 --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- v20.25: МОСТЫ, ВЫЕЗЖАЮЩИЕ ИЗ-ПОД ЗЕМЛИ (client/BridgeRiseFX).
+-- Любая модель в Workspace, чьё имя подходит под NamePattern ("Bridge",
+-- "Bridge2", "BridgeToSmelter"…), по умолчанию спрятана под землёй. Игрок
+-- подошёл ближе ShowDistance (стадов до края моста) — мост плавно
+-- поднимается с пружинкой; отошёл дальше HideDistance — «подпрыгивает» и
+-- уезжает обратно. Всё это ЛОКАЛЬНО у каждого игрока: каждый видит мост у
+-- себя, по спрятанному мосту пройти нельзя. Со всем содержимым модели:
+-- детали, декали, свет, частицы, надписи.
+--------------------------------------------------------------------------------
+Config.Bridges = {
+	Enabled = true,
+	NamePattern = "^Bridge",  -- Lua-шаблон имени модели
+	ShowDistance = 38,        -- ближе — поднимается
+	HideDistance = 52,        -- дальше — уходит (больше ShowDistance, чтобы не дёргался на границе)
+	Depth = nil,              -- на сколько уходит вниз; nil = высота моста + 3
+	RiseSeconds = 0.9,        -- подъём (с перелётом вверх и пружинкой)
+	SinkSeconds = 0.75,       -- спуск (с подскоком перед уходом вниз)
+	Overshoot = 1.6,          -- сила пружинки (EasingStyle.Back, 1.70 — стандарт)
+	Stagger = 0.035,          -- задержка между частями моста (волна по доскам), сек; 0 — все разом
+}
+
 Config.Islands = {
 	Enabled = true,
 	Order = { "Anvil", "Income", "Smelter" },
@@ -6105,6 +6127,15 @@ Config.Islands = {
 			Icon = "⚒",
 			Model = "Island_Anvil",          -- макет в ReplicatedStorage.Assets
 			PlotMarker = "IslandAnvilMarker", -- маркер в PlotTemplate
+			-- v20.25: ГДЕ СТОИТ ПОСТРОЙКА И КУДА СМОТРИТ. Offset — сдвиг от центра
+			-- верха острова (X — вправо, Z — назад, стадов), Yaw — поворот в
+			-- градусах вокруг вертикали (0 — «лицом» вперёд, как маркер острова
+			-- на участке; 90 — влево; 180 — назад). Действует, если в модели
+			-- острова НЕТ маркера с тем же именем (маркер главнее — его можно
+			-- таскать и крутить мышкой в Studio, см. tools/AddIslandMarkers.lua).
+			Stations = {
+				StationMarker = { Offset = Vector3.new(0, 0, 0), Yaw = 0 }, -- наковальня жеод
+			},
 		},
 		Income = {
 			DisplayName = "Income Island",
@@ -6117,6 +6148,10 @@ Config.Islands = {
 			Icon = "$",
 			Model = "Island_Income",
 			PlotMarker = "IslandIncomeMarker",
+			Stations = {
+				PodiumMarker = { Offset = Vector3.new(-3.8, 0, 0), Yaw = 0 }, -- подиум кристалла
+				SafeMarker = { Offset = Vector3.new(4.2, 0, 0), Yaw = 0 },    -- сейф
+			},
 		},
 		Smelter = {
 			DisplayName = "Smelter Island",
@@ -6128,6 +6163,9 @@ Config.Islands = {
 			Icon = "🔥",
 			Model = "Island_Smelter",
 			PlotMarker = "IslandSmelterMarker",
+			Stations = {
+				StationMarker = { Offset = Vector3.new(0, 0, 0), Yaw = 0 }, -- плавильня
+			},
 		},
 	},
 

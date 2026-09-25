@@ -290,6 +290,23 @@ end
 -- Возвращает CFrame точки на поверхности (Y = низ маркера) или fallback.
 local function stationCFrame(model, name, fallback)
 	local marker = model:FindFirstChild(name, true)
+	-- v20.25: маркер может быть и моделью (плита + стрелка из
+	-- tools/AddIslandMarkers) — тогда точка и поворот берутся с её PrimaryPart.
+	local markerRoot = marker
+	if marker and marker:IsA("Model") then
+		markerRoot = marker.PrimaryPart or marker:FindFirstChild("Plate") or marker:FindFirstChildWhichIsA("BasePart")
+		for _, hidden in marker:GetDescendants() do
+			if hidden:IsA("BasePart") then
+				hidden.Transparency = 1
+				hidden.CanCollide = false
+				hidden.CanQuery = false
+				hidden.CanTouch = false
+			elseif hidden:IsA("BillboardGui") or hidden:IsA("SurfaceGui") then
+				hidden.Enabled = false
+			end
+		end
+	end
+	marker = markerRoot
 	if not (marker and marker:IsA("BasePart")) then return fallback end
 	local cf = marker.CFrame
 	local half = marker.Size / 2
@@ -306,11 +323,32 @@ local function stationCFrame(model, name, fallback)
 	end
 	look = Vector3.new(look.X, 0, look.Z)
 	if look.Magnitude < 0.01 then look = Vector3.new(0, 0, -1) end
-	marker.Transparency = 1
-	marker.CanCollide = false
-	marker.CanQuery = false
-	marker.CanTouch = false
+	-- Маркер и всё внутри него (стрелка направления из AddIslandMarkers,
+	-- подписи) — невидимы в игре.
+	for _, hidden in { marker, table.unpack(marker:GetDescendants()) } do
+		if hidden:IsA("BasePart") then
+			hidden.Transparency = 1
+			hidden.CanCollide = false
+			hidden.CanQuery = false
+			hidden.CanTouch = false
+		elseif hidden:IsA("Decal") or hidden:IsA("Texture") then
+			hidden.Transparency = 1
+		elseif hidden:IsA("SurfaceGui") or hidden:IsA("BillboardGui") then
+			hidden.Enabled = false
+		end
+	end
 	return CFrame.lookAt(ground, ground + look.Unit)
+end
+
+-- v20.25: точка постройки — маркер в модели острова, а если его нет —
+-- Config.Islands.Definitions.<Id>.Stations[имя] (Offset/Yaw от центра верха
+-- острова), а если нет и этого — defaultOffset.
+local function stationFor(model, definition, name, top, defaultOffset)
+	local spec = definition.Stations and definition.Stations[name]
+	local offset = (spec and typeof(spec.Offset) == "Vector3") and spec.Offset or defaultOffset or Vector3.zero
+	local yaw = spec and tonumber(spec.Yaw) or 0
+	local fallback = top * CFrame.new(offset.X, offset.Y, offset.Z) * CFrame.Angles(0, math.rad(yaw), 0)
+	return stationCFrame(model, name, fallback)
 end
 
 -- Невидимая "земля" для PassiveIncomeService.placeOnPlot: верхняя грань
@@ -1014,18 +1052,17 @@ function IslandService:_buildIsland(player, islandId, animate)
 
 	-- Постройки — детьми модели острова, чтобы ехали вместе с ним.
 	if islandId == "Anvil" then
-		local station = stationCFrame(model, "StationMarker", fallbackTop)
+		local station = stationFor(model, definition, "StationMarker", fallbackTop)
 		local building = Services.GeodeService:BuildBuilding(player, station, model)
 		if building then snapBottomTo(building, station.Position.Y) end
 	elseif islandId == "Income" then
-		local right = fallbackTop.RightVector
-		local podiumCFrame = stationCFrame(model, "PodiumMarker", fallbackTop - right * 3.8)
-		local safeCFrame = stationCFrame(model, "SafeMarker", fallbackTop + right * 4.2)
+		local podiumCFrame = stationFor(model, definition, "PodiumMarker", fallbackTop, Vector3.new(-3.8, 0, 0))
+		local safeCFrame = stationFor(model, definition, "SafeMarker", fallbackTop, Vector3.new(4.2, 0, 0))
 		local podiumGround = groundRef(model, "PodiumGround", podiumCFrame)
 		local safeGround = groundRef(model, "SafeGround", safeCFrame)
 		Services.PassiveIncomeService:BuildStructures(player, podiumCFrame, safeCFrame, podiumGround, model, safeGround)
 	elseif islandId == "Smelter" then
-		local station = stationCFrame(model, "StationMarker", fallbackTop)
+		local station = stationFor(model, definition, "StationMarker", fallbackTop)
 		self:_buildSmelter(player, model, station)
 	end
 
