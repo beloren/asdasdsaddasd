@@ -71,8 +71,8 @@ require(ReplicatedStorage.Shared.TopbarDock).Add(toggleButton, 1)
 task.spawn(function()
 	local hud = playerGui:WaitForChild("Hud", 15)
 	local hudGui = hud and hud:WaitForChild("HudGui", 5)
-	-- На телефоне HUD в правом верхнем углу — трекер остаётся отдельным
-	-- (левый верх, Config.UiLayout.Overrides.Phone).
+	-- v20.18: на телефоне HUD стоит в правом верхнем углу — трекер над ним
+	-- уезжал за верх экрана. Там трекер отдельно (левый верх, UiLayout).
 	local isPhone = require(ReplicatedStorage.Shared.UiLayout).Profile() == "Phone"
 	if hudGui and hudGui:IsA("GuiObject") and not isPhone then
 		tracker.AnchorPoint = Vector2.new(0, 1)
@@ -457,8 +457,7 @@ local function fitModalScale()
 	local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
 	local width = modal:GetAttribute("BaseWidth") or modal.Size.X.Offset
 	local height = modal:GetAttribute("BaseHeight") or modal.Size.Y.Offset
-	local _ = math.min(1, (viewport.X - 24) / math.max(width, 1), (viewport.Y - 60) / math.max(height, 1))
-	return 1 -- v20.16: подгонка под экран — client/ResponsiveUi
+	return math.min(1, (viewport.X - 24) / math.max(width, 1), (viewport.Y - 60) / math.max(height, 1))
 end
 
 local function openModal()
@@ -523,7 +522,7 @@ end)
 local function fitTracker()
 	local camera = workspace.CurrentCamera
 	local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
-	trackerScale.Scale = 1 -- v20.16: подгонка под экран — client/ResponsiveUi
+	trackerScale.Scale = math.clamp(viewport.Y / 820, 0.7, 1)
 	if modalOpen then modalScale.Scale = fitModalScale() end
 end
 if workspace.CurrentCamera then

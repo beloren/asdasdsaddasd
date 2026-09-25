@@ -134,7 +134,11 @@ end
 local function showHud()
 	for element, originalPosition in hiddenElements do
 		if element.Parent then
-			TweenService:Create(element, EASING_IN, { Position = originalPosition }):Play()
+			-- Телефонная раскладка (UiLayout) могла сменить позицию, пока HUD
+			-- был спрятан, — возвращаем туда.
+			local layoutPosition = element:GetAttribute("LayoutPosition")
+			local target = typeof(layoutPosition) == "UDim2" and layoutPosition or originalPosition
+			TweenService:Create(element, EASING_IN, { Position = target }):Play()
 		end
 	end
 	hiddenElements = {}
@@ -148,6 +152,7 @@ local function setCinematic(active)
 		depth = math.max(0, depth - 1)
 		if depth == 0 then showHud() end
 	end
+	playerGui:SetAttribute("CinematicActive", depth > 0)
 end
 
 -- Страховка: если персонаж умер/переродился посреди катсцены, счётчик мог
@@ -155,6 +160,7 @@ end
 player.CharacterAdded:Connect(function()
 	if depth > 0 then
 		depth = 0
+		playerGui:SetAttribute("CinematicActive", false)
 		showHud()
 	end
 end)

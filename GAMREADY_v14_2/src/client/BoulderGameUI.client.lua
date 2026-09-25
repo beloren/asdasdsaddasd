@@ -532,7 +532,7 @@ RunService.RenderStepped:Connect(function()
 	local screen, onScreen = camera:WorldToViewportPoint(side)
 	local viewport = camera.ViewportSize
 	if autoScale then
-		autoScale.Scale = 1 -- v20.16: подгонка под экран — client/ResponsiveUi
+		autoScale.Scale = math.clamp(viewport.Y / 900, 0.6, 1.1)
 	end
 	local width = panel.AbsoluteSize.X
 	local x = onScreen and math.clamp(screen.X + 12, 8, viewport.X - width - 8) or viewport.X - width - 24

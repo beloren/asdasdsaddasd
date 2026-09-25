@@ -170,7 +170,16 @@ function UiLayout.ApplyOverrides(screenGui, profile)
 			if node and node:GetAttribute("UiLayoutProfile") ~= profile then
 				node:SetAttribute("UiLayoutProfile", profile)
 				for key, value in props do
-					pcall(function() node[key] = value end)
+					if key:sub(1, 1) == "@" then
+						node:SetAttribute(key:sub(2), value) -- «@Имя» — атрибут, а не свойство
+					else
+						pcall(function() node[key] = value end)
+						if key == "Position" then
+							-- CinematicHud возвращает HUD после катсцены сюда,
+							-- а не на запомненную «ПК-позицию».
+							node:SetAttribute("LayoutPosition", value)
+						end
+					end
 				end
 			end
 		end

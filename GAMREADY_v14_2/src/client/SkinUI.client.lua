@@ -58,8 +58,7 @@ local function resize()
 	local scale = panel:FindFirstChild("ResponsiveScale")
 	local baseWidth = panel:GetAttribute("BaseWidth") or 680
 	local baseHeight = panel:GetAttribute("BaseHeight") or 470
-	local _ = { viewport, baseWidth, baseHeight }
-	if scale then scale.Scale = 1 end -- v20.16: подгонка под экран — client/ResponsiveUi
+	if scale then scale.Scale = math.min(1, (viewport.X - 24) / baseWidth, (viewport.Y - 40) / baseHeight) end
 end
 
 -- Строки баффов: сначала плюсы, потом минусы.

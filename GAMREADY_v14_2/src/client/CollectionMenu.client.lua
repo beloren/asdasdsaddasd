@@ -171,7 +171,7 @@ local function resizeBookButton()
 		bookMobileScale.Scale = 1
 		return
 	end
-	bookMobileScale.Scale = 1 -- v20.16: подгонка под экран — client/ResponsiveUi
+	bookMobileScale.Scale = 0.7
 	bookButton.AnchorPoint = Vector2.new(0, 0.5)
 	-- ПО ПРЯМОМУ ЗАПРОСУ: "книжка на телефоне должна быть точно слева по
 	-- центру, именно на телефоне, на ПК норм стоит". Раньше здесь стояло
@@ -287,8 +287,7 @@ local function resizeSubmenu()
 		return
 	end
 	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(390, 844)
-	local _ = viewport
-	submenuScale.Scale = 1 -- v20.16: подгонка под экран — client/ResponsiveUi
+	submenuScale.Scale = math.min(0.7, (viewport.X - 24) / 360, (viewport.Y - 80) / 340)
 end
 resizeSubmenu()
 if workspace.CurrentCamera then
@@ -548,8 +547,7 @@ responsiveScale.Name = "ResponsiveScale"
 responsiveScale.Parent = panel
 local function resizeMutationBook()
 	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(900, 560)
-	local _ = viewport
-	responsiveScale.Scale = 1 -- v20.16: подгонка под экран — client/ResponsiveUi
+	responsiveScale.Scale = math.min(1, (viewport.X - 90) / 864, (viewport.Y - 50) / 504)
 end
 resizeMutationBook()
 if workspace.CurrentCamera then workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(resizeMutationBook) end

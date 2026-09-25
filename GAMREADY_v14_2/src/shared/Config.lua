@@ -5207,9 +5207,9 @@ Config.UiLayout = {
 	Overrides = {
 		Phone = {
 			-- Джойстик — левый низ, прыжок — правый низ: там ничего не ставим.
-			-- Деньги и престиж — правый верх.
-			["Hud/HudGui"] = { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 8) },
-			-- Баффы — слева от денег, растут вниз.
+			-- Деньги/престиж (Hud/HudGui) и подсказки тележки/NPC на телефоне
+			-- расставляет CustomCartUI — здесь их нет.
+			-- Баффы — слева от денег (правый верх), растут вниз.
 			["BuffBar/Bar"] = { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -250, 0, 8) },
 			-- Лента добычи — под деньгами, покороче.
 			["LootFeedUi/Feed"] = { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 96), Size = UDim2.fromOffset(300, 300) },
@@ -5225,12 +5225,9 @@ Config.UiLayout = {
 				HorizontalAlignment = Enum.HorizontalAlignment.Center,
 				VerticalAlignment = Enum.VerticalAlignment.Center,
 			},
-			["GearUi/AimHint"] = { Position = UDim2.new(0.5, 0, 1, -118) },
-			-- Подсказки тележки/NPC — над рядом снаряжения.
-			["CartInteractionUi/CartPromptGui"] = { Position = UDim2.new(0.5, 0, 1, -118) },
-			["CartInteractionUi/CartDropHintGui"] = { Position = UDim2.new(0.5, 0, 1, -118) },
-			["CartInteractionUi/TalkPromptGui"] = { Position = UDim2.new(0.5, 0, 1, -118) },
-			["RubbleCrystalHotbar/Slot"] = { Position = UDim2.new(0.5, 0, 1, -118) },
+			-- Подсказка предмета в руке — над рядом снаряжения, полного размера
+			-- («@Атрибут» — атрибут: своя база масштаба на телефоне).
+			["GearUi/AimHint"] = { Position = UDim2.new(0.5, 0, 1, -118), ["@UiScale_Phone"] = 1 },
 		},
 		Tablet = {},
 		Desktop = {},

@@ -336,8 +336,7 @@ local function open()
 	if autoScale then
 		local camera = workspace.CurrentCamera
 		local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
-		local _ = viewport
-		local target = 1 -- v20.16: подгонка под экран — client/ResponsiveUi
+		local target = math.min(1.1, (viewport.X - 40) / (Builder.Width + 20), (viewport.Y - 80) / (Builder.Height + 20))
 		autoScale.Scale = target * 0.85
 		TweenService:Create(autoScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = target }):Play()
 	end

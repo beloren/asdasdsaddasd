@@ -110,15 +110,13 @@
   клади **внутрь функций**, а не в начало файла.
 
 
-## Телефон и ПК (v20.16)
+## Телефон и ПК (v20.18)
 
-Интерфейс один, но под устройство подстраивается автоматически (`src/shared/UiLayout.lua`, `src/client/ResponsiveUi.client.lua`):
-
-* **Профиль**: Phone / Tablet / Desktop. Для проверки в Studio: `Config.UiLayout.ForceProfile = "Phone"` (или Device Emulator).
-* **Подгонка**: каждый верхний элемент каждого экрана получает UIScale = анимация × подгонка. Окна (по центру) — максимум
-  без выхода за экран; HUD — ещё и база профиля `Config.UiLayout.HudScale`.
-* **Раскладка телефона**: `Config.UiLayout.Overrides.Phone["Экран/Элемент/…"] = { Position = …, AnchorPoint = …, … }`.
-  Путь может вести и во вложенные объекты, например `"GearUi/GearBar/UIListLayout"`.
-* **Атрибуты в Studio**: `UiScale_Phone = 0.8` — своя база элемента на телефоне; `NoAutoFit = true` — не трогать элемент.
-* Свои окна подгонять вручную больше не нужно: не пишите масштаб «под экран» в клиентских скриптах — только анимацию.
-* Превью телефонной версии: `lune run tools/dev/preview_ui.luau "Hud+HotbarUi+…" 844 390 "" demo Phone`.
+* `src/client/ResponsiveUi.client.lua` работает **только на телефоне** (профиль Phone из `src/shared/UiLayout.lua`;
+  проверить на ПК: `Config.UiLayout.ForceProfile = "Phone"`). На ПК интерфейс ровно такой, как собран.
+* Раскладка телефона: `Config.UiLayout.Overrides.Phone["Экран/Элемент/…"] = { свойства }`; ключ `"@Имя"` ставит атрибут.
+* Масштаб «влезает + HUD компактнее» получают только верхние элементы БЕЗ своего UIScale (UIScale `PhoneFitScale`).
+  Окна и кнопки со своими UIScale (анимации, наведение, своя подгонка) не трогаются — правила: не вешайте на один
+  объект два UIScale (Roblox их не складывает) и не домножайте чужой UIScale.
+* Атрибуты: `UiScale_Phone = 0.8` — своя база элемента на телефоне; `NoAutoFit = true` — не трогать.
+* Превью: `lune run tools/dev/preview_ui.luau "Hud+HotbarUi+…" 844 390 "" demo Phone`.

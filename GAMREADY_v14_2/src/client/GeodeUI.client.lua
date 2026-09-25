@@ -505,7 +505,7 @@ local function resize()
 	for _, panel in { vaultPanel, podiumPanel, buyGeodesPanel } do
 		if not panel then continue end
 		local scale = panel:FindFirstChild("ResponsiveScale")
-		if scale then scale.Scale = 1 end -- v20.16: подгонка под экран — client/ResponsiveUi
+		if scale then scale.Scale = math.min(1, viewport.X / 760, viewport.Y / 520) end
 	end
 end
 resize()
