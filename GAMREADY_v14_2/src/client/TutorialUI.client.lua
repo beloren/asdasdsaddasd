@@ -272,8 +272,23 @@ end
 local ANIM_IN = TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local ANIM_OUT = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 
+-- v20.41: окно стоит НАД ХОТБАРОМ, а не поверх него (на телефоне плашка
+-- закрывала ячейки, и нельзя было взять предмет).
+local function aboveHotbarOffset()
+	local playerGui = player:FindFirstChild("PlayerGui")
+	local hotbarGui = playerGui and playerGui:FindFirstChild("HotbarUi")
+	local bar = hotbarGui and hotbarGui:FindFirstChild("Bar")
+	local camera = workspace.CurrentCamera
+	if not (bar and bar:IsA("GuiObject") and hotbarGui.Enabled and bar.Visible and camera) or bar.AbsoluteSize.Y < 2 then
+		return -28
+	end
+	local inset = hotbarGui.IgnoreGuiInset and 0 or game:GetService("GuiService"):GetGuiInset().Y
+	local barTop = bar.AbsolutePosition.Y + inset
+	return -math.max(28, math.floor(camera.ViewportSize.Y - barTop + 8))
+end
+
 local function restingPosition(frame)
-	return UDim2.new(frame.Position.X.Scale, frame.Position.X.Offset, 1, -28)
+	return UDim2.new(frame.Position.X.Scale, frame.Position.X.Offset, 1, aboveHotbarOffset())
 end
 
 local function slideIn(frame)
@@ -315,9 +330,37 @@ end
 
 local lastStepIndex = nil
 
+-- v20.41: АВТО-ЛИСТАНИЕ (Config.Tutorial.AutoAdvanceSeconds). Отсчёт идёт
+-- только пока реплика дописана и реально видна: катсцена (IntroActive,
+-- CinematicActive), загрузка и мини-игра его ставят на паузу.
+local advance
+local autoToken = 0
+local function startAutoAdvance()
+	autoToken += 1
+	local token = autoToken
+	local total = tonumber(Config.Tutorial.AutoAdvanceSeconds) or 0
+	if total <= 0 then return end
+	task.spawn(function()
+		local waited = 0
+		while token == autoToken do
+			local dt = task.wait(0.1)
+			local playerGui = player:FindFirstChild("PlayerGui")
+			local cinematic = playerGui and playerGui:GetAttribute("CinematicActive") == true
+			if dialog.Visible and gateOpen() and not cinematic then
+				waited += dt
+				if waited >= total then
+					if token == autoToken and advance then advance() end
+					return
+				end
+			end
+		end
+	end)
+end
+
 local function showDialog(payload)
 	if not gateOpen() then pendingPayload = payload; return end
 	pendingPayload = nil
+	autoToken += 1 -- новая реплика: старый авто-отсчёт больше не действует
 	gui.Enabled = true
 	slideOut(task_)
 	slideIn(dialog)
@@ -340,6 +383,7 @@ local function showDialog(payload)
 		task.wait(Config.Tutorial.AdvanceGuardSeconds or 0.25)
 		canAdvance = true
 		continueArrow.Visible = true
+		startAutoAdvance()
 	end)
 end
 
@@ -490,7 +534,8 @@ player:GetAttributeChangedSignal("MineExpeditionActive"):Connect(function()
 	end
 end)
 
-local function advance()
+function advance()
+	autoToken += 1 -- ручное «Далее» отменяет авто-отсчёт этой реплики
 	if finishTyping() then return end
 	if not canAdvance then return end
 	canAdvance = false
@@ -572,6 +617,22 @@ RunService.RenderStepped:Connect(function()
 	trailGroundAnchor.Position = Vector3.new(position.X, position.Y - 2, position.Z)
 	if not trailStart and player.Character then attachTrailToCharacter(player.Character) end
 	trailBeam.Enabled = trailStart ~= nil
+end)
+
+-- v20.41: хотбар может сдвинуться (поворот телефона, подгонка масштаба) —
+-- раз в секунду подтягиваем показанные окна к его верхнему краю.
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for _, frame in { dialog, task_ } do
+			if frame.Visible and frame:GetAttribute("_Shown") == true then
+				local rest = restingPosition(frame)
+				if math.abs(frame.Position.Y.Offset - rest.Y.Offset) > 2 and math.abs(frame.Position.Y.Offset - rest.Y.Offset) < 400 then
+					TweenService:Create(frame, ANIM_OUT, { Position = rest }):Play()
+				end
+			end
+		end
+	end
 end)
 
 -- Раскладка под узкий экран пересчитывается на смену размера окна, а не

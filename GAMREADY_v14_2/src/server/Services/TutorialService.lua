@@ -115,21 +115,8 @@ function TutorialService:Start()
 			task.wait(1)
 			tick += 1
 			for player, state in states do
-				-- v20.40: РЕПЛИКИ, КОТОРЫЕ НАДО ПРОКЛИКИВАТЬ, ЛИСТАЮТСЯ САМИ через
-				-- Config.Tutorial.AutoAdvanceSeconds (кнопка «Далее» работает
-				-- как раньше и просто листает быстрее).
-				local autoSeconds = tonumber(Config.Tutorial.AutoAdvanceSeconds) or 0
-				if autoSeconds > 0 and player.Parent and (state.Phase == PHASE_LINES or state.Phase == PHASE_DONE) then
-					local key = tostring(state.Step) .. ":" .. tostring(state.Phase) .. ":" .. tostring(state.LineIndex)
-					if state.AutoKey ~= key then
-						state.AutoKey = key
-						state.AutoAt = os.clock()
-					elseif os.clock() - (state.AutoAt or 0) >= autoSeconds then
-						state.AutoKey = nil
-						local ok, err = pcall(function() self:_advance(player) end)
-						if not ok then warn("[TutorialService] авто-листание упало:", err) end
-					end
-				end
+				-- v20.41: авто-листание реплик — на клиенте (TutorialUI), чтобы
+				-- отсчёт начинался после катсцены, когда текст реально виден.
 				if player.Parent and state.Phase == PHASE_TASK then
 					local ok, err = pcall(function() self:_checkGoal(player) end)
 					if not ok then warn("[TutorialService] проверка цели упала:", err) end

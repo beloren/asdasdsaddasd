@@ -522,9 +522,14 @@ local function updateLayout()
 	-- AbsolutePosition отсчитывается БЕЗ GUI-инсета, а ScreenGui у нас с
 	-- IgnoreGuiInset = true — компенсируем, иначе панель уезжает вверх
 	-- ровно на высоту топбара.
+	-- v20.41: якорь — НИЗ ПО ЦЕНТРУ. На телефоне панель уменьшается
+	-- UIScale (ResponsiveUi), а UIScale сжимает вокруг якоря: со старым
+	-- якорем (левый верх) низ панели уезжал вверх от хотбара. Теперь панель
+	-- всегда стоит вплотную над хотбаром при любом масштабе.
+	inventoryFrame.AnchorPoint = Vector2.new(0.5, 1)
 	inventoryFrame.Position = UDim2.fromOffset(
-		math.round(hotbarPosition.X + hotbarSize.X / 2 - width / 2 + inset.X),
-		math.round(hotbarPosition.Y + inset.Y - height - ICON_BUFFER)
+		math.round(hotbarPosition.X + hotbarSize.X / 2 + inset.X),
+		math.round(hotbarPosition.Y + inset.Y - ICON_BUFFER)
 	)
 	scrollingFrame.Size = UDim2.new(1, 0, 0, height - INVENTORY_HEADER_SIZE - INVENTORY_TABS_SIZE)
 end
