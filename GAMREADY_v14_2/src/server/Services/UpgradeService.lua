@@ -430,6 +430,7 @@ function UpgradeService:_tryBuy(player, kind)
 	-- обёртки — раньше приходилось городить вычитание с isNegative(),
 	-- потому что прямое `money < step.Cost` роняло сервер.
 	if BigNum.lt(Services.DataService:GetMoney(player), step.Cost) then
+		if Services.MonetizationService then Services.MonetizationService:NotEnoughMoney(player, step.Cost, "Upgrade:" .. tostring(kind)) end
 		return false, "Not enough money"
 	end
 	if not self:_canAffordGap(player, kind) then

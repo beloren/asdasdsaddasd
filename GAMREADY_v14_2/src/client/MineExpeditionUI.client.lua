@@ -1293,30 +1293,35 @@ local function playRarityCard(data)
 	anchor.Parent = primary
 	local scaleK = cardW / 6 -- размеры эффектов относительно карточки
 
-	-- Лучи позади карточки (Rare+). v20.32: не неоновые бруски, а та же
-	-- картинка-фон, что за товарами в магазине (UiTheme.RarityBackdrop):
-	-- невидимая плита с Decal, вращается и проявляется.
-	local raysPlate, raysDecal = nil, nil
+	-- ПОЛОСКИ ЗА КАРТОЧКОЙ (v20.38) — у КАЖДОЙ редкости свой набор слоёв
+	-- (Config.MineExpedition.RarityCard.Backdrops): невидимые плиты с Decal
+	-- картинок UiTheme.Backdrops, крутятся с разной скоростью и направлением.
+	local UiKit = require(ReplicatedStorage.Shared.UiKit)
 	local rayLength = size.X * 2.2
-	if (fx.Rays or 0) > 0 then
-		local UiKit = require(ReplicatedStorage.Shared.UiKit)
-		raysPlate = cardPart("RaysPlate", Vector3.new(rayLength, rayLength, 0.05), color, Enum.Material.SmoothPlastic, model)
-		raysPlate.Transparency = 1
-		raysDecal = Instance.new("Decal")
-		raysDecal.Name = "Backdrop"
-		raysDecal.Face = Enum.NormalId.Front
-		local kind = UiKit.BackdropKind(rarity)
-		raysDecal.Texture = UiKit.ImageUri(UiKit.Theme.Backdrops[kind])
-		raysDecal.Color3 = (UiKit.Theme.BackdropKeepColor and UiKit.Theme.BackdropKeepColor[kind]) and Color3.new(1, 1, 1) or color:Lerp(Color3.new(1, 1, 1), 0.25)
-		raysDecal.Transparency = 1
-		raysDecal.Parent = raysPlate
+	local layerColor = color:Lerp(Color3.new(1, 1, 1), 0.25)
+	local function decalPlate(name, kind, side)
+		local plate = cardPart(name, Vector3.new(side, side, 0.05), color, Enum.Material.SmoothPlastic, model)
+		plate.Transparency = 1
+		local decal = Instance.new("Decal")
+		decal.Name = "Backdrop"
+		decal.Face = Enum.NormalId.Front
+		local resolved = UiKit.BackdropKind(kind)
+		decal.Texture = UiKit.ImageUri(UiKit.Theme.Backdrops[resolved])
+		decal.Color3 = (UiKit.Theme.BackdropKeepColor and UiKit.Theme.BackdropKeepColor[resolved]) and Color3.new(1, 1, 1) or layerColor
+		decal.Transparency = 1
+		decal.Parent = plate
+		return plate, decal
 	end
-	-- Ударная волна (Uncommon+): плоский неоновый диск, расходится и гаснет.
-	local ring = nil
+	local layers = {}
+	local layerSpecs = (cfg.Backdrops and cfg.Backdrops[rarity]) or { { Kind = rarity, Spin = 0.9 } }
+	for index, spec in layerSpecs do
+		local plate, decal = decalPlate("RaysPlate" .. index, spec.Kind or rarity, rayLength * (spec.Scale or 1))
+		table.insert(layers, { Plate = plate, Decal = decal, Spin = spec.Spin or 0.9, Depth = 0.6 + index * 0.04 })
+	end
+	-- Ударная волна (Uncommon+): полоски первого слоя расходятся и гаснут.
+	local ring, ringDecal = nil, nil
 	if fx.Ring then
-		ring = cardPart("Ring", Vector3.new(0.05, 0.1, 0.1), color, Enum.Material.Neon, model)
-		ring.Shape = Enum.PartType.Cylinder
-		ring.Transparency = 1
+		ring, ringDecal = decalPlate("Ring", layerSpecs[1] and layerSpecs[1].Kind or rarity, 1)
 	end
 
 	local inSeconds = cfg.InSeconds or 0.6
@@ -1438,17 +1443,17 @@ local function playRarityCard(data)
 		-- Лучи и волна — только пока карточка в центре.
 		local holding = reachedCenter and t < inSeconds + holdSeconds
 		local fade = holding and math.clamp((t - burstAt) / 0.12, 0, 1) or 0
-		if raysPlate then
-			raysPlate.CFrame = cardCF * CFrame.new(0, 0, 0.6) * CFrame.Angles(0, 0, t * 0.9)
-			raysDecal.Transparency = 1 - fade * 0.9
+		for index, layer in layers do
+			layer.Plate.CFrame = cardCF * CFrame.new(0, 0, layer.Depth) * CFrame.Angles(0, 0, t * layer.Spin)
+			layer.Decal.Transparency = 1 - fade * (index == 1 and 0.9 or 0.6)
 		end
 		if ring then
 			local since = reachedCenter and (t - burstAt) or 0
 			local grow = math.clamp(since / 0.45, 0, 1)
-			local diameter = size.X * (0.4 + grow * 1.6)
-			ring.Size = Vector3.new(0.05, diameter, diameter)
-			ring.CFrame = cardCF * CFrame.new(0, 0, 0.3) * CFrame.Angles(0, math.rad(90), 0)
-			ring.Transparency = reachedCenter and (0.35 + grow * 0.65) or 1
+			local diameter = size.X * (0.4 + grow * 2.4)
+			ring.Size = Vector3.new(diameter, diameter, 0.05)
+			ring.CFrame = cardCF * CFrame.new(0, 0, 0.3) * CFrame.Angles(0, 0, -t * 1.5)
+			ringDecal.Transparency = reachedCenter and (0.2 + grow * 0.8) or 1
 		end
 		-- Mythic: рамка переливается радугой.
 		if fx.Rainbow then

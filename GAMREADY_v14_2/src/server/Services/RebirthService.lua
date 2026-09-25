@@ -421,6 +421,7 @@ function RebirthService:_tryRebirth(player)
 	local money = Services.DataService:GetMoney(player)
 	if BigNum.lt(money, cost) then
 		local missing = cost - money
+		if Services.MonetizationService then Services.MonetizationService:NotEnoughMoney(player, cost, "Rebirth") end
 		self:_flash(player, ("Need $%s more for prestige!"):format(NumberFormat.abbreviate(missing)))
 		if rebirthNpcRemote then
 			rebirthNpcRemote:FireClient(player, "Result", false, "NeedMoney", NumberFormat.abbreviate(missing))

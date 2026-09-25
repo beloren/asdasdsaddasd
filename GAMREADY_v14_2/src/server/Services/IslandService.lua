@@ -1230,6 +1230,7 @@ local function charge(player, cost)
 		return false, "Saving another reward, try again"
 	end
 	if BigNum.lt(Services.DataService:GetMoney(player), cost) then
+		if Services.MonetizationService then Services.MonetizationService:NotEnoughMoney(player, cost, "Island:" .. tostring(cost)) end
 		return false, "Not enough money"
 	end
 	Services.DataService:AddMoney(player, -cost)

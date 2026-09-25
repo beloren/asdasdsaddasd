@@ -603,6 +603,7 @@ function MerchantService:Buy(player, itemId)
 
 	local cost = priceFor(player, item)
 	if BigNum.lt(Services.DataService:GetMoney(player), cost) then
+		if Services.MonetizationService then Services.MonetizationService:NotEnoughMoney(player, cost, "Merchant:" .. tostring(itemId)) end
 		return false, "Not enough money"
 	end
 

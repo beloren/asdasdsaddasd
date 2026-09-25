@@ -317,6 +317,57 @@ local function advanceForever(player, data, packKey)
 	task.defer(publishForever, player)
 end
 
+-- v20.38: НЕ ХВАТАЕТ ДЕНЕГ — ПОВТОРНЫЙ КЛИК. Первый отказ — обычное
+-- «Not enough money». Если игрок жмёт ту же покупку ещё раз в течение
+-- Config.MoneyPackOffer.RepeatSeconds — сразу открывается окно покупки
+-- Money Pack'а, которого ХВАТИТ на недостающую сумму (самый дешёвый из
+-- подходящих; если не хватит ни одного — самый крупный).
+--   Services.MonetizationService:NotEnoughMoney(player, cost, "Upgrade:Mine")
+local notEnoughState = setmetatable({}, { __mode = "k" })
+function MonetizationService:PickMoneyPack(player, missing)
+	local tiers = Services.DataService:GetTiers(player)
+	local mult = Services.DataService:GetCrystalMultiplier(player)
+	local offerCfg = Config.MoneyPackOffer or {}
+	local best, largest = nil, nil
+	for _, packKey in offerCfg.Packs or { "MoneyPackSmall", "MoneyPackMedium", "MoneyPackLarge" } do
+		local pack = Config.DevProducts[packKey]
+		if pack and (tonumber(pack.Id) or 0) > 0 then
+			local amount = Config.MoneyPackAmount(pack, tiers.Mine, tiers.Cart, mult)
+			if not largest or amount > largest.Amount then largest = { Key = packKey, Pack = pack, Amount = amount } end
+			if not best and BigNum.ge(BigNum.new(amount), missing) then
+				best = { Key = packKey, Pack = pack, Amount = amount }
+			end
+		end
+	end
+	return best or largest
+end
+
+function MonetizationService:NotEnoughMoney(player, cost, key)
+	local offerCfg = Config.MoneyPackOffer or {}
+	if offerCfg.Enabled == false or not player or not player.Parent then return end
+	if player:GetAttribute("MineExpeditionActive") == true then return end
+	local now = os.clock()
+	local last = notEnoughState[player]
+	key = tostring(key or "Any")
+	local repeated = last and last.Key == key and now - last.At <= (offerCfg.RepeatSeconds or 6)
+	if not repeated then
+		notEnoughState[player] = { Key = key, At = now }
+		return
+	end
+	-- Повтор засчитан — следующий повтор снова начнёт отсчёт с нуля, чтобы
+	-- окно не всплывало на каждом клике подряд.
+	notEnoughState[player] = nil
+	if last.PromptedAt and now - last.PromptedAt < (offerCfg.CooldownSeconds or 20) then return end
+	local ok, missing = pcall(function()
+		return BigNum.new(cost) - BigNum.new(Services.DataService:GetMoney(player))
+	end)
+	if not ok then return end
+	local offer = self:PickMoneyPack(player, missing)
+	if not offer then return end
+	notEnoughState[player] = { Key = "", At = 0, PromptedAt = now }
+	pcall(function() MarketplaceService:PromptProductPurchase(player, offer.Pack.Id) end)
+end
+
 function MonetizationService:ClaimForeverFree(player)
 	local cfg = Config.Shop.ForeverPack
 	local data = Services.DataService:GetGeodeData(player)

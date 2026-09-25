@@ -850,6 +850,19 @@ Config.MineExpedition = {
 			Legendary = { Burst = 60, Ring = true, Rays = 12, Stars = true, Confetti = 40, Shake = 0.24, Flash = 0.45, HoldExtra = 0.2 },
 			Mythic = { Burst = 90, Ring = true, Rays = 16, Stars = true, Confetti = 70, Shake = 0.34, Flash = 0.6, Rainbow = true, HoldExtra = 0.35 },
 		},
+		-- v20.38: ПОЛОСКИ ЗА КАРТОЧКОЙ — у каждой редкости свои (картинки из
+		-- UiTheme.Backdrops). Слои рисуются друг за другом: Kind — картинка,
+		-- Spin — скорость вращения (рад/с, минус — в другую сторону), Scale —
+		-- размер слоя относительно основного. Цвет — цвет редкости.
+		-- Ударная волна (Ring) — тоже полоски первого слоя, расходятся и гаснут.
+		Backdrops = {
+			Common    = { { Kind = "RaysSoft", Spin = 0.5 } },
+			Uncommon  = { { Kind = "Rays", Spin = 0.7 } },
+			Rare      = { { Kind = "Rays", Spin = 0.9 }, { Kind = "RaysSoft", Spin = -0.6, Scale = 0.8 } },
+			Epic      = { { Kind = "Epic2", Spin = 0.9 }, { Kind = "RaysSoft", Spin = -0.5, Scale = 1.2 } },
+			Legendary = { { Kind = "Epic2", Spin = 1.1 }, { Kind = "Rays", Spin = -0.7, Scale = 1.3 } },
+			Mythic    = { { Kind = "Rarest", Spin = 1.2 }, { Kind = "Epic2", Spin = -0.8, Scale = 1.35 } },
+		},
 	},
 
 	-- Выброс руды игроком на Backspace (см. MineService:ThrowOreToGround).
@@ -2675,6 +2688,19 @@ Config.DevProducts = {
 
 -- v3: сумма денежного пака/стартового пака для игрока с данными тирами.
 -- rebirthMultiplier — множитель цены руды от ребёртов (DataService:GetCrystalMultiplier).
+-- v20.38: НЕ ХВАТАЕТ ДЕНЕГ → ПОВТОРНЫЙ КЛИК → ОКНО ПОКУПКИ ПАКА ДЕНЕГ.
+-- Игрок жмёт покупку (прокачка, торговец, динамит, острова, престиж), денег
+-- нет → обычное «Not enough money». Жмёт ТО ЖЕ САМОЕ ещё раз в течение
+-- RepeatSeconds → Roblox-окно покупки пака, которого хватит на недостающую
+-- сумму (самый дешёвый подходящий из Packs; не хватит ни одного — самый
+-- крупный). После показа — пауза CooldownSeconds. Паки с Id = 0 пропускаются.
+Config.MoneyPackOffer = {
+	Enabled = true,
+	RepeatSeconds = 6,
+	CooldownSeconds = 20,
+	Packs = { "MoneyPackSmall", "MoneyPackMedium", "MoneyPackLarge" },
+}
+
 function Config.MoneyPackAmount(pack, mineTier, cartTier, rebirthMultiplier)
 	if type(pack) ~= "table" then return 0 end
 	local floorAmount = tonumber(pack.Amount or pack.Money) or 0

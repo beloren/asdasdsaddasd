@@ -562,7 +562,10 @@ function GearService:BuyDynamite(player, amount, key)
 	if cave < (info.UnlockCave or 1) then return false, ("Unlocks at cave %d"):format(info.UnlockCave) end
 	local cost = self:DynamitePrice(player, key) * amount
 	local BigNum = require(ReplicatedStorage.Shared.BigNum)
-	if BigNum.lt(Services.DataService:GetMoney(player), cost) then return false, "Not enough money" end
+	if BigNum.lt(Services.DataService:GetMoney(player), cost) then
+		if Services.MonetizationService then Services.MonetizationService:NotEnoughMoney(player, cost, "Dynamite:" .. key .. ":" .. amount) end
+		return false, "Not enough money"
+	end
 	Services.DataService:AddMoney(player, -cost)
 	self:AddGear(player, key, amount)
 	save(player)
