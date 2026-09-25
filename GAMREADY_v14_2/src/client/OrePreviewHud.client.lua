@@ -25,6 +25,12 @@ local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("OrePreviewHud")
 local highlight = gui:WaitForChild("OrePreviewHighlight")
 local billboard = gui:WaitForChild("OrePreviewBillboard")
 billboard.Enabled = false
+-- v20.40: предпросмотр выключен (Config.Cart.OrePreviewEnabled) — над рудой
+-- и так всё написано.
+if Config.Cart.OrePreviewEnabled ~= true then
+	highlight.Adornee = nil
+	return
+end
 local card = billboard:WaitForChild("Card")
 local cardPlate = card:FindFirstChild("Plate")
 local previewViewport = card:WaitForChild("Viewport")

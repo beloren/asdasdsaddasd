@@ -115,6 +115,21 @@ function TutorialService:Start()
 			task.wait(1)
 			tick += 1
 			for player, state in states do
+				-- v20.40: РЕПЛИКИ, КОТОРЫЕ НАДО ПРОКЛИКИВАТЬ, ЛИСТАЮТСЯ САМИ через
+				-- Config.Tutorial.AutoAdvanceSeconds (кнопка «Далее» работает
+				-- как раньше и просто листает быстрее).
+				local autoSeconds = tonumber(Config.Tutorial.AutoAdvanceSeconds) or 0
+				if autoSeconds > 0 and player.Parent and (state.Phase == PHASE_LINES or state.Phase == PHASE_DONE) then
+					local key = tostring(state.Step) .. ":" .. tostring(state.Phase) .. ":" .. tostring(state.LineIndex)
+					if state.AutoKey ~= key then
+						state.AutoKey = key
+						state.AutoAt = os.clock()
+					elseif os.clock() - (state.AutoAt or 0) >= autoSeconds then
+						state.AutoKey = nil
+						local ok, err = pcall(function() self:_advance(player) end)
+						if not ok then warn("[TutorialService] авто-листание упало:", err) end
+					end
+				end
 				if player.Parent and state.Phase == PHASE_TASK then
 					local ok, err = pcall(function() self:_checkGoal(player) end)
 					if not ok then warn("[TutorialService] проверка цели упала:", err) end
@@ -167,6 +182,9 @@ function TutorialService:SetupPlayer(player)
 		Flags = {},
 		Revealed = {},
 	}
+
+	-- v20.40: размер рюкзака зависит от обучения (Config.Inventory.TutorialSlots).
+	task.defer(function() if Services.InventoryService and player.Parent then pcall(Services.InventoryService.Sync, Services.InventoryService, player) end end)
 	-- Reveal ПРОЙДЕННЫХ шагов тоже действует: раньше открывался только
 	-- Reveal текущего шага, и перезаход на шаг ПОСЛЕ открывающего снова
 	-- прятал интерфейс до конца обучения.
@@ -574,6 +592,9 @@ function TutorialService:_finish(player, rewarded)
 	local state = states[player]
 	if not state then return end
 	states[player] = nil
+
+	-- v20.40: размер рюкзака зависит от обучения (Config.Inventory.TutorialSlots).
+	task.defer(function() if Services.InventoryService and player.Parent then pcall(Services.InventoryService.Sync, Services.InventoryService, player) end end)
 
 	local data = Services.DataService:GetGeodeData(player)
 	if data then

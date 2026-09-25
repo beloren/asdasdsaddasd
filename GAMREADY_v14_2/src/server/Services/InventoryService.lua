@@ -56,6 +56,13 @@ function InventoryService:GetSlotCount(player)
 	-- лимита НЕ применяются: они куплены под полноценный рюкзак, и
 	-- складывать их с временным ограничением обучения бессмысленно —
 	-- лимит и так снимется сам через пару минут.
+	-- v20.40: во время обучения рюкзак шире (Config.Inventory.TutorialSlots),
+	-- чтобы новичок не упирался в полный рюкзак на первых шагах.
+	local tutorialSlots = tonumber(Config.Inventory.TutorialSlots)
+	if tutorialSlots and Services.TutorialService and Services.TutorialService:IsActive(player) then
+		local baseSlots = Config.Inventory.BaseSlots
+		return math.max(tutorialSlots, (Services.DataService:GetGeodeData(player) or {}).CartUnlocked == true and baseSlots or 0)
+	end
 	local data = Services.DataService and Services.DataService:GetGeodeData(player)
 	if data and data.CartUnlocked ~= true and Config.Inventory.StarterSlots then
 		return Config.Inventory.StarterSlots

@@ -756,6 +756,16 @@ function PlotService:RestoreMineLook(plot)
 	if mine:GetAttribute("MineBroken") ~= true then return end
 	mine:SetAttribute("MineBroken", false)
 
+	-- v20.40: ПОЛНАЯ ПЕРЕСБОРКА. Возврат запомненного вида терял часть
+	-- модели (детали/наклейки, которые скрипты шахты или «чёрный» вид успели
+	-- поменять). Теперь после починки шахта ставится заново из шаблона того
+	-- же тира — все детали на месте. Не вышло — старый путь ниже.
+	local owner = plot.TakenBy
+	local tier = owner and tonumber(owner:GetAttribute("MineTier"))
+	if owner and tier and self:SetMineTier(owner, tier) and plot.MineModel and plot.MineModel ~= mine then
+		mine = plot.MineModel -- MineRepaired уже true → чёрный вид не накладывается
+	else
+
 	-- 1) Возвращаем отделку. Текстуры и SurfaceAppearance — мгновенно:
 	--    они не твинятся, а «проявляться» им и не нужно, вспышка ниже
 	--    перекрывает момент подмены.
@@ -796,6 +806,7 @@ function PlotService:RestoreMineLook(plot)
 		part:SetAttribute("_OrigMaterial", nil)
 		part:SetAttribute("_OrigTexture", nil)
 	end)
+	end -- v20.40: старый путь (без пересборки)
 
 	-- 2) АНИМАЦИЯ ПОЧИНКИ. Починка — это по сути апгрейд шахты, и выглядеть
 	--    она должна как событие, а не как молчаливая смена цвета: модель
