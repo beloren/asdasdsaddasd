@@ -998,6 +998,39 @@ end
 
 -- Иконка из темы с запасным эмодзи. Структура: ImageLabel name [UiIcon=key]
 -- → TextLabel "Emoji" (видна, пока картинки нет).
+-- v20.30: фон за товаром — картинка из Theme.Backdrops (kind: Star, Burst,
+-- Shine, BlackLightning, Spiral или редкость → Theme.RarityBackdrop).
+-- props: Color (тон), Transparency, Size (по умолч. 1.6 от родителя), ZIndex.
+-- Вращают её клиенты (свойство Rotation), как раньше «лучи».
+function UiKit.BackdropKind(kindOrRarity)
+	if Theme.Backdrops and Theme.Backdrops[kindOrRarity] then return kindOrRarity end
+	return (Theme.RarityBackdrop and Theme.RarityBackdrop[kindOrRarity]) or "Shine"
+end
+
+function UiKit.PaintBackdrop(image, kindOrRarity, color, transparency)
+	local kind = UiKit.BackdropKind(kindOrRarity)
+	image.Image = UiKit.ImageUri(Theme.Backdrops and Theme.Backdrops[kind])
+	image.ImageColor3 = (Theme.BackdropKeepColor and Theme.BackdropKeepColor[kind]) and Color3.new(1, 1, 1) or (color or Color3.new(1, 1, 1))
+	if transparency then image.ImageTransparency = transparency end
+	image:SetAttribute("Backdrop", kind)
+end
+
+function UiKit.Backdrop(parent, name, kindOrRarity, props)
+	props = props or {}
+	local image = Instance.new("ImageLabel")
+	image.Name = name or "Rays"
+	image.BackgroundTransparency = 1
+	image.ScaleType = Enum.ScaleType.Fit
+	image.AnchorPoint = Vector2.new(0.5, 0.5)
+	image.Position = props.Position or UDim2.fromScale(0.5, 0.5)
+	image.Size = props.Size or UDim2.fromScale(1.6, 1.6)
+	image.ZIndex = props.ZIndex or (parent and parent.ZIndex or 1)
+	image.Visible = props.Visible ~= false
+	UiKit.PaintBackdrop(image, kindOrRarity, props.Color, props.Transparency or 0.2)
+	image.Parent = parent
+	return image
+end
+
 function UiKit.ThemeIcon(parent, name, iconKey, emoji, props)
 	local uri = UiKit.ImageUri(Theme.Icons[iconKey])
 	local i = UiKit.Icon(parent, name, uri, props)

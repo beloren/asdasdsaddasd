@@ -171,8 +171,8 @@ local function rollOffers(rng)
 				table.insert(offers, {
 					Id = "P_" .. placeableId, Kind = "Placeable", PlaceableId = placeableId, Tab = "Base",
 					Rarity = info.Rarity, DisplayName = info.DisplayName, Icon = info.Icon,
-					Price = info.Price, Stock = base.DecorStock or { 1, 1 }, Chance = chance,
-					SortTier = 0, DecorIndex = index,
+					Price = info.Price, Stock = base.DecorStock or { 1, 1 }, Chance = def.AlwaysInStock and 1 or chance,
+					SortTier = 0, DecorIndex = index, AlwaysInStock = def.AlwaysInStock == true or nil,
 				})
 			end
 		end
@@ -203,6 +203,7 @@ local function rollOffers(rng)
 				DisplayName = info.DisplayName or (rarity .. " Chest"), Icon = "🎁",
 				PriceMinutes = (featured.PriceMinutes or {})[rarity] or 10,
 				Stock = featured.Stock or { 1, 1 },
+				AlwaysInStock = featured.AlwaysInStock == true or nil,
 			})
 		end
 	end
@@ -268,7 +269,11 @@ local function stockLeft(player, itemId)
 	if dailyDealId and itemId == dailyDealId() then
 		base = math.max(base, (CFG.DailyDeal and CFG.DailyDeal.Stock) or 1)
 	end
-	return math.max(0, base - (entry.Bought[itemId] or 0))
+	local left = math.max(0, base - (entry.Bought[itemId] or 0))
+	-- v20.30: AlwaysInStock — товар не кончается (сундук цикла, хранилища руды).
+	local item = itemById[itemId]
+	if item and item.AlwaysInStock then left = math.max(left, 1) end
+	return left
 end
 
 --------------------------------------------------------------------------------

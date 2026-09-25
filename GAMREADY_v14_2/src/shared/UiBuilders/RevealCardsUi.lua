@@ -7,7 +7,7 @@
 --   ├─ TextButton "Dimmer"
 --   ├─ Frame "Holder" (UIScale "Scale") → TextLabel "Header", Frame "Row", TextLabel "Hint"
 --   └─ Folder "Templates" → Frame "Card" (UIScale "Pop")
---        ├─ Frame "Rays" (лучи за карточкой у Legendary+)
+--        ├─ ImageLabel "Rays" (фон за карточкой у Rare+, картинка по редкости)
 --        └─ Frame "Flipper"
 --             ├─ ImageLabel "Back" [Card] → ImageLabel "Inner" [Inset], TextLabel "Mark"
 --             └─ ImageLabel "Front" [Card] → Frame "Band", ViewportFrame "Preview",
@@ -17,7 +17,7 @@ local UiKit = require(script.Parent.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 20
+Builder.VERSION = 21
 Builder.CARD_W, Builder.CARD_H, Builder.GAP = 170, 236, 16
 
 function Builder.BuildCard(parent)
@@ -28,28 +28,13 @@ function Builder.BuildCard(parent)
 	})
 	UiKit.Scale(slot, "Pop", 1)
 
-	local rays = UiKit.Group(slot, "Rays", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
+	-- v20.30: фон за карточкой — картинка по редкости (UiTheme.RarityBackdrop).
+	UiKit.Backdrop(slot, "Rays", "Legendary", {
 		Size = UDim2.fromOffset(H * 1.7, H * 1.7),
 		Visible = false,
 		ZIndex = 0,
+		Transparency = 0.1,
 	})
-	for i = 1, 8 do
-		local ray = UiKit.Group(rays, "Ray" .. i, {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.new(0, 26, 1, 0),
-			Rotation = i * 22.5,
-			BackgroundTransparency = 0.55,
-			BackgroundColor3 = Color3.new(1, 1, 1),
-			ZIndex = 0,
-		})
-		local g = Instance.new("UIGradient")
-		g.Rotation = 90
-		g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0.2), NumberSequenceKeypoint.new(1, 1) })
-		g.Parent = ray
-	end
 
 	local flipper = UiKit.Group(slot, "Flipper", {
 		AnchorPoint = Vector2.new(0.5, 0.5),

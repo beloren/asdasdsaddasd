@@ -149,8 +149,14 @@ local function buildCard(item, index, count)
 
 	-- Лучи за карточкой (Legendary+) — цвет редкости.
 	local rays = slot:WaitForChild("Rays")
-	for _, ray in rays:GetChildren() do
-		if ray:IsA("GuiObject") then ray.BackgroundColor3 = color end
+	if rays:IsA("ImageLabel") then
+		-- v20.30: картинка фона по редкости (Rare — звезда, Epic/Legendary —
+		-- вспышка, Mythic — чёрная молния).
+		UiKit.PaintBackdrop(rays, item.Rarity or "Rare", color:Lerp(Color3.new(1, 1, 1), 0.25))
+	else
+		for _, ray in rays:GetChildren() do
+			if ray:IsA("GuiObject") then ray.BackgroundColor3 = color end
+		end
 	end
 
 	local flipper = slot:WaitForChild("Flipper")
@@ -249,8 +255,8 @@ local function flip(card)
 	card.Pop.Scale = 1.18
 	tween(card.Pop, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
 	burst(card)
-	if card.Rank >= 5 then
-		sfx("GeodeReveal")
+	if card.Rank >= 3 then
+		-- v20.30: фон-картинка за карточкой с Rare (раньше лучи — с Legendary).
 		card.Rays.Visible = true
 		card.Rays.Rotation = 0
 		task.spawn(function()
@@ -259,6 +265,9 @@ local function flip(card)
 				RunService.RenderStepped:Wait()
 			end
 		end)
+	end
+	if card.Rank >= 5 then
+		sfx("GeodeReveal")
 		local flash = Instance.new("Frame")
 		flash.Size = UDim2.fromScale(1, 1)
 		flash.BackgroundColor3 = card.Color

@@ -264,12 +264,11 @@ local function ensureRowExtras(row)
 		deal.AnchorPoint = Vector2.new(1, 1)
 		deal.Position = UDim2.new(1, -12, 1, -54)
 		deal.Size = UDim2.fromOffset(150, 26)
-		deal.BackgroundColor3 = Color3.fromRGB(235, 50, 70)
+		deal.BackgroundTransparency = 1 -- v20.30: без подложки, только текст
 		UiKit.StyleText(deal, "Heading")
 		deal.TextScaled = true
-		deal.TextColor3 = Color3.new(1, 1, 1)
+		deal.TextColor3 = Color3.fromRGB(255, 80, 95)
 		deal.ZIndex = 8
-		Instance.new("UICorner", deal).CornerRadius = UDim.new(0, 6)
 		deal.Parent = main
 	end
 	return star, deal
@@ -369,21 +368,13 @@ local function decorateFeatured(frame, data)
 	stroke.Color = color
 	TweenService:Create(stroke, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Color = Color3.fromRGB(255, 245, 200) }):Play()
 
-	-- Лучи за иконкой (тот же рисунок, что у верхней карточки магазина).
-	local okRays, ShopBuilder = pcall(require, ReplicatedStorage.Shared.UiBuilders.ShopUi)
-	local rays = nil
-	if okRays and ShopBuilder.BuildRays then
-		local holder = Instance.new("Frame")
-		holder.Name = "FeaturedRays"
-		holder.BackgroundTransparency = 1
-		holder.AnchorPoint = Vector2.new(0.5, 0.5)
-		holder.Position = UDim2.fromScale(0.5, 0.5)
-		holder.Size = UDim2.fromScale(1.7, 1.7)
-		holder.ZIndex = 1
-		holder.Parent = iconBox
-		local okBuild, built = pcall(ShopBuilder.BuildRays, holder, 12, color:Lerp(Color3.new(1, 1, 1), 0.3), 0.45)
-		if okBuild then rays = built end
-	end
+	-- Фон за иконкой — картинка по редкости сундука (UiTheme.RarityBackdrop).
+	local rays = UiKit.Backdrop(iconBox, "FeaturedRays", data.ChestRarity or data.Rarity, {
+		Size = UDim2.fromScale(1.7, 1.7),
+		Color = color:Lerp(Color3.new(1, 1, 1), 0.3),
+		Transparency = 0.1,
+		ZIndex = 1,
+	})
 
 	-- 3D-сундук выпавшей редкости вместо эмодзи, медленно крутится.
 	local viewport = Instance.new("ViewportFrame")
@@ -535,6 +526,20 @@ local function buildRow(data)
 	if data.Featured then
 		local ok, err = pcall(decorateFeatured, frame, data)
 		if not ok then warn("[MerchantUI] featured:", err) end
+	elseif data.Limited or data.Kind == "Mystery" then
+		-- v20.30: особые товары — вращающийся фон за иконкой (лимитка — по
+		-- редкости, «???» — спираль).
+		local backdrop = UiKit.Backdrop(main.IconBox, "SpecialRays", data.Kind == "Mystery" and "Mystery" or data.Rarity, {
+			Size = UDim2.fromScale(1.6, 1.6),
+			Color = rarityColor(data.Rarity):Lerp(Color3.new(1, 1, 1), 0.3),
+			Transparency = 0.15,
+			ZIndex = 1,
+		})
+		local spin
+		spin = game:GetService("RunService").RenderStepped:Connect(function(dt)
+			if not frame.Parent then spin:Disconnect() return end
+			if gui.Enabled then backdrop.Rotation = (backdrop.Rotation + dt * 18) % 360 end
+		end)
 	end
 	frame.Parent = list
 

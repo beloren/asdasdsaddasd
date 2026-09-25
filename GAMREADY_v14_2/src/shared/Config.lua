@@ -3633,6 +3633,7 @@ Config.Merchant = {
 		Weights = { Common = 45, Rare = 32, Epic = 17, Legendary = 6 },
 		PriceMinutes = { Common = 4, Rare = 10, Epic = 25, Legendary = 60 },
 		Stock = { 1, 2 },
+		AlwaysInStock = true, -- v20.30: всегда можно купить (сток не кончается)
 	},
 
 	-- v20.28: СКИДКА ДНЯ. Раз в сутки (UTC) выбирается один товар из вкладки
@@ -6856,8 +6857,8 @@ Config.Placeables = {
 		Bush1          = { DisplayName = "Round Bush",      Icon = "🌿", Rarity = "Common",    Price = 200,   Asset = "Decor_Bush1" },
 		Bush2          = { DisplayName = "Berry Bush",      Icon = "🌳", Rarity = "Uncommon",  Price = 500,   Asset = "Decor_Bush2" },
 		Bench          = { DisplayName = "Wooden Bench",    Icon = "🪑", Rarity = "Uncommon",  Price = 800,   Asset = "Decor_Bench",        Function = "Seat" },
-		StorageChest   = { DisplayName = "Storage Chest",   Icon = "📦", Rarity = "Rare",      Price = 5000,  Asset = "Decor_StorageChest", Function = "Storage" },
-		OreJar         = { DisplayName = "Ore Jar",         Icon = "🏺", Rarity = "Uncommon",  Price = 1500,  Asset = "Decor_OreJar",       Function = "Jar" },
+		StorageChest   = { DisplayName = "Storage Chest",   Icon = "📦", Rarity = "Rare",      Price = 5000,  Asset = "Decor_StorageChest", Function = "Storage", AlwaysInStock = true },
+		OreJar         = { DisplayName = "Ore Jar",         Icon = "🏺", Rarity = "Uncommon",  Price = 1500,  Asset = "Decor_OreJar",       Function = "Jar", AlwaysInStock = true },
 	},
 	DecorOrder = { "Flowers1", "Bush1", "Flowers2", "IronLantern", "OreBarrel", "Bush2", "Bench", "OreJar", "CrystalLantern", "StorageChest", "PlushMole", "CrystalCluster", "MinerStatue", "MoleStatue" },
 	DecorWeights = { Flowers1 = 30, Bush1 = 28, Flowers2 = 26, IronLantern = 30, OreBarrel = 25, Bush2 = 20, Bench = 20, OreJar = 18, CrystalLantern = 18, StorageChest = 14, PlushMole = 12, CrystalCluster = 9, MinerStatue = 4, MoleStatue = 2 },
@@ -6944,6 +6945,7 @@ Config.Merchant.BaseOffers = {
 	-- v20.27: шанс мебели оказаться в стоке цикла — от DecorMinChance (самая
 	-- редкая по DecorWeights) до DecorMaxChance (самая частая). Своё число —
 	-- Config.Placeables.Decor.<Id>.StockChance. Не в стоке — видна затемнённой.
+	-- Decor.<Id>.AlwaysInStock = true — всегда в стоке и не кончается.
 	DecorMinChance = 0.12,
 	DecorMaxChance = 0.8,
 }

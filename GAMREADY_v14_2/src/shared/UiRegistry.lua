@@ -42,7 +42,7 @@ UiRegistry.Entries = {
 	{ Name = "QuestMarkerUi", Module = "UiBuilders.QuestMarkerUi", MinVersion = 21, What = "стрелка навигации квеста" },
 
 	-- ОКНА
-	{ Name = "ShopUi", Module = "UiBuilders.ShopUi", MinVersion = 22, What = "магазин за Robux" },
+	{ Name = "ShopUi", Module = "UiBuilders.ShopUi", MinVersion = 23, What = "магазин за Robux" },
 	{ Name = "UpgradeShopUi", Module = "UiBuilders.UpgradeShopUi", MinVersion = 21, What = "прокачка (Upgrade Mole)" },
 	{ Name = "SettingsMenu", Module = "UiBuilders.SettingsUi", MinVersion = 20, What = "настройки и промокоды" },
 	{ Name = "DailyRewardUi", Module = "UiBuilders.DailyRewardUi", MinVersion = 22, What = "награды за вход / время" },
@@ -74,7 +74,7 @@ UiRegistry.Entries = {
 	{ Name = "OrePreviewHud", Module = "UiBuilders.OrePreviewUi", MinVersion = 20, What = "руда в руках" },
 	{ Name = "PlacementUi", Module = "UiBuilders.PlacementUi", MinVersion = 21, What = "подсказки установки" },
 	{ Name = "MoneyGainFx", Module = "UiBuilders.MoneyFxUi", MinVersion = 20, What = "«+$X» при начислении денег" },
-	{ Name = "RevealCards", Module = "UiBuilders.RevealCardsUi", MinVersion = 20, What = "карточки открытия жеод/сундуков" },
+	{ Name = "RevealCards", Module = "UiBuilders.RevealCardsUi", MinVersion = 21, What = "карточки открытия жеод/сундуков" },
 	{ Name = "MobBillboardTemplates", Module = "UiBuilders.MobBillboardsUi", MinVersion = 20, What = "таблички гоблинов и валунов" },
 	{ Name = "WorldUiTemplates", Module = "UiBuilders.WorldUi", MinVersion = 21, What = "шаблоны билбордов (мобы, валуны, промпты)" },
 }

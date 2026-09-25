@@ -38,7 +38,7 @@ local UiKit = require(Shared.UiKit)
 local Config = require(ReplicatedStorage.Shared.Config)
 
 local Builder = {}
-Builder.VERSION = 22
+Builder.VERSION = 23
 
 local DEFAULT_TAB_ACCENTS = {
 	Cash = "Green", Boosts = "Gold", Passes = "Purple", Weather = "Blue",
@@ -53,34 +53,14 @@ end
 local CARD_HEIGHT = 128
 Builder.CARD_HEIGHT = CARD_HEIGHT
 
--- Лучи за иконкой (как сияние у товаров на референсе). Анимирует клиент.
-function Builder.BuildRays(parent, count, color, transparency)
-	local rays = UiKit.Group(parent, "Rays", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromScale(1.6, 1.6),
-		ZIndex = (parent.ZIndex or 1),
+-- Фон за иконкой (v20.30: картинка из UiTheme.Backdrops вместо нарисованных
+-- лучей; kind — Burst/Shine/Star/… или редкость). Вращает клиент.
+function Builder.BuildRays(parent, _count, color, transparency, kind)
+	return UiKit.Backdrop(parent, "Rays", kind or "Product", {
+		Color = color,
+		Transparency = transparency,
+		ZIndex = parent.ZIndex or 1,
 	})
-	for i = 1, count do
-		local ray = UiKit.Group(rays, "Ray" .. i, {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.new(0.09, 0, 1, 0),
-			Rotation = (i - 1) * (180 / count),
-			BackgroundColor3 = color or Color3.new(1, 1, 1),
-			BackgroundTransparency = transparency or 0.75,
-			ZIndex = rays.ZIndex,
-		})
-		local fade = Instance.new("UIGradient")
-		fade.Rotation = 90
-		fade.Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 1),
-			NumberSequenceKeypoint.new(0.5, 0),
-			NumberSequenceKeypoint.new(1, 1),
-		})
-		fade.Parent = ray
-	end
-	return rays
 end
 
 function Builder.BuildCard()
@@ -99,7 +79,7 @@ function Builder.BuildCard()
 		ZIndex = 2,
 	})
 	UiKit.Corner(holder, 999)
-	Builder.BuildRays(holder, 6, Color3.new(1, 1, 1), 0.82)
+	Builder.BuildRays(holder, 6, Color3.new(1, 1, 1), 0.35, "Product")
 	UiKit.Plate(holder, "IconGlow", "Glow", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
@@ -206,7 +186,7 @@ local function buildStep(parent, index, width)
 		Size = UDim2.fromOffset(78, 78),
 		ZIndex = 4,
 	})
-	Builder.BuildRays(holder, 8, Color3.fromRGB(255, 190, 90), 0.7)
+	Builder.BuildRays(holder, 8, Color3.fromRGB(255, 210, 120), 0.25, "Money")
 	local icon = UiKit.Icon(holder, "Icon", "", { ZIndex = 5 })
 	UiKit.Text(icon, "Emoji", "💵", { _Stroke = 0, ZIndex = 6 }).FontFace = Font.fromEnum(Enum.Font.GothamBold)
 	local button = UiKit.RobuxButton(step, "Button", "49", {
@@ -292,7 +272,7 @@ local function buildForever(body)
 		Size = UDim2.fromOffset(170, 170),
 		ZIndex = 3,
 	})
-	local rays = Builder.BuildRays(raysHolder, 12, Color3.fromRGB(255, 220, 120), 0.55)
+	local rays = Builder.BuildRays(raysHolder, 12, Color3.fromRGB(255, 225, 130), 0.1, "Money")
 	rays.Name = "Rays"
 	UiKit.Plate(big, "Glow", "Glow", {
 		AnchorPoint = Vector2.new(0.5, 0.5),

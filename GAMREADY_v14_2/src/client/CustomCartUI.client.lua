@@ -5493,7 +5493,9 @@ local function setupShopUi()
 				local tint = slot:FindFirstChild("Tint")
 				if tint then tint.Color = ColorSequence.new(accent.Main, accent.Dark or accent.Main) end
 				local rays = slot:FindFirstChild("Rays", true)
-				if rays then
+				if rays and rays:IsA("ImageLabel") then
+					rays.ImageColor3 = accent.Light -- v20.30: фон-картинка (UiTheme.Backdrops)
+				elseif rays then
 					for _, ray in rays:GetChildren() do
 						if ray:IsA("GuiObject") then ray.BackgroundColor3 = accent.Light end
 					end
