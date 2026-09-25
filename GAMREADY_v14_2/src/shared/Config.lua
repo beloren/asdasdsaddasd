@@ -4644,7 +4644,14 @@ Config.SocialOffers = {
 	Enabled = true,
 	MinSessionSeconds = 180,     -- в первые минуты ничего не предлагаем
 	GapSeconds = 600,            -- пауза между двумя любыми предложениями
-	Delay = 1.5,                 -- через сколько после «удачи» показать
+	-- v20.14: окно всплывает НЕ сразу после удачи (иначе перекрывает сам
+	-- момент — открытие сундука, продажу, престиж), а через случайные
+	-- DelayMin..DelayMax секунд. Новая удача за это время отодвигает показ
+	-- ещё на DelayMin; если игрок занят (шахта, волна гоблинов, рагдолл,
+	-- обучение) — ждём, пока освободится, но не дольше MaxWaitSeconds.
+	DelayMin = 20,
+	DelayMax = 30,
+	MaxWaitSeconds = 180,
 	HappyMetrics = { CartSales = true, Rebirths = true, RareOres = true, ChestsOpened = true },
 	Order = { "Group", "Favorite" },
 	-- Кнопка 🎁 в HUD (client/SocialHud): видна, пока есть незабранное.
