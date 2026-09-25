@@ -275,6 +275,47 @@ do
 	st.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 	st.Parent = secondaryButton
 end
+-- v20.34: ПОЛОСКА ЗАПОЛНЕНИЯ вторичной строки («[R] Pick Up» и т.п.):
+-- держишь клавишу или тапнул — строка заливается слева направо за время
+-- удержания промпта. Подпись вынесена в отдельный слой ПОВЕРХ заливки
+-- (у TextButton текст рисуется под дочерними объектами).
+secondaryButton.Text = ""
+local secondaryFill = Instance.new("Frame")
+secondaryFill.Name = "Fill"
+secondaryFill.BackgroundColor3 = Color3.fromRGB(90, 220, 110)
+secondaryFill.BackgroundTransparency = 0.2
+secondaryFill.BorderSizePixel = 0
+secondaryFill.Position = UDim2.new(0, -6, 0, 0) -- компенсируем UIPadding кнопки
+secondaryFill.Size = UDim2.new(0, 0, 1, 0)
+secondaryFill.ZIndex = 4
+secondaryFill.Parent = secondaryButton
+do
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 8)
+	c.Parent = secondaryFill
+end
+local secondaryCaption = Instance.new("TextLabel")
+secondaryCaption.Name = "Caption"
+secondaryCaption.BackgroundTransparency = 1
+secondaryCaption.AutomaticSize = Enum.AutomaticSize.X
+secondaryCaption.Size = UDim2.new(0, 0, 1, 0)
+secondaryCaption.FontFace = FONT
+secondaryCaption.TextSize = 14
+secondaryCaption.TextColor3 = Color3.new(1, 1, 1)
+secondaryCaption.TextXAlignment = Enum.TextXAlignment.Left
+secondaryCaption.ZIndex = 5
+secondaryCaption.Parent = secondaryButton
+do
+	local st = Instance.new("UIStroke")
+	st.Color = Color3.new(0, 0, 0)
+	st.Thickness = 1.5
+	st.Parent = secondaryCaption
+end
+local function setSecondaryFill(progress)
+	progress = math.clamp(progress, 0, 1)
+	secondaryFill.Size = UDim2.new(progress, math.floor(progress * 14), 1, 0) -- 14 = отступы UIPadding
+end
+local secondaryHoldStart, secondaryHoldDuration = nil, 1
 local secondaryPrompt = nil
 secondaryButton.Activated:Connect(function()
 	local prompt = secondaryPrompt
@@ -577,7 +618,7 @@ local function show(prompt, inputType, fresh)
 	if secondaryPrompt then
 		local secondaryKey = inputType == Enum.ProximityPromptInputType.Touch and "👆"
 			or keyText(secondaryPrompt, inputType)
-		secondaryButton.Text = ("[%s] %s"):format(secondaryKey, titleCase(tr(secondaryPrompt.ActionText)))
+		secondaryCaption.Text = ("[%s] %s"):format(secondaryKey, titleCase(tr(secondaryPrompt.ActionText)))
 		secondaryButton.Visible = true
 		-- Главная надпись чуть выше, вторичная кнопка — под ней, без нахлёста.
 		label.Position = UDim2.new(0, CIRCLE + 8, 0.5, -8)
@@ -706,6 +747,11 @@ end)
 
 -- НАЖАТИЕ И УДЕРЖАНИЕ: кружок чуть проседает, кольцо заполняется по кругу.
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
+	if prompt == secondaryPrompt and prompt ~= nil then
+		secondaryHoldStart = os.clock()
+		secondaryHoldDuration = math.max(prompt.HoldDuration, 0.05)
+		return
+	end
 	if prompt ~= active then return end
 	holdStarted = os.clock()
 	holdDuration = math.max(prompt.HoldDuration, 0.05)
@@ -713,6 +759,11 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
 	TweenService:Create(circleScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.9 }):Play()
 end)
 ProximityPromptService.PromptButtonHoldEnded:Connect(function(prompt)
+	if prompt == secondaryPrompt and prompt ~= nil then
+		secondaryHoldStart = nil
+		setSecondaryFill(0)
+		return
+	end
 	if prompt ~= active then return end
 	holdStarted = nil
 	-- Отпустил раньше времени — кольцо быстро "сматывается" обратно.
@@ -722,6 +773,18 @@ end)
 -- КЛИК (срабатывание): удар кружка, волна-кольцо, вспышка клавиши.
 ProximityPromptService.PromptTriggered:Connect(function(prompt)
 	if prompt == active then playClick() end
+end)
+
+-- Кадр: заливка вторичной строки.
+RunService.RenderStepped:Connect(function()
+	if secondaryHoldStart then
+		if not (secondaryPrompt and secondaryButton.Visible) then
+			secondaryHoldStart = nil
+			setSecondaryFill(0)
+		else
+			setSecondaryFill((os.clock() - secondaryHoldStart) / secondaryHoldDuration)
+		end
+	end
 end)
 
 -- Кадр: прогресс кольца.

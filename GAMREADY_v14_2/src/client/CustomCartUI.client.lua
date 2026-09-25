@@ -2529,8 +2529,12 @@ local function setupUpgradeRevealCinematic()
 			local camDistance = math.max(objectRadius * 1.2, 12)
 			local focusLookAt = focusPos + Vector3.new(0, objectHeight * 0.35, 0)
 			local horizontalDir
+			-- v20.34: шахту снимаем С ЛИЦА (атрибут MineFrontDir от PlotService),
+			-- а не со стороны банка.
+			local mineFront = revealModel and revealModel:GetAttribute("MineFrontDir")
+			if typeof(mineFront) ~= "Vector3" or mineFront.Magnitude < 0.1 then mineFront = nil end
 			if kind == "Mine" then
-				horizontalDir = bankDirectionFrom(focusPos) -- со стороны банка
+				horizontalDir = mineFront and mineFront.Unit or bankDirectionFrom(focusPos)
 			elseif kind == "Cart" then
 				horizontalDir = -bankDirectionFrom(focusPos) -- 180° от банка
 			else
@@ -2564,7 +2568,7 @@ local function setupUpgradeRevealCinematic()
 					local halfFov = math.rad(55 / 2)
 					local distance = radius / math.sin(halfFov) * 1.12
 					local elevation = math.rad(22)
-					local dir = bankDirectionFrom(center)
+					local dir = mineFront and mineFront.Unit or bankDirectionFrom(center)
 					local eye = center + dir * (math.cos(elevation) * distance) + Vector3.new(0, math.sin(elevation) * distance, 0)
 					focusCamCFrame = CFrame.new(eye, center)
 					focusLookAt = center

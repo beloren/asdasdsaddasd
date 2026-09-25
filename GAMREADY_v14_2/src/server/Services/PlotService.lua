@@ -400,7 +400,7 @@ function PlotService:_buildMine(plot, tier)
 			local flat = (plot.MineFacingCFrame.Position - minePosition) * Vector3.new(1, 0, 1)
 			if flat.Magnitude > 0.1 then
 				local facing = flat.Unit
-				mine:PivotTo(CFrame.lookAt(minePosition, minePosition + facing))
+				mine:PivotTo(CFrame.lookAt(minePosition, minePosition + facing) * CFrame.Angles(0, math.rad(Config.Mine.ModelFrontYaw or 0), 0))
 				-- Если «перёд» модели не совпадает с её LookVector, положи в
 				-- модель шахты деталь MineFront перед входом — довернём так,
 				-- чтобы именно она смотрела на маркер.
@@ -427,10 +427,15 @@ function PlotService:_buildMine(plot, tier)
 				local observerLeft = Vector3.yAxis:Cross(observerForward)
 				if observerLeft.Magnitude > 0.1 then
 					local facing = observerLeft.Unit
-					mine:PivotTo(CFrame.lookAt(minePosition, minePosition + facing))
+					-- v20.34: визуальный перёд модели (Config.Mine.ModelFrontYaw).
+					mine:PivotTo(CFrame.lookAt(minePosition, minePosition + facing) * CFrame.Angles(0, math.rad(Config.Mine.ModelFrontYaw or 0), 0))
+					plot.MineFacingDir = facing
 				end
 			end
 		end
+		-- Клиенту: куда смотрит лицо шахты (катсцена улучшения тира снимает
+		-- именно отсюда, а не со стороны банка).
+		if plot.MineFacingDir then mine:SetAttribute("MineFrontDir", plot.MineFacingDir) end
 	end
 
 	-- ПРИВЯЗКА К ЗЕМЛЕ: MineMarker в шаблоне участка задаёт X/Z и поворот,

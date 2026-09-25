@@ -65,7 +65,10 @@ function GroundCheck.Orientation(normal, yawDegrees)
 end
 
 -- Точка внутри территории участка (весь прямоугольник PlotTemplate)?
-function GroundCheck.InPlot(pad, position)
+-- v20.34: участок — это ВЕСЬ столб над прямоугольником PlotTemplate, любой
+-- высоты (крыши, острова, мосты, прыжок — всё «на участке»). Снизу — до 8
+-- стадов под нижним краем. margin — запас по краям (по умолчанию PlotMargin).
+function GroundCheck.InPlot(pad, position, margin)
 	if not (pad and pad.Parent) then return false end
 	local boundsCFrame = pad:GetAttribute("PlotBoundsCFrame")
 	local boundsSize = pad:GetAttribute("PlotBoundsSize")
@@ -73,11 +76,10 @@ function GroundCheck.InPlot(pad, position)
 		boundsCFrame, boundsSize = pad.CFrame, pad.Size
 	end
 	local rel = boundsCFrame:PointToObjectSpace(position)
-	local margin = cfg().PlotMargin or 1
+	margin = margin or cfg().PlotMargin or 1
 	return math.abs(rel.X) <= boundsSize.X / 2 + margin
 		and math.abs(rel.Z) <= boundsSize.Z / 2 + margin
 		and rel.Y >= -boundsSize.Y / 2 - 8
-		and rel.Y <= boundsSize.Y / 2 + 60
 end
 
 -- Совместимость со старым кодом: луч вниз, (ok, position, hitInstance).

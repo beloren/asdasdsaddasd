@@ -26,6 +26,7 @@ local Debris = game:GetService("Debris")
 local Config = require(ReplicatedStorage.Shared.Config)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local Sfx = require(ReplicatedStorage.Shared.Sfx)
+local GroundCheck = require(ReplicatedStorage.Shared.GroundCheck)
 
 local CombatService = {}
 
@@ -701,9 +702,11 @@ local function isPositionSafe(position)
 		return true
 	end
 
+	-- v20.34: сейф-зона участка — весь столб над ним (GroundCheck.InPlot):
+	-- любая высота над любой частью PlotTemplate, а не только пол.
 	if Services.PlotService then
 		for _, plot in Services.PlotService:GetAllPlots() do
-			if plot.Pad and isPointInBox(plot.Pad.CFrame, plot.Pad.Size, position, padding) then
+			if plot.Pad and GroundCheck.InPlot(plot.Pad, position, 0) then
 				return true
 			end
 		end

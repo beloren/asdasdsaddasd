@@ -38,6 +38,7 @@ local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили м�
 local PlaceableCatalog = require(ReplicatedStorage.Shared.PlaceableCatalog)
 local PlaceableFactory = require(ReplicatedStorage.Shared.PlaceableFactory)
 local GroundCheck = require(ReplicatedStorage.Shared.GroundCheck)
+local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local CollectionService = game:GetService("CollectionService")
 
@@ -413,10 +414,16 @@ function BaseDecorService:_refreshJar(player, record, model)
 		local anchor = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
 		local _, modelSize = model:GetBoundingBox()
 		local title = stack.Smelted and (oreName(stack.Ore) .. " Ingot") or oreName(stack.Ore)
-		local label = addLabel(model, anchor, {
+		-- v20.34: редкость, название и стоимость — элемент коллекции.
+		local value = tonumber(stack.Value) or 0
+		local lines = {
 			{ Text = string.upper(rarity), Color = PlaceableCatalog.RarityColor(rarity) },
 			{ Text = title, Color = Color3.fromRGB(235, 235, 235) },
-		}, 60, modelSize.Y + 0.4)
+		}
+		if value > 0 then
+			table.insert(lines, { Text = "$" .. NumberFormat.abbreviate(value), Color = Color3.fromRGB(120, 255, 140) })
+		end
+		local label = addLabel(model, anchor, lines, 60, modelSize.Y + 0.4)
 		label.Name = "JarLabel"
 	end)
 	if not okLabel then warn("[BaseDecorService] подпись банки:", labelErr) end
