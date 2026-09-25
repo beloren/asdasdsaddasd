@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
@@ -475,6 +476,11 @@ function PassiveIncomeService:Collect(player)
 	player:SetAttribute("TutorialSafeCollected", true)
 	local display = displays[player]
 	Sfx.play("SafeCollect", display and display.Safe)
+	-- v20.23: сейф «пружинит» (client/SafeBounceFX) — счётчик, чтобы каждый
+	-- сбор давал новое изменение атрибута.
+	if display and display.Safe and display.Safe.Parent then
+		display.Safe:SetAttribute("CollectPulse", (tonumber(display.Safe:GetAttribute("CollectPulse")) or 0) + 1)
+	end
 	if Services.QuestService then Services.QuestService:RecordMetric(player, "SafeCollected", amount) end
 	if moneyGainRemote then moneyGainRemote:FireClient(player, amount) end
 	Services.NotifyService:Show(player, ("COLLECTED $%s FROM SAFE"):format(NumberFormat.abbreviate(amount)), { Icon = "Safe" })
@@ -693,6 +699,7 @@ function PassiveIncomeService:BuildStructures(player, podiumCFrame, safeCFrame, 
 	end
 	placeOnPlot(safe, plot.GeodeSafeCFrame, plot.SafePad)
 	setAnchored(safe, true)
+	CollectionService:AddTag(safe, "SafeBounce")
 	safe.Parent = plot.Content
 	local safePrompt = findPrompt(safe, "SafePrompt") or Instance.new("ProximityPrompt")
 	safePrompt.Name = "SafePrompt"
