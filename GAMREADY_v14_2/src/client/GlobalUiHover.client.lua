@@ -8,6 +8,9 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 if not UserInputService.MouseEnabled then return end
+-- v20.20: на сенсорных экранах касание считается «наведением» — кнопки
+-- хотбара/топбара сами увеличивались и уменьшались. Там эффекта нет.
+if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then return end
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local bound = setmetatable({}, { __mode = "k" })

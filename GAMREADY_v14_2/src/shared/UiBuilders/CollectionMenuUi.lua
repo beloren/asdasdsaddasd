@@ -20,6 +20,7 @@ local Builder = {}
 
 Builder.ITEMS = {
 	{ Key = "Inventory", Label = "INVENTORY", Icon = "Inventory", Emoji = "🎒", Accent = "Peach" },
+	{ Key = "Quests", Label = "QUESTS", Icon = "Quests", Emoji = "📜", Accent = "Gold" }, -- v20.20
 	{ Key = "Shop", Label = "SHOP", Icon = "Shop", Emoji = "🛒", Accent = "Purple" },
 	{ Key = "Skins", Label = "SKINS", Icon = "Skins", Emoji = "🎨", Accent = "Pink" },
 	{ Key = "Settings", Label = "SETTINGS", Icon = "Settings", Emoji = "⚙", Accent = "Teal" },
@@ -46,7 +47,7 @@ function Builder.Build()
 	local submenu, parts = UiKit.Window(gui, "Submenu", {
 		Title = "Menu",
 		Accent = "Blue",
-		Size = UDim2.fromOffset(380, 450),
+		Size = UDim2.fromOffset(380, 520), -- v20.20: +пункт QUESTS
 		ZIndex = 6,
 	})
 	UiKit.Scale(submenu, "MobileSubmenuScale", 1)

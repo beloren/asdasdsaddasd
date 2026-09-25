@@ -5203,14 +5203,17 @@ Config.UiLayout = {
 	-- Экраны/элементы, которые подгоняются сами (своя логика размера).
 	Skip = {
 		["RevealCards/Holder"] = true,
+		-- Ряд кнопок в топбаре Roblox: размер задаёт сам топбар (TopbarInset).
+		TopbarDock = true,
 	},
 	Overrides = {
 		Phone = {
 			-- Джойстик — левый низ, прыжок — правый низ: там ничего не ставим.
 			-- Деньги/престиж (Hud/HudGui) и подсказки тележки/NPC на телефоне
 			-- расставляет CustomCartUI — здесь их нет.
-			-- Баффы — слева от денег (правый верх), растут вниз.
-			["BuffBar/Bar"] = { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -250, 0, 8) },
+			-- Статусы (баффы, погода, сейв-зона) — правый низ, над кнопкой
+			-- прыжка и левее кнопки ракеты; растут вверх.
+			["BuffBar/Bar"] = { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -100, 1, -130) },
 			-- Лента добычи — под деньгами, покороче.
 			["LootFeedUi/Feed"] = { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 96), Size = UDim2.fromOffset(300, 300) },
 			-- Предложения — над кнопкой прыжка, левее неё.
@@ -5227,7 +5230,7 @@ Config.UiLayout = {
 			},
 			-- Подсказка предмета в руке — над рядом снаряжения, полного размера
 			-- («@Атрибут» — атрибут: своя база масштаба на телефоне).
-			["GearUi/AimHint"] = { Position = UDim2.new(0.5, 0, 1, -118), ["@UiScale_Phone"] = 1 },
+			["GearUi/AimHint"] = { Position = UDim2.new(0.5, 0, 1, -118), ["@UiScale_Phone"] = 0.62 },
 		},
 		Tablet = {},
 		Desktop = {},

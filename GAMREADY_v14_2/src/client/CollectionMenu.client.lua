@@ -343,6 +343,7 @@ end
 
 local ITEMS = {
 	{ Key = "Inventory", Label = "INVENTORY", Icon = "InventoryMenuIconId" },
+	{ Key = "Quests", Label = "QUESTS", Icon = "QuestsMenuIconId" }, -- v20.20: квесты — из меню
 	{ Key = "Shop", Label = "SHOP", Icon = "ShopMenuIconId" },
 	{ Key = "Skins", Label = "SKINS", Icon = "SkinsMenuIconId" },
 	{ Key = "Settings", Label = "SETTINGS", Icon = "SettingsMenuIconId" },

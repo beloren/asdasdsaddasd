@@ -325,8 +325,8 @@ RunService.RenderStepped:Connect(function()
 	trailAnchor.CFrame = CFrame.new(Vector3.new(bottom.X, math.max(bottom.Y, origin.Y - 3), bottom.Z) + Vector3.new(0, 0.3, 0))
 	trail.Enabled = cfg.TrailEnabled ~= false and not arrived and trail.Attachment0 ~= nil
 
-	-- Шеврон у ног.
-	if not arrived then
+	-- Шеврон у ног. v20.20: выключен (мешал) — Config.QuestMarker.ShowChevron = true вернёт.
+	if not arrived and cfg.ShowChevron == true then
 		local direction = (flat - origin)
 		direction = direction.Magnitude > 0.1 and direction.Unit or Vector3.new(0, 0, -1)
 		local base = origin + direction * 3.2 - Vector3.new(0, 2.8, 0)

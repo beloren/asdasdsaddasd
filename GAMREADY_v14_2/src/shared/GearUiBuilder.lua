@@ -25,7 +25,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 21 -- v20.5: AimHint — плашка Title/Text
+Builder.VERSION = 22 -- v20.20: AimHint — текст без подложки
 
 function Builder.BuildChestBillboard()
 	local billboard = Instance.new("BillboardGui")
@@ -103,6 +103,11 @@ function Builder.Build()
 		Size = UDim2.fromOffset(460, 52),
 		Visible = false,
 	})
+	-- v20.20: без подложки — только текст с обводкой.
+	hint.ImageTransparency = 1
+	hint.BackgroundTransparency = 1
+	local hintStroke = hint:FindFirstChild("SkinStroke")
+	if hintStroke then hintStroke.Enabled = false end
 	UiKit.Text(hint, "Title", "Small Dynamite", {
 		_Style = "Heading",
 		_MaxTextSize = 20,

@@ -41,24 +41,23 @@ function UiLayout.ProfileFor(viewport, touchEnabled, keyboardEnabled)
 	return "Desktop"
 end
 
--- Профиль на клиенте (читает UserInputService и камеру).
+-- Профиль на клиенте. v20.20: считается ОДИН РАЗ за сессию (и заново только
+-- при смене размера экрана). Раньше учитывался PreferredInput — он
+-- переключается Touch ↔ KeyboardAndMouse от любого движения мыши/касания, и
+-- профиль прыгал «телефон ↔ ПК»: интерфейс то уменьшался, то увеличивался.
+local cachedProfile, cachedViewport = nil, nil
 function UiLayout.Profile()
-	local ok, UserInputService = pcall(game.GetService, game, "UserInputService")
 	local camera = workspace.CurrentCamera
 	local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
-	if not ok then return UiLayout.ProfileFor(viewport, false, true) end
-	local touch = UserInputService.TouchEnabled
-	local keyboard = UserInputService.KeyboardEnabled
-	-- Новое API Roblox: предпочитаемый ввод (если доступно).
-	local preferredOk, preferred = pcall(function() return UserInputService.PreferredInput end)
-	if preferredOk and preferred ~= nil and typeof(preferred) == "EnumItem" then
-		if preferred.Name == "Touch" then
-			touch, keyboard = true, false
-		elseif preferred.Name == "KeyboardAndMouse" then
-			keyboard = true
-		end
+	if cachedProfile and cachedViewport and math.abs(math.min(viewport.X, viewport.Y) - math.min(cachedViewport.X, cachedViewport.Y)) < 2 then
+		return cachedProfile
 	end
-	return UiLayout.ProfileFor(viewport, touch, keyboard)
+	local ok, UserInputService = pcall(game.GetService, game, "UserInputService")
+	local touch = ok and UserInputService.TouchEnabled or false
+	local keyboard = (not ok) or UserInputService.KeyboardEnabled
+	cachedProfile = UiLayout.ProfileFor(viewport, touch, keyboard)
+	cachedViewport = viewport
+	return cachedProfile
 end
 
 function UiLayout.Margin(profile)

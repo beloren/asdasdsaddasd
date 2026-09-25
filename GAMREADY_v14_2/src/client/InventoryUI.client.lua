@@ -1319,6 +1319,38 @@ local function setOpen(open)
 	end
 end
 
+-- v20.20: кнопка рюкзака 🎒 — последним слотом хотбара. На телефоне это
+-- единственный понятный способ открыть/закрыть инвентарь (на ПК — ещё «~»).
+do
+	local toggle = bar:FindFirstChild("InventoryToggle")
+	if not toggle then
+		toggle = UiKit.Slot(bar, "InventoryToggle", {
+			_Accent = "Peach",
+			LayoutOrder = 100,
+			Size = UDim2.fromOffset(50, 50),
+			ClipsDescendants = false,
+		}, true)
+		local emoji = UiKit.Text(toggle, "Emoji", "🎒", {
+			_Stroke = 0,
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.45),
+			Size = UDim2.fromScale(0.62, 0.62),
+			ZIndex = 3,
+		})
+		emoji.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+		UiKit.Text(toggle, "KeyBadge", UserInputService.KeyboardEnabled and "~" or "", {
+			_Style = "Heading",
+			Position = UDim2.fromOffset(3, 1),
+			Size = UDim2.fromOffset(14, 14),
+			ZIndex = 4,
+		})
+	end
+	toggle:SetAttribute("DisableGlobalHover", true)
+	toggle.Activated:Connect(function()
+		setOpen(not isOpen)
+	end)
+end
+
 --------------------------------------------------------------------------------
 -- ПРИЗРАК ПОД КУРСОРОМ + ОТМЕНА ПЕРЕНОСА
 --------------------------------------------------------------------------------

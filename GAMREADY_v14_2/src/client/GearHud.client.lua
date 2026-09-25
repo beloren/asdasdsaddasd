@@ -95,6 +95,14 @@ end
 -- собственный предпросмотр (CartPlacement) — здесь не дублируем. Кирка —
 -- только первые PICKAXE_HINT_SECONDS после того, как её взяли.
 local ItemHints = require(ReplicatedStorage.Shared.ItemHints)
+-- v20.20: подсказка предмета — только текст, без тёмной подложки (и у
+-- старой копии из StarterGui).
+if aimHint and aimHint:IsA("GuiObject") then
+	aimHint.BackgroundTransparency = 1
+	if aimHint:IsA("ImageLabel") then aimHint.ImageTransparency = 1 end
+	local plateStroke = aimHint:FindFirstChild("SkinStroke")
+	if plateStroke then plateStroke.Enabled = false end
+end
 local hintTitle = aimHint and aimHint:FindFirstChild("Title")
 local hintText = aimHint and aimHint:FindFirstChild("Text")
 local PICKAXE_HINT_SECONDS = 4
@@ -110,8 +118,7 @@ local function showHint(hint)
 		hintTitle.Text = tr(hint.Title)
 		hintTitle.TextColor3 = hint.Color
 		hintText.Text = ("%s  ·  %s"):format(tr(hint.What), tr(hint.How))
-		local stroke = aimHint:FindFirstChild("SkinStroke")
-		if stroke then stroke.Color = hint.Color end
+		-- (рамки больше нет — цвет предмета несёт заголовок)
 	elseif aimHint:IsA("TextLabel") then
 		aimHint.Text = ("%s — %s · %s"):format(tr(hint.Title), tr(hint.What), tr(hint.How))
 	end

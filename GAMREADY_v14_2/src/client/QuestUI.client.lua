@@ -64,7 +64,9 @@ local content = modal:FindFirstChild("List", true)
 local templates = gui:WaitForChild("Templates")
 
 -- v19.4: кнопка — в ряд со штатными кнопками Roblox в топбаре.
-require(ReplicatedStorage.Shared.TopbarDock).Add(toggleButton, 1)
+-- v20.20: квесты открываются из меню (пункт QUESTS в книге-меню), место в
+-- топбаре отдано кнопке магазина (client/ShopDockButton).
+toggleButton.Visible = false
 
 -- Трекер — внутри контейнера HUD, над портретом и деньгами (двигается
 -- вместе с HUD, в т.ч. при мобильной раскладке). Нет HUD — левый нижний угол.
@@ -167,6 +169,12 @@ local function tutorialActive()
 	return player:GetAttribute("NeedsTutorial") == true
 end
 
+-- v20.20: навигация (стрелка/луч/знак над целью) ВЫКЛЮЧЕНА по умолчанию —
+-- включается кликом по квесту в трекере (или Track в окне), повторный клик —
+-- выключает. Новый квест — снова выключена.
+local navShown = false
+local navQuestId = nil
+
 local function applyNavigation(list)
 	local chosen = nil
 	for _, quest in list do
@@ -174,9 +182,13 @@ local function applyNavigation(list)
 	end
 	chosen = chosen or list[1]
 	selectedId = chosen and chosen.Id or nil
+	if selectedId ~= navQuestId then
+		navQuestId = selectedId
+		navShown = false
+	end
 	local key = chosen and navKeyOf(chosen) or nil
 	player:SetAttribute("QuestNavId", selectedId or "")
-	player:SetAttribute("QuestNavKey", (not tutorialActive() and key) or "")
+	player:SetAttribute("QuestNavKey", (navShown and not tutorialActive() and key) or "")
 	player:SetAttribute("QuestNavWhy", chosen and whyOf(chosen) or "")
 	player:SetAttribute("QuestNavTitle", chosen and (chosen.Short or chosen.Title) or "")
 end
@@ -212,7 +224,8 @@ local function fillTrackerRow(row, quest)
 	local collapsed = collapsedRows[quest.Id] == true
 	row.Why.Visible = not collapsed and row.Why.Text ~= ""
 	if objective then objective.Visible = not collapsed end
-	header.Caret.Text = collapsed and "v" or "^"
+	-- v20.20: значок справа — включена ли навигация к цели (клик по квесту).
+	header.Caret.Text = (navShown and quest.Id == navQuestId) and "X" or ">"
 end
 
 -- v20.3: трекер как на референсе — до MAX_TRACKED квестов списком, без
@@ -242,7 +255,11 @@ local function renderTracker(state)
 		local questId = quest.Id
 		row.Activated:Connect(function()
 			UiSfx.play("UiButtonClick")
-			collapsedRows[questId] = not collapsedRows[questId] or nil
+			-- Клик по квесту — показать/спрятать путь к цели.
+			selectedId = questId
+			navQuestId = questId
+			navShown = not navShown
+			applyNavigation(trackedQuests(latestState))
 			fillTrackerRow(row, quest)
 		end)
 		table.insert(trackerRows, row)
@@ -311,6 +328,8 @@ local function questCard(quest, order, accent, done)
 		track.Activated:Connect(function()
 			UiSfx.play("UiButtonClick")
 			selectedId = quest.Id
+			navQuestId = quest.Id
+			navShown = true
 			renderTracker(latestState)
 			renderModal()
 		end)
@@ -484,6 +503,19 @@ end
 toggleButton.Activated:Connect(function()
 	if modalOpen then closeModal() else openModal() end
 end)
+do
+	local openRequest = ReplicatedStorage.Shared:FindFirstChild("CollectionMenuOpenRequest")
+	if not openRequest then
+		openRequest = Instance.new("BindableEvent")
+		openRequest.Name = "CollectionMenuOpenRequest"
+		openRequest.Parent = ReplicatedStorage.Shared
+	end
+	openRequest.Event:Connect(function(target)
+		if target == "Quests" then
+			if modalOpen then closeModal() else openModal() end
+		end
+	end)
+end
 if closeButton then closeButton.Activated:Connect(closeModal) end
 dimmer.Activated:Connect(closeModal)
 UserInputService.InputBegan:Connect(function(input)
@@ -496,7 +528,7 @@ end)
 local function render(state)
 	if type(state) ~= "table" then return end
 	latestState = state
-	toggleButton.Visible = not tutorialActive()
+	toggleButton.Visible = false -- v20.20: квесты — в меню
 	-- Точка на кнопке: есть несданные дейлики.
 	local pendingDaily = false
 	for _, quest in state.Daily or {} do
