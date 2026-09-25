@@ -1293,13 +1293,23 @@ local function playRarityCard(data)
 	anchor.Parent = primary
 	local scaleK = cardW / 6 -- размеры эффектов относительно карточки
 
-	-- Лучи позади карточки (Rare+): тонкие неоновые бруски, вращаются.
-	local rays = {}
-	local rayLength = size.X * 1.5
-	for index = 1, fx.Rays or 0 do
-		local ray = cardPart("Ray" .. index, Vector3.new(0.18 * scaleK, rayLength, 0.05), color, Enum.Material.Neon, model)
-		ray.Transparency = 1
-		rays[index] = ray
+	-- Лучи позади карточки (Rare+). v20.32: не неоновые бруски, а та же
+	-- картинка-фон, что за товарами в магазине (UiTheme.RarityBackdrop):
+	-- невидимая плита с Decal, вращается и проявляется.
+	local raysPlate, raysDecal = nil, nil
+	local rayLength = size.X * 2.2
+	if (fx.Rays or 0) > 0 then
+		local UiKit = require(ReplicatedStorage.Shared.UiKit)
+		raysPlate = cardPart("RaysPlate", Vector3.new(rayLength, rayLength, 0.05), color, Enum.Material.SmoothPlastic, model)
+		raysPlate.Transparency = 1
+		raysDecal = Instance.new("Decal")
+		raysDecal.Name = "Backdrop"
+		raysDecal.Face = Enum.NormalId.Front
+		local kind = UiKit.BackdropKind(rarity)
+		raysDecal.Texture = UiKit.ImageUri(UiKit.Theme.Backdrops[kind])
+		raysDecal.Color3 = (UiKit.Theme.BackdropKeepColor and UiKit.Theme.BackdropKeepColor[kind]) and Color3.new(1, 1, 1) or color:Lerp(Color3.new(1, 1, 1), 0.25)
+		raysDecal.Transparency = 1
+		raysDecal.Parent = raysPlate
 	end
 	-- Ударная волна (Uncommon+): плоский неоновый диск, расходится и гаснет.
 	local ring = nil
@@ -1428,10 +1438,9 @@ local function playRarityCard(data)
 		-- Лучи и волна — только пока карточка в центре.
 		local holding = reachedCenter and t < inSeconds + holdSeconds
 		local fade = holding and math.clamp((t - burstAt) / 0.12, 0, 1) or 0
-		for index, ray in rays do
-			local angle = (t * 1.6) + index * (math.pi * 2 / #rays)
-			ray.CFrame = cardCF * CFrame.new(0, 0, 0.6) * CFrame.Angles(0, 0, angle) * CFrame.new(0, rayLength / 2 * 0.55, 0)
-			ray.Transparency = 1 - fade * 0.55
+		if raysPlate then
+			raysPlate.CFrame = cardCF * CFrame.new(0, 0, 0.6) * CFrame.Angles(0, 0, t * 0.9)
+			raysDecal.Transparency = 1 - fade * 0.9
 		end
 		if ring then
 			local since = reachedCenter and (t - burstAt) or 0
@@ -1455,6 +1464,7 @@ local function playRarityCard(data)
 			for _, part in model:GetDescendants() do
 				if part:IsA("BasePart") then part.Transparency = 1 end
 				if part:IsA("SurfaceGui") then part.Enabled = false end
+				if part:IsA("Decal") then part.Transparency = 1 end
 			end
 			task.delay(1.5, function() model:Destroy() end)
 		end
