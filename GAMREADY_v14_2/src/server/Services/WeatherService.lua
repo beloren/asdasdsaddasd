@@ -110,6 +110,117 @@ local function applySky(event)
 	clone.Parent = Lighting
 end
 
+--------------------------------------------------------------------------------
+-- v20.26: НЕБО-ГРАДИЕНТ И СВЕТ ПОГОДЫ (Look). Вместо картинок-скайбоксов —
+-- Atmosphere (градиент «горизонт → зенит»), свои WeatherColorCorrection и
+-- WeatherBloom в Lighting, звёзды/луна/солнце у Sky и (если задано) Clouds.
+-- Всё плавно переходит за Config.WeatherEvents.LookTweenSeconds.
+--
+-- Откуда берётся вид (первое найденное):
+--   1) Assets/Weather/<Id>/Look (для ясной погоды — Assets/Weather/Clear/Look):
+--      положите туда настроенные в Studio Atmosphere, ColorCorrectionEffect,
+--      BloomEffect, Clouds, Sky — берутся их свойства (у Sky с картинками —
+--      и картинки скайбокса);
+--   2) Config.WeatherEvents.Events[].Look / ClearLook.
+-- SunRays погода не трогает.
+--------------------------------------------------------------------------------
+local LOOK_PROPS = {
+	Atmosphere = { Class = "Atmosphere", Props = { "Density", "Offset", "Color", "Decay", "Glare", "Haze" } },
+	ColorCorrection = { Class = "ColorCorrectionEffect", Props = { "TintColor", "Saturation", "Contrast", "Brightness" } },
+	Bloom = { Class = "BloomEffect", Props = { "Intensity", "Size", "Threshold" } },
+	Clouds = { Class = "Clouds", Props = { "Cover", "Density", "Color" } },
+	Sky = { Class = "Sky", Props = { "StarCount", "SunAngularSize", "MoonAngularSize", "CelestialBodiesShown" } },
+}
+local SKY_TEXTURES = { "SkyboxBk", "SkyboxDn", "SkyboxFt", "SkyboxLf", "SkyboxRt", "SkyboxUp", "SunTextureId", "MoonTextureId" }
+
+local function lookTarget(kind, create)
+	if kind == "Atmosphere" then
+		local found = Lighting:FindFirstChildOfClass("Atmosphere")
+		if not found and create then
+			found = Instance.new("Atmosphere")
+			found.Parent = Lighting
+		end
+		return found
+	elseif kind == "ColorCorrection" or kind == "Bloom" then
+		local name = kind == "ColorCorrection" and "WeatherColorCorrection" or "WeatherBloom"
+		local found = Lighting:FindFirstChild(name)
+		if not found and create then
+			found = Instance.new(LOOK_PROPS[kind].Class)
+			found.Name = name
+			found.Parent = Lighting
+		end
+		return found
+	elseif kind == "Clouds" then
+		local terrain = workspace:FindFirstChildOfClass("Terrain")
+		local found = terrain and terrain:FindFirstChildOfClass("Clouds")
+		if not found and create and terrain then
+			found = Instance.new("Clouds")
+			found.Parent = terrain
+		end
+		return found
+	elseif kind == "Sky" then
+		local found = Lighting:FindFirstChildOfClass("Sky")
+		if not found and create then
+			found = Instance.new("Sky")
+			found.Parent = Lighting
+		end
+		return found
+	end
+	return nil
+end
+
+-- Вид из Studio: Assets/Weather/<Id>/Look → { Atmosphere = {…}, … }.
+local function lookFromAssets(id)
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local folder = assets and assets:FindFirstChild("Weather")
+	folder = folder and folder:FindFirstChild(id)
+	folder = folder and folder:FindFirstChild("Look")
+	if not folder then return nil end
+	local look = {}
+	for kind, spec in LOOK_PROPS do
+		local source = folder:FindFirstChildOfClass(spec.Class)
+		if source then
+			local values = {}
+			for _, prop in spec.Props do values[prop] = source[prop] end
+			if kind == "Sky" and source.SkyboxBk ~= "" then
+				values.Textures = {}
+				for _, prop in SKY_TEXTURES do values.Textures[prop] = source[prop] end
+			end
+			look[kind] = values
+		end
+	end
+	return look
+end
+
+local function applyLook(event)
+	local cfg = Config.WeatherEvents
+	local look = lookFromAssets(event and event.Id or "Clear") or (event and event.Look) or cfg.ClearLook
+	if not look then return end
+	local info = TweenInfo.new(cfg.LookTweenSeconds or LIGHTING_TWEEN_SECONDS, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+	for kind, values in look do
+		local spec = LOOK_PROPS[kind]
+		local target = spec and lookTarget(kind, true)
+		if target then
+			local tweened = {}
+			for _, prop in spec.Props do
+				local value = values[prop]
+				if typeof(value) == "boolean" then
+					target[prop] = value
+				elseif value ~= nil then
+					tweened[prop] = value
+				end
+			end
+			if values.Textures then
+				for prop, texture in values.Textures do target[prop] = texture end
+			end
+			if next(tweened) then
+				local ok, err = pcall(function() TweenService:Create(target, info, tweened):Play() end)
+				if not ok then warn("[WeatherService] Look " .. kind .. ":", err) end
+			end
+		end
+	end
+end
+
 local function snapshotLighting()
 	return {
 		ClockTime = Lighting.ClockTime,
@@ -142,12 +253,14 @@ local function publicEventPayload(event)
 		-- Теперь шлём таблицу и для Clear тоже — VfxKind отсутствует, это
 		-- по-прежнему корректно выключает частицы/молнии на клиенте (там
 		-- уже nil-safe: `payload and payload.VfxKind or nil`).
-		return { Id = "Clear", DisplayName = "Sunny", EndsAt = currentEventEndsAt }
+		return { Id = "Clear", DisplayName = "Sunny", EndsAt = currentEventEndsAt, Effects = Config.WeatherEvents.ClearEffects or {} }
 	end
 	return {
 		Id = event.Id,
 		DisplayName = event.DisplayName,
 		VfxKind = event.VfxKind,
+		Effects = event.Effects or {}, -- v20.26: эффекты по карте (client/WeatherFX)
+		Lightning = event.Lightning == true,
 		AnnounceText = event.AnnounceText,
 		EndsAt = currentEventEndsAt,
 	}
@@ -168,6 +281,8 @@ function WeatherService:Init(services)
 	-- умолчанию означал бы "уже пора роллить" — цикл в Start() ниже
 	-- крутится с самого начала, а не после первого task.wait.
 	currentEventEndsAt = os.time() + Config.WeatherEvents.RollIntervalSeconds
+	-- v20.26: сразу ясное небо-градиент (без ожидания первой смены погоды).
+	task.defer(applyLook, nil)
 
 	-- ПРОСТАЯ АДМИН-ПАНЕЛЬ ДЛЯ БЫСТРОГО ТЕСТА (см. WeatherAdminPanel.
 	-- client.lua) — по прямому запросу. Права проверяются СЕРВЕРОМ на
@@ -341,7 +456,8 @@ applyEvent = function(event)
 	-- следующего планового ролла, а не долю секунды.
 	currentEventEndsAt = os.time() + Config.WeatherEvents.RollIntervalSeconds
 	tweenLightingTo(resolveLightingTarget(event))
-	applySky(event)
+	if Config.WeatherEvents.UseSkyboxAssets then applySky(event) end
+	applyLook(event)
 	-- nil (Clear) тоже шлём явно — клиент должен погасить VFX/убрать
 	-- баннер предыдущего ивента, а не оставить их висеть навсегда.
 	local payload = publicEventPayload(event)

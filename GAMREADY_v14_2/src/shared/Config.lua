@@ -3185,6 +3185,52 @@ Config.WeatherEvents = {
 	Enabled = true,
 	RollIntervalSeconds = 300, -- 5 минут
 
+	-- v20.26: ЯСНАЯ ПОГОДА (между ивентами) — тот же формат, что Look/Effects
+	-- у ивентов ниже. Небо — градиент Atmosphere, без картинок-скайбоксов.
+	ClearLook = {
+		Atmosphere = { Density = 0.28, Offset = 0.22, Color = Color3.fromRGB(192, 222, 255), Decay = Color3.fromRGB(118, 160, 224), Glare = 0.3, Haze = 1.2 },
+		ColorCorrection = { TintColor = Color3.fromRGB(255, 255, 255), Saturation = 0.1, Contrast = 0.05, Brightness = 0 },
+		Bloom = { Intensity = 0.3, Size = 24, Threshold = 2 },
+		Sky = { StarCount = 3000, SunAngularSize = 21, MoonAngularSize = 11, CelestialBodiesShown = true },
+	},
+	ClearEffects = {}, -- например { "Pollen" } — лёгкая пыльца в солнечную погоду
+	LookTweenSeconds = 6,
+	-- Картинки-скайбоксы ("<Id>Sky", "DaySky", "NightSky" в Assets) больше не
+	-- нужны. true — если такие Sky лежат в Assets, они всё ещё ставятся.
+	UseSkyboxAssets = false,
+
+	-- v20.26: ЭФФЕКТЫ ПО ВСЕЙ КАРТЕ (client/WeatherFX). Карта делится на
+	-- клетки CellSize×CellSize; в каждой клетке рядом с камерой (Radius)
+	-- работают эмиттеры эффекта — частицы живут в МИРЕ, а не едут за
+	-- камерой: отошёл — дождь остался идти там же, поднялся повыше — видно,
+	-- что он идёт по всей карте. Ближе FullRateRadius — полная плотность,
+	-- к краю Radius — FarRate от неё. Rate эмиттера = частиц в секунду
+	-- на ОДНУ клетку.
+	Fx = {
+		CellSize = 64,
+		Radius = 260,
+		FullRateRadius = 100,
+		FarRate = 0.3,
+		FadeSeconds = 2.5,      -- плавное появление/затухание при смене погоды
+		MapBounds = nil,        -- { Min = Vector2.new(x, z), Max = Vector2.new(x, z) }; nil — по размеру карты
+		MaxMapSize = 3000,      -- автоматический размер карты не больше этого (стадов)
+		RainTexture = "",       -- своя текстура капли-штриха (rbxassetid://…); пусто — встроенная
+	},
+
+	-- v20.26: МОЛНИИ в грозу (Events[].Lightning = true).
+	Lightning = {
+		IntervalMin = 4, IntervalMax = 11,   -- сек между ударами
+		FarDistance = { 90, 260 },           -- обычный удар — вдали, на земле
+		NearChance = 0.22,                   -- шанс удара РЯДОМ с игроком
+		NearDistance = { 14, 26 },
+		GrassBlocks = { 12, 18 },            -- сколько «блоков травы» разлетается
+		GrassColors = { Color3.fromRGB(90, 170, 70), Color3.fromRGB(70, 145, 55), Color3.fromRGB(120, 190, 80), Color3.fromRGB(105, 80, 55) },
+		ShakeNear = 0.35,                    -- тряска камеры при ударе рядом (стадов)
+		ShakeFar = 0.06,
+		ThunderSoundIds = {},                -- { "rbxassetid://…", … } — гром (задержка по расстоянию)
+		ThunderVolume = 0.8,
+	},
+
 	Events = {
 		{
 			Id = "Night",
@@ -3235,6 +3281,22 @@ Config.WeatherEvents = {
 				FogColor = Color3.fromRGB(30, 30, 50),
 				FogEnd = 900,
 			},
+			-- v20.26: НЕБО-ГРАДИЕНТ И СВЕТ (WeatherService, плавный переход).
+			-- Atmosphere даёт градиент «горизонт → зенит» (Color — дымка у
+			-- горизонта, Decay — цвет выше, Density/Offset/Haze/Glare — сила).
+			-- ColorCorrection/Bloom — свои объекты WeatherColorCorrection /
+			-- WeatherBloom в Lighting. Sky — только звёзды/луна/солнце у
+			-- текущего Sky. Clouds — если задать (Cover/Density/Color).
+			-- Свой вид из Studio: Assets/Weather/<Id>/Look (см. WeatherService).
+			Look = {
+				Atmosphere = { Density = 0.32, Offset = 0.12, Color = Color3.fromRGB(78, 88, 160), Decay = Color3.fromRGB(34, 28, 86), Glare = 0, Haze = 1.4 },
+				ColorCorrection = { TintColor = Color3.fromRGB(214, 222, 255), Saturation = -0.05, Contrast = 0.08, Brightness = 0 },
+				Bloom = { Intensity = 0.35, Size = 28, Threshold = 1.6 },
+				Sky = { StarCount = 5000, MoonAngularSize = 14, CelestialBodiesShown = true },
+			},
+			-- v20.26: ЭФФЕКТЫ ПО ВСЕЙ КАРТЕ — имена из библиотеки
+			-- Assets/WeatherFX/<Имя> (или встроенные плейсхолдеры, см. WeatherFX).
+			Effects = { "Fireflies", "StarDust" },
 			VfxKind = "Night", -- см. WeatherFX.client.lua — какие частицы/цвет использовать
 			AnnounceText = "🌙 NIGHTFALL — Celestial and Void ore are far more common while it lasts!",
 		},
@@ -3257,6 +3319,13 @@ Config.WeatherEvents = {
 				FogColor = Color3.fromRGB(120, 130, 140),
 				FogEnd = 550,
 			},
+			Look = {
+				Atmosphere = { Density = 0.42, Offset = 0.05, Color = Color3.fromRGB(172, 182, 198), Decay = Color3.fromRGB(108, 120, 140), Glare = 0, Haze = 2.2 },
+				ColorCorrection = { TintColor = Color3.fromRGB(226, 234, 246), Saturation = -0.2, Contrast = 0.03, Brightness = -0.02 },
+				Bloom = { Intensity = 0.2, Size = 24, Threshold = 2 },
+				Sky = { StarCount = 0, CelestialBodiesShown = false },
+			},
+			Effects = { "RainDrops", "RainSplashes", "Mist" },
 			VfxKind = "Rain",
 			AnnounceText = "🌧️ RAINSTORM — Soaked ore is much more common while it lasts!",
 		},
@@ -3281,6 +3350,14 @@ Config.WeatherEvents = {
 				FogColor = Color3.fromRGB(30, 30, 45),
 				FogEnd = 450,
 			},
+			Look = {
+				Atmosphere = { Density = 0.5, Offset = 0, Color = Color3.fromRGB(96, 106, 122), Decay = Color3.fromRGB(52, 58, 80), Glare = 0, Haze = 2.6 },
+				ColorCorrection = { TintColor = Color3.fromRGB(206, 222, 216), Saturation = -0.3, Contrast = 0.12, Brightness = -0.03 },
+				Bloom = { Intensity = 0.25, Size = 24, Threshold = 1.8 },
+				Sky = { StarCount = 0, CelestialBodiesShown = false },
+			},
+			Effects = { "StormRain", "RainSplashes", "Mist" },
+			Lightning = true, -- молнии (Config.WeatherEvents.Lightning)
 			VfxKind = "Thunderstorm",
 			AnnounceText = "⛈️ THUNDERSTORM — Electric and Glitched ore are surging!",
 		},
@@ -3312,6 +3389,13 @@ Config.WeatherEvents = {
 				FogColor = Color3.fromRGB(52, 15, 15),
 				FogEnd = 700,
 			},
+			Look = {
+				Atmosphere = { Density = 0.38, Offset = 0.1, Color = Color3.fromRGB(150, 48, 58), Decay = Color3.fromRGB(70, 12, 28), Glare = 0.4, Haze = 1.8 },
+				ColorCorrection = { TintColor = Color3.fromRGB(255, 218, 218), Saturation = 0.1, Contrast = 0.1, Brightness = 0 },
+				Bloom = { Intensity = 0.5, Size = 30, Threshold = 1.4 },
+				Sky = { StarCount = 1500, MoonAngularSize = 30, CelestialBodiesShown = true },
+			},
+			Effects = { "Embers", "BloodDrizzle" },
 			VfxKind = "BloodMoon",
 			AnnounceText = "🔴 BLOOD MOON RISES — Sanguine ore is everywhere tonight!",
 		},
@@ -3355,6 +3439,13 @@ Config.WeatherEvents = {
 				FogColor = Color3.fromRGB(80, 32, 5),
 				FogEnd = 300,
 			},
+			Look = {
+				Atmosphere = { Density = 0.36, Offset = 0.35, Color = Color3.fromRGB(62, 52, 44), Decay = Color3.fromRGB(205, 140, 60), Glare = 2, Haze = 1.6 },
+				ColorCorrection = { TintColor = Color3.fromRGB(255, 236, 206), Saturation = -0.15, Contrast = 0.15, Brightness = 0 },
+				Bloom = { Intensity = 0.6, Size = 32, Threshold = 1.3 },
+				Sky = { StarCount = 2500, SunAngularSize = 30, CelestialBodiesShown = true },
+			},
+			Effects = { "Ash" },
 			VfxKind = "SolarEclipse",
 			AnnounceText = "🌑 SOLAR ECLIPSE — Eclipsed ore chance is off the charts, and some ore turns Eclipsed instantly!",
 		},

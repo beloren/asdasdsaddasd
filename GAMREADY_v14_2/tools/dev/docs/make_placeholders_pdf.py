@@ -599,14 +599,47 @@ TABLE(["Имя ассета", "Класс", "Где играет / контра�
 ], [48, 34, 94], code_cols=())
 tip("Для одноразовых эффектов задавай `Lifetime` короче времени жизни эффекта, иначе частицы оборвутся. Для «выбросов» (swing, GeodeCartVFX) ставь `Rate = 0` и регулируй атрибутом `EmitCount`.")
 
-H2("10.1 Погода")
-ev = [e["Id"] for e in ordered(cfg["WeatherEvents"]["Events"])]
-dark = [e["Id"] for e in ordered(cfg["WeatherEvents"]["Events"]) if e.get("IsDark")]
-TABLE(["Имя ассета", "Класс", "Что это"], [
-    [", ".join(e + "VFX" for e in ev), "Model/Folder/Part с ParticleEmitter", "Частицы погоды. Все эмиттеры клонируются как есть (свойства не трогаются) и включаются вместе. Нет ассета — один плейсхолдер-эмиттер."],
-    [", ".join(e + "Sky" for e in ev), "Sky", "Небо на время события."],
-    ["DaySky, NightSky", "Sky", "Небо по умолчанию: без события — DaySky; тёмные события (" + ", ".join(dark) + ") без своего Sky — NightSky."],
-], [62, 36, 78], code_cols=())
+H2("10.1 Погода (v20.26)")
+evs = ordered(cfg["WeatherEvents"]["Events"])
+P("Небо — **без картинок-скайбоксов**: градиент «горизонт → зенит» даёт `Atmosphere`, плюс цветокоррекция, Bloom, звёзды/луна/солнце у `Sky`. Всё плавно меняется за %s с. SunRays погода не трогает. Эффекты (дождь, светлячки, пепел…) идут **по всей карте**, а не только перед камерой." % cfg["WeatherEvents"].get("LookTweenSeconds", 6))
+TREE("""
+ReplicatedStorage/Assets
+├─ Weather/                  СВОЙ ВИД НЕБА И СВЕТА (необяз.)
+│  ├─ Clear/Look/            ясная погода
+│  ├─ Rain/Look/             папка на погоду: Night, Rain, Thunderstorm, BloodMoon, SolarEclipse
+│  │   ├─ Atmosphere         настроенный в Studio (Density, Offset, Color, Decay, Glare, Haze)
+│  │   ├─ ColorCorrectionEffect   (TintColor, Saturation, Contrast, Brightness)
+│  │   ├─ BloomEffect        (Intensity, Size, Threshold)
+│  │   ├─ Clouds             (Cover, Density, Color) — если нужны свои облака
+│  │   └─ Sky                (StarCount, размеры луны/солнца; с картинками — свой скайбокс)
+└─ WeatherFX/                БИБЛИОТЕКА ЭФФЕКТОВ
+   └─ <Имя>/  (Folder)       атрибуты Mode = Fall | Float | Ground, Height = число
+       ├─ ParticleEmitter…   Rate = частиц/сек на ОДНУ клетку карты (64×64 стадов)
+       └─ Sound…             фоновый звук эффекта (играет по кругу)
+""")
+UL([
+    "**Какие эффекты в какую погоду** — `Config.WeatherEvents.Events[].Effects = { \"RainDrops\", \"RainSplashes\" }` и `ClearEffects` для ясной. Любой эффект можно подключить к любой погоде.",
+    "Нет папки `Weather/<Id>/Look` — вид берётся из `Config.WeatherEvents.Events[].Look` / `ClearLook` (числа и цвета прямо в конфиге).",
+    "**Mode = Fall** — эмиттер на плите высоко над землёй клетки (не ниже камеры + 30), сыплет вниз: дождь, пепел, снег. **Float** — объём от земли до Height: светлячки, искры, пыльца. **Ground** — точки на земле: брызги, туман.",
+    "Частицы живут в мире: вблизи камеры полная плотность, к краю радиуса (`Fx.Radius`) — реже, дальше выключены. Наклон дождя — от `workspace.GlobalWind` (у эмиттеров `WindAffectsDrag`).",
+    "Своя текстура капли-штриха — `Config.WeatherEvents.Fx.RainTexture`; гром — `Lightning.ThunderSoundIds`.",
+])
+TABLE(["Погода", "Эффекты (Config)", "Небо и свет (кратко)"], [
+    ["Clear", ", ".join(cfg["WeatherEvents"].get("ClearEffects") or []) or "—", "Голубой зенит, тёплая светлая дымка, звёзды ночью"],
+] + [[e["Id"], ", ".join(e.get("Effects") or []), {
+    "Night": "Глубокий синий → фиолетовая дымка, звёзды, луна",
+    "Rain": "Серо-голубое, плотная дымка, приглушённые цвета",
+    "Thunderstorm": "Графитовое небо с зеленцой, контраст; молнии",
+    "BloodMoon": "Бордовая дымка, большая луна, красноватый свет",
+    "SolarEclipse": "Сумерки днём, тёмный зенит, золотое кольцо у горизонта",
+}.get(e["Id"], "")] for e in evs], [24, 52, 100], code_cols=(0,))
+H3("Встроенные эффекты (плейсхолдеры)")
+P("`RainDrops`, `StormRain`, `BloodDrizzle` (Fall); `RainSplashes`, `Mist` (Ground); `Fireflies`, `StarDust`, `Embers`, `Ash`, `Pollen` (Float). Папка `Assets/WeatherFX/<то же имя>` заменяет встроенный целиком.")
+H3("Гроза")
+UL([
+    "Молния — ломаная неоновая линия с ветками, вспышка неба (своя `LightningFlash` цветокоррекция) и свет в точке удара; гром с задержкой по расстоянию.",
+    "Иногда (`Lightning.NearChance`) бьёт рядом с игроком: блоки травы разлетаются, падают, подпрыгивают и плавно исчезают; облако пыли, искры и лёгкая тряска камеры (`ShakeNear`).",
+])
 
 # ============================================================================
 # 11. ЗВУКИ

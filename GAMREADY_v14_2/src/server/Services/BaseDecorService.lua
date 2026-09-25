@@ -406,60 +406,68 @@ function BaseDecorService:_refreshJar(player, record, model)
 	local spot = model:FindFirstChild("OreSpot", true)
 	local center = spot and spot.Position or model:GetPivot().Position + Vector3.new(0, 1.5, 0)
 
-	local builder = stack.Smelted and PlaceholderFactory.OreIngot or PlaceholderFactory.OreCrystal
-	local ok, visual = pcall(builder, info, Config.OreVariants[stack.Variant or 1])
-	if ok and visual then
-		local ore = visual
-		if visual:IsA("BasePart") then
-			ore = Instance.new("Model")
-			visual.Parent = ore
-			ore.PrimaryPart = visual
-		end
-		ore.Name = "JarOre"
-		if stack.Mutations and stack.Mutations ~= "" then
-			local okMv, MutationVisuals = pcall(require, ReplicatedStorage.Shared.MutationVisuals)
-			if okMv then
-				local root = ore.PrimaryPart or ore:FindFirstChildWhichIsA("BasePart", true)
-				for _, id in string.split(stack.Mutations, ",") do
-					if Config.Mutations and Config.Mutations[id] then pcall(MutationVisuals.Apply, ore, id, root) end
+	-- Подпись над банкой строится ПЕРВОЙ и отдельно от модели руды: что бы
+	-- ни случилось с моделью, редкость видна всегда.
+	local rarity = (Config.OreRarityFor and Config.OreRarityFor(stack.Ore, stack.Tier)) or info.Rarity or "Common"
+	local okLabel, labelErr = pcall(function()
+		local anchor = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+		local _, modelSize = model:GetBoundingBox()
+		local title = stack.Smelted and (oreName(stack.Ore) .. " Ingot") or oreName(stack.Ore)
+		local label = addLabel(model, anchor, {
+			{ Text = string.upper(rarity), Color = PlaceableCatalog.RarityColor(rarity) },
+			{ Text = title, Color = Color3.fromRGB(235, 235, 235) },
+		}, 60, modelSize.Y + 0.4)
+		label.Name = "JarLabel"
+	end)
+	if not okLabel then warn("[BaseDecorService] подпись банки:", labelErr) end
+
+	local okOre, oreErr = pcall(function()
+		local builder = stack.Smelted and PlaceholderFactory.OreIngot or PlaceholderFactory.OreCrystal
+		local ok, visual = pcall(builder, info, Config.OreVariants[stack.Variant or 1])
+		if ok and visual then
+			local ore = visual
+			if visual:IsA("BasePart") then
+				ore = Instance.new("Model")
+				visual.Parent = ore
+				ore.PrimaryPart = visual
+			end
+			ore.Name = "JarOre"
+			if stack.Mutations and stack.Mutations ~= "" then
+				local okMv, MutationVisuals = pcall(require, ReplicatedStorage.Shared.MutationVisuals)
+				if okMv then
+					local root = ore.PrimaryPart or ore:FindFirstChildWhichIsA("BasePart", true)
+					for _, id in string.split(stack.Mutations, ",") do
+						if Config.Mutations and Config.Mutations[id] then pcall(MutationVisuals.Apply, ore, id, root) end
+					end
 				end
 			end
-		end
-		for _, d in ore:GetDescendants() do
-			if d:IsA("BasePart") then
-				d.Anchored = true
-				d.CanCollide = false
-				d.CanTouch = false
-				d.CanQuery = false
-			elseif d:IsA("BillboardGui") or d:IsA("ProximityPrompt") or d:IsA("ClickDetector") or d:IsA("Script") then
-				d:Destroy()
+			for _, d in ore:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.Anchored = true
+					d.CanCollide = false
+					d.CanTouch = false
+					d.CanQuery = false
+				elseif d:IsA("BillboardGui") or d:IsA("ProximityPrompt") or d:IsA("ClickDetector") or d:IsA("Script") then
+					d:Destroy()
+				end
 			end
+			local okBox, _, size = pcall(function() return ore:GetBoundingBox() end)
+			local biggest = okBox and math.max(size.X, size.Y, size.Z) or 1
+			if biggest > 0 then
+				pcall(function() ore:ScaleTo(ore:GetScale() * (JAR.OreSize or 1.1) / biggest) end)
+			end
+			-- Пивот — в центр габарита: клиент крутит модель вокруг него, и руда
+			-- вращается на месте, а не описывает круг внутри банки.
+			local boxCFrame = select(1, ore:GetBoundingBox())
+			ore.WorldPivot = CFrame.new(boxCFrame.Position) * ore:GetPivot().Rotation
+			ore:PivotTo(CFrame.new(center) * ore:GetPivot().Rotation)
+			ore:SetAttribute("SpinSpeed", JAR.SpinSpeed or 1.2)
+			ore:SetAttribute("BobHeight", JAR.BobHeight or 0.12)
+			ore.Parent = model
+			CollectionService:AddTag(ore, "DecorJarOre")
 		end
-		local okBox, _, size = pcall(function() return ore:GetBoundingBox() end)
-		local biggest = okBox and math.max(size.X, size.Y, size.Z) or 1
-		if biggest > 0 then
-			pcall(function() ore:ScaleTo(ore:GetScale() * (JAR.OreSize or 1.1) / biggest) end)
-		end
-		-- Пивот — в центр габарита: клиент крутит модель вокруг него, и руда
-		-- вращается на месте, а не описывает круг внутри банки.
-		local boxCFrame = select(1, ore:GetBoundingBox())
-		ore.WorldPivot = CFrame.new(boxCFrame.Position) * ore:GetPivot().Rotation
-		ore:PivotTo(CFrame.new(center) * ore:GetPivot().Rotation)
-		ore:SetAttribute("SpinSpeed", JAR.SpinSpeed or 1.2)
-		ore:SetAttribute("BobHeight", JAR.BobHeight or 0.12)
-		ore.Parent = model
-		CollectionService:AddTag(ore, "DecorJarOre")
-	end
-
-	local rarity = (Config.OreRarityFor and Config.OreRarityFor(stack.Ore, stack.Tier)) or info.Rarity or "Common"
-	local anchor = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
-	local _, modelSize = model:GetBoundingBox()
-	local title = stack.Smelted and (oreName(stack.Ore) .. " Ingot") or oreName(stack.Ore)
-	local label = addLabel(model, anchor, {
-		{ Text = string.upper(rarity), Color = PlaceableCatalog.RarityColor(rarity) },
-		{ Text = title, Color = Color3.fromRGB(235, 235, 235) },
-	}, 45, modelSize.Y + 0.6)
-	if label then label.Name = "JarLabel" end
+	end)
+	if not okOre then warn("[BaseDecorService] руда в банке:", oreErr) end
 end
 
 function BaseDecorService:UseJar(player, uid)
