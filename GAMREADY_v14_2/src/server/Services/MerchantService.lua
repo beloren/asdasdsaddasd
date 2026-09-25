@@ -177,6 +177,35 @@ local function rollOffers(rng)
 			end
 		end
 	end
+	-- v20.29: СУНДУК ЦИКЛА — верхняя выделенная карточка SHOP.
+	local featured = CFG.FeaturedChest
+	if featured and featured.Enabled and Config.Chests and Config.Chests.Types then
+		local rarities, weights = {}, {}
+		for rarity, weight in featured.Weights or {} do
+			if Config.Chests.Types[rarity] then
+				table.insert(rarities, rarity)
+				table.insert(weights, weight)
+			end
+		end
+		if #rarities > 0 then
+			local total, roll = 0, 0
+			for _, w in weights do total += w end
+			roll = rng:NextNumber() * total
+			local rarity = rarities[#rarities]
+			for index, w in weights do
+				roll -= w
+				if roll <= 0 then rarity = rarities[index] break end
+			end
+			local info = Config.Chests.Types[rarity]
+			table.insert(offers, {
+				Id = "Featured_Chest", Kind = "Chest", ChestRarity = rarity, ChestKey = "Chest_" .. rarity,
+				Tab = "Shop", Featured = true, Rarity = rarity,
+				DisplayName = info.DisplayName or (rarity .. " Chest"), Icon = "🎁",
+				PriceMinutes = (featured.PriceMinutes or {})[rarity] or 10,
+				Stock = featured.Stock or { 1, 1 },
+			})
+		end
+	end
 	local limited = CFG.Limited
 	if limited and limited.Enabled and rng:NextNumber() <= (limited.Chance or 1) then
 		local function candidates(pool, respectCooldown)
@@ -354,6 +383,9 @@ local function describe(item, player)
 		return name, icon or "🪨", image, effect
 	elseif item.Kind == "Mystery" then
 		return "???", "❓", nil, "A random surprise: potion, geode, furniture, cash… or a rare pickaxe!"
+	elseif item.Kind == "Chest" then
+		local info = Config.Chests.Types[item.ChestRarity]
+		return name, icon, image, ("Place it on your base — %d rewards inside!"):format(info and info.Rolls or 2)
 	end
 	if item.Kind == "Potion" then
 		local potion = Config.Potions and Config.Potions.Types[item.Potion]
@@ -394,8 +426,9 @@ function MerchantService:BuildState(player)
 		local isDeal = item.Id == deal
 		local sortOrder = item.Limited and -100 or (item.SortTier and (order - item.SortTier * 20) or order)
 		if isDeal then sortOrder = -90 end
+		if item.Featured then sortOrder = -400 end -- всегда самая верхняя, даже распроданная
 		-- v20.27/28: не в стоке — в конец списка (виден, но затемнён).
-		if left <= 0 then sortOrder += 500 end
+		if left <= 0 and not item.Featured then sortOrder += 500 end
 		local rarity = item.Rarity
 		if item.Kind == "Geode" then
 			local geodeType = geodeTypeFor(player, item.GeodeOffset)
@@ -421,14 +454,19 @@ function MerchantService:BuildState(player)
 			Deal = isDeal and math.floor((CFG.DailyDeal.Discount or 0.3) * 100 + 0.5) or nil,
 			OldPrice = isDeal and basePrice(player, item) or nil,
 			Wished = wishlist[item.Id] == true,
+			Featured = item.Featured == true or nil,
+			ChestRarity = item.ChestRarity,
 		})
+	end
+	for _, offer in cycleOffers do
+		if offer.Featured then add(offer) end
 	end
 	for _, offer in cycleOffers do
 		if offer.Limited then add(offer) end
 	end
 	for _, item in CFG.Items do add(item) end
 	for _, offer in cycleOffers do
-		if not offer.Limited and visibleFor(player, offer) then add(offer) end
+		if not offer.Limited and not offer.Featured and visibleFor(player, offer) then add(offer) end
 	end
 	local data = Services.DataService:GetGeodeData(player)
 	return {
@@ -467,6 +505,8 @@ local function grant(player, item)
 		return Services.SkinService:GrantSkin(player, item.SkinId) == true
 	elseif item.Kind == "Placeable" then
 		return Services.BaseDecorService and Services.BaseDecorService:GrantItem(player, item.PlaceableId, 1) == true
+	elseif item.Kind == "Chest" then
+		return Services.GearService:AddGear(player, item.ChestKey, 1) > 0
 	elseif item.Kind == "Geode" then
 		local geodeType = geodeTypeFor(player, item.GeodeOffset)
 		return geodeType ~= nil and Services.GeodeService:AddGeodeDirectly(player, geodeType) == true

@@ -334,6 +334,148 @@ local function refreshRow(itemId)
 	end
 end
 
+-- v20.29: СУНДУК ЦИКЛА — самая заметная карточка (как верхняя в магазине):
+-- подсветка цветом редкости, мерцающая рамка, лучи за 3D-сундуком,
+-- лента FEATURED и покачивающиеся монетки.
+local function decorateFeatured(frame, data)
+	local RunService = game:GetService("RunService")
+	local color = rarityColor(data.Rarity)
+	local main = frame.Main
+	local iconBox = main.IconBox
+
+	-- Подсветка цветом редкости: слой под содержимым (Main — ZIndex 3).
+	local glow = Instance.new("Frame")
+	glow.Name = "FeaturedGlow"
+	glow.BorderSizePixel = 0
+	glow.Size = UDim2.fromScale(1, 1)
+	glow.BackgroundColor3 = color
+	glow.BackgroundTransparency = 0.55
+	glow.ZIndex = 2
+	local glowGradient = Instance.new("UIGradient")
+	glowGradient.Rotation = 0
+	glowGradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(0.5, 0.6), NumberSequenceKeypoint.new(1, 0.25),
+	})
+	glowGradient.Parent = glow
+	local corner = frame:FindFirstChildOfClass("UICorner")
+	if corner then corner:Clone().Parent = glow end
+	glow.Parent = frame
+	-- Блик пробегает по карточке.
+	TweenService:Create(glowGradient, TweenInfo.new(2.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Offset = Vector2.new(0.25, 0) }):Play()
+	glowGradient.Offset = Vector2.new(-0.25, 0)
+
+	local stroke = frame:FindFirstChild("SkinStroke") or frame:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke", frame)
+	stroke.Thickness = 3
+	stroke.Color = color
+	TweenService:Create(stroke, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Color = Color3.fromRGB(255, 245, 200) }):Play()
+
+	-- Лучи за иконкой (тот же рисунок, что у верхней карточки магазина).
+	local okRays, ShopBuilder = pcall(require, ReplicatedStorage.Shared.UiBuilders.ShopUi)
+	local rays = nil
+	if okRays and ShopBuilder.BuildRays then
+		local holder = Instance.new("Frame")
+		holder.Name = "FeaturedRays"
+		holder.BackgroundTransparency = 1
+		holder.AnchorPoint = Vector2.new(0.5, 0.5)
+		holder.Position = UDim2.fromScale(0.5, 0.5)
+		holder.Size = UDim2.fromScale(1.7, 1.7)
+		holder.ZIndex = 1
+		holder.Parent = iconBox
+		local okBuild, built = pcall(ShopBuilder.BuildRays, holder, 12, color:Lerp(Color3.new(1, 1, 1), 0.3), 0.45)
+		if okBuild then rays = built end
+	end
+
+	-- 3D-сундук выпавшей редкости вместо эмодзи, медленно крутится.
+	local viewport = Instance.new("ViewportFrame")
+	viewport.Name = "ChestView"
+	viewport.BackgroundTransparency = 1
+	viewport.Size = UDim2.fromScale(1, 1)
+	viewport.ZIndex = 4
+	viewport.Parent = iconBox
+	local model = nil
+	pcall(function()
+		model = require(ReplicatedStorage.Shared.PlaceableFactory).BuildChest(data.ChestRarity)
+	end)
+	if model then
+		iconBox.Emoji.Text = ""
+		local world = Instance.new("WorldModel")
+		world.Parent = viewport
+		model.Parent = world
+		local cf, size = model:GetBoundingBox()
+		local camera = Instance.new("Camera")
+		camera.FieldOfView = 40
+		local distance = size.Magnitude / 2 / math.tan(math.rad(20)) * 1.05
+		camera.CFrame = CFrame.lookAt(cf.Position + Vector3.new(0, distance * 0.35, distance), cf.Position)
+		camera.Parent = viewport
+		viewport.CurrentCamera = camera
+		viewport.LightColor = Color3.new(1, 1, 1)
+		viewport.Ambient = Color3.fromRGB(180, 180, 190)
+		local base = model:GetPivot()
+		local offset = base.Position - cf.Position
+		local angle = 0
+		local connection
+		connection = RunService.RenderStepped:Connect(function(dt)
+			if not frame.Parent then connection:Disconnect() return end
+			if not gui.Enabled then return end
+			angle += dt * 0.8
+			model:PivotTo(CFrame.new(cf.Position) * CFrame.Angles(0, angle, 0) * CFrame.new(offset) * base.Rotation)
+			if rays then rays.Rotation = (angle * 20) % 360 end
+		end)
+	end
+
+	-- Лента FEATURED над иконкой.
+	local ribbon = Instance.new("TextLabel")
+	ribbon.Name = "FeaturedBadge"
+	ribbon.AnchorPoint = Vector2.new(0.5, 0)
+	ribbon.Position = UDim2.new(0.5, 0, 0, -8)
+	ribbon.Size = UDim2.new(1, 16, 0, 24)
+	ribbon.BackgroundColor3 = Color3.fromRGB(255, 190, 40)
+	UiKit.StyleText(ribbon, "Heading")
+	ribbon.TextScaled = true
+	ribbon.TextColor3 = Color3.new(1, 1, 1)
+	ribbon.Text = tr("FEATURED")
+	ribbon.ZIndex = 9
+	Instance.new("UICorner", ribbon).CornerRadius = UDim.new(0, 6)
+	ribbon.Parent = iconBox
+
+	local name = main:FindFirstChild("Name")
+	if name then name.TextColor3 = color:Lerp(Color3.new(1, 1, 1), 0.25) end
+
+	-- Монетки вокруг карточки: мягко покачиваются.
+	local spots = { { 0.42, 0.18 }, { 0.58, 0.72 }, { 0.72, 0.2 }, { 0.36, 0.78 }, { 0.8, 0.62 }, { 0.5, 0.12 } }
+	for index, spot in spots do
+		local coin = Instance.new("Frame")
+		coin.Name = "FeaturedCoin" .. index
+		coin.AnchorPoint = Vector2.new(0.5, 0.5)
+		coin.Position = UDim2.fromScale(spot[1], spot[2])
+		local size = 14 + (index % 3) * 4
+		coin.Size = UDim2.fromOffset(size, size)
+		coin.BackgroundColor3 = Color3.fromRGB(255, 205, 60)
+		coin.BackgroundTransparency = 0.1
+		coin.Rotation = index * 23
+		coin.ZIndex = 2
+		Instance.new("UICorner", coin).CornerRadius = UDim.new(1, 0)
+		local coinStroke = Instance.new("UIStroke")
+		coinStroke.Color = Color3.fromRGB(190, 120, 20)
+		coinStroke.Thickness = 1.5
+		coinStroke.Parent = coin
+		local sign = Instance.new("TextLabel")
+		sign.BackgroundTransparency = 1
+		sign.Size = UDim2.fromScale(1, 1)
+		sign.Text = "$"
+		sign.TextScaled = true
+		sign.TextColor3 = Color3.fromRGB(150, 90, 10)
+		sign.FontFace = UiKit.Theme.Fonts.Number
+		sign.ZIndex = 2
+		sign.Parent = coin
+		coin.Parent = main
+		TweenService:Create(coin, TweenInfo.new(1.2 + index * 0.17, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+			Position = UDim2.fromScale(spot[1], spot[2] - 0.08),
+			Rotation = coin.Rotation + 25,
+		}):Play()
+	end
+end
+
 local function buildRow(data)
 	local frame = template:Clone()
 	frame.Name = data.Id
@@ -389,6 +531,10 @@ local function buildRow(data)
 			glow.Color = Color3.fromRGB(255, 70, 100)
 			TweenService:Create(glow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Color = Color3.fromRGB(255, 200, 80) }):Play()
 		end
+	end
+	if data.Featured then
+		local ok, err = pcall(decorateFeatured, frame, data)
+		if not ok then warn("[MerchantUI] featured:", err) end
 	end
 	frame.Parent = list
 
@@ -454,6 +600,12 @@ renderList = function()
 	for _, data in state.Items or {} do
 		if visible[data.Id] then
 			count += 1
+			-- Сундук цикла сменил редкость — карточку собираем заново.
+			local existing = rows[data.Id]
+			if existing and data.Featured and existing.Data and existing.Data.ChestRarity ~= data.ChestRarity then
+				existing.Frame:Destroy()
+				rows[data.Id] = nil
+			end
 			local row = rows[data.Id] or buildRow(data)
 			row.Data = data
 			row.Frame.LayoutOrder = (tonumber(data.Order) or count) + 1000
