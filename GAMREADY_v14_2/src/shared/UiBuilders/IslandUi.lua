@@ -26,7 +26,7 @@ local UiKit = require(script.Parent.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 21
+Builder.VERSION = 22
 Builder.PANEL_SIZE = Vector2.new(640, 470)
 Builder.CARD_W = 140
 Builder.CARD_H = 212
@@ -102,20 +102,26 @@ end
 function Builder.BuildLabel()
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "IslandLabel"
-	billboard.Size = UDim2.fromOffset(360, 92)
+	-- v20.17: «табличка» в мире — размер в стадах (Scale) + TextScaled, как
+	-- у подписей тотемов/трофеев: держит размер относительно острова, а не
+	-- экрана. Вплотную не раздувается (DistanceLowerLimit), издалека не
+	-- исчезает — дальше DistanceUpperLimit перестаёт уменьшаться.
+	billboard.Size = UDim2.fromScale(20, 5)
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
 	billboard.MaxDistance = 1500
+	billboard.DistanceLowerLimit = 25
+	billboard.DistanceUpperLimit = 220
 	UiKit.Text(billboard, "Title", "ISLAND", {
-		_Style = "Title",
-		_Stroke = 3,
-		Size = UDim2.fromScale(1, 0.55),
+		_Style = "Number",
+		_Stroke = 2.5,
+		Size = UDim2.fromScale(1, 0.6),
 	})
 	UiKit.Text(billboard, "Tagline", "", {
 		_Style = "Heading",
-		_Stroke = 2,
-		Position = UDim2.fromScale(0, 0.58),
-		Size = UDim2.fromScale(1, 0.4),
+		_Stroke = 1.8,
+		Position = UDim2.fromScale(0, 0.62),
+		Size = UDim2.fromScale(1, 0.36),
 		TextColor3 = Theme.Colors.SubText,
 	})
 	return billboard

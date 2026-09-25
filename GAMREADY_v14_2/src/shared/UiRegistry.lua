@@ -56,7 +56,7 @@ UiRegistry.Entries = {
 	{ Name = "MarketTicker", Module = "MerchantUiBuilder", Fn = "BuildMarketTicker", MinVersion = 20, What = "табло курса руды" },
 	{ Name = "GeodeUi", Module = "GeodeUiBuilder", MinVersion = 23, What = "жеоды" },
 	{ Name = "DropPreviewUi", Module = "UiBuilders.DropPreviewUi", MinVersion = 21, What = "окно шансов" },
-	{ Name = "IslandUi", Module = "UiBuilders.IslandUi", MinVersion = 21, What = "острова и путешествия" },
+	{ Name = "IslandUi", Module = "UiBuilders.IslandUi", MinVersion = 22, What = "острова и путешествия" },
 	{ Name = "GearUi", Module = "GearUiBuilder", MinVersion = 21, What = "снаряжение, лут сундуков" },
 	{ Name = "OfferUi", Module = "OfferUiBuilder", MinVersion = 20, What = "предложения" },
 	{ Name = "GroupRewardUi", Module = "SocialRewardCard", Fn = "BuildGroup", MinVersion = 20, What = "награда за группу" },

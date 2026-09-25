@@ -1635,28 +1635,32 @@ function PlaceholderFactory.BankMerchant()
 	-- Табло курса/таймера — общее и для своей модели, и для плейсхолдера.
 	local head = model:FindFirstChild("Head", true) or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
 	if head and not model:FindFirstChild("MerchantBoard", true) then
+		-- v20.17: курс руды «ORE x1.00» теперь только здесь, над торговцем у
+		-- банка (плашка сверху экрана убрана). Табличка в мире: размер в
+		-- стадах + TextScaled, шрифт денег (как подписи тотемов/трофеев).
 		local board = Instance.new("BillboardGui")
 		board.Name = "MerchantBoard"
-		board.Size = UDim2.fromOffset(260, 110)
-		board.StudsOffset = Vector3.new(0, 4.2, 0)
-		board.MaxDistance = 140
+		board.Size = UDim2.fromScale(7, 2.4)
+		board.StudsOffset = Vector3.new(0, 4.6, 0)
+		board.AlwaysOnTop = true
+		board.MaxDistance = 90
+		board.DistanceLowerLimit = 8
 		board.LightInfluence = 0
 		board.Parent = head
-		local function line(name, y, height, textSize, color)
-			local label = WorldUi.Text(nil, "Text", "Heading")
+		local function line(name, y, height, style, color)
+			local label = WorldUi.Text(nil, "Text", style)
 			label.Name = name
 			label.BackgroundTransparency = 1
-			label.Size = UDim2.new(1, 0, 0, height)
-			label.Position = UDim2.fromOffset(0, y)
-			label.TextSize = textSize
+			label.Size = UDim2.fromScale(1, height)
+			label.Position = UDim2.fromScale(0, y)
+			label.TextScaled = true
 			label.TextColor3 = color
 			label.Text = ""
 			label.Parent = board
 			return label
 		end
-		line("Title", 0, 34, 30, Color3.fromRGB(255, 220, 120)).Text = (Config.Merchant and Config.Merchant.DisplayName or "Ore Merchant"):upper()
-		line("Market", 34, 40, 36, Color3.fromRGB(120, 255, 120))
-		line("Timer", 76, 30, 22, Color3.fromRGB(235, 235, 235))
+		line("Market", 0, 0.6, "Label", Color3.fromRGB(120, 255, 120))
+		line("Timer", 0.62, 0.36, "LabelSub", Color3.fromRGB(235, 235, 235))
 	end
 	return model
 end

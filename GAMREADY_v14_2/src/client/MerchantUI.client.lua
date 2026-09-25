@@ -71,6 +71,9 @@ local template = list.ItemTemplate
 local openScale = window:FindFirstChild("OpenScale")
 
 local tickerPill = tickerGui.Pill
+-- v20.17: плашка курса сверху экрана выключена — курс виден над торговцем
+-- у банка (MerchantBoard). Включить обратно: Config.Merchant.ShowTicker = true.
+tickerGui.Enabled = Config.Merchant.ShowTicker == true
 
 --------------------------------------------------------------------------------
 -- ОБЩЕЕ
