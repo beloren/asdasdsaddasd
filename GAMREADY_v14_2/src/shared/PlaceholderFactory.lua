@@ -1515,20 +1515,56 @@ function PlaceholderFactory.Bank()
 	roof.CFrame = building.CFrame * CFrame.new(0, 8.5, 0)
 	roof.Parent = model
 
+	-- v20.19: ОТДЕЛЬНАЯ квадратная зона продажи перед банком — чтобы к
+	-- торговцу можно было подойти, не продавая руду. Торговец — справа от
+	-- зоны, за её краем (MerchantSpot). Свою модель банка оформляй так же:
+	-- SellZone (квадрат) + MerchantSpot сбоку.
+	local ZONE = 18
+	local zoneCFrame = building.CFrame * CFrame.new(0, -7.7, 6 + ZONE / 2 + 2)
 	local zone = newPart({
 		Name = "SellZone",
-		Size = Vector3.new(36, 0.6, 36),
+		Size = Vector3.new(ZONE, 0.6, ZONE),
 		Color = Color3.fromRGB(255, 200, 60),
 		Material = Enum.Material.Neon,
 		Transparency = 0.6,
 		CanCollide = false,
 	})
-	zone.CFrame = building.CFrame * CFrame.new(0, -7.7, 0)
+	zone.CFrame = zoneCFrame
 	zone.Parent = model
+	-- Рамка зоны (декор).
+	for i, spec in {
+		{ Vector3.new(ZONE + 1, 0.8, 0.8), Vector3.new(0, 0.1, ZONE / 2) },
+		{ Vector3.new(ZONE + 1, 0.8, 0.8), Vector3.new(0, 0.1, -ZONE / 2) },
+		{ Vector3.new(0.8, 0.8, ZONE + 1), Vector3.new(ZONE / 2, 0.1, 0) },
+		{ Vector3.new(0.8, 0.8, ZONE + 1), Vector3.new(-ZONE / 2, 0.1, 0) },
+	} do
+		local edge = newPart({
+			Name = "SellZoneEdge" .. i,
+			Size = spec[1],
+			Color = Color3.fromRGB(255, 170, 30),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CanQuery = false,
+		})
+		edge.CFrame = zoneCFrame * CFrame.new(spec[2])
+		edge.Parent = model
+	end
+	local sign = Instance.new("SurfaceGui")
+	sign.Name = "SellSign"
+	sign.Face = Enum.NormalId.Top
+	sign.LightInfluence = 0
+	sign.PixelsPerStud = 20
+	sign.Parent = zone
+	local signText = WorldUi.Text(nil, "Text", "Label")
+	signText.Size = UDim2.fromScale(1, 0.3)
+	signText.Position = UDim2.fromScale(0, 0.35)
+	signText.BackgroundTransparency = 1
+	signText.TextScaled = true
+	signText.Text = "SELL ORE"
+	signText.TextColor3 = Color3.fromRGB(255, 240, 200)
+	signText.Parent = sign
 
-	-- Где стоит торговец (см. MerchantService) — на земле, внутри зоны
-	-- продажи, с отступом от стены: лавка глубиной ~5 студ, и она не
-	-- должна утыкаться в здание.
+	-- Торговец — справа от зоны продажи, за её краем (лавка ~8 студ шириной).
 	local merchantSpot = newPart({
 		Name = "MerchantSpot",
 		Size = Vector3.new(1, 1, 1),
@@ -1537,7 +1573,7 @@ function PlaceholderFactory.Bank()
 		CanQuery = false,
 		CanTouch = false,
 	})
-	merchantSpot.CFrame = building.CFrame * CFrame.new(13, -8, 0)
+	merchantSpot.CFrame = zoneCFrame * CFrame.new(ZONE / 2 + 6, -0.3, 0)
 	merchantSpot.Parent = model
 
 	return model
@@ -1640,8 +1676,9 @@ function PlaceholderFactory.BankMerchant()
 		-- стадах + TextScaled, шрифт денег (как подписи тотемов/трофеев).
 		local board = Instance.new("BillboardGui")
 		board.Name = "MerchantBoard"
-		board.Size = UDim2.fromScale(7, 2.4)
-		board.StudsOffset = Vector3.new(0, 4.6, 0)
+		-- v20.19: вдвое крупнее и цветное — название, курс, таймер.
+		board.Size = UDim2.fromScale(14, 5.2)
+		board.StudsOffset = Vector3.new(0, 6.2, 0)
 		board.AlwaysOnTop = true
 		board.MaxDistance = 90
 		board.DistanceLowerLimit = 8
@@ -1659,8 +1696,10 @@ function PlaceholderFactory.BankMerchant()
 			label.Parent = board
 			return label
 		end
-		line("Market", 0, 0.6, "Label", Color3.fromRGB(120, 255, 120))
-		line("Timer", 0.62, 0.36, "LabelSub", Color3.fromRGB(235, 235, 235))
+		local title = line("Title", 0, 0.3, "Label", Color3.fromRGB(255, 200, 70))
+		title.Text = (Config.Merchant and Config.Merchant.DisplayName or "Ore Merchant"):upper()
+		line("Market", 0.31, 0.42, "Label", Color3.fromRGB(120, 255, 120)).RichText = true
+		line("Timer", 0.75, 0.25, "LabelSub", Color3.fromRGB(140, 215, 255)).RichText = true
 	end
 	return model
 end

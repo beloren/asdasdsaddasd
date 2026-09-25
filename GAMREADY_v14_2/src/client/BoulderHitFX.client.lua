@@ -367,8 +367,12 @@ task.spawn(function()
 		local now = os.clock()
 		for model, record in plates do
 			if record then
-				local alive = (tonumber(model:GetAttribute("Health")) or 0) > 0
-				local near = hrp and record.Root.Parent and (record.Root.Position - hrp.Position).Magnitude <= (CFG.ShowDistance or 24)
+				local health = tonumber(model:GetAttribute("Health")) or 0
+				local alive = health > 0
+				-- v20.19: плашка ХП — только после первого удара по валуну (целый
+				-- валун рядом с игроком её не показывает).
+				local damaged = health < (tonumber(model:GetAttribute("MaxHealth")) or health)
+				local near = damaged and hrp and record.Root.Parent and (record.Root.Position - hrp.Position).Magnitude <= (CFG.ShowDistance or 24)
 				setVisible(record, alive and (near or now < record.ShownUntil) or false)
 			end
 		end

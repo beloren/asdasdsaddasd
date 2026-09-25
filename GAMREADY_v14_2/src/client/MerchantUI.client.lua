@@ -62,6 +62,9 @@ local UiRegistry = require(ReplicatedStorage.Shared.UiRegistry)
 local UiKit = require(ReplicatedStorage.Shared.UiKit)
 local gui = UiRegistry.Get("MerchantUi") or getGui("MerchantUi", MerchantUiBuilder.Build)
 local tickerGui = UiRegistry.Get("MarketTicker") or getGui("MarketTicker", MerchantUiBuilder.BuildMarketTicker)
+-- v20.19: плашка курса сверху экрана выключена СРАЗУ (раньше строка стояла
+-- ниже и не срабатывала, если что-то выше падало). Курс — над торговцем.
+tickerGui.Enabled = CFG.ShowTicker == true
 
 local window = gui.Window
 local header = window.Header
@@ -71,9 +74,7 @@ local template = list.ItemTemplate
 local openScale = window:FindFirstChild("OpenScale")
 
 local tickerPill = tickerGui.Pill
--- v20.17: плашка курса сверху экрана выключена — курс виден над торговцем
--- у банка (MerchantBoard). Включить обратно: Config.Merchant.ShowTicker = true.
-tickerGui.Enabled = Config.Merchant.ShowTicker == true
+-- Включить плашку курса обратно: Config.Merchant.ShowTicker = true.
 
 --------------------------------------------------------------------------------
 -- ОБЩЕЕ
@@ -458,7 +459,9 @@ local function paintMarket()
 	local model = merchantModel()
 	local board = model and model:FindFirstChild("MerchantBoard", true)
 	if board then
-		board.Market.Text = tr("ORE PRICE") .. " " .. valueText
+		-- v20.19: «ORE PRICE» золотым, курс — цветом корзины (рост/падение).
+		board.Market.RichText = true
+		board.Market.Text = ('<font color="#FFD24A">%s</font> %s'):format(tr("ORE PRICE"), valueText)
 		board.Market.TextColor3 = bucket.Color
 	end
 
@@ -492,7 +495,8 @@ task.spawn(function()
 		local model = merchantModel()
 		local board = model and model:FindFirstChild("MerchantBoard", true)
 		if board then
-			board.Timer.Text = tr("New stock in {time}", { time = formatShort(seconds) })
+			board.Timer.RichText = true
+			board.Timer.Text = ('%s <font color="#FFFFFF">%s</font>'):format(tr("New stock in"), formatShort(seconds))
 		end
 		-- Отошёл от лавки — окно закрывается само.
 		if gui.Enabled and model then

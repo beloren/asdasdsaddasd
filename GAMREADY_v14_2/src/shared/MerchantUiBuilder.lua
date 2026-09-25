@@ -14,6 +14,7 @@
 --   MarketTicker (отдельный ScreenGui) / Pill/{Value, Timer, Pop}
 --------------------------------------------------------------------------------
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(script.Parent.Config)
 local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
@@ -273,7 +274,8 @@ end
 -- ТАБЛО БИРЖИ (HUD): курс и время до смены — видно всегда, не только у банка.
 --------------------------------------------------------------------------------
 function MerchantUiBuilder.BuildMarketTicker()
-	local gui = UiKit.Screen("MarketTicker", { DisplayOrder = 4, IgnoreGuiInset = false })
+	-- v20.19: по умолчанию выключена (курс — над торговцем, Config.Merchant.ShowTicker).
+	local gui = UiKit.Screen("MarketTicker", { DisplayOrder = 4, IgnoreGuiInset = false, Enabled = Config.Merchant and Config.Merchant.ShowTicker == true })
 	local pill = UiKit.PlateButton(gui, "Pill", "Pill", {
 		_Accent = ACCENT,
 		AnchorPoint = Vector2.new(0.5, 0),

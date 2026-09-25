@@ -352,7 +352,7 @@ UL([
 ])
 H2("4.2 Прочие постройки мира")
 TABLE(["Имя", "Класс", "Обяз.", "Что внутри / контракт"], [
-    ["Bank", "Model", "нет", "`Building` (BasePart, не Model!) и `SellZone` (BasePart). Или своя модель прямо в Workspace с атрибутом `IsBank = true`."],
+    ["Bank", "Model", "нет", "`Building` (BasePart, не Model!), `SellZone` (BasePart — отдельная квадратная зона продажи, ~18×18) и `MerchantSpot` (невидимый BasePart справа от зоны, за её краем — там встаёт торговец, к нему можно подойти не продавая). Или своя модель прямо в Workspace с атрибутом `IsBank = true`."],
     ["LeaderboardBoards", "Model + PrimaryPart", "нет", "Рекурсивные BasePart `MoneyBoard`, `RebirthBoard`, `CartDamageBoard`. SurfaceGui код создаёт сам (см. LEADERBOARDS_GUIDE.md)."],
     ["RespawnButton", "BasePart / Model", "нет", "Корень (`PrimaryPart`/`Root`) получает ProximityPrompt, таймер и анимацию нажатия."],
     ["GeodeBuilding", "Model", "нет", "`PrimaryPart`/`Root` + рекурсивный BasePart `Crusher` (на нём промпт)."],

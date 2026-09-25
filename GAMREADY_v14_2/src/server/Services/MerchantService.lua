@@ -526,8 +526,10 @@ function MerchantService:_spawnNpc()
 	end
 	local bankModel = zone:FindFirstAncestorWhichIsA("Model")
 	removeSlimeLeftovers(bankModel)
+	-- v20.19: без маркера MerchantSpot — справа ЗА краем зоны продажи, а не
+	-- внутри неё (к торговцу можно подойти, не продавая руду).
 	local spot = findSpot(bankModel)
-		or (zone.CFrame * CFrame.new(zone.Size.X * 0.3, zone.Size.Y / 2, 0)).Position
+		or (zone.CFrame * CFrame.new(zone.Size.X / 2 + 6, zone.Size.Y / 2, 0)).Position
 	local model = PlaceholderFactory.BankMerchant()
 	model.Name = "BankMerchant"
 	model:SetAttribute("BankMerchant", true)

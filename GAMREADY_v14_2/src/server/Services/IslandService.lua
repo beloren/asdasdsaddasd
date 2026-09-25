@@ -564,27 +564,30 @@ local function setFurnaceActive(smelter, active)
 end
 
 local function buildSmelterBoard(anchor)
+	-- v20.19: табличка в мире, как над тотемами/трофеями — размер в стадах
+	-- (7 × 1.85) + TextScaled, шрифт денег; вплотную не раздувается.
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "SmelterBoard"
-	gui.Size = UDim2.fromOffset(320, 84)
+	gui.Size = UDim2.fromScale(7, 1.85)
 	gui.StudsOffset = Vector3.new(0, 7.5, 0)
 	gui.AlwaysOnTop = true
 	gui.MaxDistance = 55
+	gui.DistanceLowerLimit = 8
 	gui.LightInfluence = 0
 	gui.Adornee = anchor
 	gui.Parent = anchor
-	local title = WorldUi.Text(nil, "Text", "Heading")
+	local title = WorldUi.Text(nil, "Text", "Label")
 	title.Name = "Title"
-	title.Size = UDim2.new(1, 0, 0.55, 0)
+	title.Size = UDim2.fromScale(1, 0.6)
 	title.BackgroundTransparency = 1
 	title.TextScaled = true
 	title.TextColor3 = Color3.new(1, 1, 1)
 	title.Text = "SMELTER"
 	title.Parent = gui
-	local sub = WorldUi.Text(nil, "Text", "Body")
+	local sub = WorldUi.Text(nil, "Text", "LabelSub")
 	sub.Name = "Sub"
-	sub.Position = UDim2.fromScale(0, 0.58)
-	sub.Size = UDim2.new(1, 0, 0.4, 0)
+	sub.Position = UDim2.fromScale(0, 0.6)
+	sub.Size = UDim2.fromScale(1, 0.4)
 	sub.BackgroundTransparency = 1
 	sub.TextScaled = true
 	sub.RichText = true
