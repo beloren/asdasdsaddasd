@@ -182,16 +182,18 @@ Theme.Skins = {
 -- с прозрачным фоном; красятся в цвет редкости/товара (ImageColor3).
 --   Rays     — основные полоски, почти везде;
 --   RaysSoft — те же, но мягче (для разнообразия: обычные вещи);
---   Rarest   — для самых редких (Legendary+), в «???» — случайный цвет.
+--   Epic2    — вторые по редкости (Legendary);
+--   Rarest   — самые редкие (Mythic/Secret), в «???» — случайный цвет.
 Theme.Backdrops = {
 	Rays = 10637682258,
 	RaysSoft = 15600777303,
-	Rarest = 11364097059,
+	Epic2 = 15513493035,
+	Rarest = 17230437889,
 }
 -- Какой фон у какой редкости/типа товара.
 Theme.RarityBackdrop = {
 	Common = "RaysSoft", Uncommon = "RaysSoft", Rare = "Rays", Epic = "Rays",
-	Legendary = "Rarest", Mythic = "Rarest", Secret = "Rarest", Mystery = "Rarest",
+	Legendary = "Epic2", Mythic = "Rarest", Secret = "Rarest", Mystery = "Rarest",
 	Money = "Rays",    -- деньги / «лучшая цена» в магазине
 	Product = "Rays",  -- геймпассы и прочие товары магазина
 }
