@@ -529,9 +529,12 @@ local function buildRow(data)
 	elseif data.Limited or data.Kind == "Mystery" then
 		-- v20.30: особые товары — вращающийся фон за иконкой (лимитка — по
 		-- редкости, «???» — спираль).
+		-- «???» — случайный цвет полосок (каждый раз другой).
+		local backdropColor = data.Kind == "Mystery" and Color3.fromHSV(math.random(), 0.55, 1)
+			or rarityColor(data.Rarity):Lerp(Color3.new(1, 1, 1), 0.3)
 		local backdrop = UiKit.Backdrop(main.IconBox, "SpecialRays", data.Kind == "Mystery" and "Mystery" or data.Rarity, {
 			Size = UDim2.fromScale(1.6, 1.6),
-			Color = rarityColor(data.Rarity):Lerp(Color3.new(1, 1, 1), 0.3),
+			Color = backdropColor,
 			Transparency = 0.15,
 			ZIndex = 1,
 		})

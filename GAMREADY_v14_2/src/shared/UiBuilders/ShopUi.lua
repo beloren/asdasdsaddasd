@@ -79,7 +79,7 @@ function Builder.BuildCard()
 		ZIndex = 2,
 	})
 	UiKit.Corner(holder, 999)
-	Builder.BuildRays(holder, 6, Color3.new(1, 1, 1), 0.35, "Product")
+	Builder.BuildRays(holder, 6, Color3.new(1, 1, 1), 0.3, "Product")
 	UiKit.Plate(holder, "IconGlow", "Glow", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),

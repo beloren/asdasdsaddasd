@@ -5648,6 +5648,16 @@ local function setupShopUi()
 			for _, d in foreverSection:GetDescendants() do
 				if d.Name == "Rays" and d ~= bigRays then table.insert(chainRays, d) end
 			end
+			-- v20.31: полоски за ВСЕМИ товарами магазина (геймпассы и т.д.)
+			-- тоже крутятся; карточки клонируются позже — ловим по добавлению.
+			local cardRays = {}
+			local function trackRays(d)
+				if d.Name == "Rays" and d:IsA("GuiObject") and d ~= bigRays and not d:IsDescendantOf(foreverSection) then
+					cardRays[d] = true
+				end
+			end
+			for _, d in shopPanel:GetDescendants() do trackRays(d) end
+			shopPanel.DescendantAdded:Connect(trackRays)
 			RunService.RenderStepped:Connect(function()
 				if not shopPanel.Visible then return end
 				local t = os.clock()
@@ -5655,6 +5665,9 @@ local function setupShopUi()
 				if bigPulse then bigPulse.Scale = 1 + math.sin(t * 3) * 0.06 end
 				if bigGlow then bigGlow.BackgroundTransparency = 0.55 + math.sin(t * 3) * 0.12 end
 				for _, rays in chainRays do rays.Rotation = (t * 12) % 360 end
+				for rays in cardRays do
+					if rays.Parent then rays.Rotation = (t * 15) % 360 else cardRays[rays] = nil end
+				end
 			end)
 			task.spawn(function()
 				while true do
