@@ -1420,6 +1420,8 @@ function CombatService:_ragdoll(attacker, victimPlayer, victimHrp, attackerHrp, 
 	state.ImmuneUntil = now + cfg.RagdollSeconds + cfg.ImmunitySeconds
 	setStagger(victimPlayer, 0)
 
+	-- v20.46: когда встанет (таймер над головой, StaggerFX).
+	victimPlayer:SetAttribute("RagdollUntil", workspace:GetServerTimeNow() + (cfg.RagdollSeconds))
 	victimPlayer:SetAttribute("Ragdolled", true)
 	victimPlayer:SetAttribute("StaggerImmune", true)
 	local record = nil
@@ -2016,6 +2018,8 @@ function CombatService:BlastKnock(victimPlayer, center, attacker, options)
 	state.Token += 1
 	local token = state.Token
 	state.ImmuneUntil = os.clock() + cfg.RagdollSeconds + 1.5
+	-- v20.46: когда встанет (таймер над головой, StaggerFX).
+	victimPlayer:SetAttribute("RagdollUntil", workspace:GetServerTimeNow() + (cfg.RagdollSeconds))
 	victimPlayer:SetAttribute("Ragdolled", true)
 	local record = nil
 	local ok, result = pcall(enableRagdoll, character)
@@ -2070,6 +2074,8 @@ function CombatService:GoblinKick(victimPlayer, fromPosition)
 	local after = cfg.RagdollAfterLanding or 1.2
 	state.ImmuneUntil = os.clock() + flight + after + 2
 	victimPlayer:SetAttribute("GoblinKicked", true)
+	-- v20.46: когда встанет (таймер над головой, StaggerFX).
+	victimPlayer:SetAttribute("RagdollUntil", workspace:GetServerTimeNow() + (flight + after))
 	victimPlayer:SetAttribute("Ragdolled", true)
 	victimPlayer:SetAttribute("StaggerImmune", true)
 	local ok, record = pcall(enableRagdoll, character)

@@ -88,6 +88,25 @@ local function fillCard(card, entry)
 	end
 	local rarityStroke = card:FindFirstChild("RarityStroke") or card:FindFirstChild("SkinStroke")
 	if rarityStroke then rarityStroke.Color = rarityColor(entry.Rarity) end
+	-- v20.46: редкие скины (Epic и выше) — крутящиеся полоски за картинкой.
+	if image then
+		UiKit.RareRays(card, entry.Rarity, {
+			Color = rarityColor(entry.Rarity),
+			Size = UDim2.new(image.Size.X.Scale * 1.35, image.Size.X.Offset * 1.35, image.Size.Y.Scale * 1.35, image.Size.Y.Offset * 1.35),
+			ZIndex = math.max(1, image.ZIndex - 1),
+			Transparency = entry.DisplayName == "???" and 0.6 or 0.25,
+		})
+		local rays = card:FindFirstChild("RareRays")
+		if rays then
+			rays.AnchorPoint = image.AnchorPoint
+			rays.Position = image.Position
+			-- Полоски строго ПОД картинкой скина.
+			if image.ZIndex <= rays.ZIndex then
+				rays.ZIndex = image.ZIndex
+				image.ZIndex = rays.ZIndex + 1
+			end
+		end
+	end
 end
 
 local function renderDetail()

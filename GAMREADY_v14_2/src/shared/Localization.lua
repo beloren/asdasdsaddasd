@@ -349,7 +349,7 @@ local uiV20Translations = {
 		["Playtime Rewards!"] = "Награды за игру!", ["RARE DROP!"] = "РЕДКИЙ ДРОП!", ["REWARD"] = "НАГРАДА", ["SHIELD"] = "ЩИТ", ["SKIP >"] = "ПРОПУСТИТЬ >",
 		["STARTER KIT"] = "СТАРТОВЫЙ НАБОР", ["Starter Kit"] = "Стартовый набор", ["Search"] = "Поиск", ["Skins"] = "Скины", ["Upgrades"] = "Улучшения",
 		["TAP TO CONTINUE"] = "НАЖМИ, ЧТОБЫ ПРОДОЛЖИТЬ", ["TAP!"] = "ЖМИ!", ["THANK YOU! ❤"] = "СПАСИБО! ❤", ["Welcome Back!"] = "С возвращением!",
-		["What you get"] = "Что ты получишь", ["What you need"] = "Что нужно", ["You need"] = "Нужно", ["KICKED OUT!"] = "ВЫПНУЛИ!", ["The goblins sent you home"] = "Гоблины отправили тебя домой", ["You were gone"] = "Тебя не было",
+		["What you get"] = "Что ты получишь", ["What you need"] = "Что нужно", ["You need"] = "Нужно", ["KICKED OUT!"] = "ВЫПНУЛИ!", ["GETTING UP"] = "ВСТАЁШЬ", ["The goblins sent you home"] = "Гоблины отправили тебя домой", ["You were gone"] = "Тебя не было",
 		["Your cart is loaded - deliver it to the bank"] = "Тележка загружена - отвези её в банк", ["Your like helps us make updates!"] = "Твой лайк помогает нам делать обновления!",
 		["< BACK"] = "< НАЗАД", ["⛏ CRACK"] = "⛏ РАСКОЛОТЬ", ["✅ EQUIPPED"] = "✅ НАДЕТО", ["⭐ FAVORITE & CLAIM"] = "⭐ В ИЗБРАННОЕ И ЗАБРАТЬ",
 		["⭐ Prestige"] = "⭐ Престиж", ["⭐ Prestige Perks"] = "⭐ Перки престижа", ["🎁 FREE REWARD"] = "🎁 БЕСПЛАТНАЯ НАГРАДА", ["🏦 Bank Vault"] = "🏦 Хранилище банка",

@@ -250,7 +250,9 @@ secondaryButton.Name = "Secondary"
 secondaryButton.AutoButtonColor = false
 secondaryButton.AnchorPoint = Vector2.new(0, 0)
 secondaryButton.Position = UDim2.new(0, CIRCLE + 8, 0.5, 14)
-secondaryButton.Size = UDim2.new(1, -(CIRCLE + 8), 0, 22)
+-- v20.46: ширина по тексту (AutomaticSize X от подписи + отступы), а не
+-- на всю ширину промпта — подложка «[R] Pick Up» была вдвое длиннее текста.
+secondaryButton.Size = UDim2.new(0, 0, 0, 22)
 secondaryButton.BackgroundColor3 = Color3.fromRGB(120, 60, 170)
 secondaryButton.BackgroundTransparency = 0.15
 secondaryButton.FontFace = FONT

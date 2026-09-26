@@ -33,6 +33,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local GoblinStats = require(ReplicatedStorage.Shared.GoblinStats)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Sfx = require(ReplicatedStorage.Shared.Sfx)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- шрифт мировых надписей темы
 
 local GoblinCampService = {}
 local Services
@@ -747,16 +748,17 @@ end
 --------------------------------------------------------------------------------
 -- ТАБЛИЧКА НАД ЛАГЕРЕМ
 --------------------------------------------------------------------------------
-local function dropsText(info)
-	local drops = info.Drops or {}
-	local perKill = drops.PerKill or {}
-	local parts = { "$ per kill" }
-	if (perKill.Dynamite or 0) > 0 then table.insert(parts, ("%d%% Dynamite"):format(math.floor(perKill.Dynamite * 100 + 0.5))) end
-	if (perKill.Geode or 0) > 0 then table.insert(parts, ("%d%% Geode"):format(math.floor(perKill.Geode * 100 + 0.5))) end
-	local chests = {}
-	for _, row in drops.Clear or {} do table.insert(chests, 1, row.Chest) end
-	if #chests > 0 then table.insert(parts, "Chest: " .. table.concat(chests, "/")) end
-	return table.concat(parts, "  ·  ")
+-- v20.46: награда кратко — лучший сундук за зачистку, цветом сундука.
+local function colorHex(color)
+	return string.format("%02X%02X%02X", math.floor(color.R * 255 + 0.5), math.floor(color.G * 255 + 0.5), math.floor(color.B * 255 + 0.5))
+end
+
+local function rewardText(info)
+	local clear = (info.Drops and info.Drops.Clear) or {}
+	local best = clear[1] and clear[1].Chest
+	local chest = best and Config.Chests.Types[best]
+	if not chest then return "" end
+	return ('🎁 <font color="#%s">%s</font>'):format(colorHex(chest.Color or Color3.new(1, 1, 1)), chest.DisplayName or best)
 end
 
 local function formatTime(seconds)
@@ -764,9 +766,13 @@ local function formatTime(seconds)
 	return ("%d:%02d"):format(seconds // 60, seconds % 60)
 end
 
+-- Табличка — «вывеска» в мире: размер в стадах (Scale), TextScaled, шрифт
+-- темы (WorldUi). Не раздувается вплотную и видна издалека.
 local function buildMarker(zone, camp)
 	local markerCfg = CFG.Marker or {}
 	local anchorPart = camp:FindFirstChild("Marker")
+	local old = camp:FindFirstChild("CampMarkerAnchor")
+	if old then old:Destroy() end
 	local anchor = Instance.new("Part")
 	anchor.Name = "CampMarkerAnchor"
 	anchor.Anchored, anchor.CanCollide, anchor.CanQuery, anchor.CanTouch = true, false, false, false
@@ -778,58 +784,57 @@ local function buildMarker(zone, camp)
 
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "GoblinCampMarker"
-	gui.Size = UDim2.fromOffset(300, 118)
+	gui.Size = UDim2.fromScale(markerCfg.Width or 26, markerCfg.SignHeight or 9)
 	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0
 	gui.MaxDistance = markerCfg.MaxDistance or 900
+	gui.DistanceLowerLimit = 30   -- вплотную не раздувается
+	gui.DistanceUpperLimit = 260  -- издалека перестаёт уменьшаться
 	gui.Adornee = anchor
 	gui.Parent = anchor
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	layout.Parent = gui
-	local function line(order, height, color)
-		local label = Instance.new("TextLabel")
+	local function line(order, height, style, color)
+		local label = WorldUi.Text(gui, "Line" .. order, style)
 		label.LayoutOrder = order
 		label.BackgroundTransparency = 1
 		label.Size = UDim2.new(1, 0, height, 0)
 		label.TextScaled = true
 		label.RichText = true
-		label.Font = Enum.Font.FredokaOne
 		label.TextColor3 = color
 		label.Text = ""
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = 2
-		stroke.Color = Color3.fromRGB(20, 16, 12)
-		stroke.Parent = label
-		label.Parent = gui
 		return label
 	end
 	markerLabels = {
-		Title = line(1, 0.3, Color3.fromRGB(140, 230, 110)),
-		Wave = line(2, 0.28, Color3.new(1, 1, 1)),
-		Status = line(3, 0.22, Color3.fromRGB(255, 225, 130)),
-		Drops = line(4, 0.2, Color3.fromRGB(220, 220, 220)),
+		Title = line(1, 0.4, "Title", Color3.fromRGB(140, 230, 110)),
+		Status = line(2, 0.3, "Number", Color3.new(1, 1, 1)),
+		Reward = line(3, 0.3, "Number", Color3.new(1, 1, 1)),
 	}
-	markerLabels.Title.Text = "⚔ " .. (markerCfg.Title or "GOBLIN CAMP")
 end
 
 local function updateMarker(now)
 	if not markerLabels then return end
-	local info, statusText
 	if wave then
-		info = wave.Info
-		statusText = ("%d/%d goblins left"):format(wave.Alive, wave.Total)
-	elseif nextWave then
-		info = nextWave.Info
-		statusText = #Players:GetPlayers() > 0 and ("Next wave in %s"):format(formatTime(nextWave.At - now)) or "Waiting for players"
+		-- Волна в лагере: «GOBLIN LAIR», сколько осталось, награда.
+		markerLabels.Title.Text = "GOBLIN LAIR"
+		markerLabels.Title.TextColor3 = wave.Info.Color or Color3.fromRGB(255, 120, 90)
+		markerLabels.Status.Text = ("%d/%d goblins left"):format(wave.Alive, wave.Total)
+		markerLabels.Reward.Text = rewardText(wave.Info)
+		markerLabels.Reward.Visible = true
+	else
+		-- Все мертвы / ждём: «GOBLIN CAMP» и отсчёт до следующей волны.
+		markerLabels.Title.Text = "GOBLIN CAMP"
+		markerLabels.Title.TextColor3 = Color3.fromRGB(140, 230, 110)
+		if nextWave and #Players:GetPlayers() > 0 then
+			markerLabels.Status.Text = ("Next raid in %s"):format(formatTime(nextWave.At - now))
+		else
+			markerLabels.Status.Text = "Waiting for players"
+		end
+		markerLabels.Reward.Text = nextWave and rewardText(nextWave.Info) or ""
+		markerLabels.Reward.Visible = markerLabels.Reward.Text ~= ""
 	end
-	if not info then return end
-	local tier = wave and wave.Tier or nextWave and nextWave.Tier or 1
-	markerLabels.Wave.Text = ("%s  <font color=\"#69EB82\">Lv. %d</font>"):format(info.Title, tier)
-	markerLabels.Wave.TextColor3 = info.Color or Color3.new(1, 1, 1)
-	markerLabels.Status.Text = statusText or ""
-	markerLabels.Drops.Text = dropsText(info)
 end
 
 --------------------------------------------------------------------------------

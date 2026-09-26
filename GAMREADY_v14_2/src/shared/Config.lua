@@ -6824,7 +6824,8 @@ Config.GoblinRaid = {
 	},
 
 	-- Табличка над лагерем (видна издалека).
-	Marker = { Height = 22, MaxDistance = 900, Title = "GOBLIN CAMP" },
+	-- Размер таблички в стадах (Width × SignHeight); вплотную не раздувается.
+	Marker = { Height = 22, MaxDistance = 900, Width = 26, SignHeight = 9 },
 
 	-- ГОБЛИНЫ ДОБИЛИ ИГРОКА: не смерть, а пинок домой — рагдолл, полёт по
 	-- дуге к своей базе с трейлом, посадка на базу (см. CombatService:GoblinKick).

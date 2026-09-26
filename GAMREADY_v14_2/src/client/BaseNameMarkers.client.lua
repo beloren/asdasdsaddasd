@@ -50,6 +50,7 @@ local function buildMarker(pad, userId)
 	gui.LightInfluence = 0
 	gui.MaxDistance = 500
 	gui.Adornee = pad
+	gui.ResetOnSpawn = false
 
 	-- Аватарка — круг (поправка на неквадратный холст).
 	local avatarHeight = 0.62
@@ -88,7 +89,10 @@ local function buildMarker(pad, userId)
 	stroke.Color = Color3.fromRGB(20, 20, 25)
 	stroke.Parent = label
 
-	gui.Parent = pad
+	-- v20.46: в PlayerGui, а не в сам участок: с StreamingEnabled часть
+	-- участка выгружается и метка пропадала вместе с ней.
+	local playerGui = player:FindFirstChild("PlayerGui")
+	gui.Parent = playerGui or pad
 	markers[pad] = { Gui = gui, UserId = userId }
 
 	task.spawn(function()
@@ -126,12 +130,30 @@ local function watchPlot(plot)
 	refresh()
 end
 
+-- v20.46: StreamingEnabled — PlotPad может догрузиться позже или
+-- выгрузиться и прийти заново (новый объект). Раз в секунду досматриваем.
+local function scanPlots(plots)
+	for _, plot in plots:GetChildren() do
+		local pad = padOf(plot)
+		if pad and markers[pad] == nil then watchPlot(plot) end
+	end
+	for pad in markers do
+		if not pad:IsDescendantOf(workspace) then removeMarker(pad) end
+	end
+end
+
 task.spawn(function()
 	local plots = workspace:WaitForChild("Plots", 30)
 	if not plots then return end
 	for _, plot in plots:GetChildren() do watchPlot(plot) end
 	plots.ChildAdded:Connect(function(plot)
 		task.defer(watchPlot, plot)
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			pcall(scanPlots, plots)
+		end
 	end)
 	-- Ник пришедшего игрока: перестроить метку его базы.
 	Players.PlayerAdded:Connect(function(other)

@@ -120,6 +120,17 @@ local function gearColor(key)
 	local known = gearInfo(key)
 	return (info and info.Color) or (known and known.Color) or Color3.fromRGB(230, 70, 60)
 end
+-- v20.46: редкость снаряжения — для крутящихся полосок за ячейкой.
+local function gearRarity(key)
+	if typeof(key) ~= "string" then return nil end
+	local chest = key:match("^Chest_(%a+)$")
+	if chest then return chest end
+	local placeable = PlaceableCatalog.Info(key)
+	if placeable then return placeable.Rarity end
+	local relicId = key:match("^Relic:([%w]+):")
+	local relic = relicId and Config.Relics and Config.Relics.Types[relicId]
+	return relic and relic.Rarity or nil
+end
 local function gearKeyOf(uid)
 	return type(uid) == "string" and uid:match("^gear:(.+)$") or nil
 end
@@ -1179,6 +1190,9 @@ renderGrid = function()
 			local countText = cell:FindFirstChild("CountLabel")
 			if countText then countText.Text = "x" .. tostring(gearStack.Count) end
 			applyPreview(cell:FindFirstChild("Preview"), gearStack)
+			-- v20.46: крутые вещи (Epic и выше) — полоски за ячейкой.
+			local gRarity = gearRarity(gearStack.Gear)
+			UiKit.RareRays(cell, gRarity, { Color = gRarity and rarityColor(gRarity) or nil, ZIndex = 1, Size = UDim2.fromScale(1, 1) })
 			local capturedUid = gearStack.Uid
 			trackHover(cell, { Kind = "Grid", Uid = capturedUid })
 			bindDragSource(cell, function()
@@ -1226,6 +1240,10 @@ renderGrid = function()
 		local countText = cell:FindFirstChild("CountLabel")
 		if countText then countText.Text = "x" .. tostring(stack.Count) end
 		applyPreview(cell:FindFirstChild("Preview"), stack)
+		-- v20.46: очень редкая руда (Epic и выше) или с мутацией — полоски.
+		local oreRarity = info and ((Config.OreRarityFor and Config.OreRarityFor(stack.Ore, player:GetAttribute("MineTier"))) or info.Rarity)
+		local mutated = type(stack.Mutations) == "string" and stack.Mutations ~= ""
+		UiKit.RareRays(cell, oreRarity, { Color = rarityColor(oreRarity), ZIndex = 1, Size = UDim2.fromScale(1, 1), Force = mutated and (UiKit.RareRank[oreRarity] or 0) >= 3 })
 
 		local capturedIndex = uid
 		trackHover(cell, { Kind = "Grid", Uid = capturedIndex })

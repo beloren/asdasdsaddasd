@@ -1033,6 +1033,47 @@ function UiKit.Backdrop(parent, name, kindOrRarity, props)
 	return image
 end
 
+-- v20.46: КРУТЯЩИЕСЯ ПОЛОСКИ за редкой вещью (инвентарь, скины).
+--   UiKit.Spin(image, градусов_в_сек)       — один общий цикл на все картинки
+--   UiKit.RareRays(parent, rarity, props)  — полоски редкости за ячейкой, если
+--     редкость не ниже props.MinRank (по умолчанию Epic); ниже — убирает.
+--     props: Color, Size (1.3), ZIndex (как у parent), Transparency (0.25), Force.
+local RARE_RANK = { Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5, Mythic = 6, Secret = 7, Mystery = 7 }
+UiKit.RareRank = RARE_RANK
+local spinning = setmetatable({}, { __mode = "k" })
+local spinConnection = nil
+function UiKit.Spin(image, speed)
+	spinning[image] = speed or 20
+	local RunService = game:GetService("RunService")
+	if spinConnection or not RunService:IsClient() then return end
+	spinConnection = RunService.RenderStepped:Connect(function(dt)
+		for spun, degPerSec in spinning do
+			if spun.Parent then
+				spun.Rotation = (spun.Rotation + degPerSec * dt) % 360
+			else
+				spinning[spun] = nil
+			end
+		end
+	end)
+end
+
+function UiKit.RareRays(parent, rarity, props)
+	props = props or {}
+	local old = parent:FindFirstChild("RareRays")
+	if old then old:Destroy() end
+	local rank = RARE_RANK[rarity] or 0
+	if not props.Force and rank < (props.MinRank or 4) then return nil end
+	local rays = UiKit.Backdrop(parent, "RareRays", rarity, {
+		Size = props.Size or UDim2.fromScale(1.3, 1.3),
+		ZIndex = props.ZIndex or parent.ZIndex,
+		Color = props.Color,
+		Transparency = props.Transparency or 0.25,
+	})
+	-- Чем реже, тем быстрее крутится.
+	UiKit.Spin(rays, props.Speed or (10 + math.max(0, rank - 4) * 8))
+	return rays
+end
+
 function UiKit.ThemeIcon(parent, name, iconKey, emoji, props)
 	local uri = UiKit.ImageUri(Theme.Icons[iconKey])
 	local i = UiKit.Icon(parent, name, uri, props)

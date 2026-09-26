@@ -114,11 +114,16 @@ local function refreshBillboard(plr)
 			fill.BackgroundColor3 = stagger >= (count - 1) / count and PIP_DANGER or PIP_NORMAL
 		end
 	end
+	-- v20.46: пока лежит — вместо полосок таймер «UP IN 2.4s».
 	if entry.Bar then
-		entry.Bar.Visible = stagger > 0 or ragdolled
+		entry.Bar.Visible = stagger > 0 and not ragdolled
 	end
 	if entry.State then
 		entry.State.Visible = ragdolled
+		if ragdolled then
+			local left = (tonumber(plr:GetAttribute("RagdollUntil")) or 0) - workspace:GetServerTimeNow()
+			entry.State.Text = left > 0.05 and ("UP IN %.1fs"):format(left) or tr("GETTING UP")
+		end
 	end
 	if entry.Wanted then
 		entry.Wanted.Visible = bounty > 0 and not ragdolled
@@ -144,7 +149,7 @@ local function attachTo(plr, character)
 end
 
 local function watchPlayer(plr)
-	for _, attribute in { "Stagger", "Ragdolled", "StaggerImmune", "Bounty" } do
+	for _, attribute in { "Stagger", "Ragdolled", "StaggerImmune", "Bounty", "RagdollUntil" } do
 		plr:GetAttributeChangedSignal(attribute):Connect(function() refreshBillboard(plr) end)
 	end
 	plr.CharacterAdded:Connect(function(character) attachTo(plr, character) end)
@@ -153,6 +158,15 @@ end
 
 for _, plr in Players:GetPlayers() do watchPlayer(plr) end
 Players.PlayerAdded:Connect(watchPlayer)
+-- Таймер рагдолла тикает 10 раз в секунду (только у лежащих).
+task.spawn(function()
+	while true do
+		task.wait(0.1)
+		for plr in billboards do
+			if plr:GetAttribute("Ragdolled") == true then refreshBillboard(plr) end
+		end
+	end
+end)
 Players.PlayerRemoving:Connect(function(plr)
 	local entry = billboards[plr]
 	if entry and entry.Gui then entry.Gui:Destroy() end
