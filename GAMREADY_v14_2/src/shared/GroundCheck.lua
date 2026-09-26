@@ -82,6 +82,19 @@ function GroundCheck.InPlot(pad, position, margin)
 		and rel.Y >= -boundsSize.Y / 2 - 8
 end
 
+-- v20.42: поставить модель так, чтобы её НИЗ (по рамке) лёг на точку cf
+-- вдоль «верха» cf — для моделей с пивотом в центре (сундуки).
+function GroundCheck.SeatModel(model, cf)
+	model:PivotTo(cf)
+	local boxCF, size = model:GetBoundingBox()
+	local up = cf.UpVector
+	local halfUp = math.abs(boxCF.RightVector:Dot(up)) * size.X / 2
+		+ math.abs(boxCF.UpVector:Dot(up)) * size.Y / 2
+		+ math.abs(boxCF.LookVector:Dot(up)) * size.Z / 2
+	local bottom = (boxCF.Position - cf.Position):Dot(up) - halfUp
+	model:PivotTo(cf + up * -bottom)
+end
+
 -- Совместимость со старым кодом: луч вниз, (ok, position, hitInstance).
 function GroundCheck.Probe(position, _pad, ignore)
 	local ok, point, _, instance = GroundCheck.Surface(position, Vector3.yAxis, ignore)

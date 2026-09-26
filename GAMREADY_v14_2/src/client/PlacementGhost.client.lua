@@ -180,33 +180,10 @@ RunService.RenderStepped:Connect(function()
 	if onSurface then
 		position, normal = surfacePosition, surfaceNormal
 	end
-	if isChest(ghostKey) then
-		-- Сундук: как на сервере (GearService:_placeChest) — на полу участка,
-		-- лицом к игроку (+ поворот R), не ближе 2 стадов к краю, до 30 стадов.
-		local ok = false
-		local cf
-		if pad then
-			local flat = Vector3.new(hit.Position.X, 0, hit.Position.Z)
-			local look = Vector3.new(hrp.Position.X, 0, hrp.Position.Z) - flat
-			local facing = look.Magnitude > 0.1 and CFrame.lookAt(Vector3.zero, look) or CFrame.new()
-			local rotation = facing * CFrame.Angles(0, math.rad(yaw), 0)
-			local _, size = ghost:GetBoundingBox()
-			local floorY = pad.Position.Y + pad.Size.Y / 2
-			ghost:PivotTo(CFrame.new(hit.Position.X, floorY + size.Y / 2, hit.Position.Z) * rotation)
-			cf = CFrame.new(hit.Position.X, floorY, hit.Position.Z) * rotation
-			local localPoint = pad.CFrame:PointToObjectSpace(hit.Position)
-			ok = math.abs(localPoint.X) <= pad.Size.X / 2 - 2 and math.abs(localPoint.Z) <= pad.Size.Z / 2 - 2
-				and (hrp.Position - hit.Position).Magnitude <= 30
-		end
-		targetCFrame = cf
-		valid = ok
-		local color = ok and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(255, 70, 70)
-		highlight.FillColor = color
-		highlight.OutlineColor = color
-		return
-	end
 	local cf = CFrame.new(position) * GroundCheck.Orientation(normal, yaw)
-	ghost:PivotTo(cf)
+	-- v20.42: сундуки ставятся как декор — на любую поверхность участка.
+	-- У модели сундука пивот в центре — сажаем её низом на поверхность.
+	if isChest(ghostKey) then GroundCheck.SeatModel(ghost, cf) else ghost:PivotTo(cf) end
 	targetCFrame = cf
 	local ok = onSurface and pad ~= nil and (hrp.Position - position).Magnitude <= (CFG.PlaceRange or 60)
 		and GroundCheck.InPlot(pad, position)

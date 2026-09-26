@@ -18,6 +18,7 @@ local HttpService = game:GetService("HttpService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local StarterGui = game:GetService("StarterGui")
 
+local GroundCheck = require(ReplicatedStorage.Shared.GroundCheck)
 local Config = require(ReplicatedStorage.Shared.Config)
 local DropTables = require(ReplicatedStorage.Shared.DropTables)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
@@ -678,9 +679,15 @@ function GearService:_spawnChestModel(player, entry)
 	setPhysics(model, true, true)
 	local offset = entry.Offset or { 0, 0, 0, 0 }
 	local world = pad.CFrame * CFrame.new(offset[1] or 0, 0, offset[3] or 0) * CFrame.Angles(0, offset[4] or 0, 0)
-	local _, size = model:GetBoundingBox()
-	local floorY = pad.Position.Y + pad.Size.Y / 2
-	model:PivotTo(CFrame.new(world.Position.X, floorY + size.Y / 2, world.Position.Z) * world.Rotation)
+	local surface = entry.Surface
+	if type(surface) == "table" and #surface >= 6 then
+		-- v20.42: сундук стоит на любой поверхности (как декор).
+		GroundCheck.SeatModel(model, pad.CFrame * CFrame.new(surface[1], surface[2], surface[3]) * CFrame.fromOrientation(surface[4], surface[5], surface[6]))
+	else
+		local _, size = model:GetBoundingBox()
+		local floorY = pad.Position.Y + pad.Size.Y / 2
+		model:PivotTo(CFrame.new(world.Position.X, floorY + size.Y / 2, world.Position.Z) * world.Rotation)
+	end
 	local _, plot = plotPad(player)
 	model.Parent = plot and plot.Content or workspace
 	local root = rootPart(model)
@@ -735,11 +742,37 @@ function GearService:_placeChest(player, position)
 	local placedCFrame = typeof(position) == "CFrame" and position or nil
 	if placedCFrame then position = placedCFrame.Position end
 	if not (pad and hrp) or typeof(position) ~= "Vector3" then return end
-	if not insidePad(pad, position) then
+	-- v20.42: как декор — вся территория участка и ЛЮБАЯ поверхность
+	-- (пол, стена, склон, другой предмет). Та же проверка, что у
+	-- BaseDecorService:PlaceFromGear.
+	if not GroundCheck.InPlot(pad, position) then
 		Services.NotifyService:Show(player, "Place chests on YOUR base!", { Icon = "Geode" })
 		return
 	end
-	if (position - hrp.Position).Magnitude > 30 then return end
+	if (position - hrp.Position).Magnitude > (Config.Placeables.PlaceRange or 60) then return end
+	local surfaceCF = nil
+	do
+		local up = placedCFrame and placedCFrame.UpVector or Vector3.yAxis
+		local ignore = { workspace:FindFirstChild("MineGroundOre") }
+		for _, other in Players:GetPlayers() do
+			if other.Character then table.insert(ignore, other.Character) end
+		end
+		local onSurface, surfacePosition, surfaceNormal = GroundCheck.Surface(position, up, ignore)
+		if not onSurface then
+			Services.NotifyService:Show(player, "Can't place it here!", { Icon = "Geode" })
+			return
+		end
+		local rotation
+		if GroundCheck.IsUpright(surfaceNormal) then
+			local _, clientYaw = (placedCFrame or CFrame.new()):ToOrientation()
+			rotation = CFrame.Angles(0, clientYaw, 0)
+		elseif placedCFrame and placedCFrame.UpVector:Dot(surfaceNormal) > 0.95 then
+			rotation = placedCFrame.Rotation
+		else
+			rotation = GroundCheck.Orientation(surfaceNormal, 0)
+		end
+		surfaceCF = CFrame.new(surfacePosition) * rotation
+	end
 	data.PlacedChests = data.PlacedChests or {}
 	if #data.PlacedChests >= Config.Chests.MaxPlaced then
 		Services.NotifyService:Show(player, ("Only %d chests can open at once"):format(Config.Chests.MaxPlaced), { Icon = "Geode" })
@@ -759,6 +792,13 @@ function GearService:_placeChest(player, position)
 		ReadyAt = os.time() + Config.Chests.Types[rarity].OpenSeconds,
 		Offset = { localPoint.X, 0, localPoint.Z, yaw },
 	}
+	if surfaceCF then
+		-- v20.42: полная позиция и поворот относительно участка.
+		local relative = pad.CFrame:ToObjectSpace(surfaceCF)
+		local rx, ry, rz = relative:ToOrientation()
+		local rp = relative.Position
+		entry.Surface = { rp.X, rp.Y, rp.Z, rx, ry, rz }
+	end
 	table.insert(data.PlacedChests, entry)
 	if data.Gear[key] <= 0 then self:Unequip(player) end
 	Sfx.play("ChestSpawn", hrp)
