@@ -819,7 +819,7 @@ local function updateMarker(now)
 	local info, statusText
 	if wave then
 		info = wave.Info
-		statusText = ("%d/%d left  ·  %s"):format(wave.Alive, wave.Total, formatTime(wave.EndsAt - now))
+		statusText = ("%d/%d goblins left"):format(wave.Alive, wave.Total)
 	elseif nextWave then
 		info = nextWave.Info
 		statusText = #Players:GetPlayers() > 0 and ("Next wave in %s"):format(formatTime(nextWave.At - now)) or "Waiting for players"
@@ -914,7 +914,7 @@ function GoblinCampService:Init(services)
 				lastMarker = now
 				local ok, err = pcall(function()
 					if wave then
-						if now >= wave.EndsAt then self:_finishWave(false) end
+						-- v20.45: волна стоит, пока её не зачистят (таймера ухода нет).
 					elseif nextWave and #Players:GetPlayers() > 0 then
 						if not announced and now >= nextWave.At - (CFG.AnnounceBefore or 20) then
 							announced = true
@@ -936,7 +936,7 @@ function GoblinCampService:Init(services)
 	end)
 end
 
--- Для админ-панели/тестов: начать волну сейчас.
+-- Только для отладки из кода (кнопки в игре нет).
 function GoblinCampService:ForceWave()
 	if wave then return end
 	if not nextWave then planWave(os.clock()) end

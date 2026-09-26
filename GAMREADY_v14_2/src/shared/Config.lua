@@ -6759,11 +6759,12 @@ Config.SkinUiVersion = 1
 -- GoblinStunned/GoblinDead) — играет их GoblinAnimation.client.
 Config.GoblinRaid = {
 	Enabled = true,
-	UseCampService = true,     -- новый лагерь (GoblinCampService); false — старый рейд
+	UseCampService = true,     -- лагерь (GoblinCampService); старый рейд удалён из конфига
 	DisableRoadWaves = true,   -- гоблинов на дороге нет, только лагерь
 	IntervalSeconds = 300,     -- волна раз в 5 минут
 	AnnounceBefore = 20,
-	DurationSeconds = 180,     -- не зачистили за это время — гоблины уходят
+	-- v20.45: волна стоит, пока её не зачистят; следующая — через
+	-- IntervalSeconds ПОСЛЕ зачистки.
 	FirstWaveDelay = 90,       -- первая волна после старта сервера
 
 	-- ИИ (все расстояния в стадах).

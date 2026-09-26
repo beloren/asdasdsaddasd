@@ -3031,17 +3031,10 @@ function GoblinService:Init(services)
 	access.OnServerInvoke = function(player)
 		return isGoblinAdmin(player)
 	end
-	local adminRequest = shared:FindFirstChild("GoblinAdminRequest") or Instance.new("RemoteEvent")
-	adminRequest.Name = "GoblinAdminRequest"
-	adminRequest.Parent = shared
-	adminRequest.OnServerEvent:Connect(function(player, action, count)
-		if not isGoblinAdmin(player) or action ~= "Spawn" then return end
-		if Config.GoblinRaid and Config.GoblinRaid.UseCampService and Services.GoblinCampService then
-			Services.GoblinCampService:ForceWave() -- v20.44: волна лагеря сейчас
-			return
-		end
-		self:SpawnWave(player, math.clamp(math.floor(tonumber(count) or 1), 1, 4), false, true)
-	end)
+	-- v20.45: кнопки «Spawn» у гоблинов больше нет — волны лагеря идут сами
+	-- раз в Config.GoblinRaid.IntervalSeconds и стоят, пока их не зачистят.
+	local oldRequest = shared:FindFirstChild("GoblinAdminRequest")
+	if oldRequest then oldRequest:Destroy() end
 	self:_startAiScheduler()
 	pcall(function() PhysicsService:RegisterCollisionGroup(GOBLIN_COLLISION_GROUP) end)
 	PhysicsService:CollisionGroupSetCollidable(GOBLIN_COLLISION_GROUP, GOBLIN_COLLISION_GROUP, false)
@@ -3064,7 +3057,8 @@ function GoblinService:Init(services)
 	end)
 	-- v8: гоблинский рейд в лагере (Workspace/GoblinCamp).
 	-- v20.44: при UseCampService лагерем управляет GoblinCampService.
-	if not (Config.GoblinRaid and Config.GoblinRaid.UseCampService) then
+	-- Старый рейд работает только со старым конфигом (Config.GoblinRaid.Types).
+	if not (Config.GoblinRaid and Config.GoblinRaid.UseCampService) and Config.GoblinRaid.Types then
 		self:_startRaidLoop()
 	end
 	Players.PlayerRemoving:Connect(function(player)
