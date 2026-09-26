@@ -450,3 +450,7 @@
 
 ## v20.48 — метка базы без подгонки под камеру
 - Метка над базой (аватарка + ник) больше не меняет размер от расстояния камеры: обычная табличка в мире 16 × 13 стадов (`REFERENCE_WIDTH/HEIGHT` в `client/BaseNameMarkers`), текст TextScaled.
+
+## v20.49 — голубая и фиолетовая друзы вместо бочки с рудой
+- Декор `OreBarrel` убран. Вместо него `CrystalBlue` — Blue Crystal Cluster (Uncommon, 2 500), модель `Decor_CrystalCluster_Blue`. Старый `CrystalCluster` теперь Purple Crystal Cluster (Rare, 20 000), модель `Decor_CrystalCluster_Purple`.
+- Бочки у игроков (в инвентаре и поставленные) сами превращаются в голубую друзу (флаг профиля `DecorBarrelMigrated`).

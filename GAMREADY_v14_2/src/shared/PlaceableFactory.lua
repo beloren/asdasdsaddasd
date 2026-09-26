@@ -184,30 +184,8 @@ DECOR_BUILDERS.CrystalLantern = function()
 	return assemble("CrystalLantern", base, { stem, crystal, shard })
 end
 
-DECOR_BUILDERS.OreBarrel = function()
-	local body = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.2, 1.8, 1.8), Material = Enum.Material.WoodPlanks, Color = Color3.fromRGB(125, 80, 45) })
-	body.CFrame = CFrame.new(0, 1.1, 0) * CFrame.Angles(0, 0, math.rad(90))
-	local parts = {}
-	for _, y in { 0.35, 1.85 } do
-		local hoop = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.15, 1.9, 1.9), Material = Enum.Material.Metal, Color = Color3.fromRGB(60, 60, 65) })
-		hoop.CFrame = CFrame.new(0, y, 0) * CFrame.Angles(0, 0, math.rad(90))
-		table.insert(parts, hoop)
-	end
-	local colors = { Color3.fromRGB(255, 190, 60), Color3.fromRGB(110, 220, 255), Color3.fromRGB(220, 90, 255), Color3.fromRGB(120, 255, 140) }
-	for i = 1, 5 do
-		local chunk = part({ Size = Vector3.one * (0.45 + (i % 3) * 0.12), Material = Enum.Material.Neon, Color = colors[(i % #colors) + 1], CastShadow = false })
-		local angle = i * 1.3
-		chunk.CFrame = CFrame.new(math.cos(angle) * 0.45, 2.35 + (i % 2) * 0.15, math.sin(angle) * 0.45) * CFrame.Angles(angle, angle * 2, 0)
-		table.insert(parts, chunk)
-	end
-	-- Невидимое основание (Root), чтобы пивот был у земли.
-	local root = part({ Size = Vector3.new(1.8, 0.1, 1.8), Transparency = 1, CastShadow = false })
-	root.CFrame = CFrame.new(0, 0.05, 0)
-	table.insert(parts, body)
-	return assemble("OreBarrel", root, parts)
-end
-
-DECOR_BUILDERS.CrystalCluster = function()
+-- v20.49: друза кристаллов в двух цветах (фиолетовая и голубая).
+local function crystalCluster(name, colorA, colorB, glow)
 	local base = part({ Size = Vector3.new(2.6, 0.6, 2.4), Material = Enum.Material.Rock, Color = Color3.fromRGB(85, 80, 95) })
 	base.CFrame = CFrame.new(0, 0.3, 0)
 	local parts = {}
@@ -216,13 +194,21 @@ DECOR_BUILDERS.CrystalCluster = function()
 		{ 0.2, 1.1, -0.7, 0.5, 1.5, -24, 0 }, { -0.3, 1.0, 0.75, 0.45, 1.3, 26, 0 },
 	}
 	for i, s in specs do
-		local c = part({ Size = Vector3.new(s[4], s[5], s[4]), Material = Enum.Material.Neon, Color = Color3.fromRGB(190, 110, 255):Lerp(Color3.fromRGB(110, 200, 255), i / #specs), CastShadow = false })
+		local c = part({ Size = Vector3.new(s[4], s[5], s[4]), Material = Enum.Material.Neon, Color = colorA:Lerp(colorB, i / #specs), CastShadow = false })
 		c.CFrame = CFrame.new(s[1], s[2], s[3]) * CFrame.Angles(math.rad(s[6]), math.rad(45 + i * 20), math.rad(s[7]))
 		table.insert(parts, c)
 	end
-	light(parts[1], Color3.fromRGB(180, 130, 255), 2.2, 14)
-	sparkles(parts[1], Color3.fromRGB(220, 180, 255), 4, 0.25)
-	return assemble("CrystalCluster", base, parts)
+	light(parts[1], glow, 2.2, 14)
+	sparkles(parts[1], glow:Lerp(Color3.new(1, 1, 1), 0.4), 4, 0.25)
+	return assemble(name, base, parts)
+end
+
+DECOR_BUILDERS.CrystalCluster = function()
+	return crystalCluster("CrystalCluster", Color3.fromRGB(200, 110, 255), Color3.fromRGB(150, 80, 230), Color3.fromRGB(180, 120, 255))
+end
+
+DECOR_BUILDERS.CrystalBlue = function()
+	return crystalCluster("CrystalBlue", Color3.fromRGB(110, 210, 255), Color3.fromRGB(60, 140, 255), Color3.fromRGB(110, 190, 255))
 end
 
 local function pedestal(height, color, material)

@@ -758,6 +758,18 @@ local function migrate(data)
 	-- v20.43: тотемы 10 тиров → 3 тира (Early/Mid/Late), Prism на мутацию →
 	-- общий Prism. Один раз на профиль: новые ID T1..T3 иначе не отличить
 	-- от старых.
+	-- v20.49: бочка с рудой убрана — становится голубой друзой кристаллов.
+	if data.DecorBarrelMigrated ~= true then
+		data.DecorBarrelMigrated = true
+		local barrels = tonumber(data.Gear["Decor_OreBarrel"]) or 0
+		if barrels > 0 then
+			data.Gear["Decor_CrystalBlue"] = (tonumber(data.Gear["Decor_CrystalBlue"]) or 0) + barrels
+		end
+		data.Gear["Decor_OreBarrel"] = nil
+		for _, record in data.PlacedDecor or {} do
+			if record.Item == "Decor_OreBarrel" then record.Item = "Decor_CrystalBlue" end
+		end
+	end
 	if data.TotemsV3 ~= true then
 		data.TotemsV3 = true
 		local moved = {}
