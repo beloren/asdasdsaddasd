@@ -147,10 +147,10 @@ if legacyEntry then legacyEntry:Destroy() end
 --------------------------------------------------------------------------------
 -- КОНСТАНТЫ SATCHEL (взяты из src/Satchel/SatchelScript/init.lua)
 --------------------------------------------------------------------------------
-local ICON_SIZE = 60
-local ICON_BUFFER = 5
+local ICON_SIZE = 64
+local ICON_BUFFER = 6
 local INVENTORY_HEADER_SIZE = 40
-local INVENTORY_TABS_SIZE = 32 -- v14: полоса вкладок сортировки под шапкой
+local INVENTORY_TABS_SIZE = 0 -- v20.50: категории — колонка «View» справа от панели
 local INVENTORY_ROWS_FULL = 4
 local INVENTORY_ROWS_MINI = 2
 local HOTBAR_SLOTS_WIDTH_CUTOFF = 1024
@@ -452,51 +452,91 @@ local searchClear = searchFrame:WaitForChild("SearchClear")
 searchClear.Visible = false
 
 --------------------------------------------------------------------------------
--- v14: ВКЛАДКИ СОРТИРОВКИ — ALL / ORES / TOOLS / TOTEMS / DECOR / RELICS.
--- Фильтруют только сетку; хотбар не трогают.
+-- v20.50: «VIEW» (справа) — переключатели категорий, «SORT BY» (слева) —
+-- сортировка сетки. Хотбар не трогают.
 --------------------------------------------------------------------------------
-local INVENTORY_FILTERS = {
-	{ Id = "All", Label = "ALL" }, { Id = "Ores", Label = "ORES" }, { Id = "Tools", Label = "TOOLS" },
-	{ Id = "Totems", Label = "TOTEMS" }, { Id = "Decor", Label = "DECOR" }, { Id = "Relics", Label = "RELICS" },
-}
-local currentFilter = "All"
-local filterButtons = {}
-local tabsStrip = inventoryFrame:WaitForChild("FilterTabs")
-local function paintFilterTabs()
-	for id, button in filterButtons do
-		local active = id == currentFilter
-		if button:GetAttribute("UiSkin") then
-			UiKit.ApplySkin(button, active and "TabActive" or "Tab")
-			local caption = button:FindFirstChild("Caption")
-			if caption then caption.TextColor3 = active and Color3.new(1, 1, 1) or UiKit.Theme.Skins.Tab.TextColor end
-		else
-			button.BackgroundColor3 = active and Color3.fromRGB(90, 160, 255) or SEARCH_BACKGROUND_COLOR
-			button.BackgroundTransparency = active and 0.1 or SEARCH_BACKGROUND_FADE
+local INVENTORY_FILTERS = { "Ores", "Tools", "Totems", "Decor", "Relics" }
+local shownCategories = { Ores = true, Tools = true, Totems = true, Decor = true, Relics = true }
+local function categoryShown(category)
+	return shownCategories[category] ~= false
+end
+local viewColumn = inventoryFrame:WaitForChild("FilterTabs")
+local SWITCH_ON = Color3.fromRGB(70, 200, 90)
+local SWITCH_OFF = Color3.fromRGB(90, 90, 95)
+local function paintSwitch(row, on)
+	local switch = row:FindFirstChild("Switch")
+	local knob = switch and switch:FindFirstChild("Knob")
+	if switch then switch.BackgroundColor3 = on and SWITCH_ON or SWITCH_OFF end
+	if knob then
+		TweenService:Create(knob, TweenInfo.new(0.12), {
+			AnchorPoint = on and Vector2.new(1, 0.5) or Vector2.new(0, 0.5),
+			Position = on and UDim2.new(1, -1, 0.5, 0) or UDim2.new(0, 1, 0.5, 0),
+		}):Play()
+	end
+	local caption = row:FindFirstChild("Caption")
+	if caption then caption.TextTransparency = on and 0 or 0.45 end
+end
+for _, id in INVENTORY_FILTERS do
+	local row = viewColumn:FindFirstChild(id)
+	if row and row:IsA("GuiButton") then
+		paintSwitch(row, true)
+		row.Activated:Connect(function()
+			shownCategories[id] = not categoryShown(id)
+			paintSwitch(row, categoryShown(id))
+			if renderGrid then renderGrid() end
+		end)
+	end
+end
+
+local SORTS = { "Rarity", "Value", "Name", "Amount" }
+local sortMode, sortDescending = nil, true
+local sortColumn = inventoryFrame:FindFirstChild("SortBy")
+local function paintSorts()
+	if not sortColumn then return end
+	for _, id in SORTS do
+		local button = sortColumn:FindFirstChild("Sort_" .. id)
+		if button then
+			local active = sortMode == id
+			button.BackgroundTransparency = active and 0.05 or 0.35
+			local stroke = button:FindFirstChildOfClass("UIStroke")
+			if stroke then stroke.Thickness = active and 2.5 or 1.5 end
+			local arrow = button:FindFirstChild("Arrow")
+			if arrow then
+				arrow.Rotation = (active and not sortDescending) and 180 or 0
+				UiKit.PaintShape(arrow, active and Color3.new(1, 1, 1) or Color3.fromRGB(160, 160, 160))
+			end
 		end
 	end
 end
-for index, filter in INVENTORY_FILTERS do
-	local button = tabsStrip:FindFirstChild(filter.Id)
-	if not button then
-		button = Instance.new("TextButton")
-		button.Name = filter.Id
-		button.LayoutOrder = index
-		button.AutomaticSize = Enum.AutomaticSize.X
-		button.Size = UDim2.new(0, 0, 1, 0)
-		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(button, "Body") -- v20: шрифт темы
-		button.TextSize = FONT_SIZE - 2
-		button.Text = filter.Label
-		button.BorderSizePixel = 0
-		button.Parent = tabsStrip
+for _, id in SORTS do
+	local button = sortColumn and sortColumn:FindFirstChild("Sort_" .. id)
+	if button and button:IsA("GuiButton") then
+		button.Activated:Connect(function()
+			-- 1-й клик — по убыванию, 2-й — по возрастанию, 3-й — свой порядок.
+			if sortMode ~= id then
+				sortMode, sortDescending = id, true
+			elseif sortDescending then
+				sortDescending = false
+			else
+				sortMode = nil
+			end
+			paintSorts()
+			if renderGrid then renderGrid() end
+		end)
 	end
-	filterButtons[filter.Id] = button
-	button.Activated:Connect(function()
-		currentFilter = filter.Id
-		paintFilterTabs()
-		if renderGrid then renderGrid() end
-	end)
 end
-paintFilterTabs()
+paintSorts()
+
+-- «?» — подсказка по управлению (наведение/тап).
+do
+	local help = header:FindFirstChild("Help")
+	local tip = header:FindFirstChild("HelpTip")
+	if help and tip then
+		help.MouseEnter:Connect(function() tip.Visible = true end)
+		help.MouseLeave:Connect(function() tip.Visible = false end)
+		help.Activated:Connect(function() tip.Visible = not tip.Visible end)
+	end
+end
 
 local scrollingFrame = inventoryFrame:WaitForChild("ScrollingFrame")
 local gridFrame = scrollingFrame:WaitForChild("UIGridFrame")
@@ -635,7 +675,7 @@ local function refreshHotbarSlots()
 	if next(found) == nil then
 		local candidates = {}
 		for _, child in bar:GetChildren() do
-			if child:IsA("GuiButton") and not child.Name:lower():find("pickaxe") then
+			if child:IsA("GuiButton") and not child.Name:lower():find("pickaxe") and child.Name ~= "InventoryToggle" then
 				table.insert(candidates, child)
 			end
 		end
@@ -674,8 +714,9 @@ renderHotbar = function()
 				local gearKey = gearKeyOf(uid)
 				local equipped = (heldStackIndex ~= nil and uid == heldStackIndex)
 					or (gearKey ~= nil and (player:GetAttribute("HeldGear") or "") == gearKey)
-				stroke.Color = equipped and SLOT_EQUIP_COLOR or (gearKey and gearColor(gearKey)) or Color3.fromRGB(70, 75, 90)
-				stroke.Thickness = equipped and 2 or 1
+				stroke.Color = equipped and SLOT_EQUIP_COLOR or (gearKey and gearColor(gearKey)) or Color3.fromRGB(0, 0, 0)
+				stroke.Thickness = equipped and 2 or 1.5
+				stroke.Transparency = (equipped or gearKey) and 0 or 0.45
 			end
 		end
 	end
@@ -685,7 +726,10 @@ renderHotbar = function()
 		if key then key.Text = isCart and "S" or "F" end
 		if shieldLabel then shieldLabel.Visible = isCart end
 		local count = pickaxeSlot:FindFirstChild("CountLabel")
-		if count then count.Text = isCart and "SHIELD" or ("T" .. tostring(state.PickaxeTier)) end
+		if count then count.Text = isCart and "" or ("T" .. tostring(state.PickaxeTier)) end
+		-- v20.50: название по центру слота, как у остальных.
+		local pickName = pickaxeSlot:FindFirstChild("ToolName")
+		if pickName then pickName.Text = isCart and "" or "Pickaxe" end
 	end
 end
 
@@ -1134,7 +1178,13 @@ renderGrid = function()
 	-- каждый ОТКРЫТЫЙ тир (1..PickaxeMaxTier); вернуться на пройденный
 	-- тир можно — это выбор стиля, не эксплойт (серверная проверка тира
 	-- всё равно в InventoryService:EquipPickaxe).
-	local showTools = currentFilter == "All" or currentFilter == "Tools"
+	local showTools = categoryShown("Tools")
+	-- v20.50: ключи сортировки по ячейкам (Rarity/Value/Name/Amount).
+	local sortEntries = {}
+	local RARITY_RANK = UiKit.RareRank or {}
+	local function noteSort(cell, rarity, value, name, amount)
+		table.insert(sortEntries, { Cell = cell, Rarity = RARITY_RANK[rarity] or 0, Value = tonumber(value) or 0, Name = tostring(name or ""):lower(), Amount = tonumber(amount) or 0, Order = cell.LayoutOrder })
+	end
 	for tier = state.PickaxeMaxTier or 1, 1, -1 do
 		local tierConfig = Config.PickaxeTiers[tier]
 		local title = "pickaxe t" .. tier
@@ -1172,7 +1222,7 @@ renderGrid = function()
 	end
 	for _, gearStack in state.Gear or {} do
 		if not gearInHotbar[gearStack.Uid]
-			and (currentFilter == "All" or currentFilter == gearCategory(gearStack.Gear))
+			and categoryShown(gearCategory(gearStack.Gear))
 			and (query == "" or stackDisplayName(gearStack):lower():find(query, 1, true)) then
 			order += 1
 			local cell = makeCell()
@@ -1193,6 +1243,8 @@ renderGrid = function()
 			-- v20.46: крутые вещи (Epic и выше) — полоски за ячейкой.
 			local gRarity = gearRarity(gearStack.Gear)
 			UiKit.RareRays(cell, gRarity, { Color = gRarity and rarityColor(gRarity) or nil, ZIndex = 1, Size = UDim2.fromScale(1, 1) })
+			local placeableInfo = PlaceableCatalog.Info(gearStack.Gear)
+			noteSort(cell, gRarity, (placeableInfo and placeableInfo.Price or 0) * gearStack.Count, stackDisplayName(gearStack), gearStack.Count)
 			local capturedUid = gearStack.Uid
 			trackHover(cell, { Kind = "Grid", Uid = capturedUid })
 			bindDragSource(cell, function()
@@ -1204,7 +1256,7 @@ renderGrid = function()
 	end
 
 	-- РУДА
-	for _, stackIndex in (currentFilter == "All" or currentFilter == "Ores") and visibleBackpackIndices() or {} do
+	for _, stackIndex in categoryShown("Ores") and visibleBackpackIndices() or {} do
 		local stack = state.Backpack[stackIndex]
 		local uid = stack.Uid
 		local info = oreInfoFor(stack)
@@ -1244,6 +1296,7 @@ renderGrid = function()
 		local oreRarity = info and ((Config.OreRarityFor and Config.OreRarityFor(stack.Ore, player:GetAttribute("MineTier"))) or info.Rarity)
 		local mutated = type(stack.Mutations) == "string" and stack.Mutations ~= ""
 		UiKit.RareRays(cell, oreRarity, { Color = rarityColor(oreRarity), ZIndex = 1, Size = UDim2.fromScale(1, 1), Force = mutated and (UiKit.RareRank[oreRarity] or 0) >= 3 })
+		noteSort(cell, oreRarity, (tonumber(stack.Value) or 0) * (tonumber(stack.Count) or 1), stackDisplayName(stack), stack.Count)
 
 		local capturedIndex = uid
 		trackHover(cell, { Kind = "Grid", Uid = capturedIndex })
@@ -1253,6 +1306,20 @@ renderGrid = function()
 			-- v20.15: клик — взять руду в руки / убрать; зажатие — перетащить.
 			handleSlotClick("Grid", nil, capturedIndex)
 		end)
+	end
+
+	-- v20.50: сортировка — меняем только LayoutOrder (кирки остаются первыми).
+	if sortMode and #sortEntries > 1 then
+		table.sort(sortEntries, function(a, b)
+			local ka, kb = a[sortMode], b[sortMode]
+			if ka ~= kb then
+				if sortDescending then return ka > kb else return ka < kb end
+			end
+			return a.Order < b.Order
+		end)
+		for index, entry in sortEntries do
+			entry.Cell.LayoutOrder = 1000 + index
+		end
 	end
 
 	updateCanvasSize()
@@ -1368,6 +1435,8 @@ do
 		})
 	end
 	toggle:SetAttribute("DisableGlobalHover", true)
+	local toggleKey = toggle:FindFirstChild("KeyBadge")
+	if toggleKey then toggleKey.Text = UserInputService.KeyboardEnabled and "~" or "" end
 	toggle.Activated:Connect(function()
 		setOpen(not isOpen)
 	end)
