@@ -2467,6 +2467,10 @@ function GoblinService:FindInHitbox(player, hrp, hitboxSize, forwardOffset)
 	end
 	for goblin in state.Goblins do consider(goblin) end
 	for goblin in raidGoblins do consider(goblin) end -- v8: рейд — бить может любой
+	-- v20.44: гоблины лагеря (GoblinCampService) — бить может любой.
+	if Services.GoblinCampService then
+		for goblin in Services.GoblinCampService:AllGoblins() do consider(goblin) end
+	end
 	for owner, otherState in active do
 		if owner ~= player then
 			for goblin in otherState.Goblins do
@@ -2480,6 +2484,10 @@ function GoblinService:FindInHitbox(player, hrp, hitboxSize, forwardOffset)
 end
 
 function GoblinService:Damage(goblin, damage, attacker)
+	-- v20.44: гоблин лагеря — своя логика (оглушение, вклад в волну).
+	if goblin and goblin.Camp and Services.GoblinCampService then
+		return Services.GoblinCampService:Damage(goblin, damage, attacker)
+	end
 	if goblin and goblin.Humanoid and not goblin.Dead then
 		-- Damage does not make the goblin drop the cart. It keeps carrying it
 		-- until delivery or death, matching the requested NPC behavior.
@@ -2994,6 +3002,19 @@ end
 -- гоблина — предмет падает и по диагонали летит к игроку) — чтобы
 -- RockService мог показывать награды с валуна ТЕМ ЖЕ эффектом, а не просто
 -- молча начислять деньги/жеоду без анимации.
+-- v20.44: модель гоблина для GoblinCampService (своя модель из Assets или
+-- плейсхолдер R6, HP/скорость по тиру, коллизии Goblins, билборд).
+function GoblinService:CreateGoblinModel(position, tier, goblinType, facePosition)
+	local model, zone = createR6Placeholder(position, tier, facePosition or position + Vector3.new(0, 0, -1), goblinType)
+	if typeof(zone) == "Instance" then zone:Destroy() end
+	return model
+end
+
+-- v20.44: вспышка удара + звёзды оглушения над головой (как у обычных гоблинов).
+function GoblinService:ShowGoblinHitVfx(goblin)
+	pcall(showGoblinHitVfx, goblin)
+end
+
 function GoblinService:SpawnLooseReward(player, kind, geodeType, position, color)
 	local ok, err = pcall(spawnChestLoot, player, kind, geodeType, position, color, nil)
 	if not ok then
@@ -3015,6 +3036,10 @@ function GoblinService:Init(services)
 	adminRequest.Parent = shared
 	adminRequest.OnServerEvent:Connect(function(player, action, count)
 		if not isGoblinAdmin(player) or action ~= "Spawn" then return end
+		if Config.GoblinRaid and Config.GoblinRaid.UseCampService and Services.GoblinCampService then
+			Services.GoblinCampService:ForceWave() -- v20.44: волна лагеря сейчас
+			return
+		end
 		self:SpawnWave(player, math.clamp(math.floor(tonumber(count) or 1), 1, 4), false, true)
 	end)
 	self:_startAiScheduler()
@@ -3038,7 +3063,10 @@ function GoblinService:Init(services)
 		active[player] = nil
 	end)
 	-- v8: гоблинский рейд в лагере (Workspace/GoblinCamp).
-	self:_startRaidLoop()
+	-- v20.44: при UseCampService лагерем управляет GoblinCampService.
+	if not (Config.GoblinRaid and Config.GoblinRaid.UseCampService) then
+		self:_startRaidLoop()
+	end
 	Players.PlayerRemoving:Connect(function(player)
 		if raidState then raidState.Damage[player] = nil end
 	end)

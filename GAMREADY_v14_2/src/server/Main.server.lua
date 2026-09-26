@@ -94,6 +94,7 @@ local ORDER = {
 	"PlotService",
 	"MineService",
 	"GoblinService",
+	"GoblinCampService", -- v20.44: лагерь гоблинов (волны, ИИ, табличка); модели делает GoblinService
 	"RockService",
 	"BankService",
 	-- Торговец банка и биржа руды (см. Config.Merchant) — ПОСЛЕ WorldService

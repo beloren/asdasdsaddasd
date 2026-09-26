@@ -330,6 +330,44 @@ local function startOwnRagdoll(impulse, seconds, blast)
 	task.delay((seconds or cfg.RagdollSeconds) + 1.5, function() endOwnRagdoll(token) end)
 end
 
+-- v20.44: ГОБЛИНЫ ВЫПНУЛИ ДОМОЙ. Полёт по дуге (квадратичная Безье) к своей
+-- базе с кувырками; рагдолл включён сервером, конечности болтаются сами.
+local function startOwnKick(payload)
+	local _, humanoid, root = ownParts()
+	if not (humanoid and root) then return end
+	if typeof(payload.From) ~= "Vector3" or typeof(payload.To) ~= "Vector3" then return end
+	ragdollToken += 1
+	local token = ragdollToken
+	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	local from, to = payload.From, payload.To
+	local mid = (from + to) / 2 + Vector3.new(0, tonumber(payload.Arc) or 90, 0)
+	local duration = math.max(0.5, tonumber(payload.Seconds) or 2.4)
+	local spin = tonumber(payload.Spin) or 9
+	local started = os.clock()
+	local connection
+	connection = game:GetService("RunService").RenderStepped:Connect(function()
+		if token ~= ragdollToken or not root.Parent then connection:Disconnect() return end
+		local t = math.clamp((os.clock() - started) / duration, 0, 1)
+		local a, b = from:Lerp(mid, t), mid:Lerp(to, t)
+		local position = a:Lerp(b, t)
+		local velocity = (b - a) * (2 / duration)
+		local elapsed = os.clock() - started
+		root.CFrame = CFrame.new(position) * CFrame.Angles(elapsed * spin, elapsed * spin * 0.3, elapsed * spin * 0.6)
+		root.AssemblyLinearVelocity = velocity
+		if t >= 1 then
+			connection:Disconnect()
+			root.AssemblyLinearVelocity = Vector3.new(0, -30, 0)
+			root.AssemblyAngularVelocity = Vector3.zero
+			watchLanding(root, token)
+			cameraShake(0.7, 0.4)
+		end
+	end)
+	showPopup(tr("KICKED OUT!"), tr("The goblins sent you home"), Color3.fromRGB(255, 150, 70), 2.2)
+	cameraShake(0.5, 0.3)
+	fovPunch(10)
+	task.delay(duration + 4, function() endOwnRagdoll(token) end)
+end
+
 player:GetAttributeChangedSignal("Ragdolled"):Connect(function()
 	if player:GetAttribute("Ragdolled") ~= true then
 		endOwnRagdoll(nil)
@@ -368,6 +406,8 @@ feedbackRemote.OnClientEvent:Connect(function(payload)
 		end
 		showPopup(tr("KNOCKED DOWN!"), subtitle, Color3.fromRGB(255, 80, 80), 2)
 		cameraShake(0.6, 0.45)
+	elseif kind == "Kicked" then
+		startOwnKick(payload)
 	elseif kind == "Hop" then
 		-- v20.43: взрыв рядом (щит/безопасная зона) — лёгкий подброс без рагдолла.
 		local _, humanoid, root = ownParts()

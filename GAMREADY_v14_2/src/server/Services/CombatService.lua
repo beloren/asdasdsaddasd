@@ -2047,6 +2047,107 @@ function CombatService:BlastKnock(victimPlayer, center, attacker, options)
 	end)
 end
 
+-- v20.44: ГОБЛИНЫ ДОБИЛИ ИГРОКА — пинок домой. Рагдолл, полёт по дуге к
+-- своей базе (ведёт клиент — он владелец физики персонажа, см. StaggerFX
+-- «Kicked»), цветной трейл за игроком (виден всем), посадка на базу.
+-- Сервер страхует: не долетел — ставит на базу сам. Config.GoblinRaid.Kick.
+function CombatService:GoblinKick(victimPlayer, fromPosition)
+	local cfg = (Config.GoblinRaid and Config.GoblinRaid.Kick) or {}
+	local character = victimPlayer.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not (hrp and humanoid) or victimPlayer:GetAttribute("GoblinKicked") == true then return false end
+	local plot = Services.PlotService and Services.PlotService:GetPlot(victimPlayer)
+	local landingCFrame = plot and (plot.PlayerSpawnCFrame or (plot.Pad and plot.Pad.CFrame))
+	if not landingCFrame then return false end
+	local landing = landingCFrame.Position + Vector3.new(0, 3, 0)
+
+	humanoid.Health = math.max(1, humanoid.Health)
+	local state = staggerFor(victimPlayer)
+	state.Token += 1
+	local token = state.Token
+	local flight = cfg.FlightSeconds or 2.4
+	local after = cfg.RagdollAfterLanding or 1.2
+	state.ImmuneUntil = os.clock() + flight + after + 2
+	victimPlayer:SetAttribute("GoblinKicked", true)
+	victimPlayer:SetAttribute("Ragdolled", true)
+	victimPlayer:SetAttribute("StaggerImmune", true)
+	local ok, record = pcall(enableRagdoll, character)
+	record = ok and record or nil
+	ragdollRecords[victimPlayer.UserId] = record
+
+	-- Трейл: две точки на корпусе, радужная лента + звёздочки.
+	local top = Instance.new("Attachment")
+	top.Name = "KickTrailTop"
+	top.Position = Vector3.new(0, 1, 0)
+	top.Parent = hrp
+	local bottom = Instance.new("Attachment")
+	bottom.Name = "KickTrailBottom"
+	bottom.Position = Vector3.new(0, -1, 0)
+	bottom.Parent = hrp
+	local colors = cfg.TrailColors or { Color3.fromRGB(255, 90, 90), Color3.fromRGB(255, 220, 80), Color3.fromRGB(90, 220, 255) }
+	local keypoints = {}
+	for index, color in colors do
+		table.insert(keypoints, ColorSequenceKeypoint.new((index - 1) / math.max(1, #colors - 1), color))
+	end
+	local trail = Instance.new("Trail")
+	trail.Name = "KickTrail"
+	trail.Attachment0 = top
+	trail.Attachment1 = bottom
+	trail.Color = ColorSequence.new(keypoints)
+	trail.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
+	trail.Lifetime = 0.7
+	trail.LightEmission = 0.8
+	trail.FaceCamera = true
+	trail.WidthScale = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.4), NumberSequenceKeypoint.new(1, 0.2) })
+	trail.Parent = hrp
+	local stars = Instance.new("ParticleEmitter")
+	stars.Name = "KickStars"
+	stars.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	stars.Color = ColorSequence.new(Color3.fromRGB(255, 240, 150))
+	stars.LightEmission = 1
+	stars.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 0) })
+	stars.Lifetime = NumberRange.new(0.5, 0.9)
+	stars.Rate = 40
+	stars.Speed = NumberRange.new(1, 4)
+	stars.SpreadAngle = Vector2.new(180, 180)
+	stars.Parent = top
+	Sfx.play("GoblinAttackHit", hrp)
+
+	feedback(victimPlayer, {
+		Kind = "Kicked", From = hrp.Position, To = landing, Seconds = flight,
+		Arc = cfg.ArcHeight or 90, Spin = cfg.Spin or 9,
+	})
+
+	task.delay(flight + 0.4, function()
+		if not hrp.Parent then return end
+		if (hrp.Position - landing).Magnitude > 30 then
+			-- Не долетел (лаг/клиент не ответил) — ставим на базу сами.
+			pcall(function()
+				character:PivotTo(CFrame.new(landing))
+				hrp.AssemblyLinearVelocity = Vector3.zero
+			end)
+		end
+		stars.Enabled = false
+		trail.Enabled = false
+	end)
+	task.delay(flight + after, function()
+		pcall(function() top:Destroy() bottom:Destroy() trail:Destroy() end)
+		if state.Token ~= token then return end
+		disableRagdoll(record)
+		if ragdollRecords[victimPlayer.UserId] == record then ragdollRecords[victimPlayer.UserId] = nil end
+		if victimPlayer.Parent then
+			victimPlayer:SetAttribute("Ragdolled", false)
+			victimPlayer:SetAttribute("GoblinKicked", false)
+			if humanoid.Parent then humanoid.Health = humanoid.MaxHealth * (cfg.HealOnLanding or 1) end
+		end
+		task.delay(1.5, function()
+			if state.Token == token and victimPlayer.Parent then victimPlayer:SetAttribute("StaggerImmune", false) end
+		end)
+	end)
+	return true
+end
+
 function CombatService:IsPositionSafe(position)
 	return isPositionSafe(position)
 end

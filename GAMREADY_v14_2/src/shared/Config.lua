@@ -1129,6 +1129,13 @@ Config.Goblins = {
 		-- Вставь опубликованные animation IDs. Нулевые ID безопасно отключены.
 		Idle = 90666608813290,
 		Walk = 72147126221056,
+		-- v20.44: необязательные (0 — нет). Своя анимация главнее: папка
+		-- Animations внутри модели гоблина (Animation: Idle, Walk, Run,
+		-- Attack1..3, Hit, Stun, Death). Death держит последний кадр.
+		Run = 0,
+		Hit = 0,
+		Stun = 0,
+		Death = 0,
 		Attacks = { 88115464228798, 84821580919778, 130751263844103 }, -- проигрываются строго 1 -> 2 -> 3 -> 1
 	},
 	Types = {
@@ -6729,35 +6736,105 @@ Config.SkinBuffs = {
 }
 Config.SkinUiVersion = 1
 
--- 5) ГОБЛИНСКИЙ РЕЙД -----------------------------------------------------------
--- Гоблины больше не ходят по дороге. Лагерь — Workspace/GoblinCamp:
---   GoblinCamp/Zone        — Part (невидимый), границы зоны рейда
---   GoblinCamp/Spawns/*    — Part'ы-точки появления (сколько угодно)
--- Раз в IntervalSeconds — рейд случайного типа. Гоблины НИКОГДА не
--- выходят из Zone: бродят, бьют игроков, оказавшихся внутри, и
--- возвращаются. Лут — с каждого гоблина + сундук за зачистку.
+-- 5) ГОБЛИНСКИЙ ЛАГЕРЬ (v20.44, server/Services/GoblinCampService) -----------
+-- Лагерь — Workspace/GoblinCamp:
+--   GoblinCamp/Zone        — Part (невидимый), границы лагеря. Гоблины НИКОГДА
+--                            не выходят из него.
+--   GoblinCamp/Spawns/*    — Part'ы-точки появления (сколько угодно).
+--   GoblinCamp/Marker      — (необязательно) Part, над которым висит табличка
+--                            лагеря; нет — табличка над центром Zone.
+-- Раз в IntervalSeconds — волна (Waves) по средней пещере игроков сервера.
+-- Над лагерем табличка: таймер до волны, название, сила и ДРОП волны.
+--
+-- ДВИЖЕНИЕ — «поле направлений» (flow field): Zone делится на клетки
+-- CellSize стадов, свободные клетки находятся один раз рейкастами. Для
+-- каждой цели (игрок / точка дома) считается одно поле «куда шагнуть» на
+-- ВСЕХ гоблинов сразу — толпа обходит препятствия и не толкается.
+--
+-- МОДЕЛИ И АНИМАЦИИ — свои: ReplicatedStorage.Assets.Goblin_<Тип>
+-- (или Goblin_<Тип>_1.._3), тип из Config.Goblins.Types. Анимации — папка
+-- Animations внутри модели (Animation: Idle, Walk, Run, Attack1..3, Hit,
+-- Stun, Death) или Config.Goblins.Animations. Сервер только ставит атрибуты
+-- (GoblinMoving/GoblinRunning/GoblinAttackSequence/GoblinHitSequence/
+-- GoblinStunned/GoblinDead) — играет их GoblinAnimation.client.
 Config.GoblinRaid = {
 	Enabled = true,
-	DisableRoadWaves = true,
-	IntervalSeconds = 300,
+	UseCampService = true,     -- новый лагерь (GoblinCampService); false — старый рейд
+	DisableRoadWaves = true,   -- гоблинов на дороге нет, только лагерь
+	IntervalSeconds = 300,     -- волна раз в 5 минут
 	AnnounceBefore = 20,
-	DurationSeconds = 180,
-	AggroRadius = 26,
-	AttackRange = 5.5,
-	AttackWindup = 0.7,      -- видимый замах, от которого можно уйти
-	AttackCooldown = 1.8,
-	WanderRadius = 18,
-	Types = {
-		{ Id = "Thieves", Model = "Thief", Title = "GOBLIN THIEVES", Count = 7, HealthMult = 0.7, DamageMult = 0.7, SpeedMult = 1.35, Color = Color3.fromRGB(120, 220, 120) },
-		{ Id = "Brutes", Model = "Berserker",  Title = "GOBLIN BRUTES",  Count = 4, HealthMult = 2.2, DamageMult = 1.6, SpeedMult = 0.8,  Color = Color3.fromRGB(200, 90, 60), Scale = 1.3 },
-		{ Id = "Shamans", Model = "Warrior", Title = "GOBLIN SHAMANS", Count = 5, HealthMult = 1.0, DamageMult = 0.8, SpeedMult = 1.0,  Color = Color3.fromRGB(140, 110, 255), HealAllies = 0.04 },
-		{ Id = "Bombers", Model = "Warrior", Title = "GOBLIN BOMBERS", Count = 5, HealthMult = 0.9, DamageMult = 1.2, SpeedMult = 1.05, Color = Color3.fromRGB(255, 150, 60), ExplodeOnAttack = true },
-		{ Id = "Golden", Model = "Golden", Title = "GOLDEN GOBLIN BOSS", Count = 1, HealthMult = 12, DamageMult = 2.2, SpeedMult = 0.9, Color = Color3.fromRGB(255, 210, 60), Scale = 1.8, Weight = 0.15, Boss = true },
+	DurationSeconds = 180,     -- не зачистили за это время — гоблины уходят
+	FirstWaveDelay = 90,       -- первая волна после старта сервера
+
+	-- ИИ (все расстояния в стадах).
+	Ai = {
+		TickSeconds = 0.2,       -- как часто думает КАЖДЫЙ гоблин (тики разнесены)
+		AggroRadius = 28,        -- замечает игрока внутри лагеря ближе этого
+		DeaggroRadius = 40,      -- теряет цель дальше этого
+		AttackRange = 5,         -- начинает замах с этого расстояния
+		HitRange = 7,            -- удар долетает, если игрок ещё ближе этого
+		AttackWindup = 0.55,     -- видимый замах, от которого можно отойти
+		AttackCooldown = 1.6,
+		WanderRadius = 16,       -- бродит вокруг своей точки
+		WanderPause = { 1.5, 4 },-- постоять между прогулками, сек
+		RunSpeedMult = 1.35,     -- бег за целью быстрее прогулки
+		StunSeconds = 1.2,       -- оглушение от удара (каждый 3-й удар)
+		StunEveryHits = 3,
+		SeparationRadius = 3.2,  -- расходятся, чтобы не стоять друг в друге
+		StuckSeconds = 1.6,      -- нет прогресса — прыжок и новый шаг
 	},
-	LootPerGoblin = { MoneyCarts = { 0.15, 0.35 }, DynamiteChance = 0.2 },
-	-- Сундук за зачистку по вкладу (доля урона игрока в рейде).
-	ClearChest = { { MinShare = 0.35, Chest = "Epic" }, { MinShare = 0.15, Chest = "Rare" }, { MinShare = 0.01, Chest = "Common" } },
-	BossClearChest = "Legendary",
+	Flow = {
+		CellSize = 4,
+		MaxStep = 3.5,           -- перепад высоты между соседними клетками
+		ClearHeight = 5,         -- столько места над землёй нужно гоблину
+		RecomputeSeconds = 0.35, -- поле к игроку пересчитывается не чаще
+	},
+
+	-- ВОЛНЫ — только существующие гоблины (Config.Goblins.Types).
+	--   Units   — { Тип, Сколько }; MinCave/MaxCave — средняя пещера сервера;
+	--   HealthMult/DamageMult — сила волны; Drops — дроп, он же на табличке:
+	--     PerKill = { MoneyCarts = {мин, макс}, Dynamite = шанс, Geode = шанс },
+	--     Clear   = сундук за зачистку по доле урона (MinShare → Chest).
+	Waves = {
+		{ Id = "Scouts", Title = "GOBLIN SCOUTS", Color = Color3.fromRGB(210, 70, 70), MinCave = 1, MaxCave = 8, Weight = 30,
+			Units = { { "Warrior", 6 } }, HealthMult = 0.8, DamageMult = 0.8,
+			Drops = { PerKill = { MoneyCarts = { 0.10, 0.25 }, Dynamite = 0.15 },
+				Clear = { { MinShare = 0.3, Chest = "Rare" }, { MinShare = 0.01, Chest = "Common" } } } },
+		{ Id = "Thieves", Title = "GOBLIN THIEVES", Color = Color3.fromRGB(220, 175, 55), MinCave = 2, MaxCave = 12, Weight = 26,
+			Units = { { "Thief", 7 } }, HealthMult = 0.8, DamageMult = 0.75,
+			Drops = { PerKill = { MoneyCarts = { 0.15, 0.35 }, Dynamite = 0.2 },
+				Clear = { { MinShare = 0.3, Chest = "Rare" }, { MinShare = 0.01, Chest = "Common" } } } },
+		{ Id = "Warband", Title = "GOBLIN WARBAND", Color = Color3.fromRGB(230, 120, 60), MinCave = 4, MaxCave = 15, Weight = 22,
+			Units = { { "Warrior", 3 }, { "Thief", 2 }, { "Berserker", 1 } }, HealthMult = 1, DamageMult = 1,
+			Drops = { PerKill = { MoneyCarts = { 0.2, 0.4 }, Dynamite = 0.2, Geode = 0.08 },
+				Clear = { { MinShare = 0.35, Chest = "Epic" }, { MinShare = 0.1, Chest = "Rare" }, { MinShare = 0.01, Chest = "Common" } } } },
+		{ Id = "Brutes", Title = "GOBLIN BARBARIANS", Color = Color3.fromRGB(170, 95, 45), MinCave = 5, MaxCave = 15, Weight = 16,
+			Units = { { "Berserker", 4 } }, HealthMult = 1.3, DamageMult = 1.2,
+			Drops = { PerKill = { MoneyCarts = { 0.3, 0.55 }, Dynamite = 0.25, Geode = 0.1 },
+				Clear = { { MinShare = 0.35, Chest = "Epic" }, { MinShare = 0.1, Chest = "Rare" }, { MinShare = 0.01, Chest = "Common" } } } },
+		{ Id = "KingsGuard", Title = "THE GOBLIN KING", Color = Color3.fromRGB(165, 80, 210), MinCave = 7, MaxCave = 15, Weight = 10, Boss = true,
+			Units = { { "King", 1 }, { "Warrior", 3 } }, HealthMult = 1.5, DamageMult = 1.2,
+			Drops = { PerKill = { MoneyCarts = { 0.3, 0.6 }, Dynamite = 0.3, Geode = 0.15 }, BossMoneyMult = 5,
+				Clear = { { MinShare = 0.35, Chest = "Legendary" }, { MinShare = 0.1, Chest = "Epic" }, { MinShare = 0.01, Chest = "Rare" } } } },
+		{ Id = "Golden", Title = "GOLDEN GOBLIN KING", Color = Color3.fromRGB(255, 210, 60), MinCave = 9, MaxCave = 15, Weight = 4, Boss = true,
+			Units = { { "Golden", 1 }, { "Berserker", 2 } }, HealthMult = 4, DamageMult = 1.3,
+			Drops = { PerKill = { MoneyCarts = { 0.4, 0.8 }, Dynamite = 0.35, Geode = 0.2 }, BossMoneyMult = 8,
+				Clear = { { MinShare = 0.1, Chest = "Legendary" }, { MinShare = 0.01, Chest = "Epic" } } } },
+	},
+
+	-- Табличка над лагерем (видна издалека).
+	Marker = { Height = 22, MaxDistance = 900, Title = "GOBLIN CAMP" },
+
+	-- ГОБЛИНЫ ДОБИЛИ ИГРОКА: не смерть, а пинок домой — рагдолл, полёт по
+	-- дуге к своей базе с трейлом, посадка на базу (см. CombatService:GoblinKick).
+	Kick = {
+		FlightSeconds = 2.4,
+		ArcHeight = 90,          -- насколько выше прямой идёт дуга
+		Spin = 9,                -- кувырки в полёте (рад/с)
+		RagdollAfterLanding = 1.2,
+		HealOnLanding = 1.0,     -- доля здоровья после посадки
+		TrailColors = { Color3.fromRGB(255, 90, 90), Color3.fromRGB(255, 220, 80), Color3.fromRGB(90, 220, 255) },
+	},
 }
 
 --------------------------------------------------------------------------------

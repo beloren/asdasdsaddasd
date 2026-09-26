@@ -22,14 +22,32 @@ local function loadTrack(animator, id, priority, looped)
 	return track
 end
 
+-- v20.44: своя анимация из модели: папка Animations внутри модели гоблина
+-- (Animation с именами Idle, Walk, Run, Attack1..3, Hit, Stun, Death).
+local function loadFromModel(model, animator, name, priority, looped)
+	local folder = model:FindFirstChild("Animations")
+	local animation = folder and folder:FindFirstChild(name)
+	if not (animation and animation:IsA("Animation")) then return nil end
+	local ok, track = pcall(function() return animator:LoadAnimation(animation) end)
+	if not ok then return nil end
+	track.Priority = priority
+	track.Looped = looped
+	return track
+end
+
+-- Локомоция: idle / walk / run (бег — атрибут GoblinRunning, если есть Run).
 local function setLocomotion(state, moving)
-	if state.Attacking then moving = false end
-	local wanted = moving and state.walk or state.idle
-	local other = moving and state.idle or state.walk
-	if state.moving == moving and (not wanted or wanted.IsPlaying) then return end
+	if state.Attacking or state.Stunned or state.Dead then moving = false end
+	local running = moving and state.Model:GetAttribute("GoblinRunning") == true and state.run ~= nil
+	local wanted = not moving and state.idle or running and state.run or state.walk
+	local key = not moving and "idle" or running and "run" or "walk"
+	if state.loco == key and (not wanted or wanted.IsPlaying) then return end
+	state.loco = key
 	state.moving = moving
-	if other and other.IsPlaying then other:Stop(0.12) end
-	if wanted and not wanted.IsPlaying then wanted:Play(0.12, 1, 1) end
+	for _, track in { state.idle, state.walk, state.run } do
+		if track and track ~= wanted and track.IsPlaying then track:Stop(0.15) end
+	end
+	if wanted and not wanted.IsPlaying then wanted:Play(0.15, 1, 1) end
 end
 
 local function playAttack(state)
@@ -84,21 +102,62 @@ bindGoblinTracks = function(model, humanoid, animator)
 		track:Stop(0)
 	end
 	local config = Config.Goblins.Animations or {}
+	-- Своя анимация из модели главнее ID из конфига.
+	local function track(name, id, priority, looped)
+		return loadFromModel(model, animator, name, priority, looped) or loadTrack(animator, id, priority, looped)
+	end
 	local state = {
 		Model = model,
 		Humanoid = humanoid,
 		Attacking = model:GetAttribute("GoblinAttacking") == true,
 		moving = false,
 		attackIndex = 0,
-		idle = loadTrack(animator, config.Idle, Enum.AnimationPriority.Idle, true),
-		walk = loadTrack(animator, config.Walk, Enum.AnimationPriority.Movement, true),
+		idle = track("Idle", config.Idle, Enum.AnimationPriority.Idle, true),
+		walk = track("Walk", config.Walk, Enum.AnimationPriority.Movement, true),
+		run = track("Run", config.Run, Enum.AnimationPriority.Movement, true),
+		hit = track("Hit", config.Hit, Enum.AnimationPriority.Action2, false),
+		stun = track("Stun", config.Stun, Enum.AnimationPriority.Action, true),
+		death = track("Death", config.Death, Enum.AnimationPriority.Action4, false),
 		attacks = {},
 	}
-	for _, id in config.Attacks or {} do
-		local track = loadTrack(animator, id, Enum.AnimationPriority.Action, false)
-		if track then table.insert(state.attacks, track) end
+	for index = 1, 3 do
+		local own = loadFromModel(model, animator, "Attack" .. index, Enum.AnimationPriority.Action, false)
+			or (index == 1 and loadFromModel(model, animator, "Attack", Enum.AnimationPriority.Action, false))
+		if own then table.insert(state.attacks, own) end
+	end
+	if #state.attacks == 0 then
+		for _, id in config.Attacks or {} do
+			local attack = loadTrack(animator, id, Enum.AnimationPriority.Action, false)
+			if attack then table.insert(state.attacks, attack) end
+		end
 	end
 	states[model] = state
+	-- v20.44: удар по гоблину, оглушение, смерть (атрибуты ставит сервер).
+	state.hitChanged = model:GetAttributeChangedSignal("GoblinHitSequence"):Connect(function()
+		if state.hit and not state.Dead then state.hit:Play(0.05, 1, 1) end
+	end)
+	state.stunChanged = model:GetAttributeChangedSignal("GoblinStunned"):Connect(function()
+		state.Stunned = model:GetAttribute("GoblinStunned") == true
+		if state.stun then
+			if state.Stunned then state.stun:Play(0.1) else state.stun:Stop(0.2) end
+		end
+		setLocomotion(state, false)
+	end)
+	state.deadChanged = model:GetAttributeChangedSignal("GoblinDead"):Connect(function()
+		if model:GetAttribute("GoblinDead") ~= true or state.Dead then return end
+		state.Dead = true
+		for _, playing in animator:GetPlayingAnimationTracks() do
+			if playing ~= state.death then playing:Stop(0.1) end
+		end
+		if state.death then
+			state.death:Play(0.1)
+			-- Держим последний кадр смерти, пока модель не уберут.
+			state.death:GetMarkerReachedSignal("Hold"):Connect(function() state.death:AdjustSpeed(0) end)
+			task.delay(math.max(0.1, state.death.Length - 0.05), function()
+				if state.death.IsPlaying then state.death:AdjustSpeed(0) end
+			end)
+		end
+	end)
 
 	-- ПРОИЗВОДИТЕЛЬНОСТЬ: раньше здесь висел ОТДЕЛЬНЫЙ RunService.Heartbeat
 	-- на каждого гоблина. Гоблины лежат в общей папке workspace.Goblins и
@@ -119,6 +178,9 @@ bindGoblinTracks = function(model, humanoid, animator)
 		if parent then return end
 		if state.attackChanged then state.attackChanged:Disconnect() end
 		if state.attackingChanged then state.attackingChanged:Disconnect() end
+		for _, connection in { state.hitChanged, state.stunChanged, state.deadChanged } do
+			if connection then connection:Disconnect() end
+		end
 		states[model] = nil
 	end)
 	setLocomotion(state, false)
