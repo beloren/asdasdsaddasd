@@ -4,8 +4,8 @@
 -- своей базой; теперь видно, чья база чья.
 --
 -- Владелец берётся из атрибута OwnerUserId у PlotPad (ставит PlotService).
--- Метка держит постоянный размер на экране (размер в стадах ∝ расстоянию
--- до камеры) и прячется, когда ТЫ стоишь на этой базе (не мешает обзору).
+-- Метка — обычная табличка в мире (размер в стадах, TextScaled) и прячется,
+-- когда ТЫ стоишь на этой базе (не мешает обзору).
 -- Своя база — зелёная обводка аватарки, чужие — белая.
 --------------------------------------------------------------------------------
 local Players = game:GetService("Players")
@@ -16,9 +16,10 @@ local UiKit = require(ReplicatedStorage.Shared.UiKit)
 local player = Players.LocalPlayer
 
 local MARKER_NAME = "BaseNameMarker"
-local REFERENCE_DISTANCE = 30 -- на этом расстоянии метка REFERENCE_WIDTH × REFERENCE_HEIGHT стадов
-local REFERENCE_WIDTH = 9.6
-local REFERENCE_HEIGHT = 8.0
+-- v20.48: размер метки в СТАДАХ, постоянный (без подгонки под расстояние
+-- камеры): вблизи крупнее, издалека меньше, текст TextScaled.
+local REFERENCE_WIDTH = 16
+local REFERENCE_HEIGHT = 13
 local HIDE_RADIUS = 35 -- ближе к центру базы — метка этой базы скрыта
 local HEIGHT = 52
 
@@ -162,7 +163,6 @@ task.spawn(function()
 		end
 	end)
 	while true do
-		local camera = workspace.CurrentCamera
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		for pad, entry in markers do
@@ -172,10 +172,6 @@ task.spawn(function()
 					entry.Gui.Enabled = flat.Magnitude > HIDE_RADIUS
 				else
 					entry.Gui.Enabled = true
-				end
-				if camera then
-					local factor = math.max((camera.CFrame.Position - pad.Position).Magnitude, 1) / REFERENCE_DISTANCE
-					entry.Gui.Size = UDim2.fromScale(REFERENCE_WIDTH * factor, REFERENCE_HEIGHT * factor)
 				end
 			end
 		end

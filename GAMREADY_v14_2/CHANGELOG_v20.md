@@ -447,3 +447,6 @@
 
 ## v20.47 — 4 вида цветов
 - Декор цветов: `Flowers1` Tulip Patch, `Flowers2` Sunflower Pot, новые `Flowers3` Lavender Box (деревянный ящик с лавандой) и `Flowers4` Daisy Bed (каменная клумба с ромашками). Свои модели: `Decor_Flowers3`, `Decor_Flowers4`. Продаются у торговца, как остальной декор.
+
+## v20.48 — метка базы без подгонки под камеру
+- Метка над базой (аватарка + ник) больше не меняет размер от расстояния камеры: обычная табличка в мире 16 × 13 стадов (`REFERENCE_WIDTH/HEIGHT` в `client/BaseNameMarkers`), текст TextScaled.
