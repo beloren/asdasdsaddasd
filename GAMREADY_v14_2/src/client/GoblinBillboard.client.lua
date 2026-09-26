@@ -372,7 +372,7 @@ local function track(model)
 		-- Гоблин мог умереть/деспавниться, пока мы ждали репликацию.
 		if not model.Parent then return end
 		if not head or not humanoid then
-			warn(("[GoblinBillboard] У модели %s так и не появились Head/Humanoid — билборд не создан."):format(model.Name))
+			warn(("[GoblinBillboard] У модели %s так и не появились Head/Humanoid - билборд не создан."):format(model.Name))
 			return
 		end
 		if tracked[model] then return end

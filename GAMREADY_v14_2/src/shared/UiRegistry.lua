@@ -51,7 +51,7 @@ UiRegistry.Entries = {
 	{ Name = "CollectionMenu", Module = "UiBuilders.CollectionMenuUi", MinVersion = 21, What = "книга-меню" },
 	{ Name = "SkinUi", Module = "SkinUiBuilder", MinVersion = 21, What = "скины" },
 	{ Name = "PerkUi", Module = "PerkUiBuilder", MinVersion = 22, What = "перки престижа" },
-	{ Name = "RebirthDialogButtons", Module = "PrestigeUiBuilder", MinVersion = 21, What = "окно престижа у NPC" },
+	{ Name = "RebirthDialogButtons", Module = "PrestigeUiBuilder", MinVersion = 22, What = "окно престижа у NPC" },
 	{ Name = "MerchantUi", Module = "MerchantUiBuilder", MinVersion = 20, What = "торговец" },
 	{ Name = "MarketTicker", Module = "MerchantUiBuilder", Fn = "BuildMarketTicker", MinVersion = 21, What = "табло курса руды" },
 	{ Name = "GeodeUi", Module = "GeodeUiBuilder", MinVersion = 23, What = "жеоды" },
@@ -139,7 +139,7 @@ function UiRegistry.Get(name, timeout)
 		gui = playerGui:WaitForChild(name, timeout or 30)
 	end
 	if gui and entry and not isFresh(gui, entry) then
-		warn(("[UiRegistry] StarterGui/%s собран старым билдером — собираю новый вид кодом. Запусти tools/BuildAllUI.lua, чтобы править его в Studio."):format(name))
+		warn(("[UiRegistry] StarterGui/%s собран старым билдером - собираю новый вид кодом. Запусти tools/BuildAllUI.lua, чтобы править его в Studio."):format(name))
 		gui:Destroy()
 		gui = nil
 	end
@@ -183,9 +183,9 @@ function UiRegistry.BuildAll(target, filter)
 					existing:Destroy()
 				end
 				result.Parent = target
-				table.insert(report, "✔ " .. entry.Name .. " — " .. (entry.What or ""))
+				table.insert(report, "✔ " .. entry.Name .. " - " .. (entry.What or ""))
 			else
-				table.insert(report, "✘ " .. entry.Name .. " — " .. tostring(result))
+				table.insert(report, "✘ " .. entry.Name .. " - " .. tostring(result))
 			end
 		end
 	end

@@ -274,7 +274,7 @@ task.spawn(function()
 	local remote = ReplicatedStorage.Shared:WaitForChild("BuffState", 20)
 	if not remote then
 		-- Не фатально: сейв-зона и погода показываются и без этого канала.
-		warn("[BuffBar] RemoteEvent BuffState не появился — иконки баффов из жеод показываться не будут.")
+		warn("[BuffBar] RemoteEvent BuffState не появился - иконки баффов из жеод показываться не будут.")
 		return
 	end
 	remote.OnClientEvent:Connect(function(list)
@@ -352,7 +352,7 @@ if playerScripts then
 	for _, child in playerScripts:GetChildren() do
 		if child:IsA("LocalScript") and LEGACY_SCRIPT_NAMES[child.Name] then
 			child.Enabled = false
-			warn("[BuffBar] Найден устаревший скрипт " .. child.Name .. " — отключён. Удали его из StarterPlayer/StarterPlayerScripts в Studio.")
+			warn("[BuffBar] Найден устаревший скрипт " .. child.Name .. " - отключён. Удали его из StarterPlayer/StarterPlayerScripts в Studio.")
 		end
 	end
 end

@@ -1035,7 +1035,7 @@ local function findOrBuildValueGui(root)
 		return gui, label
 	end
 	if gui then
-		warn("[CartService] Найден ValueGui, но без TextLabel внутри — пересобираю плейсхолдер:", gui:GetFullName())
+		warn("[CartService] Найден ValueGui, но без TextLabel внутри - пересобираю плейсхолдер:", gui:GetFullName())
 		gui:Destroy() -- нашли BillboardGui, но без TextLabel внутри — пересоберём с нуля
 	end
 
@@ -1074,7 +1074,7 @@ local function findOrBuildComboGui(root)
 		return gui, label, gradient
 	end
 	if gui then
-		warn("[CartService] Найден ComboGui, но не хватает частей (TextLabel и/или UIGradient на нём/родителе) — пересобираю плейсхолдер:", gui:GetFullName())
+		warn("[CartService] Найден ComboGui, но не хватает частей (TextLabel и/или UIGradient на нём/родителе) - пересобираю плейсхолдер:", gui:GetFullName())
 		gui:Destroy() -- не хватает частей — пересоберём с нуля
 	end
 
@@ -1201,9 +1201,9 @@ function CartService:GrantPackage(player, reason)
 	end
 	self:_refreshCartAttributes(player)
 	if Services.NotifyService and reason ~= "silent" then
-		local text = reason == "upgrade" and "📦 New cart package — place it anywhere!"
+		local text = reason == "upgrade" and "📦 New cart package - place it anywhere!"
 			or reason == "unlock" and "📦 Cart package! Take it in hand and place your cart."
-			or "📦 Your cart package is back — place it again!"
+			or "📦 Your cart package is back - place it again!"
 		Services.NotifyService:Show(player, text, { Icon = "Cart" })
 	end
 	return true
@@ -1482,7 +1482,7 @@ function CartService:PlaceCartFromPackage(player, position)
 	local probeRoot = probe:FindFirstChild("Root") or probe.PrimaryPart
 	if not probeRoot then
 		probe:Destroy()
-		warn(("[CartService] У модели Cart_Tier%d нет детали 'Root' — поставить тележку нельзя."):format(tier))
+		warn(("[CartService] У модели Cart_Tier%d нет детали 'Root' - поставить тележку нельзя."):format(tier))
 		return false, "Broken cart model"
 	end
 	probe.PrimaryPart = probeRoot
@@ -2200,7 +2200,7 @@ function CartService:Attach(data, player)
 
 	if #data.Crystals > 0 and Services.DataService and Services.NotifyService
 		and Services.DataService:MarkHintSeen(player, "LeftBaseWithValuableCart") then
-		Services.NotifyService:Show(player, "Other players can knock ore out of your loaded cart — press Shield to protect it!", { Icon = "Alert" })
+		Services.NotifyService:Show(player, "Other players can knock ore out of your loaded cart - press Shield to protect it!", { Icon = "Alert" })
 	end
 
 	player:SetAttribute("CarryingCart", true) -- CombatService заберёт кирку
@@ -3027,7 +3027,7 @@ function CartService:UpgradeOwnedCart(player, wipeCargo)
 		if self:IsCartUnlocked(player) then
 			local granted = self:GrantPackage(player, "upgrade")
 			if not granted and Services.NotifyService then
-				Services.NotifyService:Show(player, "📦 Cart upgraded — place your package to see it!", { Icon = "Cart" })
+				Services.NotifyService:Show(player, "📦 Cart upgraded - place your package to see it!", { Icon = "Cart" })
 			end
 		end
 		self:_refreshCartAttributes(player)

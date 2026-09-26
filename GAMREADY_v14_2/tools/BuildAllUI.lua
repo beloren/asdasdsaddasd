@@ -29,7 +29,7 @@ local StarterGui = game:GetService("StarterGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local shared = ReplicatedStorage:FindFirstChild("Shared")
-assert(shared and shared:FindFirstChild("UiRegistry"), "[BuildAllUI] Нет ReplicatedStorage.Shared.UiRegistry — сначала синхронизируй проект через Rojo.")
+assert(shared and shared:FindFirstChild("UiRegistry"), "[BuildAllUI] Нет ReplicatedStorage.Shared.UiRegistry - сначала синхронизируй проект через Rojo.")
 -- Command Bar запоминает однажды загруженные модули и после синхронизации
 -- Rojo может отдать СТАРУЮ версию билдеров. Поэтому грузим свежую копию
 -- папки Shared (require у клона всегда читает актуальный код).

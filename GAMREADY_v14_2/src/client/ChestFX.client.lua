@@ -412,7 +412,7 @@ end
 
 local remote = ReplicatedStorage.Shared:WaitForChild("ChestFx", 60)
 if not remote then
-	warn("[ChestFX] ChestFx не появился — анимация открытия сундуков отключена.")
+	warn("[ChestFX] ChestFx не появился - анимация открытия сундуков отключена.")
 	return
 end
 remote.OnClientEvent:Connect(function(kind, payload)

@@ -145,6 +145,11 @@ function BaseDecorService:_recompute(player)
 					respawn += info.Value
 				elseif info.Effect == "Mutation" and info.Mutation then
 					mutation[info.Mutation] = (mutation[info.Mutation] or 0) + info.Value
+				elseif info.Effect == "Mutation" and info.Mutations then
+					-- v20.43: Prism на все мутации сразу.
+					for _, id in info.Mutations do
+						mutation[id] = (mutation[id] or 0) + info.Value
+					end
 				end
 			end
 		elseif record.RelicUid then
@@ -674,7 +679,10 @@ function BaseDecorService:_spawnRecord(player, plot, record)
 		end
 	end
 	if not model then return nil end
-	model:PivotTo(worldCFrame(plot, record))
+	-- v20.43: низ модели (по рамке) ровно на поверхность — раньше модели,
+	-- у которых детали торчат ниже пивота (свои ассеты, повёрнутый
+	-- PrimaryPart), немного уходили под землю.
+	GroundCheck.SeatModel(model, worldCFrame(plot, record))
 	model:SetAttribute("BaseDecorUid", record.Uid)
 	model:SetAttribute("OwnerUserId", player.UserId)
 
@@ -747,6 +755,34 @@ end
 -- → обычный data.Gear; реликвии без ключа в инвентаре → ключ.
 local function migrate(data)
 	data.Gear = data.Gear or {}
+	-- v20.43: тотемы 10 тиров → 3 тира (Early/Mid/Late), Prism на мутацию →
+	-- общий Prism. Один раз на профиль: новые ID T1..T3 иначе не отличить
+	-- от старых.
+	if data.TotemsV3 ~= true then
+		data.TotemsV3 = true
+		local moved = {}
+		for key, count in data.Gear do
+			local newId = PlaceableCatalog.MigrateLegacyId(key)
+			if newId then
+				moved[newId] = (moved[newId] or 0) + (tonumber(count) or 0)
+				data.Gear[key] = nil
+			end
+		end
+		for key, count in moved do
+			if count > 0 then data.Gear[key] = (tonumber(data.Gear[key]) or 0) + count end
+		end
+		for _, record in data.PlacedDecor or {} do
+			local newId = record.Item and PlaceableCatalog.MigrateLegacyId(record.Item)
+			if newId then record.Item = newId end
+		end
+		if type(data.BaseItems) == "table" then
+			local items = {}
+			for key, count in data.BaseItems do
+				items[PlaceableCatalog.MigrateLegacyId(key) or key] = (items[PlaceableCatalog.MigrateLegacyId(key) or key] or 0) + (tonumber(count) or 0)
+			end
+			data.BaseItems = items
+		end
+	end
 	if type(data.BaseItems) == "table" then
 		for itemId, count in data.BaseItems do
 			if PlaceableCatalog.Info(itemId) and (tonumber(count) or 0) > 0 then

@@ -19,7 +19,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local hudGui = playerGui:WaitForChild("Hud", 10)
 local portrait = hudGui and hudGui:FindFirstChild("Portrait", true)
 if not (portrait and portrait:IsA("ViewportFrame")) then
-	warn("[PlayerPortraitHud] StarterGui/Hud без ViewportFrame 'Portrait' — портрет показываться не будет, остальной HUD/игра не пострадают. Запусти tools/BuildAllUI.lua заново.")
+	warn("[PlayerPortraitHud] StarterGui/Hud без ViewportFrame 'Portrait' - портрет показываться не будет, остальной HUD/игра не пострадают. Запусти tools/BuildAllUI.lua заново.")
 	return
 end
 
@@ -64,7 +64,7 @@ local function showCharacter(character)
 	local clone = character:Clone()
 	character.Archivable = originalArchivable
 	if not clone then
-		warn("[PlayerPortraitHud] character:Clone() вернул nil (Archivable=false у какой-то части персонажа?) — портрет для этого игрока показан не будет.")
+		warn("[PlayerPortraitHud] character:Clone() вернул nil (Archivable=false у какой-то части персонажа?) - портрет для этого игрока показан не будет.")
 		world:Destroy()
 		return
 	end

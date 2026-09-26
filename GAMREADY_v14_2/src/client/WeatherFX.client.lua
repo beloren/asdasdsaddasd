@@ -38,7 +38,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 local weatherRemote = ReplicatedStorage.Shared:WaitForChild("WeatherEvent", 10)
 if not weatherRemote then
-	warn("[WeatherFX] RemoteEvent WeatherEvent не появился — погодные VFX работать не будут, остальная игра не пострадает.")
+	warn("[WeatherFX] RemoteEvent WeatherEvent не появился - погодные VFX работать не будут, остальная игра не пострадает.")
 	return
 end
 

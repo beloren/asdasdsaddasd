@@ -27,7 +27,7 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local remote = ReplicatedStorage.Shared:WaitForChild("IslandRequest", 30)
 if not remote then
-	warn("[IslandUI] RemoteEvent IslandRequest не появился — окно островов работать не будет.")
+	warn("[IslandUI] RemoteEvent IslandRequest не появился - окно островов работать не будет.")
 	return
 end
 
@@ -262,9 +262,9 @@ local function renderDetail()
 			pip.Text.Text = "x" .. slots
 			pip.Parent = pipRow
 		end
-		upgradeTitle.Text = tr("FURNACE LV {level}/{max}", { level = smelter.Level, max = smelter.MaxLevel }) .. ' — <font color="#FFD75A">' .. tr(smelter.Name or "") .. "</font>"
+		upgradeTitle.Text = tr("FURNACE LV {level}/{max}", { level = smelter.Level, max = smelter.MaxLevel }) .. ' - <font color="#FFD75A">' .. tr(smelter.Name or "") .. "</font>"
 		if smelter.NextSlots then
-			upgradeText.Text = tr("Next: {name} — smelts {slots} → {next} ores at once, a bit faster. Ingot price x{mult}.", {
+			upgradeText.Text = tr("Next: {name} - smelts {slots} → {next} ores at once, a bit faster. Ingot price x{mult}.", {
 				name = tr(smelter.NextName or ""), slots = smelter.Slots, next = smelter.NextSlots, mult = smelter.Multiplier,
 			})
 			priceLabel.Text = '<font color="#FFD75A">' .. smelter.NextCostText .. "</font>"
@@ -321,8 +321,8 @@ local function render(state)
 		applyCard(visual, decorated(entry))
 	end
 	footer.Text = state.RebirthUnlocked
-		and ('<font color="#6CFF9A">%s</font>'):format(tr("PRESTIGE UNLOCKED — talk to the Prestige Mayor at your base."))
-		or ('<font color="#FF9E3C">%s</font>'):format(tr("PRESTIGE LOCKED — unlock every island first."))
+		and ('<font color="#6CFF9A">%s</font>'):format(tr("PRESTIGE UNLOCKED - talk to the Prestige Mayor at your base."))
+		or ('<font color="#FF9E3C">%s</font>'):format(tr("PRESTIGE LOCKED - unlock every island first."))
 	refreshArrows()
 	if detailView.Visible then renderDetail() end
 end

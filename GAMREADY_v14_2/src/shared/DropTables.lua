@@ -158,7 +158,7 @@ function DropTables.Chest(rarity, isAvailable)
 		if lootRow.Kind == "Money" then
 			table.insert(rows, {
 				Id = "Money", Kind = "Money", Carts = lootRow.Carts, Title = "Cash", Rarity = "Uncommon",
-				Chance = share, Description = ("%s–%s full carts of cash."):format(tostring(lootRow.Carts[1]), tostring(lootRow.Carts[2])),
+				Chance = share, Description = ("%s-%s full carts of cash."):format(tostring(lootRow.Carts[1]), tostring(lootRow.Carts[2])),
 			})
 		elseif lootRow.Kind == "Skin" then
 			local pool = DropTables.ChestSkinPool(rarity, isAvailable)
@@ -174,7 +174,7 @@ function DropTables.Chest(rarity, isAvailable)
 					Id = "Skin_" .. skinId, Kind = "Skin", SkinId = skinId,
 					Title = definition.DisplayName, Rarity = definition.Rarity,
 					Chance = share * weights[skinId] / math.max(1e-9, sum),
-					Description = "Pickaxe skin — only from chests.",
+					Description = "Pickaxe skin - only from chests.",
 				})
 			end
 		elseif lootRow.Kind == "Charm" then
@@ -235,7 +235,7 @@ end
 -- «1 из N» / проценты для подписи.
 function DropTables.ChanceText(chance)
 	chance = tonumber(chance) or 0
-	if chance <= 0 then return "—" end
+	if chance <= 0 then return "-" end
 	local percent = chance * 100
 	if percent >= 10 then return ("%.1f%%"):format(percent) end
 	if percent >= 1 then return ("%.2f%%"):format(percent) end

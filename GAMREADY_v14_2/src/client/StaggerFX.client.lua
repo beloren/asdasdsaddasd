@@ -42,7 +42,7 @@ if not combatGui or (tonumber(combatGui:GetAttribute("BuilderVersion")) or 0) < 
 	if combatGui then combatGui:Destroy() end
 	local builderModule = ReplicatedStorage.Shared:FindFirstChild("CombatUiBuilder")
 	if not builderModule then
-		warn("[StaggerFX] Нет ни StarterGui/CombatUi, ни Shared.CombatUiBuilder — интерфейс PvP не показывается.")
+		warn("[StaggerFX] Нет ни StarterGui/CombatUi, ни Shared.CombatUiBuilder - интерфейс PvP не показывается.")
 		return
 	end
 	combatGui = require(builderModule).Build()
@@ -338,7 +338,7 @@ end)
 
 local feedbackRemote = ReplicatedStorage.Shared:WaitForChild("CombatFeedbackEvent", 30)
 if not feedbackRemote then
-	warn("[StaggerFX] CombatFeedbackEvent не появился — эффекты PvP отключены.")
+	warn("[StaggerFX] CombatFeedbackEvent не появился - эффекты PvP отключены.")
 	return
 end
 
@@ -368,6 +368,14 @@ feedbackRemote.OnClientEvent:Connect(function(payload)
 		end
 		showPopup(tr("KNOCKED DOWN!"), subtitle, Color3.fromRGB(255, 80, 80), 2)
 		cameraShake(0.6, 0.45)
+	elseif kind == "Hop" then
+		-- v20.43: взрыв рядом (щит/безопасная зона) — лёгкий подброс без рагдолла.
+		local _, humanoid, root = ownParts()
+		if root and typeof(payload.Impulse) == "Vector3" then
+			if humanoid then humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end
+			root.AssemblyLinearVelocity += payload.Impulse
+		end
+		cameraShake(0.3, 0.2)
 	elseif kind == "Clash" then
 		local _, _, root = ownParts()
 		if root and typeof(payload.Impulse) == "Vector3" then

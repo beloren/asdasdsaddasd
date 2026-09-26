@@ -30,7 +30,7 @@ local FX = Config.Dynamite.Fx or {}
 
 local remote = ReplicatedStorage.Shared:WaitForChild("DynamiteFx", 60)
 if not remote then
-	warn("[DynamiteFX] DynamiteFx не появился — визуал динамита отключён.")
+	warn("[DynamiteFX] DynamiteFx не появился - визуал динамита отключён.")
 	return
 end
 

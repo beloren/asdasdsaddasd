@@ -195,7 +195,7 @@ local function forceFinishCutsceneEventually(player)
 	task.delay(CUTSCENE_SERVER_TIMEOUT, function()
 		if not player.Parent then return end
 		if player:GetAttribute("CutsceneFinished") then return end
-		warn(("[Main] %s не подтвердил конец катсцены за %d с (клиентский скрипт не отчитался) — принудительно ставлю на участок."):format(player.Name, CUTSCENE_SERVER_TIMEOUT))
+		warn(("[Main] %s не подтвердил конец катсцены за %d с (клиентский скрипт не отчитался) - принудительно ставлю на участок."):format(player.Name, CUTSCENE_SERVER_TIMEOUT))
 		player:SetAttribute("CutsceneFinished", true)
 		movePlayerToPlot(player)
 		queuePlotSpawnVerification(player)

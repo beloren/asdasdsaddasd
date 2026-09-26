@@ -157,7 +157,7 @@ function GroupRewardService:Claim(player)
 	if not data then return false end
 	local groupId = tonumber(Config.GroupReward.GroupId) or 0
 	if groupId == 0 then
-		warn("[GroupRewardService] Config.GroupReward.GroupId = 0 — награда за группу не выдаётся, пока не вписан реальный ID группы (см. Config.lua).")
+		warn("[GroupRewardService] Config.GroupReward.GroupId = 0 - награда за группу не выдаётся, пока не вписан реальный ID группы (см. Config.lua).")
 		self:SendState(player)
 		return false
 	end

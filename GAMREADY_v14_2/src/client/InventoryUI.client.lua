@@ -52,7 +52,7 @@ end
 
 local remote = ReplicatedStorage.Shared:WaitForChild("InventoryRequest", 10)
 if not remote then
-	warn("[InventoryUI] RemoteEvent InventoryRequest не появился — инвентарь работать не будет.")
+	warn("[InventoryUI] RemoteEvent InventoryRequest не появился - инвентарь работать не будет.")
 	return
 end
 
@@ -1601,7 +1601,7 @@ task.spawn(function()
 	local openRequest = ReplicatedStorage.Shared:WaitForChild("CollectionMenuOpenRequest", 10)
 	if not openRequest then
 		-- Не фатально: клавиша `~` работает независимо от этой шины.
-		warn("[InventoryUI] CollectionMenuOpenRequest is missing — открытие из меню-книги недоступно.")
+		warn("[InventoryUI] CollectionMenuOpenRequest is missing - открытие из меню-книги недоступно.")
 		return
 	end
 	openRequest.Event:Connect(function(target)

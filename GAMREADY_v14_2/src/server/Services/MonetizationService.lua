@@ -649,7 +649,7 @@ function MonetizationService:Start()
 				if ok and applied then
 					return Enum.ProductPurchaseDecision.PurchaseGranted
 				end
-				warn(("[MonetizationService] Погодный ивент %s (%s) не запустился для %s — чек НЕ подтверждён, платформа повторит попытку. Причина: %s"):format(
+				warn(("[MonetizationService] Погодный ивент %s (%s) не запустился для %s - чек НЕ подтверждён, платформа повторит попытку. Причина: %s"):format(
 					tostring(key), tostring(product.EventId), player.Name,
 					ok and "PurchaseTriggerEvent вернул false (нет такого EventId в Config.WeatherEvents.Events?)" or tostring(applied)
 				))
@@ -836,7 +836,7 @@ function MonetizationService:Start()
 				-- у тебя есть время дописать сюда свою логику выдачи и
 				-- переопубликовать игру, прежде чем ставить такую карточку
 				-- в продажу по-настоящему.
-				warn(("[MonetizationService] Куплен девпродукт %d (карточка \"%s\") без GrantMoney и без своей ветки выдачи в ProcessReceipt — покупка НЕ подтверждена. Допиши логику выдачи здесь или заполни GrantMoney в Config.Shop.Items."):format(receiptInfo.ProductId, item.Id))
+				warn(("[MonetizationService] Куплен девпродукт %d (карточка \"%s\") без GrantMoney и без своей ветки выдачи в ProcessReceipt - покупка НЕ подтверждена. Допиши логику выдачи здесь или заполни GrantMoney в Config.Shop.Items."):format(receiptInfo.ProductId, item.Id))
 				return Enum.ProductPurchaseDecision.NotProcessedYet
 			end
 		end
@@ -1196,9 +1196,9 @@ function MonetizationService:_grantMicro(player, receiptInfo, key, micro, proces
 		if result == granted then
 			if room and room > 0 then
 				if passive and passive.UpdateDisplay then pcall(passive.UpdateDisplay, passive, player) end
-				notify("🏦 Your safe is FULL — go collect it!")
+				notify("🏦 Your safe is FULL - go collect it!")
 			else
-				notify(("🏦 No crystal on the podium — got $%s instead!"):format(require(ReplicatedStorage.Shared.NumberFormat).abbreviate(fallback)))
+				notify(("🏦 No crystal on the podium - got $%s instead!"):format(require(ReplicatedStorage.Shared.NumberFormat).abbreviate(fallback)))
 			end
 		end
 		return result
@@ -1211,7 +1211,7 @@ function MonetizationService:_grantMicro(player, receiptInfo, key, micro, proces
 		end)
 		if result == granted and Services.IslandService and Services.IslandService._updateSmelter then
 			pcall(Services.IslandService._updateSmelter, Services.IslandService, player)
-			notify("🔥 Smelting finished — click the smelter!")
+			notify("🔥 Smelting finished - click the smelter!")
 		end
 		return result
 	end

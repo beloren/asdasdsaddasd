@@ -320,7 +320,7 @@ local function restoreControls()
 				end
 			end)
 		else
-			warn("[MoonAnimationTest] PlayerModule controls не загрузились — повторю восстановление при следующем запросе")
+			warn("[MoonAnimationTest] PlayerModule controls не загрузились - повторю восстановление при следующем запросе")
 		end
 		controlsRestorePending = false
 	end)
@@ -411,7 +411,7 @@ task.spawn(function()
         local expired = (not cutsceneRunning and elapsed > NOT_STARTED_TIMEOUT)
             or elapsed > ABSOLUTE_TIMEOUT
         if expired then
-            warn(("[MoonAnimationTest] Интро не завершилось за %.0f с (сцена %s) — принудительно возвращаю интерфейс и ставлю игрока на участок.")
+            warn(("[MoonAnimationTest] Интро не завершилось за %.0f с (сцена %s) - принудительно возвращаю интерфейс и ставлю игрока на участок.")
                 :format(elapsed, cutsceneRunning and "стартовала, но не завершилась" or "так и не стартовала"))
             -- ВАЖНО: именно restoreGameUi(), а не голый restoreControls().
             -- Раньше здесь стоял только restoreControls(), и подавление
@@ -477,7 +477,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
     if not MOVEMENT_KEYS[input.KeyCode] then return end
     if os.clock() - moveEscapeStartedAt < MOVE_ESCAPE_GRACE then return end
     if player:GetAttribute("CutsceneStarted") == true then return end
-    warn("[MoonAnimationTest] Игрок пытается идти, а интро так и не стартовало — возвращаю управление немедленно.")
+    warn("[MoonAnimationTest] Игрок пытается идти, а интро так и не стартовало - возвращаю управление немедленно.")
     -- Тот же полный путь, что и у сторожевого таймера ниже: одного
     -- restoreControls() мало, нужно ещё снять подавление интерфейса и
     -- сообщить серверу, что катсцена закончилась (иначе игрок останется
@@ -928,7 +928,7 @@ task.spawn(function()
         task.wait(0.1)
     end
     if player:GetAttribute("AssetsLoaded") ~= true then
-        warn(("[MoonAnimationTest] AssetsLoaded не выставлен за %d с — запускаю интро без него (проверь LoadingScreen)."):format(ASSETS_WAIT_TIMEOUT))
+        warn(("[MoonAnimationTest] AssetsLoaded не выставлен за %d с - запускаю интро без него (проверь LoadingScreen)."):format(ASSETS_WAIT_TIMEOUT))
     end
     local ok, err = xpcall(playAnimation, debug.traceback)
     if not ok then

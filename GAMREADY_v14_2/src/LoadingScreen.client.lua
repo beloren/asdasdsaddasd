@@ -233,7 +233,7 @@ end)
 -- выставлен, и катсцена с управлением не останутся заблокированными.
 task.delay(30, function()
 	if player:GetAttribute("AssetsLoaded") ~= true then
-		warn("[LoadingScreen] AssetsLoaded не выставлен за 30 с — выставляю принудительно.")
+		warn("[LoadingScreen] AssetsLoaded не выставлен за 30 с - выставляю принудительно.")
 		finalize()
 		pcall(function() screenGui:Destroy() end)
 	end

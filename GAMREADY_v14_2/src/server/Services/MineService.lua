@@ -360,7 +360,7 @@ function MineService:SetupPlot(player, plot)
 	local npc, isCustom = PlaceholderFactory.MinerNPC()
 	local primaryPart = npc.PrimaryPart
 	if not primaryPart then
-		warn("[MineService] У MinerNPC нет PrimaryPart — позиционирование невозможно, НПС не поставлен.")
+		warn("[MineService] У MinerNPC нет PrimaryPart - позиционирование невозможно, НПС не поставлен.")
 		npc:Destroy()
 		return
 	end
@@ -680,7 +680,7 @@ function MineService:_beginExpedition(player)
 	-- ведёт ни один путь — ни через диалог, ни через подделанный ремоут.
 	if Services.TutorialService and not Services.TutorialService:IsMineRepaired(player) then
 		if Services.NotifyService then
-			Services.NotifyService:Show(player, "THE MINE IS BLOCKED — CLEAR THE RUBBLE FIRST", { Duration = 2.5 })
+			Services.NotifyService:Show(player, "THE MINE IS BLOCKED - CLEAR THE RUBBLE FIRST", { Duration = 2.5 })
 		end
 		dialogRemote:FireClient(player, "Close")
 		if record.Prompt then record.Prompt.Enabled = true end
@@ -2276,7 +2276,7 @@ function MineService:_markAsGigantic(crystal)
 		end
 	end)
 	if not ok then
-		warn("[MineService] Не удалось увеличить GIGANTIC-руду (ScaleTo) — метка всё равно проставлена.")
+		warn("[MineService] Не удалось увеличить GIGANTIC-руду (ScaleTo) - метка всё равно проставлена.")
 	end
 
 	local priceGui = crystal:FindFirstChild("PriceGui", true)

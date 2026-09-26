@@ -43,7 +43,7 @@ local lootPopup = gui:FindFirstChild("LootPopup")
 
 local remote = ReplicatedStorage.Shared:WaitForChild("GearRequest", 30)
 if not remote then
-	warn("[GearHud] GearRequest не появился — снаряжение отключено на клиенте.")
+	warn("[GearHud] GearRequest не появился - снаряжение отключено на клиенте.")
 	return
 end
 
@@ -120,7 +120,7 @@ local function showHint(hint)
 		hintText.Text = ("%s  ·  %s"):format(tr(hint.What), tr(hint.How))
 		-- (рамки больше нет — цвет предмета несёт заголовок)
 	elseif aimHint:IsA("TextLabel") then
-		aimHint.Text = ("%s — %s · %s"):format(tr(hint.Title), tr(hint.What), tr(hint.How))
+		aimHint.Text = ("%s - %s · %s"):format(tr(hint.Title), tr(hint.What), tr(hint.How))
 	end
 	aimHint.Visible = true
 end

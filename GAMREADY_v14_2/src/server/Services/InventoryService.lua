@@ -558,7 +558,7 @@ function InventoryService:SetHeldOre(player, uid)
 	if player:GetAttribute("CarryingCart") == true then
 		clear()
 		if Services.NotifyService then
-			Services.NotifyService:Show(player, "Hands busy — drop the cart first", { Icon = "Cart", Duration = 1.5 })
+			Services.NotifyService:Show(player, "Hands busy - drop the cart first", { Icon = "Cart", Duration = 1.5 })
 		end
 		return false
 	end

@@ -69,7 +69,7 @@ function HudService:SetupPlayer(player)
 	local function bind(gui)
 		local parts = locatePillParts(gui)
 		if not parts then
-			warn("[HudService] В 'Hud' не хватает MoneyPill/RebirthPill с TextLabel 'Value' внутри — HUD не подключён. Проверь имена частей по контракту.")
+			warn("[HudService] В 'Hud' не хватает MoneyPill/RebirthPill с TextLabel 'Value' внутри - HUD не подключён. Проверь имена частей по контракту.")
 			return nil
 		end
 		gui.ResetOnSpawn = false -- чтобы этот клон не уничтожался на будущих респавнах
@@ -109,7 +109,7 @@ function HudService:SetupPlayer(player)
 	-- реплицируется на сервер — ждём появления "Hud".
 	local gui = playerGui:FindFirstChild("Hud") or playerGui:WaitForChild("Hud", 10)
 	if not gui then
-		warn("[HudService] StarterGui/Hud не найден в PlayerGui — HUD не будет показан. Проверь, что ScreenGui 'Hud' лежит в StarterGui.")
+		warn("[HudService] StarterGui/Hud не найден в PlayerGui - HUD не будет показан. Проверь, что ScreenGui 'Hud' лежит в StarterGui.")
 		return
 	end
 

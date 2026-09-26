@@ -249,7 +249,7 @@ IconBounce.ApplyPulse(bookButton)
 local dimmer = gui:FindFirstChild("Dimmer")
 local submenu = gui:FindFirstChild("Submenu")
 if not (dimmer and dimmer:IsA("GuiButton") and submenu and submenu:IsA("GuiObject")) then
-	warn("[CollectionMenu] Submenu не найден или неполон — запусти tools/BuildAllUI.lua. Использую runtime fallback.")
+	warn("[CollectionMenu] Submenu не найден или неполон - запусти tools/BuildAllUI.lua. Использую runtime fallback.")
 	if dimmer then dimmer:Destroy() end
 	if submenu then submenu:Destroy() end
 	dimmer = Instance.new("TextButton")

@@ -18,6 +18,7 @@ local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local Sfx = require(ReplicatedStorage.Shared.Sfx)
 local CrystalUtil = require(ReplicatedStorage.Shared.CrystalUtil)
+local MutationLabel = require(ReplicatedStorage.Shared.MutationLabel)
 local MutationVisuals = require(ReplicatedStorage.Shared.MutationVisuals)
 local MutationRoll = require(ReplicatedStorage.Shared.MutationRoll)
 
@@ -111,9 +112,12 @@ local function attachPriceGui(crystal, oreInfo, value, chanceFraction, mutationN
 	-- поймёт, что бывают другие, и будет считать "IRON" и "IRON III"
 	-- разными рудами, а не вариациями одной.
 	local baseName = variantInfo and (oreInfo.DisplayName .. " " .. variantInfo.DisplayName) or oreInfo.DisplayName
-	local nameLine = mutationName
-		and ("%s <font color=\"#%s\">%s</font>"):format(baseName, colorHex(Color3.fromRGB(255, 160, 60)), mutationName:upper())
-		or baseName
+	-- v20.43: мутации — ОТДЕЛЬНОЙ строкой сверху, каждая своим цветом.
+	local mutationLine = MutationLabel.Rich(crystal)
+	if not mutationLine and mutationName then
+		mutationLine = ('<font color="#%s">%s</font>'):format(colorHex(Color3.fromRGB(255, 160, 60)), mutationName:upper())
+	end
+	local nameLine = baseName
 	-- ШАНС ПОКАЗЫВАЕМ, ТОЛЬКО ЕСЛИ ОН ЕСТЬ.
 	--
 	-- Раньше строка жёстко содержала "1/%d", и при chanceFraction = 0
@@ -125,7 +129,7 @@ local function attachPriceGui(crystal, oreInfo, value, chanceFraction, mutationN
 	local oddsSegment = oneInN > 0
 		and ('<font color="#%s">1/%d</font>  '):format(colorHex(oddsColor), oneInN)
 		or ""
-	local text = ('<font color="#%s">%s</font>\n%s<font color="#%s">$%s</font>'):format(
+	local text = (mutationLine and (mutationLine .. "\n") or "") .. ('<font color="#%s">%s</font>\n%s<font color="#%s">$%s</font>'):format(
 		colorHex(nameColor),
 		nameLine:upper(),
 		oddsSegment,
@@ -159,8 +163,9 @@ local function attachPriceGui(crystal, oreInfo, value, chanceFraction, mutationN
 		label.Parent = gui
 	end
 
-	gui.Size = UDim2.new(4.4, 0, 1.2, 0)
-	gui.StudsOffset = Vector3.new(0, 2.2, 0)
+	-- Третья строка (мутации) — табличка выше, чтобы текст не мельчал.
+	gui.Size = UDim2.new(4.4, 0, mutationLine and 1.75 or 1.2, 0)
+	gui.StudsOffset = Vector3.new(0, mutationLine and 2.5 or 2.2, 0)
 	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0
 	gui.MaxDistance = 100

@@ -501,7 +501,7 @@ function UpgradeService:_tryBuy(player, kind)
 			-- откате не за что, снимаем его сразу.
 			releaseUpgradeCooldown(player)
 			Services.DataService:AddMoney(player, step.Cost)
-			warn(("[UpgradeService] Апгрейд шахты для %s не удался — деньги (%d) возвращены."):format(player.Name, step.Cost))
+			warn(("[UpgradeService] Апгрейд шахты для %s не удался - деньги (%d) возвращены."):format(player.Name, step.Cost))
 			Services.NotifyService:Show(player, "Mine upgrade failed. Your money was refunded.", { Icon = "Refund" })
 			return false, "Mine upgrade failed"
 		end
@@ -520,7 +520,7 @@ function UpgradeService:_tryBuy(player, kind)
 		if not Services.CartService:UpgradeOwnedCart(player) then
 			releaseUpgradeCooldown(player) -- см. комментарий в ветке Mine выше
 			Services.DataService:AddMoney(player, step.Cost)
-			warn(("[UpgradeService] Апгрейд тележки для %s не удался — деньги (%d) возвращены."):format(player.Name, step.Cost))
+			warn(("[UpgradeService] Апгрейд тележки для %s не удался - деньги (%d) возвращены."):format(player.Name, step.Cost))
 			Services.NotifyService:Show(player, "Cart upgrade failed. Your money was refunded.", { Icon = "Refund" })
 			return false, "Cart upgrade failed"
 		end

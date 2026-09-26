@@ -390,7 +390,7 @@ local function describe(item, player)
 		return "???", "❓", nil, "A random surprise: potion, geode, furniture, cash… or a rare pickaxe!"
 	elseif item.Kind == "Chest" then
 		local info = Config.Chests.Types[item.ChestRarity]
-		return name, icon, image, ("Place it on your base — %d rewards inside!"):format(info and info.Rolls or 2)
+		return name, icon, image, ("Place it on your base - %d rewards inside!"):format(info and info.Rolls or 2)
 	end
 	if item.Kind == "Potion" then
 		local potion = Config.Potions and Config.Potions.Types[item.Potion]
@@ -405,7 +405,7 @@ local function describe(item, player)
 		-- v20.28: бонусы кирки прямо в строке (+роль).
 		local role = Config.SkinRoles and Config.SkinRoles[item.SkinId]
 		effect = (role and (role:upper() .. ": ") or "") .. skinEffect(item.SkinId)
-		if item.Limited then effect = "LIMITED — gone after this restock. " .. effect end
+		if item.Limited then effect = "LIMITED - gone after this restock. " .. effect end
 	elseif item.Kind == "Placeable" then
 		effect = PlaceableCatalog.EffectText(PlaceableCatalog.Info(item.PlaceableId))
 	end
@@ -694,7 +694,7 @@ function MerchantService:_announceRareStock()
 		if offer.Limited and (globalStock[offer.Id] or 0) > 0 then
 			local color = CFG.RarityColors[offer.Rarity] or Color3.new(1, 1, 1)
 			pcall(function()
-				Services.AnnounceService:Broadcast(("⏳ LIMITED %s is at the Ore Merchant — only this restock!"):format(offer.DisplayName), color)
+				Services.AnnounceService:Broadcast(("⏳ LIMITED %s is at the Ore Merchant - only this restock!"):format(offer.DisplayName), color)
 			end)
 		end
 	end
@@ -783,7 +783,7 @@ end
 function MerchantService:_spawnNpc()
 	local zone = Services.WorldService:GetSellZone()
 	if not zone then
-		warn("[MerchantService] Нет SellZone — торговец не поставлен.")
+		warn("[MerchantService] Нет SellZone - торговец не поставлен.")
 		return
 	end
 	local bankModel = zone:FindFirstAncestorWhichIsA("Model")

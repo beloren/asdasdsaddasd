@@ -126,13 +126,14 @@ function RebirthService:_buildStatus(player)
 	local body
 	if not maxed then
 		body = Config.Rebirth.RequireOnlyCappedBranches
-			and ("Reach Cave %d before I can prestige you."):format(cap)
-			or ("You need to upgrade ALL 3 branches to tier %d before I can prestige you."):format(cap)
+			and ("Reach Cave %d, then come back."):format(cap)
+			or ("Upgrade all 3 branches to tier %d, then come back."):format(cap)
 	else
-		body = ("Prestiging resets your Cave, Cart, Pickaxe and money, and gives you <font color=\"#FFD75A\">%d prestige point%s</font> to spend on permanent perks in the case next to me. Deeper caves give more points."):format(pointsGain, pointsGain == 1 and "" or "s")
-			.. (" It costs <font color=\"#%s\">$%s</font>."):format(costColorHex, NumberFormat.abbreviate(cost))
+		-- v20.43: короче и яснее.
+		body = ("Prestige resets Cave, Cart, Pickaxe and money. You get <font color=\"#FFD75A\">%d point%s</font> for permanent perks. Deeper cave, more points."):format(pointsGain, pointsGain == 1 and "" or "s")
+			.. (" Cost: <font color=\"#%s\">$%s</font>."):format(costColorHex, NumberFormat.abbreviate(cost))
 		if not canAfford then
-			body ..= (" You still need <font color=\"#%s\">$%s</font> more."):format(costColorHex, NumberFormat.abbreviate(cost - money))
+			body ..= (" Need <font color=\"#%s\">$%s</font> more."):format(costColorHex, NumberFormat.abbreviate(cost - money))
 		end
 	end
 
@@ -156,8 +157,8 @@ function RebirthService:_buildStatus(player)
 
 	-- Чек-лист собирается без дыр (nil посреди массива ломает передачу через Remote).
 	local requirements = {}
-	table.insert(requirements, { Label = Config.Rebirth.RequireOnlyCappedBranches and ("Reach Cave %d"):format(cap) or ("Upgrade all branches to tier %d"):format(cap), Met = maxed })
-	table.insert(requirements, { Label = ("Save up $%s"):format(NumberFormat.abbreviate(cost)), Met = canAfford })
+	table.insert(requirements, { Label = Config.Rebirth.RequireOnlyCappedBranches and ("Reach Cave %d"):format(cap) or ("All branches tier %d"):format(cap), Met = maxed })
+	table.insert(requirements, { Label = ("Have $%s"):format(NumberFormat.abbreviate(cost)), Met = canAfford })
 	if islandsLabel then
 		table.insert(requirements, { Label = islandsLabel, Met = islandsMet })
 	end
@@ -401,7 +402,7 @@ end
 function RebirthService:_tryRebirth(player)
 	if player:GetAttribute("EconomyTransactionLocked") == true then return end
 	if Services.IslandService and not Services.IslandService:HasRebirthIslands(player) then
-		local text = "Unlock all islands at the Island Keeper first!"
+		local text = "Buy all islands from the Island Keeper first!"
 		self:_flash(player, text)
 		if rebirthNpcRemote then
 			rebirthNpcRemote:FireClient(player, "Result", false, text)

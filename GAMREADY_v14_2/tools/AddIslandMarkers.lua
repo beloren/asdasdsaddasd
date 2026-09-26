@@ -89,7 +89,7 @@ local added = 0
 for islandId, definition in Config.Islands.Definitions do
 	local island = findIsland(definition.Model or ("Island_" .. islandId))
 	if not (island and island:IsA("Model")) then
-		print(("[AddIslandMarkers] %s: модели %s нет в Assets — место задаётся в Config.Islands.Definitions.%s.Stations"):format(islandId, definition.Model or "?", islandId))
+		print(("[AddIslandMarkers] %s: модели %s нет в Assets - место задаётся в Config.Islands.Definitions.%s.Stations"):format(islandId, definition.Model or "?", islandId))
 		continue
 	end
 	local primary = island.PrimaryPart or island:FindFirstChildWhichIsA("BasePart", true)
@@ -99,7 +99,7 @@ for islandId, definition in Config.Islands.Definitions do
 	local top = CFrame.new(boxCFrame.Position + Vector3.new(0, boxSize.Y / 2, 0)) * rotation
 	for name, spec in definition.Stations or {} do
 		if island:FindFirstChild(name, true) then
-			print(("[AddIslandMarkers] %s/%s уже есть — не трогаю"):format(island.Name, name))
+			print(("[AddIslandMarkers] %s/%s уже есть - не трогаю"):format(island.Name, name))
 		else
 			local offset = spec.Offset or Vector3.zero
 			makeMarker(island, name, top * CFrame.new(offset) * CFrame.Angles(0, math.rad(spec.Yaw or 0), 0))

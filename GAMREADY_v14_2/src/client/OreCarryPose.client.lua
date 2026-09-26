@@ -36,6 +36,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local MutationLabel = require(game:GetService("ReplicatedStorage").Shared.MutationLabel)
 local Config = require(ReplicatedStorage.Shared.Config)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
@@ -417,12 +418,10 @@ local function buildOreModel(plr)
 	if mutations ~= "" then
 		-- Мутации перечисляем через запятую человекочитаемо и мелко: это
 		-- приписка к предмету, а не его имя.
-		local parts = {}
-		for _, id in string.split(mutations, ",") do
-			local mutation = Config.Mutations and Config.Mutations[id]
-			table.insert(parts, ((mutation and mutation.DisplayName) or id):upper())
-		end
-		makeLine(1, 0.22, table.concat(parts, " + "), Color3.fromRGB(255, 205, 120))
+		-- v20.43: каждая мутация своим цветом (shared/MutationLabel).
+		local line = makeLine(1, 0.26, "", Color3.new(1, 1, 1))
+		line.RichText = true
+		line.Text = MutationLabel.Rich(mutations) or ""
 	end
 
 	if gigantic then

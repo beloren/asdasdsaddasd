@@ -33,7 +33,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local promptRemote = ReplicatedStorage.Shared:WaitForChild("MiningRhythmPrompt", 10)
 local hitRemote = ReplicatedStorage.Shared:WaitForChild("MiningRhythmHit", 10)
 if not (promptRemote and hitRemote) then
-	warn("[MiningRhythmUI] RemoteEvent'ы мини-игры не появились — фича не будет работать, остальная игра не пострадает.")
+	warn("[MiningRhythmUI] RemoteEvent'ы мини-игры не появились - фича не будет работать, остальная игра не пострадает.")
 	return
 end
 

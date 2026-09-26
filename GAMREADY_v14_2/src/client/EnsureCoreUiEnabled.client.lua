@@ -70,7 +70,7 @@ local function forceEnable(name)
 	end
 	if player:GetAttribute("IntroActive") ~= true and not gui.Enabled then
 		gui.Enabled = true
-		warn(("[EnsureCoreUiEnabled] %s был выключен (Enabled=false) — включил обратно."):format(name))
+		warn(("[EnsureCoreUiEnabled] %s был выключен (Enabled=false) - включил обратно."):format(name))
 	end
 	-- На случай, если что-то (например, повторный клон при ResetOnSpawn
 	-- где-то по ошибке True) выключит его позже — держим один короткий

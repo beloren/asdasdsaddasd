@@ -59,7 +59,7 @@ if hint then hint.Text = tr("CLICK TO STRIKE") end
 
 local remote = ReplicatedStorage.Shared:WaitForChild("BoulderGameEvent", 30)
 if not remote then
-	warn("[BoulderGameUI] BoulderGameEvent не появился — мини-игра валунов отключена на клиенте.")
+	warn("[BoulderGameUI] BoulderGameEvent не появился - мини-игра валунов отключена на клиенте.")
 	return
 end
 
@@ -231,7 +231,7 @@ local function showDropCard(resultText, resultColor, rewards, worldPosition)
 			end
 		end)
 	end
-	if coins > 0 then coinFountain(worldPosition, math.min(30, coins)) end
+	-- v20.43: монеты по экрану убраны (монетки летят в мире с сервера).
 
 	task.delay(2.8, function()
 		if dropToken ~= token then return end
@@ -477,6 +477,57 @@ local function impact(grade, final, streak)
 	if session and session.Boulder then applyCrackGlow(session.Boulder) end
 end
 
+-- v20.43: ПЕРВЫЙ УДАР (открывает мини-игру) тоже с отдачей: замах,
+-- валун вздрагивает, облачко пыли, камера дёргается.
+local function firstHitFx(boulder)
+	playStrikeAnimation()
+	shakeAmp = math.max(shakeAmp, 7)
+	shakeUntil = os.clock() + 0.25
+	shakeCamera(0.35, 0.25)
+	local base = baseFov()
+	tweenFov(base + 4, 0.05)
+	task.delay(0.12, function() tweenFov(base, 0.3) end)
+	if typeof(boulder) ~= "Instance" or not boulder.Parent then return end
+	local ok, origin = pcall(function() return boulder:GetPivot() end)
+	if not ok then return end
+	-- Вздрагивание: затухающая дрожь + лёгкий «присед», затем точно на место.
+	task.spawn(function()
+		local started = os.clock()
+		local duration = 0.35
+		while boulder.Parent do
+			local t = (os.clock() - started) / duration
+			if t >= 1 then break end
+			local decay = (1 - t) * (1 - t)
+			local wobble = math.sin(t * math.pi * 7) * 0.35 * decay
+			local squash = -math.sin(t * math.pi) * 0.25 * decay
+			pcall(function()
+				boulder:PivotTo(origin * CFrame.new(wobble, squash, wobble * 0.4) * CFrame.Angles(0, 0, math.rad(wobble * 8)))
+			end)
+			RunService_.RenderStepped:Wait()
+		end
+		pcall(function() boulder:PivotTo(origin) end)
+	end)
+	-- Пыль из места удара.
+	local holder = Instance.new("Part")
+	holder.Anchored, holder.CanCollide, holder.CanQuery, holder.CanTouch = true, false, false, false
+	holder.Transparency = 1
+	holder.Size = Vector3.one * 0.2
+	holder.CFrame = CFrame.new(origin.Position + Vector3.new(0, 1, 0))
+	holder.Parent = workspace.CurrentCamera
+	local dust = Instance.new("ParticleEmitter")
+	dust.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	dust.Color = ColorSequence.new(Color3.fromRGB(170, 160, 145))
+	dust.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 3.5) })
+	dust.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 1) })
+	dust.Lifetime = NumberRange.new(0.5, 0.9)
+	dust.Speed = NumberRange.new(6, 12)
+	dust.SpreadAngle = Vector2.new(180, 60)
+	dust.Rate = 0
+	dust.Parent = holder
+	dust:Emit(14)
+	game:GetService("Debris"):AddItem(holder, 1.2)
+end
+
 local function strike()
 	if not session or session.Final then return end
 	local now = os.clock()
@@ -580,6 +631,7 @@ remote.OnClientEvent:Connect(function(action, data)
 		applyProgress()
 		applyCrackGlow(session.Boulder)
 		panel.Visible = true
+		firstHitFx(session.Boulder)
 	elseif action == "Update" and session then
 		session.Progress = tonumber(data.Progress) or session.Progress
 		applyZones(data.Zones)
@@ -606,11 +658,8 @@ remote.OnClientEvent:Connect(function(action, data)
 			showResult(data.Result, data.Color)
 			if type(data.Rewards) == "table" then
 				feedLoot(data.Rewards)
-				local coins = 0
-				for _, reward in data.Rewards do
-					if reward.Kind == "Money" then coins += 10 end
-				end
-				if coins > 0 then coinFountain(data.Position, math.min(30, coins)) end
+				-- v20.43: деньги из валуна — 3D-монетки из валуна (как у сейфа,
+				-- BankService:SpawnCoinBurst на сервере), а не монеты по экрану.
 				if #data.Rewards > 0 then shakeCamera(0.5, 0.35) end
 			end
 		end

@@ -42,7 +42,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 local placeRemote = ReplicatedStorage.Shared:WaitForChild("PlaceCartRequest", 30)
 if not placeRemote then
-	warn("[CartPlacement] PlaceCartRequest не появился — постановка тележки отключена на клиенте.")
+	warn("[CartPlacement] PlaceCartRequest не появился - постановка тележки отключена на клиенте.")
 	return
 end
 

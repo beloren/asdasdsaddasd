@@ -240,7 +240,7 @@ local function reconcile(data, player)
 			if typeof(value) == "number" and tonumber(data[key]) then
 				data[key] = tonumber(data[key])
 			else
-				warn(("[DataService] Профиль %s: поле %s имело неверный тип (%s вместо %s) — сброшено к дефолту"):format(
+				warn(("[DataService] Профиль %s: поле %s имело неверный тип (%s вместо %s) - сброшено к дефолту"):format(
 					player.Name, key, typeof(data[key]), typeof(value)
 				))
 				data[key] = typeof(value) == "table" and deepCopy(value) or value
@@ -556,7 +556,7 @@ function DataService:LoadProfile(player)
 		end
 		if not data then
 			if RunService:IsStudio() and lastReason == "DataStoreError" then
-				warn("[DataService] DataStore API недоступен в Studio — профиль работает только в памяти")
+				warn("[DataService] DataStore API недоступен в Studio - профиль работает только в памяти")
 				local fresh = deepCopy(DEFAULT_DATA)
 				fresh.FirstJoinedAt = os.time()
 				data = reconcile(fresh, player)

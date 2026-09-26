@@ -71,7 +71,7 @@ joinGroupButton.Activated:Connect(function()
 	UiSfx.play("UiButtonClick")
 	local groupId = state.GroupId ~= 0 and state.GroupId or Config.GroupReward.GroupId
 	if not groupId or groupId == 0 then
-		warn("[GroupRewardUI] Config.GroupReward.GroupId не задан (0) — впиши ID своей группы.")
+		warn("[GroupRewardUI] Config.GroupReward.GroupId не задан (0) - впиши ID своей группы.")
 		return
 	end
 	local ok, err = pcall(function()

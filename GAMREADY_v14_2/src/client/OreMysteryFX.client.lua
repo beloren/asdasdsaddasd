@@ -156,7 +156,7 @@ task.spawn(function()
 	if folder then
 		bindFolder(folder)
 	else
-		warn("[OreMysteryFX] workspace." .. GROUND_FOLDER_NAME .. " не появилась — анимация '???' выключена.")
+		warn("[OreMysteryFX] workspace." .. GROUND_FOLDER_NAME .. " не появилась - анимация '???' выключена.")
 	end
 end)
 

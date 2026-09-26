@@ -178,9 +178,9 @@ local headInst, headPart = findRigid("Head")
 local hatInst, hatPart = findRigid("Hat")
 
 if not hatInst then
-	warn("[ExampleNpcStretchScript] Не нашёл 'Hat' нигде внутри модели NPC ('" .. npcModel:GetFullName() .. "') — шляпа не будет двигаться. Проверь имя (регистр важен: 'Hat', не 'hat', и без лишних пробелов).")
+	warn("[ExampleNpcStretchScript] Не нашёл 'Hat' нигде внутри модели NPC ('" .. npcModel:GetFullName() .. "') - шляпа не будет двигаться. Проверь имя (регистр важен: 'Hat', не 'hat', и без лишних пробелов).")
 elseif not hatPart then
-	warn("[ExampleNpcStretchScript] 'Hat' найден (" .. hatInst:GetFullName() .. "), но это Model без PrimaryPart и без единой BasePart внутри — назначь PrimaryPart шляпе.")
+	warn("[ExampleNpcStretchScript] 'Hat' найден (" .. hatInst:GetFullName() .. "), но это Model без PrimaryPart и без единой BasePart внутри - назначь PrimaryPart шляпе.")
 end
 
 local HEAD_OFFSET = 0 -- доп. зазор над union перед головой, студ

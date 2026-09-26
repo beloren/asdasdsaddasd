@@ -146,7 +146,7 @@ end
 local function applyParticles(crystal, root, vfxName, color)
 	local host = root or (crystal:IsA("BasePart") and crystal) or CrystalUtil.GetRoot(crystal)
 	if not host then
-		warn(("[MutationVisuals] Нет корневой детали для мутации %s — частицы не к чему прикрепить."):format(tostring(vfxName)))
+		warn(("[MutationVisuals] Нет корневой детали для мутации %s - частицы не к чему прикрепить."):format(tostring(vfxName)))
 		return
 	end
 
@@ -180,7 +180,7 @@ local function applyParticles(crystal, root, vfxName, color)
 		end
 	end
 	if emitterCount == 0 then
-		warn(("[MutationVisuals] VFX \"%s\" не содержит ни одного ParticleEmitter — эффект будет невидим."):format(tostring(vfxName)))
+		warn(("[MutationVisuals] VFX \"%s\" не содержит ни одного ParticleEmitter - эффект будет невидим."):format(tostring(vfxName)))
 	end
 
 	attachment.Parent = host

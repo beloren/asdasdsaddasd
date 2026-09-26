@@ -183,7 +183,7 @@ RunService.RenderStepped:Connect(function()
 	local cf = CFrame.new(position) * GroundCheck.Orientation(normal, yaw)
 	-- v20.42: сундуки ставятся как декор — на любую поверхность участка.
 	-- У модели сундука пивот в центре — сажаем её низом на поверхность.
-	if isChest(ghostKey) then GroundCheck.SeatModel(ghost, cf) else ghost:PivotTo(cf) end
+	GroundCheck.SeatModel(ghost, cf) -- v20.43: и декор, и сундуки — низом на поверхность
 	targetCFrame = cf
 	local ok = onSurface and pad ~= nil and (hrp.Position - position).Magnitude <= (CFG.PlaceRange or 60)
 		and GroundCheck.InPlot(pad, position)

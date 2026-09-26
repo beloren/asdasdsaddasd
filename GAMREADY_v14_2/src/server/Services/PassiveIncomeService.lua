@@ -849,7 +849,7 @@ function PassiveIncomeService:UpdateDisplay(player)
 				-- но доход есть: показываем хотя бы скорость.
 				label.Text = ('<font color="#5FFF82">+$%s/SEC</font>'):format(NumberFormat.perSecond(rate))
 			elseif remaining <= 0 then
-				label.Text = '<font color="#FF6B6B">SAFE FULL — INCOME STOPPED</font>'
+				label.Text = '<font color="#FF6B6B">SAFE FULL - INCOME STOPPED</font>'
 			else
 				label.Text = ('<font color="#8A93A6">FULL IN</font> <font color="#FFD84A">%s</font>')
 					:format(self:FormatDuration(remaining))

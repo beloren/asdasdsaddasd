@@ -10,7 +10,7 @@ local StarterGui = game:GetService("StarterGui")
 
 local editor = StarterGui:FindFirstChild("MobileLayoutEditor")
 if not editor then
-	warn("[HarvestMobileLayout] StarterGui.MobileLayoutEditor не найден — сначала запусти BuildMobileLayoutEditor.lua.")
+	warn("[HarvestMobileLayout] StarterGui.MobileLayoutEditor не найден - сначала запусти BuildMobileLayoutEditor.lua.")
 	return
 end
 

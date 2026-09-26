@@ -71,7 +71,7 @@ local crystalSlot = crystalHotbar:WaitForChild("Slot", 10)
 local crystalIcon = crystalSlot and crystalSlot:WaitForChild("Icon", 5)
 local crystalPlaceholder = crystalSlot and crystalSlot:WaitForChild("Placeholder", 5)
 if not (crystalSlot and crystalIcon and crystalPlaceholder) then
-	warn("[RubbleCrystalUI] RubbleCrystalHotbar/Slot неполон — карточка кристалла не будет показываться (передача и поза рук работают).")
+	warn("[RubbleCrystalUI] RubbleCrystalHotbar/Slot неполон - карточка кристалла не будет показываться (передача и поза рук работают).")
 	crystalSlot = nil
 end
 

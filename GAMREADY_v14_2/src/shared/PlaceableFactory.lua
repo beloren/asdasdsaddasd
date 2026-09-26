@@ -119,7 +119,8 @@ end
 -- сфера цвета тира, руны-кольца. Чем выше тир, тем выше колонна.
 --------------------------------------------------------------------------------
 local function buildTotem(info)
-	local tier = info.Tier or 1
+	-- v20.43: тиров 3 (Early/Mid/Late) — размер/свет как у старых T2/T6/T10.
+	local tier = ({ 2, 6, 10 })[info.Tier or 1] or 10
 	local tierColor = info.TierColor or Color3.new(1, 1, 1)
 	local base = part({ Size = Vector3.new(2.6, 0.5, 2.6), Material = Enum.Material.Slate, Color = Color3.fromRGB(80, 78, 84) })
 	base.CFrame = CFrame.new(0, 0.25, 0)

@@ -34,7 +34,7 @@ local shared = ReplicatedStorage:WaitForChild("Shared")
 local stateRemote = shared:WaitForChild("MerchantState", 30)
 local requestRemote = shared:WaitForChild("MerchantRequest", 30)
 if not (stateRemote and requestRemote) then
-	warn("[MerchantUI] Нет remotes торговца — сервис не запущен?")
+	warn("[MerchantUI] Нет remotes торговца - сервис не запущен?")
 	return
 end
 
@@ -633,7 +633,7 @@ renderList = function()
 		empty.Parent = list
 	end
 	empty.Visible = count == 0
-	empty.Text = tr("Nothing in stock — wait for the next restock!")
+	empty.Text = tr("Nothing in stock - wait for the next restock!")
 end
 
 --------------------------------------------------------------------------------
@@ -690,7 +690,7 @@ header.Restock.MouseButton1Click:Connect(function()
 		sfx("UiError")
 		header.Restock.Label.Text = tr("SOON")
 		task.delay(1.4, function() header.Restock.Label.Text = tr("RESTOCK") end)
-		warn("[MerchantUI] Config.DevProducts.Micro.MerchantRestock.Id = 0 — создайте продукт в Creator Dashboard.")
+		warn("[MerchantUI] Config.DevProducts.Micro.MerchantRestock.Id = 0 - создайте продукт в Creator Dashboard.")
 		return
 	end
 	sfx("UiButtonClick")

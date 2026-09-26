@@ -89,4 +89,4 @@ for tier, tierInfo in Config.CartTiers do
 	label.Parent = billboard
 end
 
-print(("[BuildCartSizeGuides] Готово: 8 ориентиров в Workspace/CartSizeGuides. Пол одинаковый для всех тиров (%.1f x %.1f studs) — растёт только высота груза."):format(floorX, floorZ))
+print(("[BuildCartSizeGuides] Готово: 8 ориентиров в Workspace/CartSizeGuides. Пол одинаковый для всех тиров (%.1f x %.1f studs) - растёт только высота груза."):format(floorX, floorZ))

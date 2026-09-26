@@ -342,176 +342,7 @@ if UserInputService.TouchEnabled then
 	end)
 end
 
--- Метка создаётся локально, поэтому надпись своей базы не видят остальные.
-task.spawn(function()
-	local plots = workspace:WaitForChild("Plots", 5)
-	if not plots then
-		return
-	end
-	local function markPlot(instance)
-		if not instance:IsA("Model") then
-			return false
-		end
-		local pad = instance.PrimaryPart or instance:FindFirstChild("PlotPad", true)
-		local plotIndex = player:GetAttribute("PlotIndex")
-		local isOwnPlot = pad and (pad:GetAttribute("OwnerUserId") == player.UserId
-			or (plotIndex and instance.Name == "PlotPad_" .. tostring(plotIndex)))
-		if not isOwnPlot then
-			return false
-		end
-		if pad:FindFirstChild("OwnBaseMarker") then
-			return true
-		end
-		local marker = Instance.new("BillboardGui")
-		marker.Name = "OwnBaseMarker"
-		-- РАЗМЕР — по прямому запросу больше НЕ в Offset (пикселях).
-		--
-		-- ПРИЧИНА: BillboardGui.Size в Offset — известный, много раз
-		-- описанный на девфоруме баг: с какого-то расстояния такой
-		-- билборд начинает не уменьшаться, а РАСТИ ("keeps growing the
-		-- farther away the camera gets" — ровно то, на что жаловались).
-		-- Scale-компонента UDim2 у BillboardGui — это РАЗМЕР В СТАДАХ
-		-- (не проценты, как у обычного GuiObject), и она уменьшается с
-		-- расстоянием НОРМАЛЬНО, по правилам перспективы, без этого бага.
-		--
-		-- Раз в 0.2с (см. updateMarkerScale ниже) размер в стадах
-		-- пересчитывается ПРОПОРЦИОНАЛЬНО расстоянию до камеры — это
-		-- специально КОМПЕНСИРУЕТ обычное уменьшение от перспективы, так
-		-- что итоговый видимый размер на экране остаётся ПОСТОЯННЫМ что
-		-- вблизи, что издалека, вместо того чтобы расти.
-		marker.Size = UDim2.fromScale(0, 0) -- пересчитывается сразу же ниже, это просто безопасное значение по умолчанию
-		-- ПОДНЯТО СИЛЬНО ВЫШЕ по прямому запросу (было 30).
-		marker.StudsOffset = Vector3.new(0, 52, 0)
-		marker.AlwaysOnTop = true
-		marker.LightInfluence = 0
-		marker.MaxDistance = 500
-		marker.Adornee = pad
-		marker.Parent = pad
-
-		-- РЕФЕРЕНСНАЯ ТОЧКА КАЛИБРОВКИ: "на расстоянии REFERENCE_DISTANCE
-		-- студов от камеры билборд должен быть REFERENCE_WIDTH на
-		-- REFERENCE_HEIGHT студов в мире" — эти два числа и есть то, что
-		-- стоит покрутить, если итоговый видимый размер покажется
-		-- слишком крупным/мелким. 30 студов — то же расстояние, на
-		-- котором уже держится проверка видимости чуть ниже (свои 35).
-		local REFERENCE_DISTANCE = 30
-		local REFERENCE_WIDTH = 9.6
-		local REFERENCE_HEIGHT = 8.0
-		local function updateMarkerScale()
-			local camera = workspace.CurrentCamera
-			if not (camera and marker.Parent) then return end
-			local distance = (camera.CFrame.Position - pad.Position).Magnitude
-			-- studSize ∝ distance — компенсирует обычное перспективное
-			-- уменьшение (apparent ∝ studSize / distance), давая на
-			-- выходе постоянный видимый размер вместо уменьшающегося
-			-- ИЛИ (в баг-версии на Offset) неожиданно растущего.
-			local factor = math.max(distance, 1) / REFERENCE_DISTANCE
-			marker.Size = UDim2.fromScale(REFERENCE_WIDTH * factor, REFERENCE_HEIGHT * factor)
-		end
-		updateMarkerScale()
-
-		-- АВАТАРКА ИГРОКА — по референсу (круглая иконка с цветной
-		-- обводкой + ник под ней, тот же стиль, что и подписи над
-		-- грядками в Grow a Garden). Раньше здесь был статичный текст
-		-- "YOUR BASE" — теперь ник владельца и его портрет, что сразу
-		-- узнаваемо на любом участке, не только на своём.
-		--
-		-- Size ниже — В ПРОЦЕНТАХ (Scale) от canvas'а marker, а НЕ в
-		-- пикселях: canvas теперь сам меняет реальный размер в стадах
-		-- каждые 0.2с (см. updateMarkerScale выше), и дочерние элементы
-		-- обязаны быть в Scale, чтобы схлопываться/расти вместе с ним, а
-		-- не оставаться прежнего абсолютного пиксельного размера.
-		--
-		-- Canvas НЕ квадратный (REFERENCE_WIDTH ≠ REFERENCE_HEIGHT), а
-		-- аватарке нужен настоящий круг — просто взять одинаковые X/Y
-		-- в Scale дало бы ЭЛЛИПС (одинаковая ДОЛЯ разных по факту сторон
-		-- canvas — это разные абсолютные пиксели). Ширина по Scale
-		-- пересчитана с поправкой на соотношение сторон canvas
-		-- (REFERENCE_HEIGHT / REFERENCE_WIDTH), чтобы в итоговых пикселях
-		-- получался именно круг, а не сплюснутый овал.
-		local avatarHeightScale = 0.65
-		local avatarWidthScale = avatarHeightScale * (REFERENCE_HEIGHT / REFERENCE_WIDTH)
-		local avatar = Instance.new("ImageLabel")
-		avatar.Name = "Avatar"
-		avatar.AnchorPoint = Vector2.new(0.5, 0)
-		avatar.Position = UDim2.fromScale(0.5, 0.03)
-		avatar.Size = UDim2.fromScale(avatarWidthScale, avatarHeightScale)
-		avatar.BackgroundColor3 = Color3.fromRGB(120, 75, 45) -- видно как плейсхолдер, пока не подгрузился настоящий портрет
-		avatar.Image = ""
-		avatar.ScaleType = Enum.ScaleType.Fit
-		avatar.Parent = marker
-		local avatarCorner = Instance.new("UICorner")
-		avatarCorner.CornerRadius = UDim.new(1, 0) -- квадрат → идеальный круг (Size.X == Size.Y выше)
-		avatarCorner.Parent = avatar
-		local avatarRing = Instance.new("UIStroke")
-		avatarRing.Name = "Ring"
-		avatarRing.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		avatarRing.Thickness = 4
-		avatarRing.Color = Color3.fromRGB(120, 220, 90) -- зелёная обводка, как на референсе
-		avatarRing.Parent = avatar
-
-		-- Портрет игрока — единственный НЕ-плейсхолдерный ресурс здесь:
-		-- GetUserThumbnailAsync — обычный, официальный способ получить
-		-- настоящую аватарку любого игрока по UserId. Не блокирует показ
-		-- надписи с ником — она появляется сразу, картинка донагружается
-		-- следом, когда будет готова.
-		task.spawn(function()
-			local ok, content = pcall(function()
-				local thumb, isReady = Players:GetUserThumbnailAsync(
-					player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100
-				)
-				return isReady and thumb or nil
-			end)
-			if ok and content and avatar.Parent then
-				avatar.Image = content
-				avatar.BackgroundTransparency = 1 -- плейсхолдер-цвет больше не нужен под настоящим фото
-			end
-		end)
-
-		local label = Instance.new("TextLabel")
-		label.Name = "NameLabel"
-		label.AnchorPoint = Vector2.new(0.5, 0)
-		label.Position = UDim2.fromScale(0.5, 0.68)
-		label.Size = UDim2.fromScale(1, 0.32)
-		label.BackgroundTransparency = 1
-		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(label, "Number") -- v20: шрифт темы
-		label.TextSize = 22
-		label.TextColor3 = Color3.fromRGB(255, 225, 90)
-		-- "<ник>'s Base" — по формату референса ("...'s Garden"), просто
-		-- со словом этой игры ("Base"), а не позаимствованным из другой.
-		label.Text = ("%s's Base"):format(player.DisplayName ~= "" and player.DisplayName or player.Name)
-		label.TextScaled = true
-		label.Parent = marker
-		local boldStroke = Instance.new("UIStroke")
-		boldStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
-		boldStroke.Thickness = 1.5
-		boldStroke.Color = Color3.fromRGB(20, 20, 25)
-		boldStroke.Parent = label
-		task.spawn(function()
-			while marker.Parent and player.Parent do
-				local character = player.Character
-				local root = character and character:FindFirstChild("HumanoidRootPart")
-				if root then
-					local horizontalOffset = Vector3.new(root.Position.X - pad.Position.X, 0, root.Position.Z - pad.Position.Z)
-					marker.Enabled = horizontalOffset.Magnitude > 35
-				else
-					marker.Enabled = true
-				end
-				updateMarkerScale()
-				task.wait(0.2)
-			end
-		end)
-		return true
-	end
-	while player.Parent do
-		for _, plot in plots:GetChildren() do
-			if markPlot(plot) then
-				return
-			end
-		end
-		task.wait(0.5)
-	end
-end)
+-- v20.43: метка базы с ником — теперь над КАЖДОЙ базой, см. BaseNameMarkers.client.lua.
 
 --------------------------------------------------------------------------------
 -- "ЛЮБОЙ ПРОКСИМИТИ-ПРОМПТ СЕЙЧАС ПОКАЗАН?" — общий трекер, используется
@@ -1434,7 +1265,7 @@ if oldActionGui then oldActionGui:Destroy() end
 local actionGui = playerGui:WaitForChild("HotbarUi", 5)
 local protectionSlot = actionGui and actionGui:FindFirstChild("PickaxeSlot", true)
 if not protectionSlot then
-	warn("[CustomCartUI] HotbarUi/PickaxeSlot не найден — щит не подключён к хотбару.")
+	warn("[CustomCartUI] HotbarUi/PickaxeSlot не найден - щит не подключён к хотбару.")
 	return
 end
 actionGui.ResetOnSpawn = false
@@ -3589,7 +3420,7 @@ end
 		end
 		local mine = latestStatuses.Mine
 		if mine and mine.State == "NeedRebirth" then
-			gridFooter.Text = ('<font color="#8CD2FF">%s</font>'):format(tr("Cave limit reached — talk to the Prestige Mayor to go deeper!"))
+			gridFooter.Text = ('<font color="#8CD2FF">%s</font>'):format(tr("Cave limit reached - talk to the Prestige Mayor to go deeper!"))
 		else
 			gridFooter.Text = ('<font color="#FFD75A">%s</font>'):format(tr("The CAVE unlocks new ore. Cart and pickaxe are boosts."))
 		end
@@ -3912,7 +3743,7 @@ end)()
 	local responseTemplate = responsesFrame and responsesFrame:FindFirstChild("Template", true)
 	local responsesValid = responseTemplate and responseTemplate:FindFirstChild("Text", true)
 	if not responsesValid then
-		warn("[CustomCartUI] StarterGui/DialogResponses не найден или неполон (нужны Responses/Template/Text) — запусти tools/BuildAllUI.lua. Диалог с продавцом прокачки не будет работать.")
+		warn("[CustomCartUI] StarterGui/DialogResponses не найден или неполон (нужны Responses/Template/Text) - запусти tools/BuildAllUI.lua. Диалог с продавцом прокачки не будет работать.")
 		return
 	end
 	responsesGui.ResetOnSpawn = false
@@ -3972,11 +3803,11 @@ end)()
 			return tr("upgrade.needRebirth", { number = num, branch = label, tier = status.Cap }), Color3.fromRGB(140, 210, 255)
 		elseif status.State == "Buyable" then
 			if status.Repair then
-				return ("%d. %s — <font color=\"#FFC846\">REPAIR</font> %s"):format(num or 1, label, highlightCost(status.Cost)), Color3.new(1, 1, 1)
+				return ("%d. %s - <font color=\"#FFC846\">REPAIR</font> %s"):format(num or 1, label, highlightCost(status.Cost)), Color3.new(1, 1, 1)
 			end
 			if status.Unlock then
 				-- v12: бесплатная первая тележка в списковом варианте диалога.
-				return ("%d. %s — <font color=\"#9CFFB4\">FREE</font>"):format(num or 2, label), Color3.new(1, 1, 1)
+				return ("%d. %s - <font color=\"#9CFFB4\">FREE</font>"):format(num or 2, label), Color3.new(1, 1, 1)
 			end
 			if status.Blocked then
 				return tr("upgrade.blocked", { number = num, branch = label, tier = status.NextTier, cost = highlightCost(status.Cost) }),
@@ -4112,7 +3943,7 @@ end)()
 		local npcRoot = npc.PrimaryPart
 		npcGui = npc:FindFirstChild("gui", true)
 		if not (npcRoot and npcGui) then
-			warn("[CustomCartUI] У UpgradeShopNPC нет PrimaryPart и/или BillboardGui \"gui\" где-нибудь внутри модели — не могу показать диалог")
+			warn("[CustomCartUI] У UpgradeShopNPC нет PrimaryPart и/или BillboardGui \"gui\" где-нибудь внутри модели - не могу показать диалог")
 			shopRemoteEvent:FireServer("Close") -- диалог не открылся — не оставляем промпт NPC выключенным навсегда (см. Triggered в UpgradeService.lua)
 			return
 		end
@@ -4269,7 +4100,7 @@ local dropHint = screenGui:WaitForChild("CartDropHintGui", 5)
 local promptText = promptFrame and promptFrame:FindFirstChild("Text", true)
 
 if not (promptFrame and dropHint and promptText) then
-	warn("[CustomCartUI] В CartInteractionUi не хватает CartPromptGui/CartDropHintGui с TextLabel 'Text' — UI не подключён. Проверь имена частей по контракту.")
+	warn("[CustomCartUI] В CartInteractionUi не хватает CartPromptGui/CartDropHintGui с TextLabel 'Text' - UI не подключён. Проверь имена частей по контракту.")
 	return
 end
 
@@ -4281,7 +4112,7 @@ end
 local talkPromptFrame = screenGui:FindFirstChild("TalkPromptGui", true)
 local talkPromptText = talkPromptFrame and talkPromptFrame:FindFirstChild("Text", true)
 if not (talkPromptFrame and talkPromptText) then
-	warn("[CustomCartUI] В CartInteractionUi нет TalkPromptGui с TextLabel 'Text' — запусти tools/BuildAllUI.lua. Диалог с NPC пока будет использовать вид подсказки \"Take Cart\".")
+	warn("[CustomCartUI] В CartInteractionUi нет TalkPromptGui с TextLabel 'Text' - запусти tools/BuildAllUI.lua. Диалог с NPC пока будет использовать вид подсказки \"Take Cart\".")
 	talkPromptFrame = promptFrame
 	talkPromptText = promptText
 end
@@ -5267,7 +5098,7 @@ local function setupShopUi()
 	local shopPanel = shopUiGui and shopUiGui:FindFirstChild("Panel")
 	local shopDimmer = shopUiGui and shopUiGui:FindFirstChild("Dimmer", true)
 	if not (shopUiGui and shopPanel and shopDimmer) then
-		warn("[CustomCartUI] StarterGui/ShopUi не найден или неполон (нужны Panel/Dimmer) — запусти tools/BuildAllUI.lua. Магазин работать не будет, остальной UI/игра не пострадают.")
+		warn("[CustomCartUI] StarterGui/ShopUi не найден или неполон (нужны Panel/Dimmer) - запусти tools/BuildAllUI.lua. Магазин работать не будет, остальной UI/игра не пострадают.")
 	else
 		shopUiGui.ResetOnSpawn = false
 		shopUiGui.DisplayOrder = 25
@@ -5315,7 +5146,7 @@ local function setupShopUi()
 			end
 		end
 		if not cardTemplate then
-			warn("[CustomCartUI] StarterGui/ShopUi без CardTemplate — карточки товаров показываться не будут. Запусти tools/BuildAllUI.lua заново.")
+			warn("[CustomCartUI] StarterGui/ShopUi без CardTemplate - карточки товаров показываться не будут. Запусти tools/BuildAllUI.lua заново.")
 		end
 
 		-- Товары каждой категории, собранные из Config.Shop.Items ОДИН раз
@@ -5453,7 +5284,7 @@ local function setupShopUi()
 				return
 			end
 			if not productId or productId == 0 then
-				warn("[CustomCartUI] Товар \"" .. slot.Name .. "\" ещё не настроен (ProductId = 0) — впиши реальный Id в Config.Shop (src/shared/Config.lua)")
+				warn("[CustomCartUI] Товар \"" .. slot.Name .. "\" ещё не настроен (ProductId = 0) - впиши реальный Id в Config.Shop (src/shared/Config.lua)")
 				return
 			end
 			if productType == "GamePass" then
@@ -5919,7 +5750,7 @@ setupShopUi()
 task.spawn(function()
 	local shopNpcRemote = ReplicatedStorage.Shared:WaitForChild("ShopNpcRequest", 5)
 	if not shopNpcRemote then
-		warn("[CustomCartUI] RemoteEvent ShopNpcRequest не появился — диалог с NPC магазина не будет работать.")
+		warn("[CustomCartUI] RemoteEvent ShopNpcRequest не появился - диалог с NPC магазина не будет работать.")
 		return
 	end
 
@@ -5967,7 +5798,7 @@ task.spawn(function()
 		local npcRoot = npc.PrimaryPart
 		npcGui = npc:FindFirstChild("gui", true)
 		if not (npcRoot and npcGui) then
-			warn("[CustomCartUI] У ShopNPC нет PrimaryPart и/или BillboardGui \"gui\" где-нибудь внутри модели — не могу показать диалог")
+			warn("[CustomCartUI] У ShopNPC нет PrimaryPart и/или BillboardGui \"gui\" где-нибудь внутри модели - не могу показать диалог")
 			shopNpcRemote:FireServer("Close") -- диалог не открылся — не оставляем промпт NPC выключенным навсегда (см. Triggered в ShopNpcService.lua)
 			return
 		end
@@ -6067,7 +5898,7 @@ end)
 task.spawn(function()
 	local rebirthRemote = ReplicatedStorage.Shared:WaitForChild("RebirthNpcRequest", 5)
 	if not rebirthRemote then
-		warn("[CustomCartUI] RemoteEvent RebirthNpcRequest не появился — диалог ребёрта не будет работать.")
+		warn("[CustomCartUI] RemoteEvent RebirthNpcRequest не появился - диалог ребёрта не будет работать.")
 		return
 	end
 
@@ -6318,7 +6149,7 @@ task.spawn(function()
 		npcGui = npc:FindFirstChild("gui", true)
 		local name = npcGui and npcGui:FindFirstChild("name", true)
 		if not (npcRoot and npcGui and name) then
-			warn("[CustomCartUI] У RebirthNPC нет PrimaryPart и/или BillboardGui \"gui\" (name) — не могу показать диалог")
+			warn("[CustomCartUI] У RebirthNPC нет PrimaryPart и/или BillboardGui \"gui\" (name) - не могу показать диалог")
 			rebirthRemote:FireServer("Cancel")
 			return
 		end
@@ -6337,8 +6168,8 @@ task.spawn(function()
 		end
 
 		introLabel.Text = status.Maxed
-			and (status.CanAfford and "Ready to prestige! This resets Mine/Cart/Pickaxe to tier 1." or "Almost there — just need a bit more.")
-			or ("Upgrade all 3 branches to tier %d first."):format(status.Cap)
+			and (status.CanAfford and "Ready! Prestige resets Cave, Cart and Pickaxe." or "Almost there! Check the list below.")
+			or ("Reach Cave %d first."):format(status.Cap)
 		-- requirementsFrame/moneyBonusRow/speedBonusRow теперь МОГУТ быть
 		-- nil — свой ассет из Studio не обязан содержать Requirements/
 		-- Bonuses целиком (см. findCompleteCustomGui выше, "показывай
@@ -6586,7 +6417,7 @@ local function setupToast()
 	local stack = toastGui:FindFirstChild("Stack")
 	local template = stack and stack:FindFirstChild("Panel")
 	if not (stack and template) then
-		warn("[CustomCartUI] В Toast нет Stack/Panel — уведомления отключены, остальная игра не пострадает.")
+		warn("[CustomCartUI] В Toast нет Stack/Panel - уведомления отключены, остальная игра не пострадает.")
 		return
 	end
 	template.Visible = false
@@ -6853,7 +6684,7 @@ local function setupToast()
 	if notifyRemote then
 		notifyRemote.OnClientEvent:Connect(enqueue)
 	else
-		warn("[CustomCartUI] RemoteEvent NotifyRequest не появился — всплывающие уведомления с сервера не будут доходить.")
+		warn("[CustomCartUI] RemoteEvent NotifyRequest не появился - всплывающие уведомления с сервера не будут доходить.")
 	end
 end
 setupToast()

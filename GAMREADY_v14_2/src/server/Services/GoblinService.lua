@@ -712,13 +712,13 @@ local function findGoblinAsset(assetName)
 	local asset = assets and assets:FindFirstChild(assetName)
 	if not asset then return nil end
 	if not asset:IsA("Model") then
-		warn(("[GoblinService] ReplicatedStorage.Assets.%s должен быть Model — пробую следующий вариант."):format(assetName))
+		warn(("[GoblinService] ReplicatedStorage.Assets.%s должен быть Model - пробую следующий вариант."):format(assetName))
 		return nil
 	end
 	for _, partName in GOBLIN_REQUIRED_PARTS do
 		local part = asset:FindFirstChild(partName)
 		if not part or not part:IsA("BasePart") then
-			warn(("[GoblinService] ReplicatedStorage.Assets.%s не хватает части '%s' — пробую следующий вариант."):format(assetName, partName))
+			warn(("[GoblinService] ReplicatedStorage.Assets.%s не хватает части '%s' - пробую следующий вариант."):format(assetName, partName))
 			return nil
 		end
 	end
@@ -1380,12 +1380,12 @@ end
 local function findChestTemplate()
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	if not assets then
-		warn("[GoblinService] ReplicatedStorage.Assets не найден — сундук гоблина будет простым деревянным ящиком-заглушкой.")
+		warn("[GoblinService] ReplicatedStorage.Assets не найден - сундук гоблина будет простым деревянным ящиком-заглушкой.")
 		return nil
 	end
 	local chest = assets:FindFirstChild("Chest")
 	if not chest then
-		warn("[GoblinService] ReplicatedStorage.Assets.Chest не найден — сундук гоблина будет простым деревянным ящиком-заглушкой.")
+		warn("[GoblinService] ReplicatedStorage.Assets.Chest не найден - сундук гоблина будет простым деревянным ящиком-заглушкой.")
 	end
 	return chest
 end
@@ -1414,7 +1414,7 @@ local function safeBuildChestPiece(name, instance)
 		if root then
 			return instance, root
 		end
-		warn(("[GoblinDrop] Не удалось подготовить Chest.%s (%s) — использую фолбэк."):format(name, ok and "нет BasePart" or tostring(result)))
+		warn(("[GoblinDrop] Не удалось подготовить Chest.%s (%s) - использую фолбэк."):format(name, ok and "нет BasePart" or tostring(result)))
 		if instance and instance.Parent then instance:Destroy() end
 	end
 	local fallback = buildFallbackChestPart(name)
@@ -2442,7 +2442,7 @@ function GoblinService:SpawnWave(player, count, tutorial, force)
 	player:SetAttribute("GoblinWaveActive", true)
 	player:SetAttribute("GoblinWaveTutorial", tutorial == true)
 	if Services.NotifyService then
-		Services.NotifyService:Show(player, tutorial and "A goblin appeared near your base — protect your cart!" or "Goblins appeared near your base — protect your cart!", { Icon = "Goblin" })
+		Services.NotifyService:Show(player, tutorial and "A goblin appeared near your base - protect your cart!" or "Goblins appeared near your base - protect your cart!", { Icon = "Goblin" })
 	end
 	Sfx.play("GoblinWaveWarning", folder:FindFirstChildWhichIsA("Model"))
 end
@@ -2912,7 +2912,7 @@ function GoblinService:_startRaidLoop()
 			zone = raidCamp()
 		end
 		if not zone then
-			warn("[GoblinService] Workspace/GoblinCamp/Zone не найден — гоблинский рейд выключен (см. Config.GoblinRaid).")
+			warn("[GoblinService] Workspace/GoblinCamp/Zone не найден - гоблинский рейд выключен (см. Config.GoblinRaid).")
 			return
 		end
 		local nextRaidAt = os.clock() + Config.GoblinRaid.IntervalSeconds

@@ -1100,7 +1100,7 @@ local function spawnGeodePropOnAnvil(geodeType)
 	if not geodeType then return nil, nil end
 	local crusher = findOwnCrusher()
 	if not crusher then
-		warn("[GeodeUI] Не нашлась наковальня (GeodeBuilding/Crusher) на участке игрока — жеода будет расколота без 3D-модели. Проверь, что участок построен.")
+		warn("[GeodeUI] Не нашлась наковальня (GeodeBuilding/Crusher) на участке игрока - жеода будет расколота без 3D-модели. Проверь, что участок построен.")
 		return nil, nil
 	end
 	local ok, source = pcall(PlaceholderFactory.Geode, geodeType)
@@ -1111,7 +1111,7 @@ local function spawnGeodePropOnAnvil(geodeType)
 	local model = source:Clone()
 	local part = model:IsA("Model") and (model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)) or model
 	if not part then
-		warn("[GeodeUI] Клон жеоды без PrimaryPart/BasePart — уничтожаю.")
+		warn("[GeodeUI] Клон жеоды без PrimaryPart/BasePart - уничтожаю.")
 		model:Destroy()
 		return nil, crusher
 	end
@@ -1763,7 +1763,7 @@ beginCrack = function()
 	local watchdogToken = crackTapToken
 	task.delay(20, function()
 		if crackTapToken == watchdogToken and openRequestActive then
-			warn("[GeodeUI] Сервер не ответил на открытие жеоды вовремя — снимаю блокировку самостоятельно.")
+			warn("[GeodeUI] Сервер не ответил на открытие жеоды вовремя - снимаю блокировку самостоятельно.")
 			openRequestActive = false
 			crackButton.Active = true
 			closeAll()
@@ -1974,7 +1974,7 @@ local crystalGridLayout = crystalGrid:FindFirstChildWhichIsA("UIGridStyleLayout"
 if crystalGridLayout then
 	crystalGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 else
-	warn("[GeodeUI] В CrystalGrid нет UIGridLayout — карточки не будут отсортированы по ценности.")
+	warn("[GeodeUI] В CrystalGrid нет UIGridLayout - карточки не будут отсортированы по ценности.")
 end
 
 renderPodium = function()

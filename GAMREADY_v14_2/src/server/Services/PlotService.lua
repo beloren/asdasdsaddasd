@@ -102,7 +102,7 @@ local function resolveOrigins()
 		if #origins > 0 then
 			return origins
 		end
-		warn("[PlotService] workspace/PlotOrigins найден, но внутри нет ни одной части — считаю кольцо вокруг банка автоматически")
+		warn("[PlotService] workspace/PlotOrigins найден, но внутри нет ни одной части - считаю кольцо вокруг банка автоматически")
 	end
 
 	local origins = {}
@@ -361,7 +361,7 @@ function PlotService:_buildMine(plot, tier)
 	local mine = PlaceholderFactory.Mine(tier)
 	if not mine.PrimaryPart then
 		warn(
-			("[PlotService] У модели '%s' (Mine_Tier%d) не назначен PrimaryPart — без него нечего ставить на землю, позиция/поворот шахты будут непредсказуемыми. Назначь PrimaryPart в Properties: возьми ту часть модели, которая физически должна стоять/касаться земли (например, фундамент или нижний этаж, а не крыша) — её нижний край код теперь САМ подгонит вплотную к полу участка. \"Перёд\" модели (там, где должна парковаться тележка/Zone) должен смотреть в ЛОКАЛЬНЫЙ +Z от этой части."):format(
+			("[PlotService] У модели '%s' (Mine_Tier%d) не назначен PrimaryPart - без него нечего ставить на землю, позиция/поворот шахты будут непредсказуемыми. Назначь PrimaryPart в Properties: возьми ту часть модели, которая физически должна стоять/касаться земли (например, фундамент или нижний этаж, а не крыша) - её нижний край код теперь САМ подгонит вплотную к полу участка. \"Перёд\" модели (там, где должна парковаться тележка/Zone) должен смотреть в ЛОКАЛЬНЫЙ +Z от этой части."):format(
 				mine.Name,
 				tier
 			)
@@ -479,7 +479,7 @@ function PlotService:_buildMine(plot, tier)
 			-- Совсем пусто — даже якорить не от чего. Единственный случай,
 			-- когда действительно нечего собрать.
 			mine:Destroy()
-			warn(("[PlotService] У модели шахты Mine_Tier%d нет ни одной BasePart — тир НЕ применён, участок оставлен без изменений."):format(tier))
+			warn(("[PlotService] У модели шахты Mine_Tier%d нет ни одной BasePart - тир НЕ применён, участок оставлен без изменений."):format(tier))
 			return false
 		end
 
@@ -495,7 +495,7 @@ function PlotService:_buildMine(plot, tier)
 		zone.Transparency = 1
 		zone.Parent = mine
 
-		warn(("[PlotService] У модели шахты Mine_Tier%d нет детали 'Zone' — сгенерирована временная перед входом. Если авто-позиция выглядит неправильно, добавьте свою деталь 'Zone' в модель."):format(tier))
+		warn(("[PlotService] У модели шахты Mine_Tier%d нет детали 'Zone' - сгенерирована временная перед входом. Если авто-позиция выглядит неправильно, добавьте свою деталь 'Zone' в модель."):format(tier))
 	end
 
 	-- Точка невозврата: с этого места и до конца функции нет ничего, что
@@ -635,7 +635,7 @@ function PlotService:_buildMine(plot, tier)
 		markerIndex += 1
 	end
 	if next(plot.CameraMarkers) == nil then
-		warn("[PlotService] В модели шахты не нашлось ни одной пары CameraMarkerN/CameraMarkerNLook — камера мини-игры шахты будет использовать старое поведение по умолчанию (см. MineExpeditionUI.client.lua). Это не ошибка, просто билдер ещё не расставил маркеры.")
+		warn("[PlotService] В модели шахты не нашлось ни одной пары CameraMarkerN/CameraMarkerNLook - камера мини-игры шахты будет использовать старое поведение по умолчанию (см. MineExpeditionUI.client.lua). Это не ошибка, просто билдер ещё не расставил маркеры.")
 	end
 
 	-- ШАХТА ЕЩЁ НЕ ПОЧИНЕНА (см. Config.Mine.Broken и Config.Tutorial) —

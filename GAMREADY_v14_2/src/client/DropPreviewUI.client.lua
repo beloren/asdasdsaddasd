@@ -131,7 +131,7 @@ local function rowTitle(row)
 		local cart = player:GetAttribute("CartTier") or 1
 		local ok, value = pcall(Config.CartValue, cam, cart)
 		if ok and value and row.Carts then
-			return ("$%s – $%s"):format(NumberFormat.abbreviate(value * row.Carts[1]), NumberFormat.abbreviate(value * row.Carts[2]))
+			return ("$%s - $%s"):format(NumberFormat.abbreviate(value * row.Carts[1]), NumberFormat.abbreviate(value * row.Carts[2]))
 		end
 		return "Cash"
 	end

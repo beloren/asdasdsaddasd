@@ -83,7 +83,7 @@ local shrineState = {}
 
 local remote = ReplicatedStorage.Shared:WaitForChild("PrestigeRequest", 30)
 if not remote then
-	warn("[PerkUI] PrestigeRequest не появился — окно перков отключено.")
+	warn("[PerkUI] PrestigeRequest не появился - окно перков отключено.")
 	return
 end
 
@@ -309,7 +309,7 @@ renderDetail = function()
 	detail.Title.Text = tr(perk.Title)
 	detail.Title.TextColor3 = branch and branch.Color or Color3.new(1, 1, 1)
 	detail.Level.Text = ("LV %d/%d"):format(info.Level, perk.MaxLevel)
-	detail.Now.Text = info.Level > 0 and effectText(perk, info.Level) or "—"
+	detail.Now.Text = info.Level > 0 and effectText(perk, info.Level) or "-"
 	local hint = detail.Hint
 	hint.Visible = false
 	if info.Level >= perk.MaxLevel then

@@ -76,7 +76,7 @@ function Builder.Build()
 	row(body, "RowCart", 3, "⛏️", "Mine kept working", Color3.fromRGB(120, 220, 255))
 	row(body, "RowSafe", 4, "🔐", "Safe accumulated", Color3.fromRGB(120, 255, 130))
 	row(body, "RowStreak", 5, "🔥", "Streak", Color3.fromRGB(255, 200, 80))
-	UiKit.Text(body, "HintLabel", "Your cart is loaded — deliver it to the bank", {
+	UiKit.Text(body, "HintLabel", "Your cart is loaded - deliver it to the bank", {
 		_Style = "Small",
 		LayoutOrder = 6,
 		Size = UDim2.new(1, 0, 0, 18),

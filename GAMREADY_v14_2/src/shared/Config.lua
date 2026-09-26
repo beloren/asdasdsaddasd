@@ -656,17 +656,17 @@ Config.MineExpedition = {
 		-- v14.3 --------------------------------------------------------------
 		{ Id = "SlowMo", Weight = 3, Title = "SLOW MO", Subtitle = "Super slow pick, a bit less luck",
 			Color = Color3.fromRGB(150, 220, 255), SweepMul = 1.8, GoodMul = 0.9, LuckMul = 0.85 },
-		{ Id = "DualPicks", Weight = 2, Title = "DUAL PICKS", Subtitle = "Two picks — the best one counts!",
+		{ Id = "DualPicks", Weight = 2, Title = "DUAL PICKS", Subtitle = "Two picks - the best one counts!",
 			Color = Color3.fromRGB(255, 120, 200), Dual = true, GoodMul = 0.85 },
 		{ Id = "Momentum", Weight = 2, Title = "MOMENTUM", Subtitle = "Perfect streak = faster pick, more luck",
 			Color = Color3.fromRGB(255, 90, 90), Momentum = true, MomentumSpeed = 0.85, MomentumLuck = 0.5 },
-		{ Id = "ShrinkingVein", Weight = 2, Title = "SHRINKING VEIN", Subtitle = "Zones shrink — hit fast!",
+		{ Id = "ShrinkingVein", Weight = 2, Title = "SHRINKING VEIN", Subtitle = "Zones shrink - hit fast!",
 			Color = Color3.fromRGB(120, 255, 200), GoodMul = 1.35, Shrink = { Seconds = 2.6, MinFrac = 0.3 }, LuckMul = 1.15 },
-		{ Id = "GhostVein", Weight = 1, Title = "GHOST VEIN", Subtitle = "Zones vanish — hit from memory, +40% luck",
+		{ Id = "GhostVein", Weight = 1, Title = "GHOST VEIN", Subtitle = "Zones vanish - hit from memory, +40% luck",
 			Color = Color3.fromRGB(190, 200, 230), GhostSeconds = 0.7, LuckMul = 1.4 },
 		{ Id = "Reverse", Weight = 2, Title = "REVERSE", Subtitle = "The pick turns around at random",
 			Color = Color3.fromRGB(255, 170, 90), Reverse = { Count = 2, Min = 0.5, Max = 2.6 }, LuckMul = 1.2 },
-		{ Id = "Jackpot", Weight = 1, Title = "JACKPOT", Subtitle = "One tiny nugget — x4 luck!",
+		{ Id = "Jackpot", Weight = 1, Title = "JACKPOT", Subtitle = "One tiny nugget - x4 luck!",
 			Color = Color3.fromRGB(255, 225, 60), Jackpot = true, JackpotWidth = 0.055, PerfectLuckMul = 4 },
 		{ Id = "Frenzy", Weight = 1, Title = "FRENZY", Subtitle = "5 quick hits!",
 			Color = Color3.fromRGB(255, 80, 160), Hits = 5, SweepMul = 0.72, LuckMul = 0.6 },
@@ -1281,7 +1281,7 @@ Config.OreChain = {
 	{ Key = "Voidstone",   DisplayName = "Voidstone", Description = "A dense shard that seems to swallow nearby light.",   Rarity = "Legendary", Multiplier = 580, Color = Color3.fromRGB(70, 25, 100),   Size = 1.80, Points = 70 },
 	{ Key = "Starshard",   DisplayName = "Starshard", Description = "A stellar fragment still burning with distant sunlight.",   Rarity = "Legendary", Multiplier = 870, Color = Color3.fromRGB(255, 240, 180), Size = 1.86, Points = 78 },
 	{ Key = "Celestium",   DisplayName = "Celestium", Description = "Metal fallen from the sky, humming with cold energy.",   Rarity = "Legendary", Multiplier = 1300, Color = Color3.fromRGB(140, 200, 255), Size = 1.92, Points = 86 },
-	{ Key = "Singularity", DisplayName = "Singularity", Description = "A point of impossible mass — the deepest prize of all.", Rarity = "Legendary", Multiplier = 2000, Color = Color3.fromRGB(20, 15, 30),    Size = 2.00, Points = 95 },
+	{ Key = "Singularity", DisplayName = "Singularity", Description = "A point of impossible mass - the deepest prize of all.", Rarity = "Legendary", Multiplier = 2000, Color = Color3.fromRGB(20, 15, 30),    Size = 2.00, Points = 95 },
 }
 -- 18 руд в цепочке (ТЗ упоминало то 17, то поимённую таблицу на 18 — берём
 -- таблицу как источник истины, она однозначна; если нужно ровно 17, скажи
@@ -3332,7 +3332,7 @@ Config.WeatherEvents = {
 			-- Assets/WeatherFX/<Имя> (или встроенные плейсхолдеры, см. WeatherFX).
 			Effects = { "Fireflies", "StarDust" },
 			VfxKind = "Night", -- см. WeatherFX.client.lua — какие частицы/цвет использовать
-			AnnounceText = "🌙 NIGHTFALL — Celestial and Void ore are far more common while it lasts!",
+			AnnounceText = "🌙 NIGHTFALL - Celestial and Void ore are far more common while it lasts!",
 		},
 		{
 			Id = "Rain",
@@ -3361,7 +3361,7 @@ Config.WeatherEvents = {
 			},
 			Effects = { "RainDrops", "RainSplashes", "Mist" },
 			VfxKind = "Rain",
-			AnnounceText = "🌧️ RAINSTORM — Soaked ore is much more common while it lasts!",
+			AnnounceText = "🌧️ RAINSTORM - Soaked ore is much more common while it lasts!",
 		},
 		{
 			Id = "Thunderstorm",
@@ -3393,7 +3393,7 @@ Config.WeatherEvents = {
 			Effects = { "StormRain", "RainSplashes", "Mist" },
 			Lightning = true, -- молнии (Config.WeatherEvents.Lightning)
 			VfxKind = "Thunderstorm",
-			AnnounceText = "⛈️ THUNDERSTORM — Electric and Glitched ore are surging!",
+			AnnounceText = "⛈️ THUNDERSTORM - Electric and Glitched ore are surging!",
 		},
 		{
 			Id = "BloodMoon",
@@ -3431,7 +3431,7 @@ Config.WeatherEvents = {
 			},
 			Effects = { "Embers", "BloodDrizzle" },
 			VfxKind = "BloodMoon",
-			AnnounceText = "🔴 BLOOD MOON RISES — Sanguine ore is everywhere tonight!",
+			AnnounceText = "🔴 BLOOD MOON RISES - Sanguine ore is everywhere tonight!",
 		},
 		{
 			Id = "SolarEclipse",
@@ -3481,7 +3481,7 @@ Config.WeatherEvents = {
 			},
 			Effects = { "Ash" },
 			VfxKind = "SolarEclipse",
-			AnnounceText = "🌑 SOLAR ECLIPSE — Eclipsed ore chance is off the charts, and some ore turns Eclipsed instantly!",
+			AnnounceText = "🌑 SOLAR ECLIPSE - Eclipsed ore chance is off the charts, and some ore turns Eclipsed instantly!",
 		},
 	},
 }
@@ -4972,7 +4972,7 @@ Config.GroupReward = {
 	RepeatDelay = 300, -- было 900
 	MaxShowsPerSession = 5,
 	Title = "JOIN THE GROUP",
-	Body = "Group members get +10% ore sell price FOREVER — plus a free chest!",
+	Body = "Group members get +10% ore sell price FOREVER - plus a free chest!",
 
 	-- См. подробный комментарий у Config.LikeReward.Ui выше — здесь ровно
 	-- те же поля с тем же смыслом, отдельным набором на это окно.
@@ -5915,21 +5915,21 @@ Config.Quests = {
 		{ Id = "FirstIsland", Metric = "IslandsOwned", Title = "UNLOCK AN ISLAND", Description = "Buy an island from the Island Keeper in town", Short = "Buy an island", Target = 1, Nav = "IslandKeeper",
 			Why = "Islands unlock the anvil, the income podium and the smelter.", Reward = { TripValue = 2, MinMoney = 200 } },
 		{ Id = "HeavyCargo", Metric = "Cart70Sales", Title = "HEAVY CARGO", Description = "Sell 3 carts filled to 70%+", Short = "Sell 3 loaded carts", Target = 3, Nav = "Bank",
-			Why = "Fuller carts sell with a combo — up to x3!", Reward = { TripValue = 2, MinMoney = 200, Items = { { Kind = "Gear", Key = "Potion_Money", Count = 1 } } } },
+			Why = "Fuller carts sell with a combo - up to x3!", Reward = { TripValue = 2, MinMoney = 200, Items = { { Kind = "Gear", Key = "Potion_Money", Count = 1 } } } },
 		{ Id = "GiftCrystal", Metric = "CrystalsGifted", Title = "SHARE THE WEALTH", Description = "Gift a crystal to another player", Short = "Gift a crystal", Target = 1, Nav = "NearestPlayer", RequiresPlayers = 2,
 			Why = "Friends on the server boost everyone's income.", Reward = { TripValue = 1.5, MinMoney = 150 } },
 		{ Id = "MineTier5", Metric = "MineTier", Title = "CAVE FIVE", Description = "Upgrade the Cave to 5", Short = "Cave to 5", Target = 5, Nav = "UpgradeShopNPC",
 			Why = "Cave 5 unlocks the Dynamite Bundle.", Reward = { TripValue = 2, Items = { { Kind = "Gear", Key = "Dynamite_Medium", Count = 1 } } } },
 		{ Id = "MerchantBuy", Metric = "MerchantBuys", Title = "MEET THE MERCHANT", Description = "Buy anything from the Ore Merchant at the bank", Short = "Buy from the merchant", Target = 1, Nav = "Merchant",
-			Why = "The merchant restocks totems, potions and rare picks every 5 min.", Reward = { TripValue = 2, Items = { { Kind = "Placeable", Id = "Totem_Fortune_T2" } } } },
+			Why = "The merchant restocks totems, potions and rare picks every 5 min.", Reward = { TripValue = 2, Items = { { Kind = "Placeable", Id = "Totem_Fortune_T1" } } } },
 		{ Id = "PlaceTotem", Metric = "ItemsPlaced", Title = "DECORATE THE BASE", Description = "Place a totem or decoration on your base", Short = "Place a totem", Target = 1, Nav = "PlotBase",
 			Why = "Totems on your base boost luck, income and more.", Reward = { TripValue = 2 } },
 		{ Id = "PassiveStart", Metric = "SafeCollected", Title = "PASSIVE INCOME", Description = "Put a crystal on the podium and collect $500 from the safe", Short = "Collect $500 from safe", Target = 500, Nav = "GeodeSafe",
-			Why = "The crystal on the podium fills the safe — even offline.", Reward = { TripValue = 2 } },
+			Why = "The crystal on the podium fills the safe - even offline.", Reward = { TripValue = 2 } },
 		{ Id = "CartTier4", Metric = "CartTier", Title = "HEAVY HAULER", Description = "Upgrade the Cart to 4", Short = "Cart to 4", Target = 4, Nav = "UpgradeShopNPC",
 			Why = "Every cart tier fits more ore.", Reward = { TripValue = 2.5 } },
 		{ Id = "RareFind", Metric = "RareOres", Title = "RARE FIND", Description = "Collect 3 Rare+ crystals", Short = "Find 3 Rare crystals", Target = 3, Nav = "Mine",
-			Why = "Rare ore sells for much more — luck helps!", Reward = { TripValue = 2.5, Items = { { Kind = "Gear", Key = "Potion_Luck", Count = 1 } } } },
+			Why = "Rare ore sells for much more - luck helps!", Reward = { TripValue = 2.5, Items = { { Kind = "Gear", Key = "Potion_Luck", Count = 1 } } } },
 		{ Id = "ComboMaster", Metric = "X4Sales", Title = "COMBO MASTER", Description = "Sell 2 full carts at x3 combo", Short = "2 sales at x3", Target = 2, Nav = "Bank",
 			Why = "A full cart triples its price.", Reward = { TripValue = 3 } },
 		{ Id = "MineTier8", Metric = "MineTier", Title = "THE DEEP", Description = "Upgrade the Cave to 8", Short = "Cave to 8", Target = 8, Nav = "UpgradeShopNPC",
@@ -6314,7 +6314,7 @@ Config.Islands = {
 			DisplayName = "Income Island",
 			Description = "Crystal podium + money safe. Your crystal earns money even while you're offline.",
 			Tagline = "CRYSTAL INCOME + MONEY SAFE",
-			Perks = { "Put a crystal on the podium", "It earns money — even offline", "Collect the cash from the safe", "Needed for Prestige" },
+			Perks = { "Put a crystal on the podium", "It earns money - even offline", "Collect the cash from the safe", "Needed for Prestige" },
 			Cost = 1500, -- v3
 			Requires = "Anvil",
 			Color = Color3.fromRGB(95, 230, 130),
@@ -6328,7 +6328,7 @@ Config.Islands = {
 		},
 		Smelter = {
 			DisplayName = "Smelter Island",
-			Description = "Smelt ore into ingots worth x10. Rarer ore takes longer — up to 10 minutes.",
+			Description = "Smelt ore into ingots worth x10. Rarer ore takes longer - up to 10 minutes.",
 			Tagline = "SMELT ORE INTO x10 INGOTS",
 			Perks = { "Ore → ingot worth x10", "Keeps the ore and its mutations", "Upgrade to smelt up to 5 ores at once", "Needed for Prestige" },
 			Cost = 5000, -- v3: к пещере 3-4, до первого ребёрта
@@ -6472,6 +6472,9 @@ Config.Dynamite = {
 	Radius = 11,
 	KnockSpeed = 55,
 	KnockUp = 34,
+	-- v20.43: игрока под щитом/в безопасной зоне взрыв всё равно слегка
+	-- подкидывает (без рагдолла и без потери руды).
+	SafeHop = { Speed = 16, Up = 26 },
 	RagdollSeconds = 2.5,    -- v9: было 1 — рагдолл дольше
 	DropCount = 1,
 
@@ -6845,32 +6848,34 @@ Config.Placeables = {
 	-- Территория участка = весь прямоугольник PlotTemplate + этот запас, стадов.
 	PlotMargin = 1,
 	Caps = { Luck = 0.5, Income = 0.5, BoulderRespawn = 0.7, Mutation = 2.0 },
-	TierRarity = { "Common", "Common", "Uncommon", "Uncommon", "Rare", "Rare", "Epic", "Epic", "Legendary", "Mythic" },
+	-- v20.43: ТРИ ТИРА ТОТЕМОВ — начало, середина и конец игры (вариант А):
+	-- 4 типа × 3 тира = 12 тотемов (+10 святилищ за престиж = 22).
+	--   Early — пещеры 1–5, Mid — 6–10, Late — 11–15 (TierHomeCave).
+	-- Сила тотема задаёт Values[тир] у типа (доля: 0.04 = +4%).
+	-- Старые сейвы (тиры 1..10 и Prism на конкретную мутацию) переводятся
+	-- автоматически (BaseDecorService, migrate: T1-3 → Early, T4-7 → Mid, T8-10 → Late).
+	TierNames = { "Early", "Mid", "Late" },
+	TierRarity = { "Uncommon", "Epic", "Legendary" },
 	TierColors = {
-		Color3.fromRGB(190, 190, 190), Color3.fromRGB(215, 215, 215),
-		Color3.fromRGB(110, 230, 120), Color3.fromRGB(80, 210, 100),
-		Color3.fromRGB(90, 170, 255), Color3.fromRGB(60, 130, 255),
-		Color3.fromRGB(190, 100, 255), Color3.fromRGB(160, 60, 240),
-		Color3.fromRGB(255, 190, 50), Color3.fromRGB(255, 70, 100),
+		Color3.fromRGB(110, 230, 120),
+		Color3.fromRGB(190, 100, 255),
+		Color3.fromRGB(255, 190, 50),
 	},
-	-- v4: ЦЕНЫ ФИКСИРОВАННЫЕ. Цена тотема = TierPrices[тир] × PriceMult типа.
-	-- Тир «привязан» к пещере (TierHomeCave): цена тира ≈ 6 минут дохода в
-	-- его родной пещере. Торговец показывает тотемы тиров [свой-1 … свой+1],
-	-- где «свой» — TotemTierForCave(пещера игрока).
-	TierPrices = { 280, 580, 1900, 2800, 8200, 27000, 41000, 110000, 190000, 430000 },
-	TierHomeCave = { 1, 2, 4, 5, 7, 9, 10, 12, 13, 15 },
+	-- Цена тотема = TierPrices[тир] × PriceMult типа (округление до 2 значащих цифр).
+	TierPrices = { 600, 8000, 190000 },
+	TierHomeCave = { 1, 6, 11 },
 	TotemTypes = {
-		Fortune = { DisplayName = "Fortune Totem", Icon = "🍀", Color = Color3.fromRGB(110, 235, 120), Effect = "Luck",           PerTier = 0.02, PriceMult = 1.0, Asset = "Totem_Fortune" },
-		Ember   = { DisplayName = "Ember Totem",   Icon = "🔥", Color = Color3.fromRGB(255, 130, 50),  Effect = "Income",         PerTier = 0.01, PriceMult = 1.5, Asset = "Totem_Ember" },
-		Quake   = { DisplayName = "Quake Totem",   Icon = "🪨", Color = Color3.fromRGB(170, 140, 110), Effect = "BoulderRespawn", PerTier = 0.06, PriceMult = 0.8, Asset = "Totem_Quake" },
-		Prism   = { DisplayName = "Prism Totem",   Icon = "🔮", Color = Color3.fromRGB(200, 120, 255), Effect = "Mutation",       PerTier = 0.15, PriceMult = 1.2, Asset = "Totem_Prism" },
+		Fortune = { DisplayName = "Fortune Totem", Icon = "🍀", Color = Color3.fromRGB(110, 235, 120), Effect = "Luck",           Values = { 0.04, 0.10, 0.20 }, PriceMult = 1.0, Asset = "Totem_Fortune" },
+		Ember   = { DisplayName = "Ember Totem",   Icon = "🔥", Color = Color3.fromRGB(255, 130, 50),  Effect = "Income",         Values = { 0.02, 0.05, 0.10 }, PriceMult = 1.5, Asset = "Totem_Ember" },
+		Quake   = { DisplayName = "Quake Totem",   Icon = "🪨", Color = Color3.fromRGB(170, 140, 110), Effect = "BoulderRespawn", Values = { 0.12, 0.30, 0.60 }, PriceMult = 0.8, Asset = "Totem_Quake" },
+		-- Prism теперь один на ВСЕ мутации из PrismMutations: шанс каждой ×(1 + Value).
+		Prism   = { DisplayName = "Prism Totem",   Icon = "🔮", Color = Color3.fromRGB(200, 120, 255), Effect = "Mutation",       Values = { 0.20, 0.50, 1.00 }, PriceMult = 1.2, Asset = "Totem_Prism" },
 	},
 	TotemOrder = { "Fortune", "Ember", "Quake", "Prism" },
-	-- На какие мутации продаются Prism-тотемы (по одному виду на мутацию).
+	-- Какие мутации усиливает Prism-тотем.
 	PrismMutations = { "Frozen", "Toxic", "Void", "Electric", "Molten", "Golden", "Prismatic", "Celestial" },
-	-- v4: сколько РАЗНЫХ тотемов каждого тира катается в стоке за цикл.
-	-- Игрок видит тиры своего диапазона (±1) → до 3 × TotemsPerTier карточек.
-	TotemsPerTier = 2,
+	-- Сколько РАЗНЫХ тотемов каждого тира в стоке за цикл (видно: свой тир ±1).
+	TotemsPerTier = 3,
 	TierWeights = { 30, 22, 15, 11, 8, 5.5, 3.5, 2.5, 1.5, 1 }, -- legacy, v4 не использует
 	-- ДЕКОР — без эффектов, чисто для красоты. Asset — своя модель в
 	-- ReplicatedStorage.Assets (пивот у основания), иначе плейсхолдер.

@@ -92,7 +92,7 @@ end
 
 function IslandService:RebirthRequirementLabel()
 	if not ISLANDS.Enabled or #(ISLANDS.RebirthRequires or {}) == 0 then return nil end
-	return ("Unlock %d islands at the Island Keeper"):format(#ISLANDS.RebirthRequires)
+	return ("Own %d islands"):format(#ISLANDS.RebirthRequires)
 end
 
 -- v10: пасс Fast Smelter — помечаем профиль владельца (weak-таблица),
@@ -158,7 +158,7 @@ local function migrate(player, data)
 	end
 	if data.Islands.Smelter then data.SmelterLevel = math.max(1, data.SmelterLevel) end
 	if usedGeodes or (tonumber(data.Rebirths) or 0) > 0 then
-		print(("[IslandService] %s: старый профиль — выданы острова, которыми он уже пользовался"):format(player.Name))
+		print(("[IslandService] %s: старый профиль - выданы острова, которыми он уже пользовался"):format(player.Name))
 	end
 end
 
@@ -660,7 +660,7 @@ function IslandService:_updateSmelter(player)
 			readyCount += 1
 			if not slot.Notified then
 				slot.Notified = true
-				Services.NotifyService:Show(player, ("%s ingot is ready — click the smelter!"):format(oreName(slot.Ore)), { Icon = "Reward" })
+				Services.NotifyService:Show(player, ("%s ingot is ready - click the smelter!"):format(oreName(slot.Ore)), { Icon = "Reward" })
 			end
 		end
 	end
@@ -683,7 +683,7 @@ function IslandService:_updateSmelter(player)
 	elseif soonest then
 		smelter.Title.Text = "SMELTING..."
 		smelter.Title.TextColor3 = Color3.fromRGB(255, 160, 70)
-		smelter.Sub.Text = ("%s — <font color=\"#FFD84A\">%s</font>%s"):format(oreName(soonestOre):upper(), formatTime(soonest), capacitySuffix)
+		smelter.Sub.Text = ("%s - <font color=\"#FFD84A\">%s</font>%s"):format(oreName(soonestOre):upper(), formatTime(soonest), capacitySuffix)
 	else
 		smelter.Title.Text = "SMELTER"
 		smelter.Title.TextColor3 = Color3.new(1, 1, 1)
@@ -908,7 +908,7 @@ function IslandService:InteractSmelter(player)
 		Duration = duration,
 	})
 	self:_flyOreIntoSmelter(player, removed, anchor)
-	Services.NotifyService:Show(player, ("SMELTING %s — ready in %s"):format(oreName(removed.Ore):upper(), formatTime(duration)), { Icon = "Ore" })
+	Services.NotifyService:Show(player, ("SMELTING %s - ready in %s"):format(oreName(removed.Ore):upper(), formatTime(duration)), { Icon = "Ore" })
 	self:_updateSmelter(player)
 end
 
@@ -1289,7 +1289,7 @@ function IslandService:TryUpgradeSmelter(player)
 	local rebuilt, err = pcall(function() self:_rebuildSmelter(player) end)
 	if not rebuilt then warn("[IslandService] Пересборка печи упала:", err) end
 	if remote then remote:FireClient(player, "SmelterUpgraded", level + 1) end
-	Services.NotifyService:Show(player, ("%s — SMELTS %d ORE AT ONCE"):format((nextInfo.Name or "SMELTER UPGRADED"):upper(), nextInfo.Slots), { Icon = "Reward" })
+	Services.NotifyService:Show(player, ("%s - SMELTS %d ORE AT ONCE"):format((nextInfo.Name or "SMELTER UPGRADED"):upper(), nextInfo.Slots), { Icon = "Reward" })
 	return true
 end
 

@@ -2,8 +2,9 @@
 -- PlaceableCatalog — единый разбор ID предметов базы (тотемы и декор).
 --
 -- ФОРМАТ ID (строка, так и лежит в data.BaseItems / data.PlacedDecor):
---   Totem_<Type>_T<tier>              — Totem_Fortune_T3, Totem_Quake_T10
---   Totem_Prism_<Mutation>_T<tier>    — Totem_Prism_Celestial_T2
+--   Totem_<Type>_T<tier>              — Totem_Fortune_T1 … _T3 (v20.43: 3 тира)
+--   Totem_Prism_T<tier>               — Prism на все мутации сразу
+--   (старый формат Totem_Prism_<Mutation>_T<n> и тиры 4..10 — см. MigrateLegacyId)
 --   Decor_<Id>                        — Decor_PlushMole
 -- Реликвии здесь не участвуют: у каждой свой серийник, они хранятся
 -- отдельными записями (data.Relics) и описаны в Config.Relics.
@@ -26,12 +27,39 @@ local function roman(n)
 	local numerals = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" }
 	return numerals[n] or tostring(n)
 end
+
+local function maxTier()
+	return #(CFG.TierPrices or { 1 })
+end
+
+-- v20.43: название тира (Early / Mid / Late).
+function PlaceableCatalog.TierName(tier)
+	return (CFG.TierNames and CFG.TierNames[tier]) or roman(tier)
+end
+
+local function totemValue(def, tier)
+	if def.Values then return def.Values[math.clamp(tier, 1, #def.Values)] or 0 end
+	return (def.PerTier or 0) * tier
+end
+
+-- v20.43: старый ID (10 тиров, Prism на мутацию) → новый (3 тира).
+-- Возвращает новый ID или nil, если ID не тотем старого формата.
+local LEGACY_TIER = { 1, 1, 1, 2, 2, 2, 2, 3, 3, 3 }
+function PlaceableCatalog.MigrateLegacyId(itemId)
+	if typeof(itemId) ~= "string" or itemId:match("^Totem_Shrine_") then return nil end
+	local _, prismTier = itemId:match("^Totem_Prism_([%a]+)_T(%d+)$")
+	if prismTier then
+		return ("Totem_Prism_T%d"):format(LEGACY_TIER[math.clamp(tonumber(prismTier), 1, 10)])
+	end
+	local totemType, tier = itemId:match("^Totem_([%a]+)_T(%d+)$")
+	if totemType and CFG.TotemTypes[totemType] then
+		return ("Totem_%s_T%d"):format(totemType, LEGACY_TIER[math.clamp(tonumber(tier), 1, 10)])
+	end
+	return nil
+end
 PlaceableCatalog.Roman = roman
 
 function PlaceableCatalog.TotemId(totemType, tier, mutation)
-	if totemType == "Prism" then
-		return ("Totem_Prism_%s_T%d"):format(tostring(mutation), tier)
-	end
 	return ("Totem_%s_T%d"):format(totemType, tier)
 end
 
@@ -70,7 +98,6 @@ function PlaceableCatalog.Info(itemId)
 
 	local info = nil
 	local shrineId = itemId:match("^Totem_Shrine_([%a]+)$")
-	local prismMutation, prismTier = itemId:match("^Totem_Prism_([%a]+)_T(%d+)$")
 	local totemType, totemTier = itemId:match("^Totem_([%a]+)_T(%d+)$")
 	local decorId = itemId:match("^Decor_([%w]+)$")
 
@@ -90,30 +117,19 @@ function PlaceableCatalog.Info(itemId)
 				Asset = def.Asset, Price = 0, PointsCost = def.Cost,
 			}
 		end
-	elseif prismMutation then
-		local tier = tonumber(prismTier)
-		local def = CFG.TotemTypes.Prism
-		local mutation = Config.Mutations[prismMutation]
-		if def and mutation and tier and tier >= 1 and tier <= 10 then
-			info = {
-				Id = itemId, Kind = "Totem", Type = "Prism", Tier = tier, Mutation = prismMutation,
-				DisplayName = ("%s %s Totem %s"):format(mutation.DisplayName or prismMutation, "Prism", roman(tier)),
-				ShortName = ("%s T%d"):format(mutation.DisplayName or prismMutation, tier),
-				Icon = def.Icon, Color = mutation.Color or def.Color, TierColor = CFG.TierColors[tier],
-				Rarity = tierRarity(tier), Effect = def.Effect, Value = def.PerTier * tier,
-				Asset = def.Asset, Price = PlaceableCatalog.TotemPrice("Prism", tier),
-			}
-		end
-	elseif totemType and totemType ~= "Prism" then
+	elseif totemType then
 		local tier = tonumber(totemTier)
 		local def = CFG.TotemTypes[totemType]
-		if def and tier and tier >= 1 and tier <= 10 then
+		if def and tier and tier >= 1 and tier <= maxTier() then
+			local tierName = PlaceableCatalog.TierName(tier)
 			info = {
 				Id = itemId, Kind = "Totem", Type = totemType, Tier = tier,
-				DisplayName = ("%s %s"):format(def.DisplayName, roman(tier)),
-				ShortName = ("%s T%d"):format(totemType, tier),
+				-- Prism без Mutation = на все мутации из PrismMutations.
+				Mutations = totemType == "Prism" and CFG.PrismMutations or nil,
+				DisplayName = ("%s (%s)"):format(def.DisplayName, tierName),
+				ShortName = ("%s %s"):format(totemType, tierName),
 				Icon = def.Icon, Color = def.Color, TierColor = CFG.TierColors[tier],
-				Rarity = tierRarity(tier), Effect = def.Effect, Value = def.PerTier * tier,
+				Rarity = tierRarity(tier), Effect = def.Effect, Value = totemValue(def, tier),
 				Asset = def.Asset, Price = PlaceableCatalog.TotemPrice(totemType, tier),
 			}
 		end
@@ -151,6 +167,8 @@ function PlaceableCatalog.EffectText(info)
 		return ("+%d%% Sell Income"):format(percent)
 	elseif info.Effect == "BoulderRespawn" then
 		return ("Base boulders respawn %d%% faster"):format(percent)
+	elseif info.Effect == "Mutation" and not info.Mutation then
+		return ("All mutations x%.1f"):format(1 + info.Value)
 	elseif info.Effect == "Mutation" then
 		local mutation = Config.Mutations[info.Mutation]
 		return ("%s chance x%.2f"):format(mutation and mutation.DisplayName or tostring(info.Mutation), 1 + info.Value)
@@ -170,19 +188,11 @@ function PlaceableCatalog.ShrineId(shrineId)
 	return "Totem_Shrine_" .. tostring(shrineId)
 end
 
--- Все возможные тотемы (для лавки): список ID.
+-- Все возможные тотемы (для лавки): список типов.
 function PlaceableCatalog.AllTotemKinds()
 	local kinds = {}
 	for _, totemType in CFG.TotemOrder do
-		if totemType == "Prism" then
-			for _, mutation in CFG.PrismMutations do
-				if Config.Mutations[mutation] then
-					table.insert(kinds, { Type = "Prism", Mutation = mutation })
-				end
-			end
-		else
-			table.insert(kinds, { Type = totemType })
-		end
+		table.insert(kinds, { Type = totemType })
 	end
 	return kinds
 end

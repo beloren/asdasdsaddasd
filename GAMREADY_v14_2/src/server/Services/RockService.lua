@@ -126,12 +126,12 @@ local function findBoulderAsset(tier)
 	local asset = assets and assets:FindFirstChild("Boulder_Tier" .. tier)
 	if not asset then return nil end
 	if not asset:IsA("Model") then
-		warn(("[RockService] ReplicatedStorage.Assets.Boulder_Tier%d должен быть Model — использую плейсхолдер."):format(tier))
+		warn(("[RockService] ReplicatedStorage.Assets.Boulder_Tier%d должен быть Model - использую плейсхолдер."):format(tier))
 		return nil
 	end
 	local root = asset.PrimaryPart or asset:FindFirstChild("Root", true)
 	if not root or not root:IsA("BasePart") then
-		warn(("[RockService] ReplicatedStorage.Assets.Boulder_Tier%d нужен PrimaryPart или часть с именем 'Root' — использую плейсхолдер."):format(tier))
+		warn(("[RockService] ReplicatedStorage.Assets.Boulder_Tier%d нужен PrimaryPart или часть с именем 'Root' - использую плейсхолдер."):format(tier))
 		return nil
 	end
 	local clone = asset:Clone()
@@ -580,7 +580,7 @@ function RockService:SetupPlot(player, plot)
 		-- Не ошибка сама по себе, но обучение без них физически не может
 		-- выдать игроку первую руду — предупреждаем явно, иначе причину
 		-- "новичок застрял на первом шаге" пришлось бы искать вслепую.
-		warn(("[RockService] В PlotTemplate нет ни одного маркера %s — на базе %s не будет валунов, и обучение не сможет выдать стартовую руду.")
+		warn(("[RockService] В PlotTemplate нет ни одного маркера %s - на базе %s не будет валунов, и обучение не сможет выдать стартовую руду.")
 			:format(Config.Boulders.Base.MarkerPrefix, player.Name))
 		return
 	end
@@ -711,7 +711,7 @@ function RockService:Start()
 					tiers[index] = tier
 					countByTier[tier] = 1
 					points[index]:SetAttribute("Tier", tier)
-					warn(("[RockService] Тир %d не был представлен ни одной точкой спавна — переназначил точку %s (был тир %d), чтобы у каждого тира был хотя бы один валун."):format(tier, points[index].Name, donorTier))
+					warn(("[RockService] Тир %d не был представлен ни одной точкой спавна - переназначил точку %s (был тир %d), чтобы у каждого тира был хотя бы один валун."):format(tier, points[index].Name, donorTier))
 					break
 				end
 			end
@@ -1338,7 +1338,7 @@ function RockService:Damage(state, player, damage)
 	local playerTier = Services.DataService:GetBranchTier(player, "Pickaxe")
 	local difference = state.Tier - playerTier
 	if difference >= 3 then
-		Services.NotifyService:Show(player, ("Not strong enough — requires at least tier %d"):format(state.Tier - 2), { Icon = "Pickaxe" })
+		Services.NotifyService:Show(player, ("Not strong enough - requires at least tier %d"):format(state.Tier - 2), { Icon = "Pickaxe" })
 		return 0
 	end
 	local multiplier = difference == 2 and Config.Boulders.GroupDamageMultiplier or 1
@@ -1595,10 +1595,13 @@ function RockService:GrantBoulderRewards(player, tier, position, deferNotificati
 			end
 			table.insert(drops, "MONEY: $" .. NumberFormat.abbreviate(amount))
 			table.insert(rich, { Kind = "Money", Icon = "💰", Text = "$" .. NumberFormat.abbreviate(amount), Color = Color3.fromRGB(110, 255, 140) })
-			Services.DataService:AddMoney(player, amount, position, true) -- suppressCoinBurst: визуал даёт SpawnLooseReward ниже, не нужен второй одновременно
-			if Services.GoblinService then
+			Services.DataService:AddMoney(player, amount, position, true) -- suppressCoinBurst: монетки ниже, после раскола
+			-- v20.43: монетки вылетают из валуна и летят к игроку (как у сейфа).
+			if Services.BankService and Services.BankService.SpawnCoinBurst then
 				task.delay(visualDelay, function()
-					Services.GoblinService:SpawnLooseReward(player, "Money", nil, position, Config.CoinFx.CoinColor)
+					if player.Parent then
+						pcall(Services.BankService.SpawnCoinBurst, Services.BankService, player, position, 3)
+					end
 				end)
 			end
 		elseif kind == "Geode" then
@@ -1803,7 +1806,7 @@ function RockService:OnPickaxeHit(state, player)
 	local pickaxeTier = equippedPickaxeTierFor(player)
 	local need = boulderHitsNeeded(state.Tier, pickaxeTier)
 	if not need then
-		Services.NotifyService:Show(player, ("Too tough for your pickaxe — use DYNAMITE (or pickaxe tier %d)"):format(state.Tier - Config.BoulderGame.MaxDiffWithPickaxe), { Icon = "Pickaxe" })
+		Services.NotifyService:Show(player, ("Too tough for your pickaxe - use DYNAMITE (or pickaxe tier %d)"):format(state.Tier - Config.BoulderGame.MaxDiffWithPickaxe), { Icon = "Pickaxe" })
 		return
 	end
 	-- v10: 🎯 PERFECT STRIKE (микротранзакция) — валун сразу ломается на PERFECT.

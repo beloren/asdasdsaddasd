@@ -124,7 +124,7 @@ function LikeRewardService:Claim(player)
 	local skinGranted = Services.SkinService:GrantNpcSkin(player, Config.LikeReward.SkinId)
 	if not skinGranted then
 		claiming[player] = nil
-		warn(("[LikeRewardService] Не удалось выдать скин %s игроку %s — награда НЕ помечена забранной, игрок сможет забрать её позже. Проверь ассет Config.Skins.Definitions.%s.AssetName в ReplicatedStorage/Assets."):format(
+		warn(("[LikeRewardService] Не удалось выдать скин %s игроку %s - награда НЕ помечена забранной, игрок сможет забрать её позже. Проверь ассет Config.Skins.Definitions.%s.AssetName в ReplicatedStorage/Assets."):format(
 			tostring(Config.LikeReward.SkinId), player.Name, tostring(Config.LikeReward.SkinId)))
 		if Services.NotifyService then
 			Services.NotifyService:Show(player, "Reward is temporarily unavailable. Please try again in a moment.", { Icon = "Error" })

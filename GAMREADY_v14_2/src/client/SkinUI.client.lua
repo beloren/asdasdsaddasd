@@ -116,7 +116,7 @@ local function renderDetail()
 	end
 	if #lines == 0 then
 		local line = statTemplate:Clone()
-		line.Text = tr("No bonuses — pure style")
+		line.Text = tr("No bonuses - pure style")
 		line.TextColor3 = Color3.fromRGB(190, 195, 215)
 		line.Visible = true
 		line.Parent = statsFrame

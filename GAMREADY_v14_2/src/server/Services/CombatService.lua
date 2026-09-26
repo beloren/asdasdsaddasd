@@ -636,7 +636,7 @@ function CombatService:Init(services)
 		lastPaidAttempt[player.UserId] = now
 
 		if Config.Protection.PaidProductId == 0 then
-			warn("[CombatService] Config.Protection.PaidProductId не задан — создай Developer Product в Creator Dashboard (см. README) и впиши сюда его ID")
+			warn("[CombatService] Config.Protection.PaidProductId не задан - создай Developer Product в Creator Dashboard (см. README) и впиши сюда его ID")
 			return
 		end
 		MarketplaceService:PromptProductPurchase(player, Config.Protection.PaidProductId)
@@ -1988,9 +1988,15 @@ function CombatService:BlastKnock(victimPlayer, center, attacker, options)
 	local hrp = character and character:FindFirstChild("HumanoidRootPart")
 	if not hrp then return end
 	-- Щит и безопасная зона защищают только от ЧУЖОГО динамита.
+	-- v20.43: но слегка подкидывает всё равно (без рагдолла и потери руды).
+	local function hop()
+		local hopCfg = base.SafeHop or { Speed = 16, Up = 26 }
+		local dir = horizontalDirection(center, hrp.Position, Vector3.new(0, 0, 1))
+		feedback(victimPlayer, { Kind = "Hop", Impulse = dir * (hopCfg.Speed or 16) + Vector3.new(0, hopCfg.Up or 26, 0) })
+	end
 	if not selfBlast then
-		if victimPlayer:GetAttribute("Protected") then return end
-		if isPositionSafe(hrp.Position) then return end
+		if victimPlayer:GetAttribute("Protected") then hop() return end
+		if isPositionSafe(hrp.Position) then hop() return end
 	end
 	local direction = horizontalDirection(center, hrp.Position, Vector3.new(0, 0, 1))
 	-- v16 (K2): ближе к эпицентру — сильнее отброс и выше подброс.

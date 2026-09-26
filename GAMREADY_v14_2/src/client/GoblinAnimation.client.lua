@@ -71,7 +71,7 @@ local function bindGoblin(model)
 		binding[model] = nil
 		if not model.Parent then return end
 		if not humanoid or not animator then
-			warn(("[GoblinAnimation] У модели %s нет Humanoid/Animator — анимации не привязаны."):format(model.Name))
+			warn(("[GoblinAnimation] У модели %s нет Humanoid/Animator - анимации не привязаны."):format(model.Name))
 			return
 		end
 		if states[model] then return end

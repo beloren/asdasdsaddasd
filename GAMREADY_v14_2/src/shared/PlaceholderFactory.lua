@@ -208,7 +208,7 @@ local function extractVfxAttachment(asset, assetName)
 		return attachment
 	end
 
-	warn(("[PlaceholderFactory] ReplicatedStorage/Assets/%s найден, но внутри нет ни Attachment, ни ParticleEmitter — использую плейсхолдер. Положи туда Attachment с эмиттерами (или Part/Model, внутри которого они есть)."):format(assetName))
+	warn(("[PlaceholderFactory] ReplicatedStorage/Assets/%s найден, но внутри нет ни Attachment, ни ParticleEmitter - использую плейсхолдер. Положи туда Attachment с эмиттерами (или Part/Model, внутри которого они есть)."):format(assetName))
 	asset:Destroy()
 	return nil
 end
@@ -565,7 +565,7 @@ function PlaceholderFactory.Island(assetName)
 		return asset
 	end
 	if asset then
-		warn(("[PlaceholderFactory] Assets/%s должен быть Model с назначенным PrimaryPart — строю остров-плейсхолдер."):format(tostring(assetName)))
+		warn(("[PlaceholderFactory] Assets/%s должен быть Model с назначенным PrimaryPart - строю остров-плейсхолдер."):format(tostring(assetName)))
 		asset:Destroy()
 	end
 	return nil
@@ -1064,7 +1064,7 @@ function PlaceholderFactory.LootBox()
 	if asset then
 		-- Ассет есть, но это не Model/BasePart (например, Folder) —
 		-- предупреждаем и уходим на плейсхолдер, а не падаем.
-		warn("[PlaceholderFactory] ReplicatedStorage.Assets.LootBox должен быть Model или BasePart — использую плейсхолдер.")
+		warn("[PlaceholderFactory] ReplicatedStorage.Assets.LootBox должен быть Model или BasePart - использую плейсхолдер.")
 		asset:Destroy()
 	end
 
@@ -1449,7 +1449,7 @@ function PlaceholderFactory.Pickaxe(tier)
 	-- ассета. Если ты настраивал Pickaxe_TierN сам и видишь это предупреждение
 	-- — проверь, что модель лежит РОВНО в ReplicatedStorage/Assets (не глубже,
 	-- не в другом сервисе) с именем ровно "Pickaxe_Tier<N>".
-	warn(("[PlaceholderFactory] Assets/Pickaxe_Tier%d не найден — строю запасной Tool со своим Handle вместо твоего. Скин сядет на ЭТОТ временный Handle, а не на настроенный тобой."):format(tier))
+	warn(("[PlaceholderFactory] Assets/Pickaxe_Tier%d не найден - строю запасной Tool со своим Handle вместо твоего. Скин сядет на ЭТОТ временный Handle, а не на настроенный тобой."):format(tier))
 	local scale = Config.PickaxeTiers[tier].Scale
 
 	local tool = Instance.new("Tool")

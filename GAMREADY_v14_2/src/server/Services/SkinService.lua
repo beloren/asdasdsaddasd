@@ -480,7 +480,7 @@ function SkinService:ApplyCartSkin(player, data)
 	if not definition then return end
 	local visual = cloneVisual(definition.AssetName, "AppliedCartSkin", data.Root, data.Model)
 	if not visual then
-		warn(("[SkinService] cloneVisual вернул nil для скина %s (AssetName=%s) при надевании на тележку — см. tools/ValidateSkinAssets.lua."):format(skinId, definition.AssetName))
+		warn(("[SkinService] cloneVisual вернул nil для скина %s (AssetName=%s) при надевании на тележку - см. tools/ValidateSkinAssets.lua."):format(skinId, definition.AssetName))
 		return
 	end
 	for _, descendant in data.Model:GetDescendants() do

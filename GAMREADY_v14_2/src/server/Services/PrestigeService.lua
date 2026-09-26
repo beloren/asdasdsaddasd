@@ -193,7 +193,7 @@ function PrestigeService:BuyShrine(player, shrineId)
 	publish(player)
 	if Services.QuestService then pcall(Services.QuestService.RecordMetric, Services.QuestService, player, "PerksBought", 1) end
 	if Services.NotifyService then
-		Services.NotifyService:Show(player, ("%s %s is in your inventory — place it on your base!"):format(def.Icon or "🗿", def.DisplayName), { Icon = "Reward", Duration = 3 })
+		Services.NotifyService:Show(player, ("%s %s is in your inventory - place it on your base!"):format(def.Icon or "🗿", def.DisplayName), { Icon = "Reward", Duration = 3 })
 	end
 	task.spawn(function() Services.DataService:SaveProfile(player) end)
 	return true

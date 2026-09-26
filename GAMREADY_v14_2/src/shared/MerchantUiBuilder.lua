@@ -259,7 +259,7 @@ function MerchantUiBuilder.Build()
 	})
 	button(buyRow, "Buy", "BUY", "Green", { Size = UDim2.fromScale(1, 1), ZIndex = 4, _TextStyle = "Title" })
 
-	UiKit.Text(list, "EmptyNote", "Nothing in stock — wait for the next restock!", {
+	UiKit.Text(list, "EmptyNote", "Nothing in stock - wait for the next restock!", {
 		_Style = "Heading",
 		LayoutOrder = 99999,
 		Size = UDim2.new(1, -30, 0, 70),

@@ -34,7 +34,7 @@ local startRemote = ReplicatedStorage.Shared:WaitForChild("MineExpeditionStart",
 local stateRemote = ReplicatedStorage.Shared:WaitForChild("MineExpeditionState", 10)
 local arcHitRemote = ReplicatedStorage.Shared:WaitForChild("MineArcHit", 10)
 if not (dialogRemote and startRemote and stateRemote and arcHitRemote) then
-	warn("[MineExpeditionUI] RemoteEvent'ы шахты не появились — фича не будет работать, остальная игра не пострадает.")
+	warn("[MineExpeditionUI] RemoteEvent'ы шахты не появились - фича не будет работать, остальная игра не пострадает.")
 	return
 end
 
@@ -448,7 +448,7 @@ local function ensureVeinUi()
 
 	local gui = UiRegistry.Get("MineArcUi")
 	if gui and ((gui:GetAttribute("VeinUiVersion") or 0) < VeinBuilder.VERSION or not gui:FindFirstChild("Vein", true)) then
-		warn("[MineExpeditionUI] StarterGui/MineArcUi устарел — собираю жилу кодом. Перезапусти tools/BuildAllUI.lua, чтобы править вид в Studio.")
+		warn("[MineExpeditionUI] StarterGui/MineArcUi устарел - собираю жилу кодом. Перезапусти tools/BuildAllUI.lua, чтобы править вид в Studio.")
 		gui:Destroy()
 		gui = nil
 	end

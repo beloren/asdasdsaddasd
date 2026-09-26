@@ -20,7 +20,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local Builder = {}
-Builder.VERSION = 21 -- v20.9: галочка/крестик фигурами
+Builder.VERSION = 22 -- v20.43: заголовок «You need»
 
 local function requirementRow(parent)
 	local row = UiKit.Plate(parent, "RequirementRow", "Inset", { Size = UDim2.new(1, 0, 0, 36), BackgroundTransparency = 0.6 })
@@ -78,7 +78,7 @@ function Builder.Build()
 		Position = UDim2.fromOffset(0, 38),
 		Size = UDim2.new(0.56, -6, 1, -118),
 	})
-	UiKit.SectionHeader(requirementsCard, "Header", "What you need", "Orange", {
+	UiKit.SectionHeader(requirementsCard, "Header", "You need", "Orange", {
 		_Layout = "Left",
 		Position = UDim2.fromOffset(10, 6),
 		Size = UDim2.new(1, -20, 0, 28),

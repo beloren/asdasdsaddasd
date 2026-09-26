@@ -441,7 +441,7 @@ function GearService:_drinkPotion(player, key)
 	end
 	Services.BuffService:Grant(player, info.Buff, amount, seconds, info.DisplayName)
 	pcall(function() Services.BuffService:PushState(player) end)
-	Services.NotifyService:Show(player, ("%s %s — %d:%02d"):format(info.Icon, info.DisplayName, seconds // 60, seconds % 60), {
+	Services.NotifyService:Show(player, ("%s %s - %d:%02d"):format(info.Icon, info.DisplayName, seconds // 60, seconds % 60), {
 		Icon = "Reward", Duration = 2.5, TextColor = info.Color,
 	})
 	save(player)
@@ -499,7 +499,7 @@ function GearService:_useDynamite(player, key, targetInstance, targetPosition)
 	-- v9: откат вида (и для броска, и для установки).
 	local left = cooldownLeft(player, key)
 	if left > 0 then
-		Services.NotifyService:Show(player, ("%s %s — %ds"):format(stats.Icon, stats.DisplayName, math.ceil(left)), { Icon = "Pickaxe", Duration = 1.2 })
+		Services.NotifyService:Show(player, ("%s %s - %ds"):format(stats.Icon, stats.DisplayName, math.ceil(left)), { Icon = "Pickaxe", Duration = 1.2 })
 		return
 	end
 	local fuse = stats.Fuse or cfg.PlaceFuse
