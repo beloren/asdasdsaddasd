@@ -370,6 +370,54 @@ DECOR_BUILDERS.Flowers2 = function()
 	return assemble("Flowers2", root, parts)
 end
 
+DECOR_BUILDERS.Flowers3 = function()
+	-- v20.47: Ящик лаванды — деревянный длинный ящик, в нём ряды фиолетовых колосков.
+	local parts, add = builderKit()
+	local wood = Color3.fromRGB(140, 95, 60)
+	local root = part({ Size = Vector3.new(3.2, 0.1, 1.4), Transparency = 1, CastShadow = false })
+	root.CFrame = CFrame.new(0, 0.05, 0)
+	add({ Size = Vector3.new(3.2, 0.8, 1.4), Material = Enum.Material.WoodPlanks, Color = wood }, CFrame.new(0, 0.45, 0))
+	add({ Size = Vector3.new(3.3, 0.12, 1.5), Material = Enum.Material.Wood, Color = wood:Lerp(Color3.new(0, 0, 0), 0.2) }, CFrame.new(0, 0.86, 0))
+	add({ Size = Vector3.new(3.0, 0.08, 1.2), Material = Enum.Material.Ground, Color = Color3.fromRGB(80, 55, 35) }, CFrame.new(0, 0.84, 0))
+	for row = -1, 1, 2 do
+		for i = 1, 5 do
+			local x = -1.2 + (i - 1) * 0.6
+			local z = row * 0.3
+			local height = 0.9 + ((i + row) % 3) * 0.15
+			local base = Vector3.new(x, 0.88, z)
+			add({ Size = Vector3.new(0.08, height, 0.08), Material = Enum.Material.Grass, Color = Color3.fromRGB(110, 140, 90) }, CFrame.new(base + Vector3.new(0, height / 2, 0)))
+			-- колосок: столбик из фиолетовых «бусин»
+			add({ Size = Vector3.new(0.18, height * 0.45, 0.18), Material = Enum.Material.Fabric, Color = Color3.fromRGB(150, 110, 220) }, CFrame.new(base + Vector3.new(0, height * 0.82, 0)))
+		end
+	end
+	return assemble("Flowers3", root, parts)
+end
+
+DECOR_BUILDERS.Flowers4 = function()
+	-- v20.47: Каменная клумба с ромашками — кольцо из камней, внутри белые ромашки.
+	local parts, add = builderKit()
+	local root = part({ Size = Vector3.new(2.8, 0.1, 2.8), Transparency = 1, CastShadow = false })
+	root.CFrame = CFrame.new(0, 0.05, 0)
+	add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3, 2.4, 2.4), Material = Enum.Material.Ground, Color = Color3.fromRGB(95, 65, 42) }, CFrame.new(0, 0.2, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	for i = 1, 10 do
+		local angle = i / 10 * math.pi * 2
+		add({ Shape = Enum.PartType.Ball, Size = Vector3.new(0.6, 0.45, 0.6), Material = Enum.Material.Slate, Color = Color3.fromRGB(135, 135, 140):Lerp(Color3.fromRGB(170, 160, 150), (i % 3) / 3) },
+			CFrame.new(math.cos(angle) * 1.25, 0.25, math.sin(angle) * 1.25))
+	end
+	for i = 1, 7 do
+		local angle = i / 7 * math.pi * 2
+		local radius = i == 7 and 0 or 0.65
+		local position = Vector3.new(math.cos(angle) * radius, 0.35, math.sin(angle) * radius)
+		local height = 0.7 + (i % 3) * 0.15
+		-- ромашка: белая «тарелка» с жёлтой серединкой
+		add({ Size = Vector3.new(0.1, height, 0.1), Material = Enum.Material.Grass, Color = Color3.fromRGB(75, 150, 60) }, CFrame.new(position + Vector3.new(0, height / 2, 0)))
+		local head = CFrame.new(position + Vector3.new(0, height + 0.05, 0))
+		add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.06, 0.6, 0.6), Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(250, 250, 245) }, head * CFrame.Angles(0, 0, math.rad(90)))
+		add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.1, 0.22, 0.22), Material = Enum.Material.Fabric, Color = Color3.fromRGB(255, 200, 40) }, head * CFrame.new(0, 0.03, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	end
+	return assemble("Flowers4", root, parts)
+end
+
 -- Куст из шаров листвы. berries — сколько ягод рассыпать сверху.
 local function bush(name, specs, leaf, berries, berryColor)
 	local parts, add = builderKit()
