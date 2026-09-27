@@ -31,7 +31,7 @@ UiRegistry.Entries = {
 	{ Name = "TopbarDock", Module = "UiBuilders.HudUi", Fn = "BuildTopbar", MinVersion = 21, What = "ряд кнопок в топбаре" },
 	{ Name = "CartInteractionUi", Module = "UiBuilders.CartInteractionUi", MinVersion = 20, What = "экранные подсказки промптов" },
 	{ Name = "HotbarUi", Module = "UiBuilders.InventoryUi", Fn = "BuildHotbar", MinVersion = 27, What = "хотбар" },
-	{ Name = "SatchelInventory", Module = "UiBuilders.InventoryUi", Fn = "BuildSatchel", MinVersion = 27, What = "рюкзак (клавиша ~)" },
+	{ Name = "SatchelInventory", Module = "UiBuilders.InventoryUi", Fn = "BuildSatchel", MinVersion = 28, What = "рюкзак (клавиша ~)" },
 	{ Name = "InventoryDragOverlay", Module = "UiBuilders.InventoryUi", Fn = "BuildDragOverlay", MinVersion = 20, What = "слой перетаскивания предметов" },
 	{ Name = "BuffBar", Module = "UiBuilders.BuffBarUi", MinVersion = 20, What = "панель баффов" },
 	{ Name = "LootFeedUi", Module = "UiBuilders.LootFeedUi", MinVersion = 20, What = "лента добычи" },

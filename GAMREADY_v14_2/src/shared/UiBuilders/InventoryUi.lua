@@ -34,7 +34,7 @@ local Theme = UiKit.Theme
 
 local Builder = {}
 
-Builder.VERSION = 27
+Builder.VERSION = 28
 Builder.ICON_SIZE = 56
 Builder.ICON_BUFFER = 5
 Builder.HEADER = 36
@@ -466,7 +466,7 @@ function Builder.BuildSatchel()
 		chip:SetAttribute("ChipColor", filter.Color)
 		chip:SetAttribute("DisableGlobalHover", true)
 		local cc = Instance.new("UICorner")
-		cc.CornerRadius = UDim.new(1, 0)
+		cc.CornerRadius = UDim.new(0, 3) -- v20.55: квадратные вкладки, как кнопка Sort
 		cc.Parent = chip
 		local cs = Instance.new("UIStroke")
 		cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
