@@ -6961,8 +6961,8 @@ Config.Placeables = {
 	Decor = {
 		-- v20.51: фонарь — обычный (частый), синее пламя (реже), зелёное (ультраредкий, дорогой).
 		IronLantern      = { DisplayName = "Lantern",              Icon = "🏮", Rarity = "Common",    Price = 400,    Asset = "Decor_IronLantern" },
-		IronLanternBlue  = { DisplayName = "Blue Flame Lantern",   Icon = "🔵", Rarity = "Rare",      Price = 8000,   Asset = "Decor_IronLantern_Blue" },
-		IronLanternGreen = { DisplayName = "Green Flame Lantern",  Icon = "🟢", Rarity = "Legendary", Price = 350000, Asset = "Decor_IronLantern_Green" },
+		IronLanternBlue  = { DisplayName = "Blue Flame Lantern",   Icon = "🔵", Rarity = "Rare",      Price = 8000,   Asset = "Decor_IronLantern_Blue", StockChance = 0.2 },
+		IronLanternGreen = { DisplayName = "Green Flame Lantern",  Icon = "🟢", Rarity = "Legendary", Price = 350000, Asset = "Decor_IronLantern_Green", StockChance = 0.03 }, -- ~1 цикл из 33
 		CrystalLantern = { DisplayName = "Crystal Lantern", Icon = "💡", Rarity = "Uncommon",  Price = 2000,  Asset = "Decor_CrystalLantern" },
 		-- v20.49: бочка с рудой заменена голубой друзой (старые бочки в сейвах
 		-- превращаются в неё сами, см. BaseDecorService migrate).

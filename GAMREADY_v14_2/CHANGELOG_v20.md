@@ -463,5 +463,5 @@
 ## v20.51 — три фонаря
 - `IronLantern` — обычный фонарь (Common, 400, часто в стоке), модель `Decor_IronLantern`.
 - `IronLanternBlue` — фонарь с синим пламенем (Rare, 8 000, реже), `Decor_IronLantern_Blue`.
-- `IronLanternGreen` — фонарь с зелёным пламенем (Legendary, 350 000, ультраредкий: вес стока 1 против 30 у обычного), `Decor_IronLantern_Green`: золотые уголки, навершие, искры.
+- `IronLanternGreen` — фонарь с зелёным пламенем (Legendary, 350 000, ультраредкий: в стоке ~3% циклов, `StockChance = 0.03`; синий — 20%), `Decor_IronLantern_Green`: золотые уголки, навершие, искры.
 - У всех живой огонь (Fire) цвета пламени и свет того же цвета.
