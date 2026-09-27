@@ -2990,6 +2990,10 @@ Config.Mutations = {
 		Color = Color3.fromRGB(150, 85, 45),
 		IconId = 86749456196690,
 	},
+	-- v20.57: у мутаций, которые красят руду (MaterialSwap/Particles/Flicker/
+	-- Rainbow), с мешей снимается текстура и SurfaceAppearance, иначе цвет и
+	-- материал мутации не видны. false — оставить текстуры как есть.
+	StripMeshTextures = true,
 	Frozen = {
 		DisplayName = "Frozen",
 		Chance = 0.05,

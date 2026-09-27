@@ -108,8 +108,31 @@ end
 -- reflectance необязателен — нужен только Golden, чтобы дать металлический
 -- блеск без источника света (в тележке до 225 кристаллов, свет на каждый —
 -- это прямая потеря кадров).
+-- v20.57: СНЯТЬ «ВШИТЫЙ» ВИД МЕША. У MeshPart с TextureID/SurfaceAppearance
+-- текстура перекрывает Material и Color — мутация на такой руде не видна.
+-- Перед покраской убираем текстуру меша, SurfaceAppearance и наклейки
+-- детали: тогда материал и цвет мутации ложатся полностью. Кусок руды с
+-- мутацией так и остаётся (мутация постоянная), поэтому ничего не
+-- возвращаем. Отключить: Config.Mutations.StripMeshTextures = false.
+local function stripMeshLook(part)
+	if Config.Mutations.StripMeshTextures == false then return end
+	if part:IsA("MeshPart") then
+		pcall(function()
+			if part.TextureID ~= "" then part.TextureID = "" end
+		end)
+	end
+	for _, child in part:GetChildren() do
+		if child:IsA("SurfaceAppearance") then
+			child:Destroy()
+		elseif child:IsA("Decal") or child:IsA("Texture") then
+			child.Transparency = 1
+		end
+	end
+end
+
 local function applyMaterialSwap(crystal, material, color, reflectance, targetParts)
 	for _, part in targetParts or allParts(crystal) do
+		stripMeshLook(part)
 		if material then part.Material = material end
 		if color then part.Color = color end
 		if reflectance then part.Reflectance = reflectance end
