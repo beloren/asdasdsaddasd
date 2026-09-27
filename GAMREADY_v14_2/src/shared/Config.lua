@@ -438,6 +438,25 @@ Config.MiningRhythm = {
 --      выходят обратно, камера возвращается игроку.
 --   6. Руда лежит на земле — подбирается НАЕЗДОМ тележки (см. CartService).
 --------------------------------------------------------------------------------
+-- v20.x: РЕПЛИКИ НА СКАМЕЙКЕ (client/BenchChatter). Сел на декор-скамейку -
+-- над головой печатаются реплики по одной букве. At - через сколько секунд
+-- сидения выскакивает строка. Кириллица видна, только если шрифт темы её
+-- поддерживает, иначе будут квадратики.
+Config.BenchChatter = {
+	Enabled = true,
+	Lines = {
+		{ At = 0.4, Text = "bruh..." },
+		{ At = 30, Text = "nice sitting here, my imaginary friend.." },
+	},
+	SecondsPerLetter = 0.06, -- скорость печати
+	HoldSeconds = 4,         -- сколько строка висит после печати
+	HeightOffset = 2.4,      -- над головой, в стадах
+	WidthStuds = 9,
+	HeightStuds = 1.5,
+	MaxDistance = 70,
+	TextColor = Color3.fromRGB(255, 255, 255),
+}
+
 Config.MineExpedition = {
 	-- ШАГ 2: ходьба внутрь.
 	NpcWalkInSeconds = 2.2,
@@ -446,6 +465,15 @@ Config.MineExpedition = {
 	-- только перемещение (Humanoid:MoveTo) без самой анимации, пока не
 	-- вставишь свой AnimationId (см. ТЗ — "я просто вставлю айди анимки").
 	WalkAnimationId = 0,
+	-- v20.x: где стоит шахтёр, если нет детали MinerMarker ни в модели
+	-- шахты, ни в PlotTemplate. Смещение от зоны шахты (Zone) в её осях:
+	-- X вправо, Y вверх, Z вперёд. nil = старое место (слева от шахты).
+	-- MinerYaw - доворот шахтёра в градусах.
+	MinerOffset = nil, -- например Vector3.new(-12, 0, 4)
+	MinerYaw = 0,
+	-- true = шахтёр уходит в шахту вместе с игроком (как раньше).
+	-- false = шахтёр стоит на месте, в шахту заходит только игрок.
+	MinerWalksIn = false,
 
 	-- ШАГ 2: камера. CameraBackOffset — насколько камера отъезжает НАЗАД
 	-- (по -LookVector входа шахты) от точки, где встал игрок для мини-игры,
@@ -6591,8 +6619,10 @@ Config.Chests = {
 	HoldSeconds = { Common = 1.5, Rare = 2.0, Epic = 2.5, Legendary = 3.0 },
 	-- v20.58: ОТКРЫТЬ ДОСРОЧНО за деньги: SkipCartsPerMinute полной тележки
 	-- пещеры игрока за каждую оставшуюся минуту, не меньше SkipMinCarts.
-	-- false — только за Robux (SkipProductId у типа сундука).
-	SkipWithMoney = true,
+	-- false — только за Robux: Developer Product SkipProductId у типа
+	-- сундука (цена на кнопке — SkipRobux). Пока SkipProductId = 0, кнопка
+	-- видна, но покупка не открывается (в Output предупреждение).
+	SkipWithMoney = false,
 	SkipCartsPerMinute = 0.12,
 	SkipMinCarts = 0.15,
 	LootIcons = { Money = "💰", Geode = "🪨", Dynamite = "🧨", Buff = "✨", Skin = "⛏", PrestigePoint = "⭐", Relic = "🏆" },

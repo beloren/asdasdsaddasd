@@ -682,7 +682,14 @@ function BaseDecorService:_spawnRecord(player, plot, record)
 	-- v20.43: низ модели (по рамке) ровно на поверхность — раньше модели,
 	-- у которых детали торчат ниже пивота (свои ассеты, повёрнутый
 	-- PrimaryPart), немного уходили под землю.
-	GroundCheck.SeatModel(model, worldCFrame(plot, record))
+	-- v20.x: после перезахода встаём на НАСТОЯЩУЮ поверхность под
+	-- сохранённой точкой (см. GroundCheck.Resnap) - предмет не уходит под
+	-- землю и не повисает, если земля под точкой стала другой.
+	local ignore = { model, workspace:FindFirstChild("MineGroundOre") }
+	for _, other in Players:GetPlayers() do
+		if other.Character then table.insert(ignore, other.Character) end
+	end
+	GroundCheck.SeatModel(model, GroundCheck.Resnap(worldCFrame(plot, record), ignore))
 	model:SetAttribute("BaseDecorUid", record.Uid)
 	model:SetAttribute("OwnerUserId", player.UserId)
 

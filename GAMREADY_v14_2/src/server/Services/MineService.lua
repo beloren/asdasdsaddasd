@@ -225,7 +225,7 @@ end
 
 -- Проиграть анимацию по id на модели с Humanoid/AnimationController.
 -- Возвращает трек (или nil). Ошибки глушим — это чистый визуал.
-local function playAnim(model, animationId, looped)
+local function playAnim(model, animationId, looped, priority)
 	if not (model and model.Parent) or typeof(animationId) ~= "string" or animationId == "" then return nil end
 	local ok, track = pcall(function()
 		local host = model:FindFirstChildOfClass("Humanoid") or model:FindFirstChildOfClass("AnimationController")
@@ -235,10 +235,75 @@ local function playAnim(model, animationId, looped)
 		anim.AnimationId = animationId
 		local loaded = animator:LoadAnimation(anim)
 		loaded.Looped = looped ~= false
+		if priority then loaded.Priority = priority end
 		loaded:Play(0.15)
 		return loaded
 	end)
 	return ok and track or nil
+end
+
+-- v20.x: СВОЯ МОДЕЛЬ ШАХТЁРА (ReplicatedStorage.Assets.MinerNPC). Скрипты
+-- внутри модели (Animate и любые другие) НЕ удаляются. Id анимаций берём
+-- из папок Animate (idle/walk/run, как у стандартного Animate персонажа).
+local function animateFolderId(model, names)
+	local animate = model and model:FindFirstChild("Animate")
+	if not animate then return nil end
+	for _, name in names do
+		local folder = animate:FindFirstChild(name)
+		local anim = folder and (folder:IsA("Animation") and folder or folder:FindFirstChildWhichIsA("Animation"))
+		if anim and anim.AnimationId ~= "" then return anim.AnimationId end
+	end
+	return nil
+end
+
+-- Ходьба шахтёра: Config.MineExpedition.WalkAnimationId, а если он 0 -
+-- walk/run из его Animate.
+local function npcWalkAnimationId(npc)
+	local id = Config.MineExpedition.WalkAnimationId
+	if tonumber(id) and id ~= 0 then return "rbxassetid://" .. tostring(id) end
+	return animateFolderId(npc, { "walk", "run" })
+end
+
+-- Кастомная модель с Humanoid/AnimationController: якорим только корень
+-- (его двигает PivotTo), детали на суставах (Motor6D/Weld) отпускаем,
+-- чтобы Animator мог шевелить руками и ногами. Детали без суставов
+-- остаются как у автора. Коллизии выключены: игрок не толкает шахтёра.
+local function prepareCustomNpc(npc)
+	local host = npc:FindFirstChildOfClass("Humanoid") or npc:FindFirstChildOfClass("AnimationController")
+	local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
+	local jointed = {}
+	for _, d in npc:GetDescendants() do
+		if d:IsA("JointInstance") or d:IsA("WeldConstraint") then
+			if d.Part0 then jointed[d.Part0] = true end
+			if d.Part1 then jointed[d.Part1] = true end
+		end
+	end
+	for _, d in npc:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CanCollide = false
+			if d == root then
+				d.Anchored = true
+			elseif host and jointed[d] then
+				d.Anchored = false
+			end
+		end
+	end
+	local humanoid = npc:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = 0
+		humanoid.JumpPower = 0
+	end
+end
+
+-- Animate сам работает, только если это Script (Legacy/Server/Client
+-- RunContext). LocalScript в Workspace не запускается - тогда стойку
+-- (idle из Animate) включает сервер. Сам скрипт при этом не трогаем.
+local function startNpcIdle(npc)
+	local animate = npc:FindFirstChild("Animate")
+	if animate and animate.ClassName == "Script" then return nil end
+	local idleId = animateFolderId(npc, { "idle" })
+	if not idleId then return nil end
+	return playAnim(npc, idleId, true, Enum.AnimationPriority.Idle)
 end
 
 -- v14.3: ИДТИ ПО ТОЧКАМ. Модель едет по ломаной с постоянной скоростью и
@@ -350,7 +415,7 @@ function MineService:RepositionNpc(player, plot)
 	if not primaryPart then return end
 	local correction = facingCorrection(record.Npc, primaryPart)
 	record.Npc:PivotTo(plot.MinerCFrame * CFrame.Angles(0, correction, 0))
-	stabilizeNpc(record.Npc, plot.Pad.Position.Y + plot.Pad.Size.Y / 2, record.IsCustom)
+	stabilizeNpc(record.Npc, plot.MinerGroundY or (plot.Pad.Position.Y + plot.Pad.Size.Y / 2), record.IsCustom)
 end
 
 function MineService:SetupPlot(player, plot)
@@ -364,10 +429,12 @@ function MineService:SetupPlot(player, plot)
 		npc:Destroy()
 		return
 	end
+	if isCustom then prepareCustomNpc(npc) end
 	local correction = facingCorrection(npc, primaryPart)
 	npc:PivotTo(plot.MinerCFrame * CFrame.Angles(0, correction, 0))
 	npc.Parent = plot.Content
-	stabilizeNpc(npc, plot.Pad.Position.Y + plot.Pad.Size.Y / 2, isCustom)
+	stabilizeNpc(npc, plot.MinerGroundY or (plot.Pad.Position.Y + plot.Pad.Size.Y / 2), isCustom)
+	if isCustom then task.defer(startNpcIdle, npc) end
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ObjectText = ""
@@ -597,19 +664,9 @@ function MineService:_moveNpc(player, targetCFrame, seconds)
 	if not record or not record.Npc or not record.Npc.Parent then return end
 	local npc = record.Npc
 
-	local humanoid = npc:FindFirstChildOfClass("Humanoid")
-	if humanoid and tonumber(Config.MineExpedition.WalkAnimationId) and Config.MineExpedition.WalkAnimationId ~= 0 then
-		local ok, track = pcall(function()
-			local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
-			local anim = Instance.new("Animation")
-			anim.AnimationId = "rbxassetid://" .. tostring(Config.MineExpedition.WalkAnimationId)
-			local loaded = animator:LoadAnimation(anim)
-			loaded:Play()
-			return loaded
-		end)
-		if ok and track then
-			task.delay(seconds, function() pcall(function() track:Stop(0.2) end) end)
-		end
+	local track = playAnim(npc, npcWalkAnimationId(npc), true, Enum.AnimationPriority.Movement)
+	if track then
+		task.delay(seconds, function() pcall(function() track:Stop(0.2) end) end)
 	end
 
 	-- Двигаем pivot вручную (Lerp по кадрам), а не Humanoid:MoveTo —
@@ -769,7 +826,8 @@ function MineService:_beginExpedition(player)
 	local idle = cfg.ActorIdleSeconds or 0.9
 	local points = self:_minePath(plot)
 	local speed = math.max(1, cfg.ActorWalkSpeed or 9)
-	local followDelay = (cfg.ActorFollowGap or 3.2) / speed
+	-- Шахтёр стоит на месте (MinerWalksIn = false) - клону некого ждать.
+	local followDelay = cfg.MinerWalksIn == true and (cfg.ActorFollowGap or 3.2) / speed or 0
 
 	if expedition.Actor then
 		expedition.ActorIdleTrack = playAnim(expedition.Actor, expedition.Actor:GetAttribute("_IdleAnim"), true)
@@ -778,7 +836,9 @@ function MineService:_beginExpedition(player)
 	local npcSeconds, actorSeconds = 0, 0
 	local npcRecord = npcRecords[player]
 	local npc = npcRecord and npcRecord.Npc
-	if npc and npc.PrimaryPart then
+	-- v20.x: шахтёр по умолчанию стоит на месте, в шахту идёт только игрок.
+	local minerWalks = Config.MineExpedition.MinerWalksIn == true
+	if minerWalks and npc and npc.PrimaryPart then
 		local startPos = npc:GetPivot().Position
 		local total = 0
 		local prev = startPos
@@ -799,13 +859,10 @@ function MineService:_beginExpedition(player)
 	end
 
 	task.delay(idle, function()
-		if expeditions[player] ~= expedition then return end
+		if not minerWalks or expeditions[player] ~= expedition then return end
 		local record = npcRecords[player]
 		if not (record and record.Npc and record.Npc.PrimaryPart) then return end
-		local walkTrack = nil
-		if tonumber(cfg.WalkAnimationId) and cfg.WalkAnimationId ~= 0 then
-			walkTrack = playAnim(record.Npc, "rbxassetid://" .. tostring(cfg.WalkAnimationId), true)
-		end
+		local walkTrack = playAnim(record.Npc, npcWalkAnimationId(record.Npc), true, Enum.AnimationPriority.Movement)
 		walkPath(record.Npc, points, facingCorrection(record.Npc, record.Npc.PrimaryPart), function()
 			if walkTrack then pcall(function() walkTrack:Stop(0.1) end) end
 			if expeditions[player] == expedition then setModelVisible(record.Npc, false) end
@@ -2968,7 +3025,8 @@ function MineService:_finishExpedition(player, expedition)
 		table.insert(back, forward[index])
 	end
 	local speed = math.max(1, cfg.ActorWalkSpeed or 9)
-	local followDelay = (cfg.ActorFollowGap or 3.2) / speed
+	-- Шахтёр стоит на месте (MinerWalksIn = false) - клону некого ждать.
+	local followDelay = cfg.MinerWalksIn == true and (cfg.ActorFollowGap or 3.2) / speed or 0
 
 	local function pathSeconds(from, points)
 		local total, prev = 0, from
@@ -2986,7 +3044,7 @@ function MineService:_finishExpedition(player, expedition)
 	-- Шахтёр выходит первым.
 	local record = npcRecords[player]
 	local npcSeconds = 0
-	if record and record.Npc and record.Npc.PrimaryPart and plot.MinerCFrame then
+	if Config.MineExpedition.MinerWalksIn == true and record and record.Npc and record.Npc.PrimaryPart and plot.MinerCFrame then
 		local npc = record.Npc
 		local npcPoints = table.clone(back)
 		table.insert(npcPoints, plot.MinerCFrame.Position)
@@ -2995,10 +3053,7 @@ function MineService:_finishExpedition(player, expedition)
 		npc:SetAttribute("_MoveToken", nil)
 		npc:PivotTo(CFrame.new(start) * faceFirst(start, npcPoints) * CFrame.Angles(0, correction, 0))
 		setModelVisible(npc, true)
-		local walkTrack = nil
-		if tonumber(cfg.WalkAnimationId) and cfg.WalkAnimationId ~= 0 then
-			walkTrack = playAnim(npc, "rbxassetid://" .. tostring(cfg.WalkAnimationId), true)
-		end
+		local walkTrack = playAnim(npc, npcWalkAnimationId(npc), true, Enum.AnimationPriority.Movement)
 		npcSeconds = walkPath(npc, npcPoints, correction, function()
 			if walkTrack then pcall(function() walkTrack:Stop(0.1) end) end
 			self:RepositionNpc(player, plot)

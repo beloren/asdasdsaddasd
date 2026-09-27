@@ -689,8 +689,9 @@ function GearService:_refreshChestVisual(player, entry)
 			prompt.HoldDuration = 0.6
 			prompt:SetAttribute("ChestOpen", false)
 			prompt.Enabled = true
-		elseif (info.SkipProductId or 0) ~= 0 then
-			prompt.ActionText = ("SKIP  R$%d"):format(info.SkipRobux or 0)
+		elseif info and (info.SkipRobux or 0) > 0 then
+			-- v20.x: досрочно за Robux (Developer Product SkipProductId).
+			prompt.ActionText = ("OPEN NOW  R$%d"):format(info.SkipRobux or 0)
 			prompt.HoldDuration = 0
 			prompt:SetAttribute("ChestOpen", false)
 			prompt.Enabled = true
@@ -710,13 +711,18 @@ function GearService:_spawnChestModel(player, entry)
 	local offset = entry.Offset or { 0, 0, 0, 0 }
 	local world = pad.CFrame * CFrame.new(offset[1] or 0, 0, offset[3] or 0) * CFrame.Angles(0, offset[4] or 0, 0)
 	local surface = entry.Surface
+	-- v20.x: после перезахода - на настоящую поверхность под точкой
+	-- (GroundCheck.Resnap), чтобы сундук не уходил под землю.
+	local ignore = { model, workspace:FindFirstChild("MineGroundOre") }
+	for _, other in Players:GetPlayers() do
+		if other.Character then table.insert(ignore, other.Character) end
+	end
 	if type(surface) == "table" and #surface >= 6 then
 		-- v20.42: сундук стоит на любой поверхности (как декор).
-		GroundCheck.SeatModel(model, pad.CFrame * CFrame.new(surface[1], surface[2], surface[3]) * CFrame.fromOrientation(surface[4], surface[5], surface[6]))
+		GroundCheck.SeatModel(model, GroundCheck.Resnap(pad.CFrame * CFrame.new(surface[1], surface[2], surface[3]) * CFrame.fromOrientation(surface[4], surface[5], surface[6]), ignore))
 	else
-		local _, size = model:GetBoundingBox()
 		local floorY = pad.Position.Y + pad.Size.Y / 2
-		model:PivotTo(CFrame.new(world.Position.X, floorY + size.Y / 2, world.Position.Z) * world.Rotation)
+		GroundCheck.SeatModel(model, GroundCheck.Resnap(CFrame.new(world.Position.X, floorY, world.Position.Z) * world.Rotation, ignore))
 	end
 	local _, plot = plotPad(player)
 	model.Parent = plot and plot.Content or workspace
@@ -961,9 +967,13 @@ function GearService:_chestPrompt(player, chestId)
 			end
 			Services.DataService:AddMoney(player, -cost)
 			entry.ReadyAt = os.time()
-		elseif (info.SkipProductId or 0) ~= 0 then
+		elseif info and (info.SkipProductId or 0) ~= 0 then
 			pendingSkip[player] = chestId
 			MarketplaceService:PromptProductPurchase(player, info.SkipProductId)
+			return
+		elseif info and (info.SkipRobux or 0) > 0 then
+			warn(("[GearService] Config.Chests.Types.%s.SkipProductId = 0: создай Developer Product на R$%d и впиши его Id."):format(tostring(entry.Rarity), info.SkipRobux or 0))
+			Services.NotifyService:Show(player, "Robux purchase is not set up yet", { Icon = "Error" })
 			return
 		else
 			return

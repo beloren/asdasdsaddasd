@@ -9,6 +9,7 @@
 --------------------------------------------------------------------------------
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService") -- плавный возврат цвета шахты после починки (см. RestoreMineLook)
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -172,6 +173,8 @@ function PlotService:Start()
 			-- (старый/чужой PlotTemplate без него) — ShopNpcService сам
 			-- пропустит спавн NPC на этом участке, ничего не сломается.
 			ShopCFrame = readMarker(template, "ShopMarker", true),
+			-- v20.x: где стоит шахтёр, одна точка на все тиры шахты (см. _buildMine).
+			MinerTemplateCFrame = readMarker(template, "MinerMarker", true),
 			GeodeBuildingCFrame = readMarker(template, "GeodeBuildingMarker", true)
 				or (pad.CFrame * CFrame.new(-13, 2.5, 13)),
 			GeodePodiumCFrame = readMarker(template, "GeodePodiumMarker", true)
@@ -534,10 +537,59 @@ function PlotService:_buildMine(plot, tier)
 	-- "MinerMarker" и "MineEntryPoint". Если билдер их не положил, берём
 	-- разумный дефолт от Zone: НПС — на ширину Zone левее её центра,
 	-- точка входа — чуть впереди Zone (в её локальном +Z, "внутрь" шахты).
+	--
+	-- v20.x: КАК ПОСТАВИТЬ ШАХТЁРА САМОМУ (первое найденное побеждает):
+	--   1. Деталь "MinerMarker" внутри модели Mine_TierN - своё место для
+	--      каждого тира. Перёд детали (LookVector) = куда смотрит шахтёр
+	--      (или деталь "MinerMarkerLook" рядом - шахтёр смотрит на неё).
+	--   2. Деталь "MinerMarker" в PlotTemplate - одно место на все тиры.
+	--   3. Config.MineExpedition.MinerOffset / MinerYaw - смещение от зоны
+	--      шахты (Zone) в её осях: X вправо, Y вверх, Z вперёд.
+	-- Шахтёр встаёт ногами на поверхность под точкой (луч вниз), а не
+	-- висит на высоте детали.
 	local minerMarker = mine:FindFirstChild("MinerMarker", true)
-	plot.MinerCFrame = (minerMarker and minerMarker:IsA("BasePart"))
-		and minerMarker.CFrame
-		or (zone.CFrame * CFrame.new(-(zone.Size.X / 2 + 4), 0, 0))
+	local minerFromMarker = nil
+	if minerMarker and minerMarker:IsA("BasePart") then
+		minerFromMarker = minerMarker.CFrame
+		local look = mine:FindFirstChild("MinerMarkerLook", true)
+		if look and look:IsA("BasePart") then
+			minerFromMarker = CFrame.lookAt(minerMarker.Position, Vector3.new(look.Position.X, minerMarker.Position.Y, look.Position.Z))
+			look.Transparency = 1
+			look.CanCollide = false
+			look.CanQuery = false
+		end
+		minerMarker.Transparency = 1
+		minerMarker.CanCollide = false
+		minerMarker.CanQuery = false
+	end
+	local mineCfg = Config.MineExpedition
+	local offset = typeof(mineCfg.MinerOffset) == "Vector3" and mineCfg.MinerOffset
+		or Vector3.new(-(zone.Size.X / 2 + 4), 0, 0)
+	plot.MinerCFrame = minerFromMarker
+		or plot.MinerTemplateCFrame
+		or (zone.CFrame * CFrame.new(offset) * CFrame.Angles(0, math.rad(tonumber(mineCfg.MinerYaw) or 0), 0))
+	-- Только поворот вокруг вертикали: наклонённая деталь не кладёт шахтёра набок.
+	do
+		local look = plot.MinerCFrame.LookVector * Vector3.new(1, 0, 1)
+		if look.Magnitude < 0.05 then look = Vector3.new(0, 0, -1) end
+		plot.MinerCFrame = CFrame.lookAt(plot.MinerCFrame.Position, plot.MinerCFrame.Position + look.Unit)
+	end
+	do
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		local ignore = {}
+		for _, other in Players:GetPlayers() do
+			if other.Character then table.insert(ignore, other.Character) end
+		end
+		for _, child in plot.Content:GetChildren() do
+			if child ~= mine and child:IsA("Model") and child.Name:find("Miner") then table.insert(ignore, child) end
+		end
+		params.FilterDescendantsInstances = ignore
+		params.RespectCanCollide = true
+		local origin = plot.MinerCFrame.Position + Vector3.new(0, 4, 0)
+		local hit = workspace:Raycast(origin, Vector3.new(0, -20, 0), params)
+		plot.MinerGroundY = hit and hit.Position.Y or nil
+	end
 
 	-- ENTRY (по прямому запросу — "центром шахты должен являться ENTRY,
 	-- оттуда и должна вылетать руда"). Ищем ту же деталь, что и
@@ -908,6 +960,7 @@ function PlotService:ReleasePlot(player)
 	plot.MineZoneSize = nil
 	plot.OreDropPosition = nil
 	plot.MinerCFrame = nil
+	plot.MinerGroundY = nil
 	plot.MineEntryCFrame = nil
 	plot.MineDoorPart = nil
 	plot.CameraMarkers = nil

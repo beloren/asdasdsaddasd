@@ -95,6 +95,65 @@ function GroundCheck.SeatModel(model, cf)
 	model:PivotTo(cf + up * -bottom)
 end
 
+-- v20.x: ТОЧКА ВНУТРИ ТВЁРДОГО (под землёй / внутри детали)?
+local function solidAt(point, overlap)
+	local ok, buried = pcall(function()
+		local half = Vector3.new(0.5, 0.5, 0.5)
+		local region = Region3.new(point - half, point + half):ExpandToGrid(4)
+		local materials, occupancies = workspace.Terrain:ReadVoxels(region, 4)
+		local material = materials[1][1][1]
+		return material ~= Enum.Material.Air and material ~= Enum.Material.Water and occupancies[1][1][1] > 0.5
+	end)
+	if ok and buried then return true end
+	for _, part in workspace:GetPartBoundsInRadius(point, 0.05, overlap) do
+		if part.CanCollide then return true end
+	end
+	return false
+end
+
+-- v20.x: ПОСЛЕ ПЕРЕЗАХОДА предмет ставится по сохранённой точке, но земля
+-- под ней могла оказаться другой (другой участок, Terrain вокруг PlotPad,
+-- свой PlotOrigins на другой высоте). Ищем настоящую поверхность вдоль
+-- «верха» предмета:
+--   1) рядом (±1.5 стада) - встаём ровно на неё (обычный случай);
+--   2) точка внутри земли/детали - поднимаемся на поверхность над ней
+--      (до 32 стадов), предмет больше не уходит под землю;
+--   3) под точкой пусто - опускаемся на поверхность, если она не дальше
+--      8 стадов (предмет не висит в воздухе).
+-- Ничего не нашли - остаётся сохранённая точка. Поворот не меняется.
+function GroundCheck.Resnap(cf, ignore)
+	local up = cf.UpVector
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = ignore or {}
+	params.IgnoreWater = true
+	params.RespectCanCollide = true
+	local function cast(fromHeight, length)
+		local hit = workspace:Raycast(cf.Position + up * fromHeight, -up * length, params)
+		if hit and GroundCheck.IsGroundPart(hit.Instance) then return hit end
+		return nil
+	end
+	local function at(hit)
+		return CFrame.new(hit.Position) * cf.Rotation
+	end
+	local near = cast(1.5, 3)
+	if near then return at(near) end
+	local overlap = OverlapParams.new()
+	overlap.FilterType = Enum.RaycastFilterType.Exclude
+	overlap.FilterDescendantsInstances = ignore or {}
+	overlap.RespectCanCollide = true
+	if solidAt(cf.Position + up * 0.3, overlap) then
+		for _, height in { 4, 8, 16, 32 } do
+			local hit = cast(height, height + 1.5)
+			if hit then return at(hit) end
+		end
+		return cf
+	end
+	local below = cast(1.5, 9.5)
+	if below then return at(below) end
+	return cf
+end
+
 -- Совместимость со старым кодом: луч вниз, (ok, position, hitInstance).
 function GroundCheck.Probe(position, _pad, ignore)
 	local ok, point, _, instance = GroundCheck.Surface(position, Vector3.yAxis, ignore)
