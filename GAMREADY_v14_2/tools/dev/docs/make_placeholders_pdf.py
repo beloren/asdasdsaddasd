@@ -496,7 +496,7 @@ TABLE(["Имя ассета", "Что это"], [
     ["Totem_<Тип>", "Общий вид тотема, если нет модели на тир."],
 ] + [[v["Asset"], "**%s** (%s). %s" % (v.get("DisplayName", k), v.get("Rarity", ""), DECOR_LOOK.get(k, "Декор."))] for k, v in sorted(cfg["Placeables"]["Decor"].items(), key=lambda kv: cfg["Placeables"]["DecorOrder"].index(kv[0]) if kv[0] in cfg["Placeables"]["DecorOrder"] else 99)]
   + [[v["Asset"], "Трофей (реликвия): " + k] for k, v in cfg["Relics"]["Types"].items()]
-  + [["RelicPedestal", "Постамент под трофей; пивот у земли, трофей ставится на верх постамента."]],
+  + [["(без постамента)", "Трофей ставится сам по себе, без постамента: низ модели `Relic_<Id>` ложится на поверхность."]],
   [48, 128], code_cols=(0,))
 UL([
     "Класс: `Model` (с `PrimaryPart`/`Root`) или один `BasePart`. Пивот — центр нижней грани (код выставит сам).",

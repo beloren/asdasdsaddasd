@@ -709,17 +709,15 @@ end
 function PlaceableFactory.BuildRelic(relicId)
 	local info = Config.Relics.Types[relicId]
 	if not info then return nil end
+	-- v20.52: трофей ставится БЕЗ постамента — только сама реликвия
+	-- (пивот у её основания, её низ ложится на поверхность).
 	local holder = Instance.new("Model")
 	holder.Name = "Relic_" .. relicId
-	local pedestalModel, topY = buildRelicPedestal()
-	pedestalModel.Name = "Pedestal"
-	pedestalModel:PivotTo(CFrame.new())
-	pedestalModel.Parent = holder
 	local object = fromAsset(info.Asset) or buildRelicPlaceholder(relicId, info)
 	object.Name = "RelicObject"
-	object:PivotTo(CFrame.new(0, topY, 0))
+	object:PivotTo(CFrame.new())
 	object.Parent = holder
-	holder.PrimaryPart = pedestalModel.PrimaryPart
+	holder.PrimaryPart = object.PrimaryPart or object:FindFirstChildWhichIsA("BasePart", true)
 	holder.WorldPivot = CFrame.new()
 	return holder
 end
