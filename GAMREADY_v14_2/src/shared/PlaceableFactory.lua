@@ -155,19 +155,54 @@ end
 --------------------------------------------------------------------------------
 local DECOR_BUILDERS = {}
 
-DECOR_BUILDERS.IronLantern = function()
+-- v20.51: фонарь в трёх вариантах пламени (обычный / синий / зелёный).
+local function ironLantern(name, flameColor, glassColor, lightColor, fancy)
 	local base = part({ Size = Vector3.new(1.4, 0.3, 1.4), Material = Enum.Material.Metal, Color = Color3.fromRGB(45, 45, 50) })
 	base.CFrame = CFrame.new(0, 0.15, 0)
 	local post = part({ Size = Vector3.new(0.3, 4.2, 0.3), Material = Enum.Material.Metal, Color = Color3.fromRGB(40, 40, 44) })
 	post.CFrame = CFrame.new(0, 2.4, 0)
-	local cage = part({ Size = Vector3.new(0.95, 1.1, 0.95), Material = Enum.Material.Glass, Transparency = 0.35, Color = Color3.fromRGB(255, 210, 140) })
+	local cage = part({ Size = Vector3.new(0.95, 1.1, 0.95), Material = Enum.Material.Glass, Transparency = 0.35, Color = glassColor })
 	cage.CFrame = CFrame.new(0, 5.05, 0)
-	local flame = part({ Size = Vector3.new(0.45, 0.6, 0.45), Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 170, 60), CastShadow = false })
+	local flame = part({ Size = Vector3.new(0.45, 0.6, 0.45), Material = Enum.Material.Neon, Color = flameColor, CastShadow = false })
 	flame.CFrame = CFrame.new(0, 5.0, 0)
 	local roof = part({ Size = Vector3.new(1.25, 0.25, 1.25), Material = Enum.Material.Metal, Color = Color3.fromRGB(35, 35, 38) })
 	roof.CFrame = CFrame.new(0, 5.72, 0)
-	light(flame, Color3.fromRGB(255, 180, 90), 2, 16)
-	return assemble("IronLantern", base, { post, cage, flame, roof })
+	local parts = { post, cage, flame, roof }
+	light(flame, lightColor, fancy and 3 or 2, fancy and 20 or 16)
+	-- Живой огонь цвета пламени.
+	local fire = Instance.new("Fire")
+	fire.Color = flameColor
+	fire.SecondaryColor = flameColor:Lerp(Color3.new(1, 1, 1), 0.4)
+	fire.Size = 1.2
+	fire.Heat = 3
+	fire.Parent = flame
+	if fancy then
+		-- Зелёный: золотые уголки на крыше и навершие, искры.
+		for _, x in { -0.55, 0.55 } do
+			for _, z in { -0.55, 0.55 } do
+				local cap = part({ Size = Vector3.new(0.18, 0.18, 0.18), Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 205, 70), CastShadow = false })
+				cap.CFrame = CFrame.new(x, 5.8, z)
+				table.insert(parts, cap)
+			end
+		end
+		local finial = part({ Shape = Enum.PartType.Ball, Size = Vector3.one * 0.35, Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 205, 70), CastShadow = false })
+		finial.CFrame = CFrame.new(0, 6.0, 0)
+		table.insert(parts, finial)
+		sparkles(flame, flameColor:Lerp(Color3.new(1, 1, 1), 0.3), 6, 0.3)
+	end
+	return assemble(name, base, parts)
+end
+
+DECOR_BUILDERS.IronLantern = function()
+	return ironLantern("IronLantern", Color3.fromRGB(255, 170, 60), Color3.fromRGB(255, 210, 140), Color3.fromRGB(255, 180, 90), false)
+end
+
+DECOR_BUILDERS.IronLanternBlue = function()
+	return ironLantern("IronLanternBlue", Color3.fromRGB(70, 160, 255), Color3.fromRGB(150, 200, 255), Color3.fromRGB(90, 170, 255), false)
+end
+
+DECOR_BUILDERS.IronLanternGreen = function()
+	return ironLantern("IronLanternGreen", Color3.fromRGB(70, 255, 120), Color3.fromRGB(160, 255, 190), Color3.fromRGB(90, 255, 140), true)
 end
 
 DECOR_BUILDERS.CrystalLantern = function()

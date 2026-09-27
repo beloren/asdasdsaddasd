@@ -6959,7 +6959,10 @@ Config.Placeables = {
 	-- ДЕКОР — без эффектов, чисто для красоты. Asset — своя модель в
 	-- ReplicatedStorage.Assets (пивот у основания), иначе плейсхолдер.
 	Decor = {
-		IronLantern    = { DisplayName = "Iron Lantern",    Icon = "🏮", Rarity = "Common",    Price = 400,  Asset = "Decor_IronLantern" },
+		-- v20.51: фонарь — обычный (частый), синее пламя (реже), зелёное (ультраредкий, дорогой).
+		IronLantern      = { DisplayName = "Lantern",              Icon = "🏮", Rarity = "Common",    Price = 400,    Asset = "Decor_IronLantern" },
+		IronLanternBlue  = { DisplayName = "Blue Flame Lantern",   Icon = "🔵", Rarity = "Rare",      Price = 8000,   Asset = "Decor_IronLantern_Blue" },
+		IronLanternGreen = { DisplayName = "Green Flame Lantern",  Icon = "🟢", Rarity = "Legendary", Price = 350000, Asset = "Decor_IronLantern_Green" },
 		CrystalLantern = { DisplayName = "Crystal Lantern", Icon = "💡", Rarity = "Uncommon",  Price = 2000,  Asset = "Decor_CrystalLantern" },
 		-- v20.49: бочка с рудой заменена голубой друзой (старые бочки в сейвах
 		-- превращаются в неё сами, см. BaseDecorService migrate).
@@ -6983,8 +6986,8 @@ Config.Placeables = {
 		StorageChest   = { DisplayName = "Storage Chest",   Icon = "📦", Rarity = "Rare",      Price = 5000,  Asset = "Decor_StorageChest", Function = "Storage", AlwaysInStock = true },
 		OreJar         = { DisplayName = "Ore Jar",         Icon = "🏺", Rarity = "Uncommon",  Price = 1500,  Asset = "Decor_OreJar",       Function = "Jar", AlwaysInStock = true },
 	},
-	DecorOrder = { "Flowers1", "Bush1", "Flowers2", "Flowers3", "Flowers4", "IronLantern", "CrystalBlue", "Bush2", "Bench", "OreJar", "CrystalLantern", "StorageChest", "PlushMole", "CrystalCluster", "MinerStatue", "MoleStatue" },
-	DecorWeights = { Flowers1 = 30, Bush1 = 28, Flowers2 = 26, Flowers3 = 24, Flowers4 = 22, IronLantern = 30, CrystalBlue = 22, Bush2 = 20, Bench = 20, OreJar = 18, CrystalLantern = 18, StorageChest = 14, PlushMole = 12, CrystalCluster = 9, MinerStatue = 4, MoleStatue = 2 },
+	DecorOrder = { "Flowers1", "Bush1", "Flowers2", "Flowers3", "Flowers4", "IronLantern", "CrystalBlue", "Bush2", "Bench", "OreJar", "CrystalLantern", "IronLanternBlue", "StorageChest", "PlushMole", "CrystalCluster", "MinerStatue", "MoleStatue", "IronLanternGreen" },
+	DecorWeights = { Flowers1 = 30, Bush1 = 28, Flowers2 = 26, Flowers3 = 24, Flowers4 = 22, IronLantern = 30, IronLanternBlue = 10, IronLanternGreen = 1, CrystalBlue = 22, Bush2 = 20, Bench = 20, OreJar = 18, CrystalLantern = 18, StorageChest = 14, PlushMole = 12, CrystalCluster = 9, MinerStatue = 4, MoleStatue = 2 },
 	-- v20.22: сундук-хранилище (Decor Function = "Storage"). Slots — ячеек,
 	-- в каждой стопка одной руды (как в рюкзаке, до Inventory.StackSize).
 	-- Руда в сундуке НЕ теряется при смерти. Поднять сундук можно только пустым.
