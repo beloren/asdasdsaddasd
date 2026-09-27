@@ -42,55 +42,96 @@ end
 -- (см. Config.WeatherEvents/WeatherService.lua), если эта мутация сейчас
 -- усилена (например, Celestial во время "Nightfall"). Необязательный
 -- параметр — старые вызовы без него работают как прежде.
-function MutationRoll.EffectiveChance(mutationId, luck, weatherMultiplier)
-	local info = Config.Mutations[mutationId]
-	if not info then return 0 end
-	local base = info.ScalesWithLuck and math.min(1, info.Chance * (1 + (tonumber(luck) or 0))) or info.Chance
-	weatherMultiplier = tonumber(weatherMultiplier)
-	if weatherMultiplier and weatherMultiplier > 1 then
-		return math.min(1, base * weatherMultiplier)
-	end
-	return base
+-- v20.66: ДВУХЭТАПНЫЙ БРОСОК (см. Config.Mutations.Roll).
+local function rollCfg()
+	return Config.Mutations.Roll or { BaseChance = 0.06, ExtraChance = 0.08, MaxMutations = 3, MaxChance = 0.5 }
 end
 
--- Возвращает: список ID (в порядке Config.Mutations.Order, то есть от частых
--- к редким) и произведение их Multiplier.
---
--- weatherBoosts — необязательная { [mutationId] = множитель } от активного
--- погодного ивента (см. Config.WeatherEvents) — усиленные мутации бросаются
--- с повышенным EffectiveChance на время ивента, механика ровно та же,
--- просто с более высоким шансом.
--- potionMultiplier — общий множитель шанса ВСЕХ мутаций (бафф "зелье
--- мутаций", см. Config.Buffs.MutationPotion). Он умножает шанс, а не
--- гарантирует мутацию: гарантия сделала бы мутации обыденностью и убила
--- бы их ценность. Погодный множитель действует отдельно и складывается с
--- ним умножением — оба это "во сколько раз чаще".
-function MutationRoll.Roll(luck, weatherBoosts, potionMultiplier)
-	luck = tonumber(luck) or 0
-	potionMultiplier = tonumber(potionMultiplier) or 1
-	local hits, multiplier = {}, 1
-	local groupTaken = {}
-	local groups = Config.Mutations.ExclusiveGroups or {}
+-- Вес мутации в выборе «какая». Удача от прогресса (только ScalesWithLuck)
+-- и погода делают редкую мутацию ВЕРОЯТНЕЕ среди выпавших.
+local function weightOf(info, luck, weatherMultiplier)
+	local weight = tonumber(info.Weight) or tonumber(info.Chance) or 0
+	if info.ScalesWithLuck then weight *= 1 + (tonumber(luck) or 0) end
+	weatherMultiplier = tonumber(weatherMultiplier)
+	if weatherMultiplier and weatherMultiplier > 1 then weight *= weatherMultiplier end
+	return weight
+end
 
+-- Шанс, что руда вообще мутирует. potionMultiplier - зелье/перк/пасс.
+function MutationRoll.AnyChance(potionMultiplier)
+	local cfg = rollCfg()
+	return math.clamp(cfg.BaseChance * (tonumber(potionMultiplier) or 1), 0, cfg.MaxChance or 0.5)
+end
+
+-- Фактический шанс получить ИМЕННО эту мутацию на куске руды: шанс мутации
+-- вообще × её доля среди весов. Это число и показывается игроку (1/N).
+function MutationRoll.EffectiveChance(mutationId, luck, weatherMultiplier, potionMultiplier)
+	local info = Config.Mutations[mutationId]
+	if not info then return 0 end
+	local total = 0
+	for _, id in Config.Mutations.Order do
+		local other = Config.Mutations[id]
+		if other then total += weightOf(other, luck, id == mutationId and weatherMultiplier or nil) end
+	end
+	if total <= 0 then return 0 end
+	return MutationRoll.AnyChance(potionMultiplier) * weightOf(info, luck, weatherMultiplier) / total
+end
+
+-- Выбор одной мутации по весам среди ещё не взятых (и не занятых групп).
+local function pickOne(luck, weatherBoosts, taken, groupTaken)
+	local groups = Config.Mutations.ExclusiveGroups or {}
+	local pool, total = {}, 0
 	for _, mutationId in Config.Mutations.Order do
 		local info = Config.Mutations[mutationId]
-		if info then
-			local group = groups[mutationId]
-			-- Из взаимоисключающей группы берём первую же выпавшую и дальше
-			-- эту группу не рассматриваем. Order идёт от частых к редким,
-			-- поэтому "первая выпавшая" — это честный независимый бросок, а
-			-- не скрытое предпочтение редкой.
-			if not (group and groupTaken[group]) then
-				local weatherMultiplier = weatherBoosts and weatherBoosts[mutationId]
-				local chance = MutationRoll.EffectiveChance(mutationId, luck, weatherMultiplier) * potionMultiplier
-				-- Потолок: даже с зельем мутация не должна стать
-				-- гарантированной — иначе исчезает сам смысл броска.
-				if math.random() < math.min(chance, 0.95) then
-					table.insert(hits, mutationId)
-					multiplier *= info.Multiplier
-					if group then groupTaken[group] = true end
-				end
+		local group = groups[mutationId]
+		if info and not taken[mutationId] and not (group and groupTaken[group]) and not info.EventOnly then
+			local weight = weightOf(info, luck, weatherBoosts and weatherBoosts[mutationId])
+			if weight > 0 then
+				table.insert(pool, { Id = mutationId, Weight = weight })
+				total += weight
 			end
+		end
+	end
+	if total <= 0 then return nil end
+	local roll = math.random() * total
+	for _, entry in pool do
+		roll -= entry.Weight
+		if roll <= 0 then return entry.Id end
+	end
+	return pool[#pool].Id
+end
+
+-- Возвращает: список ID (в порядке Config.Mutations.Order, от частых к
+-- редким) и произведение их Multiplier. weatherBoosts - { [id] = множитель }
+-- погоды/тотемов; potionMultiplier - множитель шанса мутации вообще.
+function MutationRoll.Roll(luck, weatherBoosts, potionMultiplier)
+	luck = tonumber(luck) or 0
+	local cfg = rollCfg()
+	local hits, multiplier = {}, 1
+	if math.random() >= MutationRoll.AnyChance(potionMultiplier) then
+		return hits, multiplier
+	end
+	local taken, groupTaken = {}, {}
+	local groups = Config.Mutations.ExclusiveGroups or {}
+	local function add(mutationId)
+		taken[mutationId] = true
+		local group = groups[mutationId]
+		if group then groupTaken[group] = true end
+	end
+	local first = pickOne(luck, weatherBoosts, taken, groupTaken)
+	if not first then return hits, multiplier end
+	add(first)
+	local count = 1
+	while count < (cfg.MaxMutations or 3) and math.random() < (cfg.ExtraChance or 0) do
+		local extra = pickOne(luck, weatherBoosts, taken, groupTaken)
+		if not extra then break end
+		add(extra)
+		count += 1
+	end
+	for _, mutationId in Config.Mutations.Order do
+		if taken[mutationId] then
+			table.insert(hits, mutationId)
+			multiplier *= Config.Mutations[mutationId].Multiplier
 		end
 	end
 	return hits, multiplier

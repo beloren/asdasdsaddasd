@@ -322,6 +322,29 @@ local function walkPath(model, points, yawOffset, onArrive)
 	local turnSpeed = cfg.ActorTurnSpeed or 10
 	local start = model:GetPivot()
 	local y = start.Position.Y
+	-- v20.66: ИДЁМ ПО ЗЕМЛЕ. Раньше высота была жёстко той, с которой
+	-- модель стартовала: на неровном участке/у входа в шахту клон уходил
+	-- под землю. Теперь каждый кадр ноги ставятся на поверхность под
+	-- моделью (луч вниз), без резких прыжков.
+	local boxCF, boxSize = model:GetBoundingBox()
+	local hip = y - (boxCF.Position.Y - boxSize.Y / 2)
+	local groundParams = RaycastParams.new()
+	groundParams.FilterType = Enum.RaycastFilterType.Exclude
+	groundParams.RespectCanCollide = true
+	local ignore = { model, workspace:FindFirstChild("MineGroundOre") }
+	for _, other in Players:GetPlayers() do
+		if other.Character then table.insert(ignore, other.Character) end
+	end
+	for _, extra in workspace:GetChildren() do
+		if extra.Name == "MineActor" then table.insert(ignore, extra) end
+	end
+	groundParams.FilterDescendantsInstances = ignore
+	local function groundY(position, currentY)
+		local feet = currentY - hip
+		local hit = workspace:Raycast(Vector3.new(position.X, feet + 3, position.Z), Vector3.new(0, -8, 0), groundParams)
+		if hit and math.abs(hit.Position.Y - feet) <= 3.5 then return hit.Position.Y + hip end
+		return currentY
+	end
 	local path = { start.Position }
 	for _, point in points do
 		table.insert(path, Vector3.new(point.X, y, point.Z))
@@ -361,7 +384,9 @@ local function walkPath(model, points, yawOffset, onArrive)
 				local target = CFrame.lookAt(Vector3.zero, heading) * CFrame.Angles(0, yawOffset or 0, 0)
 				rotation = rotation:Lerp(target.Rotation, math.min(1, dt * turnSpeed))
 			end
-			model:PivotTo(CFrame.new(position) * rotation)
+			local targetY = groundY(position, y)
+			y += (targetY - y) * math.min(1, dt * 12)
+			model:PivotTo(CFrame.new(position.X, y, position.Z) * rotation)
 			if travelled >= total then break end
 		end
 		if onArrive then onArrive() end
@@ -788,6 +813,17 @@ function MineService:_beginExpedition(player)
 	expedition.Actor = buildActorClone(character)
 	if expedition.Actor then
 		expedition.Actor:PivotTo(expedition.OriginCFrame)
+		-- v20.66: ноги клона - ровно на уровне ног игрока (пивот клона мог
+		-- не совпадать с HumanoidRootPart, и он появлялся по пояс в земле).
+		local okBox, boxCF, boxSize = pcall(function() return expedition.Actor:GetBoundingBox() end)
+		local feetY = rootPart.Position.Y - (humanoid.HipHeight + rootPart.Size.Y / 2)
+		if okBox and boxCF then
+			local bottom = boxCF.Position.Y - boxSize.Y / 2
+			if math.abs(bottom - feetY) > 0.2 then
+				expedition.ActorYOffset = feetY - bottom
+				expedition.Actor:PivotTo(expedition.Actor:GetPivot() + Vector3.new(0, expedition.ActorYOffset, 0))
+			end
+		end
 	end
 
 	-- 2) Настоящий игрок замирает НА МЕСТЕ и становится невидимым. Он
@@ -3087,7 +3123,8 @@ function MineService:_finishExpedition(player, expedition)
 	if actor and actor.Parent and expedition.OriginCFrame then
 		local actorPoints = table.clone(back)
 		table.insert(actorPoints, expedition.OriginCFrame.Position)
-		local start = Vector3.new(entryPos.X, expedition.OriginCFrame.Position.Y, entryPos.Z)
+		local lift = Vector3.new(0, expedition.ActorYOffset or 0, 0)
+		local start = Vector3.new(entryPos.X, expedition.OriginCFrame.Position.Y, entryPos.Z) + lift
 		actorSeconds = pathSeconds(start, actorPoints)
 		task.delay(followDelay, function()
 			if not actor.Parent then return end
@@ -3096,7 +3133,7 @@ function MineService:_finishExpedition(player, expedition)
 			local walkTrack = playAnim(actor, actor:GetAttribute("_WalkAnim"), true)
 			walkPath(actor, actorPoints, 0, function()
 				if walkTrack then pcall(function() walkTrack:Stop(0.1) end) end
-				if actor.Parent then actor:PivotTo(expedition.OriginCFrame) end
+				if actor.Parent then actor:PivotTo(expedition.OriginCFrame + lift) end
 			end)
 		end)
 	end

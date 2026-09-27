@@ -557,6 +557,7 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 			variantChance = upgraded.Weight / math.max(1, total)
 		end
 	end
+	local oreOnlyChance = oreChance -- v20.66: для надписи «1/N» - без вариации
 	oreChance = oreChance * variantChance
 	local crystal = PlaceholderFactory.OreCrystal(oreInfo, variantInfo)
 	local value = math.floor(oreInfo.CrystalValue * variantInfo.ValueMultiplier + 0.5)
@@ -638,7 +639,10 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 	crystal:SetAttribute("CrystalPoints", points) -- отдельная шкала для комбо тележки, см. CartService
 	crystal:SetAttribute("CrystalChance", oreChance) -- честный шанс ЭТОЙ руды в этом тире (без мутации)
 
-	local displayChance = oreChance -- дальше домножим на шанс мутации, если она есть
+	-- v20.66: надпись «1/N» - редкость САМОГО редкого в куске (руда или
+	-- мутация), а не произведение всего (руда × вариация × мутации уходило
+	-- в миллионы и ничего не говорило игроку).
+	local displayChance = oreOnlyChance
 	local mutationLabel = nil
 
 	if #mutations > 0 then
@@ -664,7 +668,10 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 				Services.MutationBookService:RecordFound(miner, tier, id)
 			end
 		end
-		displayChance = oreChance * combinedChance -- ТЗ: "IRON SOAKED 1/60" — итоговый (руда × мутация) шанс
+		for _, id in mutations do
+			local okChance, single = pcall(MutationRoll.EffectiveChance, id, luck, weatherBoosts and weatherBoosts[id], mutationPotion)
+			if okChance and tonumber(single) and single > 0 then displayChance = math.min(displayChance, single) end
+		end
 		mutationLabel = table.concat(names, " ")
 		if miner and shouldAnnounceMutations(mutations) then
 			-- "{name} found a rare Frozen/Molten/Radiant ore! (5% chance)"

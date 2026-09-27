@@ -2189,7 +2189,11 @@ end
 -- +15%. Итог: путь до пещеры 15 примерно в 2 раза дольше, чем было
 -- (≈70 → ≈140 мин активной игры без пассов), а каждая мутация снова
 -- заметная находка.
-Config.ProgressionCostMult = { Mine = 1.3, Cart = 1.15, Pickaxe = 1.15 }
+-- v20.66: двухэтапные мутации срезали их вклад ещё сильнее (средний
+-- множитель цены руды ×1.74 → ×1.11), поэтому наценку на прокачку
+-- вернули к 1.0 - одних редких мутаций хватает, чтобы путь стал заметно
+-- длиннее (≈64 → ≈170 мин по симуляции). Хочешь ещё дольше - поднимай.
+Config.ProgressionCostMult = { Mine = 1.0, Cart = 1.0, Pickaxe = 1.0 }
 for _, entry in Config.MineChain do
 	entry.BaseCost = entry.Cost
 	entry.Cost = niceNumber(entry.Cost * Config.CaveNumberScale(entry.Tier - 1) * stretchFor(entry.Tier) * Config.ProgressionCostMult.Mine)
@@ -7630,13 +7634,32 @@ for mutationId, vfxName in {
 	if Config.Mutations[mutationId] then Config.Mutations[mutationId].Particles = vfxName end
 end
 
--- v20.64: МУТАЦИИ РЕЖЕ (вариант C). Все базовые шансы × ChanceScale.
--- При 0.5 мутирует ~26% руды (было ~46%), 2+ мутации ~3.5%, 3+ ~0.3%.
--- Числа в Config.Mutations.<Id>.Chance выше - «до уменьшения».
-Config.Mutations.ChanceScale = 0.5
-for _, mutationId in Config.Mutations.Order do
-	local info = Config.Mutations[mutationId]
-	if info and tonumber(info.Chance) then info.Chance = info.Chance * Config.Mutations.ChanceScale end
+-- v20.66: МУТАЦИИ - ДВУХЭТАПНЫЙ БРОСОК (как в Grow a Garden и большинстве
+-- Roblox-игр с мутациями). Раньше каждая из 18 мутаций бросалась отдельно,
+-- шансы складывались (≈30-60% руды мутировало, часто по 3-5 сразу), а
+-- надпись «1/N» перемножала всё и уходила в миллионы.
+--   1) Мутирует ли руда вообще: Roll.BaseChance (6% = 1 из ~17). Зелье,
+--      перк Mutations, пасс удачи - множат ЭТОТ шанс (не выше MaxChance).
+--   2) Какая именно: по весам Weight (редкие - маленький вес). Удача от
+--      пещеры и погода сдвигают выбор к редким.
+--   3) Вторая/третья мутация сверху: ExtraChance от первой (8%).
+-- Chance каждой мутации ниже ПЕРЕСЧИТАН = итоговый шанс получить именно
+-- её (BaseChance × вес / сумма весов) - это и показывается игроку.
+Config.Mutations.Roll = { BaseChance = 0.06, ExtraChance = 0.08, MaxMutations = 3, MaxChance = 0.5 }
+do
+	local totalWeight = 0
+	for _, mutationId in Config.Mutations.Order do
+		local info = Config.Mutations[mutationId]
+		if info then
+			info.Weight = tonumber(info.Weight) or tonumber(info.Chance) or 0
+			totalWeight += info.Weight
+		end
+	end
+	Config.Mutations.TotalWeight = totalWeight
+	for _, mutationId in Config.Mutations.Order do
+		local info = Config.Mutations[mutationId]
+		if info then info.Chance = Config.Mutations.Roll.BaseChance * info.Weight / math.max(1e-9, totalWeight) end
+	end
 end
 
 -- v20.64: ДИНАМИТ ПО ГОБЛИНАМ - доля макс. здоровья гоблина от взрыва
