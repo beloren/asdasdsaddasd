@@ -474,3 +474,7 @@
 - **Гоблины лагеря:** после смерти — рагдолл (шарниры вместо суставов, толчок от того, кто добил), через `Ai.DeathRagdollSeconds` (1.8 с) тело уходит под землю за `Ai.DeathSinkSeconds` (1.2 с) и исчезает.
 - **Тотемы без Early/Mid/Late:** Clover Totem / Jade Luck Totem / Fortune Prime; Ember Totem / Blaze Totem / Inferno Prime; Pebble Totem / Golem Totem / Quake Prime; Shard Totem / Crystal Totem / Prism Prime (`TotemTypes[*].Names`).
 - **Квесты (Starter) по прогрессии**, +5 новых: GRAB THE ORE (подобрать 10 руды), KABOOM! (кинуть динамит), GOBLIN HUNTER (3 гоблина в лагере), HOT METAL (переплавить руду), CAMP CRUSHER (25 гоблинов). MERCHANT и PLACE TOTEM перенесены раньше (торговец даёт тотем, следующий квест учит его поставить). Новые метрики: `OrePickedUp`, `GoblinsKilled`, `OresSmelted`; навигация `GoblinCamp`, `Smelter`. Первые два новых квеста опытные игроки пропускают сами (`SkipWhenMaxTierAtLeast`).
+
+## v20.54 — инвентарь, вариант А (всё внутри панели, меньше)
+- Колонки «Sort By» и «View» убраны с боков. Под шапкой одна строка: слева «Sort: Default ▼» (выпадашка Default / Rarity / Value / Name / Amount, повторный выбор — сменить направление), справа цветные чипсы категорий Ores / Tools / Totems / Decor / Relics (вкл/выкл).
+- Меньше: ячейки 56 px, панель 512 × 320, слоты хотбара 58 px. Билдер v27 (MinVersion 27).

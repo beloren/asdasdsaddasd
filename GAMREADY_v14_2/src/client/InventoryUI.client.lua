@@ -147,10 +147,10 @@ if legacyEntry then legacyEntry:Destroy() end
 --------------------------------------------------------------------------------
 -- КОНСТАНТЫ SATCHEL (взяты из src/Satchel/SatchelScript/init.lua)
 --------------------------------------------------------------------------------
-local ICON_SIZE = 64
-local ICON_BUFFER = 6
-local INVENTORY_HEADER_SIZE = 40
-local INVENTORY_TABS_SIZE = 0 -- v20.50: категории — колонка «View» справа от панели
+local ICON_SIZE = 56
+local ICON_BUFFER = 5
+local INVENTORY_HEADER_SIZE = 36
+local INVENTORY_TABS_SIZE = 32 -- v20.54: строка «Sort ▼ + чипсы категорий»
 local INVENTORY_ROWS_FULL = 4
 local INVENTORY_ROWS_MINI = 2
 local HOTBAR_SLOTS_WIDTH_CUTOFF = 1024
@@ -460,29 +460,26 @@ local shownCategories = { Ores = true, Tools = true, Totems = true, Decor = true
 local function categoryShown(category)
 	return shownCategories[category] ~= false
 end
-local viewColumn = inventoryFrame:WaitForChild("FilterTabs")
-local SWITCH_ON = Color3.fromRGB(70, 200, 90)
-local SWITCH_OFF = Color3.fromRGB(90, 90, 95)
-local function paintSwitch(row, on)
-	local switch = row:FindFirstChild("Switch")
-	local knob = switch and switch:FindFirstChild("Knob")
-	if switch then switch.BackgroundColor3 = on and SWITCH_ON or SWITCH_OFF end
-	if knob then
-		TweenService:Create(knob, TweenInfo.new(0.12), {
-			AnchorPoint = on and Vector2.new(1, 0.5) or Vector2.new(0, 0.5),
-			Position = on and UDim2.new(1, -1, 0.5, 0) or UDim2.new(0, 1, 0.5, 0),
-		}):Play()
-	end
-	local caption = row:FindFirstChild("Caption")
-	if caption then caption.TextTransparency = on and 0 or 0.45 end
+-- v20.54: строка инструментов внутри панели (Toolbar): чипсы категорий
+-- справа, «Sort: … ▼» с выпадашкой слева.
+local toolbar = inventoryFrame:WaitForChild("Toolbar")
+local chipsRow = toolbar:WaitForChild("FilterTabs")
+local function paintChip(chip, on)
+	local color = chip:GetAttribute("ChipColor") or Color3.fromRGB(120, 120, 130)
+	chip.BackgroundColor3 = on and color or Color3.fromRGB(30, 28, 26)
+	chip.BackgroundTransparency = on and 0.25 or 0.35
+	local stroke = chip:FindFirstChildOfClass("UIStroke")
+	if stroke then stroke.Transparency = on and 0 or 0.6 end
+	local caption = chip:FindFirstChild("Caption")
+	if caption then caption.TextTransparency = on and 0 or 0.5 end
 end
 for _, id in INVENTORY_FILTERS do
-	local row = viewColumn:FindFirstChild(id)
-	if row and row:IsA("GuiButton") then
-		paintSwitch(row, true)
-		row.Activated:Connect(function()
+	local chip = chipsRow:FindFirstChild(id)
+	if chip and chip:IsA("GuiButton") then
+		paintChip(chip, true)
+		chip.Activated:Connect(function()
 			shownCategories[id] = not categoryShown(id)
-			paintSwitch(row, categoryShown(id))
+			paintChip(chip, categoryShown(id))
 			if renderGrid then renderGrid() end
 		end)
 	end
@@ -490,39 +487,47 @@ end
 
 local SORTS = { "Rarity", "Value", "Name", "Amount" }
 local sortMode, sortDescending = nil, true
-local sortColumn = inventoryFrame:FindFirstChild("SortBy")
+local sortButton = toolbar:FindFirstChild("SortButton")
+local sortMenu = toolbar:FindFirstChild("SortMenu")
 local function paintSorts()
-	if not sortColumn then return end
-	for _, id in SORTS do
-		local button = sortColumn:FindFirstChild("Sort_" .. id)
-		if button then
-			local active = sortMode == id
-			button.BackgroundTransparency = active and 0.05 or 0.35
-			local stroke = button:FindFirstChildOfClass("UIStroke")
-			if stroke then stroke.Thickness = active and 2.5 or 1.5 end
-			local arrow = button:FindFirstChild("Arrow")
-			if arrow then
-				arrow.Rotation = (active and not sortDescending) and 180 or 0
-				UiKit.PaintShape(arrow, active and Color3.new(1, 1, 1) or Color3.fromRGB(160, 160, 160))
+	if sortButton then
+		local caption = sortButton:FindFirstChild("Caption")
+		if caption then caption.Text = "Sort: " .. (sortMode or "Default") end
+		local arrow = sortButton:FindFirstChild("Arrow")
+		if arrow then arrow.Rotation = (sortMode and not sortDescending) and 180 or 0 end
+	end
+	if sortMenu then
+		for _, option in sortMenu:GetChildren() do
+			if option:IsA("GuiButton") then
+				local id = option.Name:match("^Sort_(.+)$")
+				local active = (id == "Default" and sortMode == nil) or id == sortMode
+				option.BackgroundTransparency = active and 0.6 or 1
+				option.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			end
 		end
 	end
 end
-for _, id in SORTS do
-	local button = sortColumn and sortColumn:FindFirstChild("Sort_" .. id)
-	if button and button:IsA("GuiButton") then
-		button.Activated:Connect(function()
-			-- 1-й клик — по убыванию, 2-й — по возрастанию, 3-й — свой порядок.
-			if sortMode ~= id then
-				sortMode, sortDescending = id, true
-			elseif sortDescending then
-				sortDescending = false
-			else
-				sortMode = nil
-			end
-			paintSorts()
-			if renderGrid then renderGrid() end
-		end)
+if sortButton and sortMenu then
+	sortButton.Activated:Connect(function()
+		sortMenu.Visible = not sortMenu.Visible
+	end)
+	for _, option in sortMenu:GetChildren() do
+		if option:IsA("GuiButton") then
+			local id = option.Name:match("^Sort_(.+)$")
+			option.Activated:Connect(function()
+				-- Тот же пункт ещё раз — сменить направление.
+				if id == "Default" then
+					sortMode = nil
+				elseif sortMode == id then
+					sortDescending = not sortDescending
+				else
+					sortMode, sortDescending = id, true
+				end
+				sortMenu.Visible = false
+				paintSorts()
+				if renderGrid then renderGrid() end
+			end)
+		end
 	end
 end
 paintSorts()

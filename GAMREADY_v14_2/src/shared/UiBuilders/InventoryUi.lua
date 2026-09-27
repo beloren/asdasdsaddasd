@@ -19,9 +19,10 @@
 --   └─ ImageLabel "InventoryFrame" [Panel, акцент Peach]
 --        ├─ Frame "Header" → TextLabel "CountLabel", Frame "SearchFrame"
 --        │     → TextBox "SearchBox", TextButton "SearchClear", TextButton "Help" (+ TextLabel "HelpTip")
---        ├─ Frame "SortBy" (слева снаружи) → TextLabel "Title", TextButton "Sort_<Id>" (Rarity/Value/Name/Amount)
---        ├─ Frame "FilterTabs" (справа снаружи, «View») → TextButton "<Id>" (Ores/Tools/Totems/Decor/Relics)
---        │     каждый: Frame "Switch" → Frame "Knob", TextLabel "Caption"
+--        ├─ Frame "Toolbar" (v20.54, внутри панели под шапкой)
+--        │     ├─ TextButton "SortButton" → TextLabel "Caption", Frame "Arrow"
+--        │     ├─ Frame "SortMenu" (выпадашка) → TextButton "Sort_<Id>" (Default/Rarity/Value/Name/Amount)
+--        │     └─ Frame "FilterTabs" → TextButton-чипсы "<Id>" (Ores/Tools/Totems/Decor/Relics) → TextLabel "Caption"
 --        └─ ScrollingFrame "ScrollingFrame" → Frame "UIGridFrame" (UIGridLayout)
 --   Folder "Templates" → ImageButton "Slot" (ячейка: Highlight, Preview, ToolName, CountLabel)
 --
@@ -33,16 +34,20 @@ local Theme = UiKit.Theme
 
 local Builder = {}
 
-Builder.VERSION = 26
-Builder.ICON_SIZE = 64
-Builder.ICON_BUFFER = 6
-Builder.HEADER = 40
-Builder.TABS = 0 -- v20.50: вкладки уехали в колонку «View» справа
+Builder.VERSION = 27
+Builder.ICON_SIZE = 56
+Builder.ICON_BUFFER = 5
+Builder.HEADER = 36
+Builder.TABS = 32 -- v20.54: строка «Sort ▼ + чипсы категорий» под шапкой
 Builder.FILTERS = {
-	{ Id = "Ores", Label = "Ores" }, { Id = "Tools", Label = "Tools" }, { Id = "Totems", Label = "Totems" },
-	{ Id = "Decor", Label = "Decor" }, { Id = "Relics", Label = "Relics" },
+	{ Id = "Ores", Label = "Ores", Color = Color3.fromRGB(90, 170, 255) },
+	{ Id = "Tools", Label = "Tools", Color = Color3.fromRGB(255, 170, 70) },
+	{ Id = "Totems", Label = "Totems", Color = Color3.fromRGB(120, 220, 110) },
+	{ Id = "Decor", Label = "Decor", Color = Color3.fromRGB(240, 120, 220) },
+	{ Id = "Relics", Label = "Relics", Color = Color3.fromRGB(255, 215, 90) },
 }
 Builder.SORTS = {
+	{ Id = "Default", Label = "Default", Color = Color3.fromRGB(220, 220, 220) },
 	{ Id = "Rarity", Label = "Rarity", Color = Color3.fromRGB(255, 170, 70) },
 	{ Id = "Value", Label = "Value", Color = Color3.fromRGB(120, 230, 110) },
 	{ Id = "Name", Label = "Name", Color = Color3.fromRGB(240, 120, 220) },
@@ -99,7 +104,7 @@ local function cooldownShade(slot)
 end
 
 local function hotbarSlot(bar, name, keyText, order, isPickaxe)
-	local size = 66
+	local size = 58
 	local slot = UiKit.Slot(bar, name, {
 		LayoutOrder = order,
 		Size = UDim2.fromOffset(size, size),
@@ -186,7 +191,7 @@ function Builder.BuildHotbar()
 	local bar = UiKit.Group(gui, "Bar", {
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -12),
-		Size = UDim2.fromOffset(8 * 70, 66),
+		Size = UDim2.fromOffset(8 * 64, 58),
 	})
 	UiKit.List(bar, {
 		FillDirection = Enum.FillDirection.Horizontal,
@@ -201,7 +206,7 @@ function Builder.BuildHotbar()
 	end
 	local toggle = UiKit.Slot(bar, "InventoryToggle", {
 		LayoutOrder = 100,
-		Size = UDim2.fromOffset(66, 66),
+		Size = UDim2.fromOffset(58, 58),
 		ClipsDescendants = false,
 	}, true)
 	fischPlate(toggle, 0.3, 4)
@@ -272,8 +277,8 @@ function Builder.BuildSatchel()
 	local gui = UiKit.Screen("SatchelInventory", { DisplayOrder = 20, Enabled = false })
 	gui:SetAttribute("BuilderVersion", Builder.VERSION)
 	local frame = UiKit.Plate(gui, "InventoryFrame", "Panel", {
-		Size = UDim2.fromOffset(560, 340),
-		Position = UDim2.new(0.5, -280, 1, -440),
+		Size = UDim2.fromOffset(512, 320),
+		Position = UDim2.new(0.5, -256, 1, -410),
 		ClipsDescendants = false,
 	})
 	fischPlate(frame, 0.2, 4)
@@ -284,7 +289,7 @@ function Builder.BuildSatchel()
 		_Style = "Number",
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 12, 0.5, 0),
-		Size = UDim2.new(0, 110, 0, 22),
+		Size = UDim2.new(0, 100, 0, 20),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextColor3 = Color3.fromRGB(255, 215, 110),
 	})
@@ -352,119 +357,132 @@ function Builder.BuildSatchel()
 	line.BorderSizePixel = 0
 	line.Parent = header
 
-	local function columnTitle(parent, text)
-		local title = UiKit.Text(parent, "Title", text, {
-			_Style = "Heading",
-			_Stroke = 1.5,
-			Size = UDim2.new(1, 0, 0, 22),
-		})
-		title.TextScaled = true
-		local under = Instance.new("Frame")
-		under.Name = "Underline"
-		under.AnchorPoint = Vector2.new(0.5, 0)
-		under.Position = UDim2.new(0.5, 0, 0, 24)
-		under.Size = UDim2.new(0.9, 0, 0, 2)
-		under.BackgroundColor3 = Color3.new(1, 1, 1)
-		under.BorderSizePixel = 0
-		under.Parent = parent
-	end
-
-	-- СЛЕВА СНАРУЖИ: «Sort By» — цветные кнопки в рамке, стрелка направления.
-	local sortBy = UiKit.Group(frame, "SortBy", {
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(0, -14, 0, 0),
-		Size = UDim2.fromOffset(104, 32 + #Builder.SORTS * 28),
+	-- СТРОКА ИНСТРУМЕНТОВ (внутри панели): слева «Sort: … ▼» с выпадашкой,
+	-- справа чипсы категорий (вкл/выкл).
+	local toolbar = UiKit.Group(frame, "Toolbar", {
+		Position = UDim2.fromOffset(8, Builder.HEADER + 2),
+		Size = UDim2.new(1, -16, 0, Builder.TABS - 6),
+		ZIndex = 5, -- выпадашка поверх сетки
 	})
-	columnTitle(sortBy, "Sort By")
+	local sortButton = Instance.new("TextButton")
+	sortButton.Name = "SortButton"
+	sortButton.AutoButtonColor = false
+	sortButton.Text = ""
+	sortButton.Size = UDim2.new(0, 118, 1, 0)
+	sortButton.BackgroundColor3 = FISCH_BG
+	sortButton.BackgroundTransparency = 0.15
+	sortButton:SetAttribute("DisableGlobalHover", true)
+	local sc = Instance.new("UICorner")
+	sc.CornerRadius = UDim.new(0, 6)
+	sc.Parent = sortButton
+	local ss = Instance.new("UIStroke")
+	ss.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	ss.Color = Color3.fromRGB(255, 255, 255)
+	ss.Transparency = 0.75
+	ss.Thickness = 1
+	ss.Parent = sortButton
+	local sortCaption = UiKit.Text(sortButton, "Caption", "Sort: Default", {
+		_Style = "Heading",
+		_Stroke = 1,
+		Position = UDim2.fromOffset(8, 3),
+		Size = UDim2.new(1, -28, 1, -6),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 2,
+	})
+	sortCaption.TextScaled = false
+	sortCaption.TextSize = 13
+	UiKit.Shape(sortButton, "Arrow", "ChevronDown", {
+		Color = Color3.fromRGB(220, 220, 220),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -7, 0.5, 0),
+		Size = UDim2.fromOffset(11, 11),
+		ZIndex = 2,
+	})
+	sortButton.Parent = toolbar
+
+	local menu = Instance.new("Frame")
+	menu.Name = "SortMenu"
+	menu.Position = UDim2.new(0, 0, 1, 4)
+	menu.Size = UDim2.fromOffset(118, #Builder.SORTS * 24 + 6)
+	menu.BackgroundColor3 = FISCH_BG
+	menu.BackgroundTransparency = 0.05
+	menu.Visible = false
+	menu.ZIndex = 20
+	local mc = Instance.new("UICorner")
+	mc.CornerRadius = UDim.new(0, 6)
+	mc.Parent = menu
+	local ms = Instance.new("UIStroke")
+	ms.Color = Color3.fromRGB(255, 255, 255)
+	ms.Transparency = 0.75
+	ms.Parent = menu
 	for index, sort in Builder.SORTS do
-		local button = Instance.new("TextButton")
-		button.Name = "Sort_" .. sort.Id
-		button.AutoButtonColor = false
-		button.Text = ""
-		button.Position = UDim2.fromOffset(2, 32 + (index - 1) * 28)
-		button.Size = UDim2.new(1, -4, 0, 22)
-		button.BackgroundColor3 = FISCH_BG
-		button.BackgroundTransparency = 0.35
-		button:SetAttribute("SortColor", sort.Color)
-		button:SetAttribute("DisableGlobalHover", true)
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 3)
-		corner.Parent = button
-		local stroke = Instance.new("UIStroke")
-		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		stroke.Color = sort.Color
-		stroke.Thickness = 1.5
-		stroke.Parent = button
-		UiKit.Shape(button, "Arrow", "ChevronUp", {
-			Color = Color3.fromRGB(200, 200, 200),
-			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, 6, 0.5, 0),
-			Size = UDim2.fromOffset(12, 12),
-			ZIndex = 2,
-		})
-		local caption = UiKit.Text(button, "Caption", sort.Label, {
+		local option = Instance.new("TextButton")
+		option.Name = "Sort_" .. sort.Id
+		option.AutoButtonColor = false
+		option.Text = ""
+		option.BackgroundTransparency = 1
+		option.Position = UDim2.fromOffset(4, 3 + (index - 1) * 24)
+		option.Size = UDim2.new(1, -8, 0, 22)
+		option.ZIndex = 21
+		option:SetAttribute("SortColor", sort.Color)
+		option:SetAttribute("DisableGlobalHover", true)
+		local oc = Instance.new("UICorner")
+		oc.CornerRadius = UDim.new(0, 4)
+		oc.Parent = option
+		local label = UiKit.Text(option, "Caption", sort.Label, {
 			_Style = "Heading",
 			_Stroke = 1,
-			Position = UDim2.fromOffset(22, 2),
-			Size = UDim2.new(1, -26, 1, -4),
+			Position = UDim2.fromOffset(6, 2),
+			Size = UDim2.new(1, -12, 1, -4),
+			TextXAlignment = Enum.TextXAlignment.Left,
 			TextColor3 = sort.Color,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			ZIndex = 2,
+			ZIndex = 22,
 		})
-		caption.TextScaled = true
-		button.Parent = sortBy
+		label.TextScaled = true
+		option.Parent = menu
 	end
+	menu.Parent = toolbar
 
-	-- СПРАВА СНАРУЖИ: «View» — переключатели категорий.
-	local view = UiKit.Group(frame, "FilterTabs", {
-		Position = UDim2.new(1, 14, 0, 0),
-		Size = UDim2.fromOffset(120, 32 + #Builder.FILTERS * 24),
+	local chips = UiKit.Group(toolbar, "FilterTabs", {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		Size = UDim2.new(1, -126, 1, 0),
 	})
-	columnTitle(view, "View")
+	UiKit.List(chips, {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Right,
+		VerticalAlignment = Enum.VerticalAlignment.Center,
+		Padding = UDim.new(0, 4),
+	})
 	for index, filter in Builder.FILTERS do
-		local row = Instance.new("TextButton")
-		row.Name = filter.Id
-		row.AutoButtonColor = false
-		row.Text = ""
-		row.BackgroundTransparency = 1
-		row.Position = UDim2.fromOffset(0, 32 + (index - 1) * 24)
-		row.Size = UDim2.new(1, 0, 0, 20)
-		row:SetAttribute("DisableGlobalHover", true)
-		local switch = Instance.new("Frame")
-		switch.Name = "Switch"
-		switch.AnchorPoint = Vector2.new(0, 0.5)
-		switch.Position = UDim2.new(0, 2, 0.5, 0)
-		switch.Size = UDim2.fromOffset(34, 18)
-		switch.BackgroundColor3 = Color3.fromRGB(70, 200, 90)
-		switch.BorderSizePixel = 0
-		switch.Parent = row
-		local sc = Instance.new("UICorner")
-		sc.CornerRadius = UDim.new(1, 0)
-		sc.Parent = switch
-		local knob = Instance.new("Frame")
-		knob.Name = "Knob"
-		knob.AnchorPoint = Vector2.new(1, 0.5)
-		knob.Position = UDim2.new(1, -1, 0.5, 0)
-		knob.Size = UDim2.fromOffset(16, 16)
-		knob.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-		knob.BorderSizePixel = 0
-		knob.Parent = switch
-		local kc = Instance.new("UICorner")
-		kc.CornerRadius = UDim.new(1, 0)
-		kc.Parent = knob
-		local ks = Instance.new("UIStroke")
-		ks.Color = Color3.fromRGB(230, 230, 230)
-		ks.Thickness = 1.5
-		ks.Parent = knob
-		local caption = UiKit.Text(row, "Caption", filter.Label, {
+		local chip = Instance.new("TextButton")
+		chip.Name = filter.Id
+		chip.AutoButtonColor = false
+		chip.Text = ""
+		chip.LayoutOrder = index
+		chip.Size = UDim2.new(0, 60, 1, 0)
+		chip.BackgroundColor3 = filter.Color
+		chip.BackgroundTransparency = 0.35
+		chip:SetAttribute("ChipColor", filter.Color)
+		chip:SetAttribute("DisableGlobalHover", true)
+		local cc = Instance.new("UICorner")
+		cc.CornerRadius = UDim.new(1, 0)
+		cc.Parent = chip
+		local cs = Instance.new("UIStroke")
+		cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		cs.Color = filter.Color
+		cs.Thickness = 1.5
+		cs.Parent = chip
+		local caption = UiKit.Text(chip, "Caption", filter.Label, {
 			_Style = "Heading",
-			_Stroke = 1.5,
-			Position = UDim2.fromOffset(42, 1),
-			Size = UDim2.new(1, -44, 1, -2),
-			TextXAlignment = Enum.TextXAlignment.Left,
+			_Stroke = 1,
+			Position = UDim2.fromOffset(6, 3),
+			Size = UDim2.new(1, -12, 1, -6),
 		})
-		caption.TextScaled = true
-		row.Parent = view
+		-- Один размер текста на всех чипсах (TextScaled давал разный).
+		caption.TextScaled = false
+		caption.TextSize = 13
+		chip.Parent = chips
 	end
 
 	local scroll = UiKit.Scroll(frame, "ScrollingFrame", {
