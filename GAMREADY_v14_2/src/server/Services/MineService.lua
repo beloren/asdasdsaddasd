@@ -823,8 +823,10 @@ function MineService:_beginExpedition(player)
 	-- 4) v14.3: ЗАХОД ПО ТОЧКАМ. Оба постояли → шахтёр ведёт по пути
 	--    (отошли, направо, прошли, направо, внутрь), клон идёт следом на
 	--    ActorFollowGap. Дошёл до входа — «скрылся внутри».
-	local idle = cfg.ActorIdleSeconds or 0.9
-	local points = self:_minePath(plot)
+	local idle = cfg.DirectEntry ~= false and (cfg.DirectIdleSeconds or 0.2) or (cfg.ActorIdleSeconds or 0.9)
+	local actorStart = expedition.Actor and expedition.Actor:GetPivot().Position
+		or (expedition.OriginCFrame and expedition.OriginCFrame.Position)
+	local points = self:_minePath(plot, actorStart)
 	local speed = math.max(1, cfg.ActorWalkSpeed or 9)
 	-- Шахтёр стоит на месте (MinerWalksIn = false) - клону некого ждать.
 	local followDelay = cfg.MinerWalksIn == true and (cfg.ActorFollowGap or 3.2) / speed or 0
@@ -892,10 +894,27 @@ end
 -- по порядку номеров; последней точкой всегда идёт сам вход (ENTRY).
 -- Нет ни одной — путь считается сам: вперёд от шахты → направо → к точке
 -- перед входом → внутрь (числа — Config.MineExpedition.PathAuto*).
-function MineService:_minePath(plot)
+function MineService:_minePath(plot, from)
 	local cfg = Config.MineExpedition
 	local points = {}
 	local mine = plot.MineModel
+	-- v20.62: ПРЯМОЙ ЗАХОД (DirectEntry): игрок идёт от своего места прямо
+	-- во вход, без петли по MinePathN. Если он стоит позади шахты - сначала
+	-- к точке перед входом, чтобы не пройти сквозь модель.
+	if cfg.DirectEntry ~= false then
+		local entry = plot.MineEntryCFrame.Position
+		local forward = plot.MineFacingDir
+		if not forward and mine then
+			local look = mine:GetPivot().LookVector * Vector3.new(1, 0, 1)
+			forward = look.Magnitude > 0.1 and look.Unit or nil
+		end
+		forward = forward or Vector3.zAxis
+		local approach = entry + forward * (cfg.PathAutoApproach or 5)
+		if typeof(from) == "Vector3" and ((from - entry) * Vector3.new(1, 0, 1)):Dot(forward) < 1 then
+			return { approach, entry }
+		end
+		return { entry }
+	end
 	if mine then
 		for index = 1, 30 do
 			local marker = mine:FindFirstChild("MinePath" .. index, true)
@@ -3020,7 +3039,7 @@ function MineService:_finishExpedition(player, expedition)
 	-- идут ТЕМ ЖЕ путём в обратную сторону: шахтёр первым — на своё место,
 	-- клон следом — ровно туда, где невидимо стоял настоящий игрок. Там
 	-- клон исчезает, а игрок проявляется — подмены не видно.
-	local forward = self:_minePath(plot) -- …, MinePathN, середина ENTRY
+	local forward = self:_minePath(plot, expedition.OriginCFrame and expedition.OriginCFrame.Position) -- …, MinePathN, середина ENTRY
 	local entryPos = forward[#forward]
 	local back = {}
 	for index = #forward - 1, 1, -1 do

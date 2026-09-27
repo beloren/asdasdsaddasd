@@ -1286,8 +1286,37 @@ local function playRarityCard(data)
 	-- ДО поворота: ScreenWidth - это длина карточки вдоль её собственной
 	-- ширины, так что поворот не меняет её величину.
 	local rotDeg = typeof(cfg.CardRotation) == "Vector3" and cfg.CardRotation or Vector3.zero
-	local cardRotation = CFrame.Angles(math.rad(rotDeg.X), math.rad(rotDeg.Y), math.rad(rotDeg.Z))
-	pcall(function() model:ScaleTo(cardW / math.max(rawSize.X, 0.1)) end)
+	-- v20.62: ЛИЦО = самая широкая грань главной детали (нормаль вдоль её
+	-- самой тонкой оси). align разворачивает деталь так, чтобы эта грань
+	-- смотрела в камеру (как грань Front). Сторону (+/-) берём по Decal/
+	-- Texture/SurfaceGui на этой оси, иначе Front / Top / Right.
+	local faceAlign = CFrame.new()
+	do
+		local ps = primary.Size
+		local axis = (ps.Z <= ps.X and ps.Z <= ps.Y) and "Z" or (ps.Y <= ps.X and "Y" or "X")
+		local sign = nil
+		for _, child in primary:GetChildren() do
+			if child:IsA("Decal") or child:IsA("SurfaceGui") then
+				local face = child.Face
+				if axis == "Z" and (face == Enum.NormalId.Front or face == Enum.NormalId.Back) then sign = sign or (face == Enum.NormalId.Back and 1 or -1) end
+				if axis == "Y" and (face == Enum.NormalId.Top or face == Enum.NormalId.Bottom) then sign = sign or (face == Enum.NormalId.Top and 1 or -1) end
+				if axis == "X" and (face == Enum.NormalId.Right or face == Enum.NormalId.Left) then sign = sign or (face == Enum.NormalId.Right and 1 or -1) end
+			end
+		end
+		if axis == "Z" then
+			faceAlign = (sign == 1) and CFrame.Angles(0, math.pi, 0) or CFrame.new()
+		elseif axis == "Y" then
+			faceAlign = (sign == -1) and CFrame.Angles(math.pi / 2, 0, 0) or CFrame.Angles(-math.pi / 2, 0, 0)
+		else
+			faceAlign = (sign == -1) and CFrame.Angles(0, -math.pi / 2, 0) or CFrame.Angles(0, math.pi / 2, 0)
+		end
+	end
+	local cardRotation = CFrame.Angles(math.rad(rotDeg.X), math.rad(rotDeg.Y), math.rad(rotDeg.Z)) * faceAlign
+	-- Ширина на экране - по развёрнутой лицом детали (без доп. поворота).
+	local screenW = math.abs(faceAlign.RightVector.X) * rawSize.X
+		+ math.abs(faceAlign.UpVector.X) * rawSize.Y
+		+ math.abs(faceAlign.LookVector.X) * rawSize.Z
+	pcall(function() model:ScaleTo(cardW / math.max(screenW, 0.1)) end)
 	pivotOffset = primary.CFrame:ToObjectSpace(model:GetPivot())
 	local _, size = model:GetBoundingBox()
 	model.Parent = camera
@@ -1295,7 +1324,10 @@ local function playRarityCard(data)
 	-- Точка эффектов — центр карточки, чуть перед лицевой гранью.
 	local anchor = Instance.new("Attachment")
 	anchor.Name = "FxAnchor"
-	anchor.Position = Vector3.new(0, 0, -primary.Size.Z / 2 - 0.2)
+	-- v20.62: перед ЛИЦЕВОЙ гранью (она может быть и Top/Right, см. faceAlign).
+	local faceNormal = faceAlign:VectorToObjectSpace(Vector3.new(0, 0, -1))
+	local thickness = math.abs(faceNormal:Dot(primary.Size))
+	anchor.Position = faceNormal * (thickness / 2 + 0.2)
 	anchor.Parent = primary
 	local scaleK = cardW / 6 -- размеры эффектов относительно карточки
 
@@ -1303,7 +1335,7 @@ local function playRarityCard(data)
 	-- (Config.MineExpedition.RarityCard.Backdrops): невидимые плиты с Decal
 	-- картинок UiTheme.Backdrops, крутятся с разной скоростью и направлением.
 	local UiKit = require(ReplicatedStorage.Shared.UiKit)
-	local rayLength = math.max(size.X, size.Y) * 2.2
+	local rayLength = math.max(size.X, size.Y, size.Z) * 2.2
 	local layerColor = color:Lerp(Color3.new(1, 1, 1), 0.25)
 	local function decalPlate(name, kind, side)
 		local plate = cardPart(name, Vector3.new(side, side, 0.05), color, Enum.Material.SmoothPlastic, model)
@@ -1456,7 +1488,7 @@ local function playRarityCard(data)
 		if ring then
 			local since = reachedCenter and (t - burstAt) or 0
 			local grow = math.clamp(since / 0.45, 0, 1)
-			local diameter = math.max(size.X, size.Y) * (0.4 + grow * 2.4)
+			local diameter = math.max(size.X, size.Y, size.Z) * (0.4 + grow * 2.4)
 			ring.Size = Vector3.new(diameter, diameter, 0.05)
 			ring.CFrame = cardCF * CFrame.new(0, 0, 0.3) * CFrame.Angles(0, 0, -t * 1.5)
 			ringDecal.Transparency = reachedCenter and (0.2 + grow * 0.8) or 1
