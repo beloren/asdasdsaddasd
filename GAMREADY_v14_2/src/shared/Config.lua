@@ -5905,20 +5905,31 @@ Config.Quests = {
 	--          { Kind = "Chest", Rarity }, { Kind = "Geode", Offset },
 	--          { Kind = "Placeable", Id }, { Kind = "PrestigePoints", Count }.
 	Starter = {
+		-- v20.53: цепочка по прогрессии — каждый квест учит одной механике.
 		{ Id = "FirstSale", Metric = "CartSales", Title = "FIRST DELIVERY", Description = "Fill your cart and sell it at the bank", Short = "Sell a cart", Target = 1, Nav = "Bank",
 			Why = "Ore only turns into money at the bank.", Reward = { TripValue = 1, MinMoney = 60, Items = { { Kind = "Gear", Key = "Dynamite", Count = 2 } } } },
+		{ Id = "GrabOre", Metric = "OrePickedUp", Title = "GRAB THE ORE", Description = "Walk over ore from the mine to pick it up (10 pieces)", Short = "Pick up 10 ore", Target = 10, Nav = "Mine", SkipWhenMaxTierAtLeast = 3,
+			Why = "Ore in your bag goes to the cart or straight to the bank.", Reward = { TripValue = 0.5, MinMoney = 40 } },
 		{ Id = "UpgradeMine", Metric = "MineTier", Title = "DIG DEEPER", Description = "Upgrade the Cave to 3", Short = "Cave to 3", Target = 3, Nav = "UpgradeShopNPC",
 			Why = "Deeper caves have pricier ore.", Reward = { TripValue = 1.5, MinMoney = 100 } },
 		{ Id = "UpgradeCart", Metric = "CartTier", Title = "BIGGER CART", Description = "Upgrade the Cart to 2", Short = "Cart to 2", Target = 2, Nav = "UpgradeShopNPC",
 			Why = "A bigger cart carries more ore per trip.", Reward = { TripValue = 1.5, MinMoney = 100, Items = { { Kind = "Gear", Key = "Potion_Speed", Count = 1 } } } },
 		{ Id = "FirstBoulder", Metric = "BouldersBroken", Title = "CRACK A BOULDER", Description = "Break a glowing boulder with your pickaxe", Short = "Break a boulder", Target = 1, Nav = "Boulder",
 			Why = "Boulders drop ore, geodes and chests.", Reward = { TripValue = 1, MinMoney = 80, Items = { { Kind = "Chest", Rarity = "Common" } } } },
+		{ Id = "Kaboom", Metric = "DynamiteUsed", Title = "KABOOM!", Description = "Hold dynamite from your hotbar and throw it at a boulder", Short = "Use dynamite", Target = 1, Nav = "Boulder", SkipWhenMaxTierAtLeast = 5,
+			Why = "Dynamite cracks boulders fast and knocks players away!", Reward = { TripValue = 1, MinMoney = 80, Items = { { Kind = "Gear", Key = "Dynamite", Count = 2 } } } },
 		{ Id = "UpgradePickaxe", Metric = "PickaxeTier", Title = "SHARPER PICK", Description = "Upgrade the Pickaxe to 2", Short = "Pickaxe to 2", Target = 2, Nav = "UpgradeShopNPC",
 			Why = "A stronger pickaxe breaks tougher boulders.", Reward = { TripValue = 1.5, MinMoney = 120 } },
 		{ Id = "OpenChest", Metric = "ChestsOpened", Title = "TREASURE TIME", Description = "Place a chest on your base, wait and open it", Short = "Open a chest", Target = 1, Nav = "PlotBase",
 			Why = "Chests hold money, geodes, dynamite and even relics.", Reward = { TripValue = 1.5, MinMoney = 120 } },
 		{ Id = "GeodeCollector", Metric = "GeodesOpened", Title = "CRACK A GEODE", Description = "Open a geode at your geode building", Short = "Open a geode", Target = 1, Nav = "GeodeVault",
 			Why = "Geodes hold crystals that earn money even offline.", Reward = { TripValue = 1.5, MinMoney = 120, Items = { { Kind = "Geode", Offset = 0 } } } },
+		{ Id = "GoblinHunter", Metric = "GoblinsKilled", Title = "GOBLIN HUNTER", Description = "Defeat 3 goblins at the Goblin Camp", Short = "Defeat 3 goblins", Target = 3, Nav = "GoblinCamp",
+			Why = "Goblin raids come every 5 min and drop cash, dynamite and chests.", Reward = { TripValue = 1.5, MinMoney = 150, Items = { { Kind = "Chest", Rarity = "Common" } } } },
+		{ Id = "MerchantBuy", Metric = "MerchantBuys", Title = "MEET THE MERCHANT", Description = "Buy anything from the Ore Merchant at the bank", Short = "Buy from the merchant", Target = 1, Nav = "Merchant",
+			Why = "The merchant restocks totems, potions and rare picks every 5 min.", Reward = { TripValue = 2, Items = { { Kind = "Placeable", Id = "Totem_Fortune_T1" } } } },
+		{ Id = "PlaceTotem", Metric = "ItemsPlaced", Title = "DECORATE THE BASE", Description = "Place a totem or decoration on your base", Short = "Place a totem", Target = 1, Nav = "PlotBase",
+			Why = "Totems on your base boost luck, income and more.", Reward = { TripValue = 2 } },
 		{ Id = "FirstIsland", Metric = "IslandsOwned", Title = "UNLOCK AN ISLAND", Description = "Buy an island from the Island Keeper in town", Short = "Buy an island", Target = 1, Nav = "IslandKeeper",
 			Why = "Islands unlock the anvil, the income podium and the smelter.", Reward = { TripValue = 2, MinMoney = 200 } },
 		{ Id = "HeavyCargo", Metric = "Cart70Sales", Title = "HEAVY CARGO", Description = "Sell 3 carts filled to 70%+", Short = "Sell 3 loaded carts", Target = 3, Nav = "Bank",
@@ -5927,16 +5938,16 @@ Config.Quests = {
 			Why = "Friends on the server boost everyone's income.", Reward = { TripValue = 1.5, MinMoney = 150 } },
 		{ Id = "MineTier5", Metric = "MineTier", Title = "CAVE FIVE", Description = "Upgrade the Cave to 5", Short = "Cave to 5", Target = 5, Nav = "UpgradeShopNPC",
 			Why = "Cave 5 unlocks the Dynamite Bundle.", Reward = { TripValue = 2, Items = { { Kind = "Gear", Key = "Dynamite_Medium", Count = 1 } } } },
-		{ Id = "MerchantBuy", Metric = "MerchantBuys", Title = "MEET THE MERCHANT", Description = "Buy anything from the Ore Merchant at the bank", Short = "Buy from the merchant", Target = 1, Nav = "Merchant",
-			Why = "The merchant restocks totems, potions and rare picks every 5 min.", Reward = { TripValue = 2, Items = { { Kind = "Placeable", Id = "Totem_Fortune_T1" } } } },
-		{ Id = "PlaceTotem", Metric = "ItemsPlaced", Title = "DECORATE THE BASE", Description = "Place a totem or decoration on your base", Short = "Place a totem", Target = 1, Nav = "PlotBase",
-			Why = "Totems on your base boost luck, income and more.", Reward = { TripValue = 2 } },
 		{ Id = "PassiveStart", Metric = "SafeCollected", Title = "PASSIVE INCOME", Description = "Put a crystal on the podium and collect $500 from the safe", Short = "Collect $500 from safe", Target = 500, Nav = "GeodeSafe",
 			Why = "The crystal on the podium fills the safe - even offline.", Reward = { TripValue = 2 } },
+		{ Id = "HotMetal", Metric = "OresSmelted", Title = "HOT METAL", Description = "Hold an ore and put it into the Smelter on your island", Short = "Smelt an ore", Target = 1, Nav = "Smelter",
+			Why = "Smelted ingots sell for much more than raw ore.", Reward = { TripValue = 2 } },
 		{ Id = "CartTier4", Metric = "CartTier", Title = "HEAVY HAULER", Description = "Upgrade the Cart to 4", Short = "Cart to 4", Target = 4, Nav = "UpgradeShopNPC",
 			Why = "Every cart tier fits more ore.", Reward = { TripValue = 2.5 } },
 		{ Id = "RareFind", Metric = "RareOres", Title = "RARE FIND", Description = "Collect 3 Rare+ crystals", Short = "Find 3 Rare crystals", Target = 3, Nav = "Mine",
 			Why = "Rare ore sells for much more - luck helps!", Reward = { TripValue = 2.5, Items = { { Kind = "Gear", Key = "Potion_Luck", Count = 1 } } } },
+		{ Id = "CampCrusher", Metric = "GoblinsKilled", Title = "CAMP CRUSHER", Description = "Defeat 25 goblins at the Goblin Camp", Short = "Defeat 25 goblins", Target = 25, Nav = "GoblinCamp",
+			Why = "Deal the most damage in a raid for the best chest.", Reward = { TripValue = 2.5, Items = { { Kind = "Chest", Rarity = "Rare" } } } },
 		{ Id = "ComboMaster", Metric = "X4Sales", Title = "COMBO MASTER", Description = "Sell 2 full carts at x3 combo", Short = "2 sales at x3", Target = 2, Nav = "Bank",
 			Why = "A full cart triples its price.", Reward = { TripValue = 3 } },
 		{ Id = "MineTier8", Metric = "MineTier", Title = "THE DEEP", Description = "Upgrade the Cave to 8", Short = "Cave to 8", Target = 8, Nav = "UpgradeShopNPC",
@@ -6783,6 +6794,8 @@ Config.GoblinRaid = {
 		StunEveryHits = 3,
 		SeparationRadius = 3.2,  -- расходятся, чтобы не стоять друг в друге
 		StuckSeconds = 1.6,      -- нет прогресса — прыжок и новый шаг
+		DeathRagdollSeconds = 1.8, -- после смерти лежит рагдоллом
+		DeathSinkSeconds = 1.2,    -- потом уходит под землю и исчезает
 	},
 	Flow = {
 		CellSize = 4,
@@ -6931,6 +6944,7 @@ Config.Placeables = {
 	-- 4 типа × 3 тира = 12 тотемов (+10 святилищ за престиж = 22).
 	--   Early — пещеры 1–5, Mid — 6–10, Late — 11–15 (TierHomeCave).
 	-- Сила тотема задаёт Values[тир] у типа (доля: 0.04 = +4%).
+	-- v20.53: Names[тир] — название тотема в игре (без Early/Mid/Late).
 	-- Старые сейвы (тиры 1..10 и Prism на конкретную мутацию) переводятся
 	-- автоматически (BaseDecorService, migrate: T1-3 → Early, T4-7 → Mid, T8-10 → Late).
 	TierNames = { "Early", "Mid", "Late" },
@@ -6944,11 +6958,11 @@ Config.Placeables = {
 	TierPrices = { 600, 8000, 190000 },
 	TierHomeCave = { 1, 6, 11 },
 	TotemTypes = {
-		Fortune = { DisplayName = "Fortune Totem", Icon = "🍀", Color = Color3.fromRGB(110, 235, 120), Effect = "Luck",           Values = { 0.04, 0.10, 0.20 }, PriceMult = 1.0, Asset = "Totem_Fortune" },
-		Ember   = { DisplayName = "Ember Totem",   Icon = "🔥", Color = Color3.fromRGB(255, 130, 50),  Effect = "Income",         Values = { 0.02, 0.05, 0.10 }, PriceMult = 1.5, Asset = "Totem_Ember" },
-		Quake   = { DisplayName = "Quake Totem",   Icon = "🪨", Color = Color3.fromRGB(170, 140, 110), Effect = "BoulderRespawn", Values = { 0.12, 0.30, 0.60 }, PriceMult = 0.8, Asset = "Totem_Quake" },
+		Fortune = { DisplayName = "Fortune Totem", Names = { "Clover Totem", "Jade Luck Totem", "Fortune Prime" }, Icon = "🍀", Color = Color3.fromRGB(110, 235, 120), Effect = "Luck",           Values = { 0.04, 0.10, 0.20 }, PriceMult = 1.0, Asset = "Totem_Fortune" },
+		Ember   = { DisplayName = "Ember Totem", Names = { "Ember Totem", "Blaze Totem", "Inferno Prime" },   Icon = "🔥", Color = Color3.fromRGB(255, 130, 50),  Effect = "Income",         Values = { 0.02, 0.05, 0.10 }, PriceMult = 1.5, Asset = "Totem_Ember" },
+		Quake   = { DisplayName = "Quake Totem", Names = { "Pebble Totem", "Golem Totem", "Quake Prime" },   Icon = "🪨", Color = Color3.fromRGB(170, 140, 110), Effect = "BoulderRespawn", Values = { 0.12, 0.30, 0.60 }, PriceMult = 0.8, Asset = "Totem_Quake" },
 		-- Prism теперь один на ВСЕ мутации из PrismMutations: шанс каждой ×(1 + Value).
-		Prism   = { DisplayName = "Prism Totem",   Icon = "🔮", Color = Color3.fromRGB(200, 120, 255), Effect = "Mutation",       Values = { 0.20, 0.50, 1.00 }, PriceMult = 1.2, Asset = "Totem_Prism" },
+		Prism   = { DisplayName = "Prism Totem", Names = { "Shard Totem", "Crystal Totem", "Prism Prime" },   Icon = "🔮", Color = Color3.fromRGB(200, 120, 255), Effect = "Mutation",       Values = { 0.20, 0.50, 1.00 }, PriceMult = 1.2, Asset = "Totem_Prism" },
 	},
 	TotemOrder = { "Fortune", "Ember", "Quake", "Prism" },
 	-- Какие мутации усиливает Prism-тотем.

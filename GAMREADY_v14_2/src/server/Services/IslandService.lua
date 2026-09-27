@@ -908,6 +908,9 @@ function IslandService:InteractSmelter(player)
 		Duration = duration,
 	})
 	self:_flyOreIntoSmelter(player, removed, anchor)
+	if Services.QuestService then
+		pcall(Services.QuestService.RecordMetric, Services.QuestService, player, "OresSmelted", 1) -- v20.53: квест «HOT METAL»
+	end
 	Services.NotifyService:Show(player, ("SMELTING %s - ready in %s"):format(oreName(removed.Ore):upper(), formatTime(duration)), { Icon = "Ore" })
 	self:_updateSmelter(player)
 end

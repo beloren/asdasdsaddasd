@@ -98,8 +98,14 @@ local function fillCard(card, entry)
 		})
 		local rays = card:FindFirstChild("RareRays")
 		if rays then
-			rays.AnchorPoint = image.AnchorPoint
-			rays.Position = image.Position
+			-- v20.53: центр полосок = ЦЕНТР картинки (якорь полосок 0.5/0.5).
+			-- Раньше брался якорь картинки (левый верх) при размере ×1.35 —
+			-- полоски съезжали вправо-вниз.
+			local ap, pos, size = image.AnchorPoint, image.Position, image.Size
+			rays.AnchorPoint = Vector2.new(0.5, 0.5)
+			rays.Position = UDim2.new(
+				pos.X.Scale + (0.5 - ap.X) * size.X.Scale, pos.X.Offset + (0.5 - ap.X) * size.X.Offset,
+				pos.Y.Scale + (0.5 - ap.Y) * size.Y.Scale, pos.Y.Offset + (0.5 - ap.Y) * size.Y.Offset)
 			-- Полоски строго ПОД картинкой скина.
 			if image.ZIndex <= rays.ZIndex then
 				rays.ZIndex = image.ZIndex

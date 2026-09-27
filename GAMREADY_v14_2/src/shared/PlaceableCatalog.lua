@@ -126,8 +126,9 @@ function PlaceableCatalog.Info(itemId)
 				Id = itemId, Kind = "Totem", Type = totemType, Tier = tier,
 				-- Prism без Mutation = на все мутации из PrismMutations.
 				Mutations = totemType == "Prism" and CFG.PrismMutations or nil,
-				DisplayName = ("%s (%s)"):format(def.DisplayName, tierName),
-				ShortName = ("%s %s"):format(totemType, tierName),
+				-- v20.53: своё имя на тир (Config.Placeables.TotemTypes[*].Names).
+				DisplayName = (def.Names and def.Names[tier]) or ("%s (%s)"):format(def.DisplayName, tierName),
+				ShortName = (def.Names and def.Names[tier]) or ("%s %s"):format(totemType, tierName),
 				Icon = def.Icon, Color = def.Color, TierColor = CFG.TierColors[tier],
 				Rarity = tierRarity(tier), Effect = def.Effect, Value = totemValue(def, tier),
 				Asset = def.Asset, Price = PlaceableCatalog.TotemPrice(totemType, tier),

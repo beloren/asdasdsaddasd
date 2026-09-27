@@ -883,7 +883,9 @@ for k in ["Fortune", "Ember", "Quake", "Prism"]:
     for i in (1, 2, 3):
         v = vlist[i - 1]
         eff = ("%s: %s" % (what, ("×%.1f" % (1 + v)) if k == "Prism" else ("%d%%" % round(v * 100)))) if isinstance(v, (int, float)) else what
-        rows.append(["Totem_%s_T%d" % (k, i), "%s (%s)" % (tt[k].get("DisplayName", k), ["Early", "Mid", "Late"][i - 1]), eff, looks[i - 1]])
+        names = tt[k].get("Names") or {}
+        shown = (names.get(str(i)) if isinstance(names, dict) else None) or tt[k].get("DisplayName", k)
+        rows.append(["Totem_%s_T%d" % (k, i), "%s (%s)" % (shown, ["Early", "Mid", "Late"][i - 1]), eff, looks[i - 1]])
     rows.append(["Totem_%s" % k, "общая", "—", "Запасная модель на все тиры (код подкрасит свет под тир)."])
 TABLE(["Имя ассета", "В игре", "Эффект", "Внешний вид"], rows, [30, 30, 30, 86], code_cols=(0,))
 

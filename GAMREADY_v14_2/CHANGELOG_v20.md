@@ -468,3 +468,9 @@
 
 ## v20.52 — трофеи без постамента
 - Трофеи (реликвии) ставятся на базу сами по себе, без `RelicPedestal`: низ модели `Relic_<Id>` ложится на поверхность. Касается базы, призрака установки и превью в книге трофеев. Уже поставленные трофеи после перезахода стоят без постамента.
+
+## v20.53 — полоски скинов, смерть гоблинов, имена тотемов, новые квесты
+- **Скины:** крутящиеся полоски теперь ровно по центру картинки (раньше съезжали вправо-вниз).
+- **Гоблины лагеря:** после смерти — рагдолл (шарниры вместо суставов, толчок от того, кто добил), через `Ai.DeathRagdollSeconds` (1.8 с) тело уходит под землю за `Ai.DeathSinkSeconds` (1.2 с) и исчезает.
+- **Тотемы без Early/Mid/Late:** Clover Totem / Jade Luck Totem / Fortune Prime; Ember Totem / Blaze Totem / Inferno Prime; Pebble Totem / Golem Totem / Quake Prime; Shard Totem / Crystal Totem / Prism Prime (`TotemTypes[*].Names`).
+- **Квесты (Starter) по прогрессии**, +5 новых: GRAB THE ORE (подобрать 10 руды), KABOOM! (кинуть динамит), GOBLIN HUNTER (3 гоблина в лагере), HOT METAL (переплавить руду), CAMP CRUSHER (25 гоблинов). MERCHANT и PLACE TOTEM перенесены раньше (торговец даёт тотем, следующий квест учит его поставить). Новые метрики: `OrePickedUp`, `GoblinsKilled`, `OresSmelted`; навигация `GoblinCamp`, `Smelter`. Первые два новых квеста опытные игроки пропускают сами (`SkipWhenMaxTierAtLeast`).

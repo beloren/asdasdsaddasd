@@ -575,6 +575,9 @@ local function rewardKill(goblin)
 		local geodeType = Config.Geodes.Order[math.clamp(index, 1, #Config.Geodes.Order)]
 		if geodeType then pcall(Services.GeodeService.AddGeodeDirectly, Services.GeodeService, player, geodeType) end
 	end
+	if Services.QuestService then
+		pcall(Services.QuestService.RecordMetric, Services.QuestService, player, "GoblinsKilled", 1)
+	end
 	-- Книга существ: гоблин этого типа «найден».
 	if Services.MutationBookService and Services.MutationBookService.RecordMobFound then
 		pcall(Services.MutationBookService.RecordMobFound, Services.MutationBookService, player, goblin.Type)
@@ -618,6 +621,83 @@ local function planWave(at)
 	end
 	nextWave = { Info = chosen, Tier = math.clamp(math.ceil(cave * 10 / 15), 1, 10), At = at }
 	workspace:SetAttribute("GoblinNextWave", chosen.Title)
+end
+
+-- v20.53: СМЕРТЬ — рагдолл (суставы → шарниры, тело падает от удара), потом
+-- тело уходит под землю и исчезает. Возвращает, сколько длится всё вместе.
+local function deathRagdoll(goblin)
+	local model, root = goblin.Model, goblin.Root
+	local ragdollSeconds = AI.DeathRagdollSeconds or 1.8
+	local sinkSeconds = AI.DeathSinkSeconds or 1.2
+	if not (model.Parent and root and root.Parent) then return 0 end
+	pcall(function()
+		local humanoid = goblin.Humanoid
+		humanoid.PlatformStand = true
+		humanoid.AutoRotate = false
+		for _, motor in model:GetDescendants() do
+			if motor:IsA("Motor6D") and motor.Part0 and motor.Part1 then
+				local a0 = Instance.new("Attachment")
+				a0.Name = "RagdollA0"
+				a0.CFrame = motor.C0
+				a0.Parent = motor.Part0
+				local a1 = Instance.new("Attachment")
+				a1.Name = "RagdollA1"
+				a1.CFrame = motor.C1
+				a1.Parent = motor.Part1
+				local socket = Instance.new("BallSocketConstraint")
+				socket.Attachment0 = a0
+				socket.Attachment1 = a1
+				socket.LimitsEnabled = true
+				socket.TwistLimitsEnabled = true
+				socket.UpperAngle = 50
+				socket.Parent = motor.Part0
+				motor.Enabled = false
+			end
+		end
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.Anchored = false
+				part.CanCollide = part ~= root
+				part.Massless = false
+			end
+		end
+		-- Толчок от того, кто добил.
+		local attacker = goblin.LastAttacker
+		local hrp = attacker and attacker.Character and attacker.Character:FindFirstChild("HumanoidRootPart")
+		local away = hrp and flat(root.Position - hrp.Position) or Vector3.zero
+		away = away.Magnitude > 0.1 and away.Unit or root.CFrame.LookVector * -1
+		root.AssemblyLinearVelocity = away * 20 + Vector3.new(0, 14, 0)
+		root.AssemblyAngularVelocity = Vector3.new(math.random() * 6 - 3, 0, math.random() * 6 - 3)
+	end)
+	task.delay(ragdollSeconds, function()
+		if not model.Parent then return end
+		-- Замираем и уходим под землю.
+		local parts = {}
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.Anchored = true
+				part.CanCollide = false
+				table.insert(parts, { Part = part, Transparency = part.Transparency })
+			end
+		end
+		local _, size = model:GetBoundingBox()
+		local start = model:GetPivot()
+		local depth = size.Y + 1.5
+		local began = os.clock()
+		while model.Parent do
+			local t = math.clamp((os.clock() - began) / sinkSeconds, 0, 1)
+			local eased = t * t
+			pcall(function() model:PivotTo(start - Vector3.new(0, depth * eased, 0)) end)
+			for _, entry in parts do
+				if entry.Part.Parent then
+					entry.Part.Transparency = entry.Transparency + (1 - entry.Transparency) * math.max(0, t - 0.5) * 2
+				end
+			end
+			if t >= 1 then break end
+			task.wait()
+		end
+	end)
+	return ragdollSeconds + sinkSeconds
 end
 
 local function removeGoblin(goblin)
@@ -703,7 +783,8 @@ function GoblinCampService:_spawnGoblin(goblinType, tier, info, spawnPart, zone,
 		Sfx.play("GoblinDeath", model)
 		pcall(rewardKill, goblin)
 		if wave then wave.Alive = math.max(0, wave.Alive - 1) end
-		task.delay(1.2, function()
+		local lasts = deathRagdoll(goblin)
+		task.delay(math.max(1.2, lasts + 0.1), function()
 			removeGoblin(goblin)
 			if wave and wave.Alive <= 0 then self:_finishWave(true) end
 		end)

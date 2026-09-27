@@ -110,6 +110,15 @@ local resolvers = {
 	Mine = function() return inContent("ENTRY", "Entry", "MineDoor") end,
 	PlotBase = function() return ownPlotPad() end,
 	Merchant = function() return workspace:FindFirstChild("BankMerchant") or workspace:FindFirstChild("SellZone", true) end,
+	-- v20.53: лагерь гоблинов и своя плавильня.
+	GoblinCamp = function()
+		local camp = workspace:FindFirstChild("GoblinCamp")
+		return camp and (camp:FindFirstChild("Marker") or camp:FindFirstChild("Zone")) or nil
+	end,
+	Smelter = function()
+		local prompt = inContent("SmelterPrompt")
+		return prompt and prompt.Parent or inContent("Smelter")
+	end,
 	IslandKeeper = function()
 		return workspace:FindFirstChild("IslandKeeperNPC", true) or workspace:FindFirstChild("IslandKeeper", true)
 			or workspace:FindFirstChild("IslandKeeperMarker", true)

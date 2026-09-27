@@ -650,6 +650,10 @@ local function tutorialCount(player, key)
 	if Services.TutorialService then
 		pcall(function() Services.TutorialService:Count(player, key, 1) end)
 	end
+	-- v20.53: и в квесты (квест «GRAB THE ORE»).
+	if key == "OrePickedUp" and Services.QuestService then
+		pcall(Services.QuestService.RecordMetric, Services.QuestService, player, "OrePickedUp", 1)
+	end
 end
 
 function InventoryService:TryPickup(player, crystal)
