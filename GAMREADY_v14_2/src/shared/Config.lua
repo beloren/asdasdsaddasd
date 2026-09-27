@@ -1336,10 +1336,13 @@ end
 -- нет, берётся общий "Crystal_<Ore>", а вариация видна по подписи и
 -- размеру камня (SizeScale ниже).
 --------------------------------------------------------------------------------
+-- v20.56: 4 вариации (I-IV). IV — самая редкая, крупная и дорогая.
+-- Своя модель вариации: Assets/Crystal_<Руда>_V1..V4.
 Config.OreVariants = {
-	{ Variant = 1, DisplayName = "I",   ValueMultiplier = 1.00, SizeScale = 0.90, Weight = 60 },
-	{ Variant = 2, DisplayName = "II",  ValueMultiplier = 1.25, SizeScale = 1.00, Weight = 30 },
+	{ Variant = 1, DisplayName = "I",   ValueMultiplier = 1.00, SizeScale = 0.90, Weight = 58 },
+	{ Variant = 2, DisplayName = "II",  ValueMultiplier = 1.25, SizeScale = 1.00, Weight = 29 },
 	{ Variant = 3, DisplayName = "III", ValueMultiplier = 1.60, SizeScale = 1.12, Weight = 10 },
+	{ Variant = 4, DisplayName = "IV",  ValueMultiplier = 2.20, SizeScale = 1.25, Weight = 3 },
 }
 
 -- Роллит вариацию (1/2/3) для уже выпавшей руды. Возвращает
@@ -1462,7 +1465,7 @@ local function caveWindowStart(tier)
 	return math.min((tier - 1) * Config.Mine.WindowStep + 1, #Config.OreChain - slots + 1)
 end
 
--- Средняя цена вариации (60/30/10 на I/II/III) — нужна для честного
+-- Средняя цена вариации (58/29/10/3 на I/II/III/IV) — нужна для честного
 -- «среднего дропа» пещеры (им считаются цены апгрейдов, пассивка, награды).
 local variantAverage = 0
 do
