@@ -546,3 +546,6 @@
 
 - **Скины с гоблинов** (`Config.GoblinRaid.SkinDrop`): 2% с обычного гоблина, 25% с босса. Выпадает скин с `Goblins = true`, которого у игрока ещё нет (вес по редкости). На табличке лагеря дописано «+ skins».
 - **Обычные кирки: 11 штук** (`Config.PickaxeNames`): Small Stone, Basic, Iron, Copper, Gold, Adamantite, Royal, Whirlwind, Fury, Storm, Chaos. Добавлены тиры 10-11 (урон 65/76, цена 330K/760K). Модель тира N: `Assets.Pickaxe_TierN`. Имя видно в подсказке кирки и на карточке прокачки («Iron Pickaxe: damage 12 → 16»).
+
+## v20.61 - карточка редкости после мини-игры
+- Карточка повёрнута на 90° (`Config.MineExpedition.RarityCard.CardRotation = Vector3.new(0, 0, 90)`; градусы X/Y/Z, Z - в плоскости экрана, Y - вокруг вертикали) и уменьшена на 50% (`ScreenWidth` 0.36 → 0.18). Работает и для своих моделей из `Assets.MineRarityCards`. Полоски и волна за карточкой подстраиваются под её размер.

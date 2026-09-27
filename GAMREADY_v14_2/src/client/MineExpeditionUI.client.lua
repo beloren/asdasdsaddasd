@@ -1281,6 +1281,12 @@ local function playRarityCard(data)
 	end
 	local _, visibleW = visible()
 	local cardW = (cfg.ScreenWidth or 0.36) * visibleW
+	-- v20.61: поворот карточки (Config.MineExpedition.RarityCard.CardRotation,
+	-- градусы X/Y/Z; Z - поворот «в плоскости экрана»). Размер считается
+	-- ДО поворота: ScreenWidth - это длина карточки вдоль её собственной
+	-- ширины, так что поворот не меняет её величину.
+	local rotDeg = typeof(cfg.CardRotation) == "Vector3" and cfg.CardRotation or Vector3.zero
+	local cardRotation = CFrame.Angles(math.rad(rotDeg.X), math.rad(rotDeg.Y), math.rad(rotDeg.Z))
 	pcall(function() model:ScaleTo(cardW / math.max(rawSize.X, 0.1)) end)
 	pivotOffset = primary.CFrame:ToObjectSpace(model:GetPivot())
 	local _, size = model:GetBoundingBox()
@@ -1297,7 +1303,7 @@ local function playRarityCard(data)
 	-- (Config.MineExpedition.RarityCard.Backdrops): невидимые плиты с Decal
 	-- картинок UiTheme.Backdrops, крутятся с разной скоростью и направлением.
 	local UiKit = require(ReplicatedStorage.Shared.UiKit)
-	local rayLength = size.X * 2.2
+	local rayLength = math.max(size.X, size.Y) * 2.2
 	local layerColor = color:Lerp(Color3.new(1, 1, 1), 0.25)
 	local function decalPlate(name, kind, side)
 		local plate = cardPart(name, Vector3.new(side, side, 0.05), color, Enum.Material.SmoothPlastic, model)
@@ -1438,7 +1444,7 @@ local function playRarityCard(data)
 		end
 		-- «Поп» — карточка на миг подаётся к камере (вдоль своего LookVector).
 		local toward = distance * (1 - 1 / popScale)
-		model:PivotTo(cardCF * CFrame.new(0, 0, -toward) * pivotOffset)
+		model:PivotTo(cardCF * CFrame.new(0, 0, -toward) * cardRotation * pivotOffset)
 
 		-- Лучи и волна — только пока карточка в центре.
 		local holding = reachedCenter and t < inSeconds + holdSeconds
@@ -1450,7 +1456,7 @@ local function playRarityCard(data)
 		if ring then
 			local since = reachedCenter and (t - burstAt) or 0
 			local grow = math.clamp(since / 0.45, 0, 1)
-			local diameter = size.X * (0.4 + grow * 2.4)
+			local diameter = math.max(size.X, size.Y) * (0.4 + grow * 2.4)
 			ring.Size = Vector3.new(diameter, diameter, 0.05)
 			ring.CFrame = cardCF * CFrame.new(0, 0, 0.3) * CFrame.Angles(0, 0, -t * 1.5)
 			ringDecal.Transparency = reachedCenter and (0.2 + grow * 0.8) or 1
