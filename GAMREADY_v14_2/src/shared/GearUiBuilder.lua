@@ -36,7 +36,7 @@ function Builder.BuildChestBillboard()
 	billboard.AlwaysOnTop = true
 	billboard.MaxDistance = 80
 	billboard.LightInfluence = 0
-	UiKit.Plate(billboard, "Plate", "Pill", { _Accent = "Gold", BackgroundTransparency = 0.4 })
+	-- v20.58: без подложки — только текст (TextScaled с обводкой).
 	UiKit.Text(billboard, "Title", "Chest", {
 		_Style = "Heading",
 		Position = UDim2.fromOffset(6, 2),

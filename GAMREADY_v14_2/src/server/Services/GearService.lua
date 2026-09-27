@@ -626,10 +626,34 @@ end
 local function chestBillboard()
 	local existing = StarterGui:FindFirstChild("GearUi")
 	local template = existing and existing:FindFirstChild("ChestTimerTemplate", true)
-	if template then return template:Clone() end
-	local builder = ReplicatedStorage.Shared:FindFirstChild("GearUiBuilder")
-	if builder then return require(builder).BuildChestBillboard() end
-	return nil
+	local billboard = nil
+	if template then
+		billboard = template:Clone()
+	else
+		local builder = ReplicatedStorage.Shared:FindFirstChild("GearUiBuilder")
+		if builder then billboard = require(builder).BuildChestBillboard() end
+	end
+	-- v20.58: без подложки — только название и таймер (у старых копий
+	-- шаблона в StarterGui подложку убираем здесь).
+	if billboard then
+		local plate = billboard:FindFirstChild("Plate")
+		if plate then plate:Destroy() end
+		for _, name in { "Title", "Timer" } do
+			local label = billboard:FindFirstChild(name, true)
+			if label and label:IsA("TextLabel") then label.TextScaled = true end
+		end
+	end
+	return billboard
+end
+
+-- v20.58: цена досрочного открытия за деньги — доля полной тележки пещеры
+-- игрока за каждую оставшуюся минуту (Config.Chests.SkipCartsPerMinute).
+local function chestSkipCost(player, entry)
+	local remaining = math.max(0, (entry.ReadyAt or 0) - os.time())
+	local tiers = Services.DataService:GetTiers(player)
+	local perMinute = Config.Chests.SkipCartsPerMinute or 0.12
+	local carts = math.max(Config.Chests.SkipMinCarts or 0.15, perMinute * remaining / 60)
+	return math.max(1, math.floor(Config.CartValue(tiers.Mine, tiers.Cart) * carts))
 end
 
 function GearService:_refreshChestVisual(player, entry)
@@ -658,6 +682,12 @@ function GearService:_refreshChestVisual(player, entry)
 			prompt.ActionText = "HOLD TO OPEN"
 			prompt.HoldDuration = (Config.Chests.HoldSeconds or {})[entry.Rarity] or 2
 			prompt:SetAttribute("ChestOpen", true)
+			prompt.Enabled = true
+		elseif Config.Chests.SkipWithMoney ~= false then
+			-- v20.58: открыть досрочно за деньги (цена падает со временем).
+			prompt.ActionText = ("OPEN NOW  $%s"):format(NumberFormat.abbreviate(chestSkipCost(player, entry)))
+			prompt.HoldDuration = 0.6
+			prompt:SetAttribute("ChestOpen", false)
 			prompt.Enabled = true
 		elseif (info.SkipProductId or 0) ~= 0 then
 			prompt.ActionText = ("SKIP  R$%d"):format(info.SkipRobux or 0)
@@ -779,6 +809,9 @@ function GearService:_placeChest(player, position)
 		return
 	end
 	data.Gear[key] -= 1
+	-- v20.58: инвентарь тоже узнаёт, что сундук ушёл из рук (раньше
+	-- оставался в сетке/хотбаре до перезахода).
+	if Services.InventoryService then pcall(Services.InventoryService.Sync, Services.InventoryService, player) end
 	local localPoint = pad.CFrame:PointToObjectSpace(position)
 	local look = (hrp.Position - position) * Vector3.new(1, 0, 1)
 	local yaw = look.Magnitude > 0.1 and math.atan2(-look.X, -look.Z) or 0
@@ -915,11 +948,26 @@ function GearService:_chestPrompt(player, chestId)
 	if not entry then return end
 	local info = Config.Chests.Types[entry.Rarity]
 	if (entry.ReadyAt or 0) > os.time() then
-		if (info.SkipProductId or 0) ~= 0 then
+		if Config.Chests.SkipWithMoney ~= false then
+			-- v20.58: досрочно за деньги — списываем и открываем сразу.
+			local cost = chestSkipCost(player, entry)
+			local BigNum = require(ReplicatedStorage.Shared.BigNum)
+			if BigNum.lt(Services.DataService:GetMoney(player), cost) then
+				if Services.MonetizationService and Services.MonetizationService.NotEnoughMoney then
+					pcall(Services.MonetizationService.NotEnoughMoney, Services.MonetizationService, player, cost, "ChestSkip:" .. chestId)
+				end
+				Services.NotifyService:Show(player, ("Need $%s to open it now"):format(NumberFormat.abbreviate(cost)), { Icon = "Error" })
+				return
+			end
+			Services.DataService:AddMoney(player, -cost)
+			entry.ReadyAt = os.time()
+		elseif (info.SkipProductId or 0) ~= 0 then
 			pendingSkip[player] = chestId
 			MarketplaceService:PromptProductPurchase(player, info.SkipProductId)
+			return
+		else
+			return
 		end
-		return
 	end
 	table.remove(data.PlacedChests, index)
 	local record = chestModels[player] and chestModels[player][chestId]

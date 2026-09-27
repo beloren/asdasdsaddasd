@@ -113,6 +113,9 @@ local function buildGhost(key)
 	if not model then return end
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") then
+			-- v20.58: призрак целиком заанкорен — иначе детали своей модели
+			-- сундука (не сваренные) разлетались физикой по кусочкам.
+			d.Anchored = true
 			d.CanQuery = false
 			d.CanCollide = false
 			d.CanTouch = false

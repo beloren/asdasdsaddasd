@@ -6589,6 +6589,12 @@ Config.Chests = {
 	-- трясётся, крышка приоткрывается, щели светятся; отпустил — всё
 	-- откатывается назад. Лут вылетает в мир + лента справа (без окна).
 	HoldSeconds = { Common = 1.5, Rare = 2.0, Epic = 2.5, Legendary = 3.0 },
+	-- v20.58: ОТКРЫТЬ ДОСРОЧНО за деньги: SkipCartsPerMinute полной тележки
+	-- пещеры игрока за каждую оставшуюся минуту, не меньше SkipMinCarts.
+	-- false — только за Robux (SkipProductId у типа сундука).
+	SkipWithMoney = true,
+	SkipCartsPerMinute = 0.12,
+	SkipMinCarts = 0.15,
 	LootIcons = { Money = "💰", Geode = "🪨", Dynamite = "🧨", Buff = "✨", Skin = "⛏", PrestigePoint = "⭐", Relic = "🏆" },
 	Types = {
 		Common = {
