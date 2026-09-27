@@ -159,9 +159,11 @@ function SkinService:Init(services)
 	-- в Assets — приоритетнее, её не трогаем.
 	local ProceduralSkins = require(ReplicatedStorage.Shared.ProceduralSkins)
 	for skinId, definition in Config.Skins.Definitions do
-		if definition.Procedural and definition.AssetName and not Assets:FindFirstChild(definition.AssetName)
-			and ProceduralSkins.Has(skinId) then
-			local ok, tool = pcall(ProceduralSkins.Build, skinId)
+		-- v20.60: своя модель может лежать и в Workspace (findSkinAsset) -
+		-- тогда простую не собираем, иначе она перекрыла бы настоящую.
+		if definition.Procedural and definition.AssetName and not findSkinAsset(definition.AssetName)
+			and ProceduralSkins.Has(skinId, definition) then
+			local ok, tool = pcall(ProceduralSkins.Build, skinId, definition)
 			if ok and tool then
 				tool.Name = definition.AssetName
 				tool.Parent = Assets

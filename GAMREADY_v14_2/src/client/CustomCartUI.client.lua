@@ -3026,7 +3026,12 @@ end
 			return (cur and nxt) and tr("Space {a} → {b}", { a = cur.Capacity, b = nxt.Capacity }) or ""
 		else
 			local cur, nxt = Config.PickaxeTiers[status.Tier], Config.PickaxeTiers[nextTier]
-			return (cur and nxt) and tr("Damage {a} → {b}", { a = cur.Damage, b = nxt.Damage }) or ""
+			if not (cur and nxt) then return "" end
+			-- v20.60: у кирок есть имена (Config.PickaxeNames).
+			if nxt.DisplayName then
+				return tr("{name}: damage {a} → {b}", { name = nxt.DisplayName, a = cur.Damage, b = nxt.Damage })
+			end
+			return tr("Damage {a} → {b}", { a = cur.Damage, b = nxt.Damage })
 		end
 	end
 

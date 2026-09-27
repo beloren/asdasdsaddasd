@@ -506,3 +506,43 @@
 - **Шахтёр: своя модель.** Положи модель `ReplicatedStorage.Assets.MinerNPC` (с Humanoid/AnimationController и PrimaryPart). Скрипты внутри (Animate и др.) НЕ удаляются. Якорится только корень, детали на Motor6D свободны - анимации работают. Animate-Script работает сам; если Animate - LocalScript (в Workspace не запускается), сервер сам включает idle из папки `idle` внутри Animate. Ходьба - `WalkAnimationId` или `walk`/`run` из Animate.
 - **Шахтёр стоит на месте**, в шахту заходит только игрок (`Config.MineExpedition.MinerWalksIn = false`; true - как раньше).
 - **Реплики на скамейке** (`client/BenchChatter`, `Config.BenchChatter`): сел - почти сразу выскакивает `bruh...` и печатается по букве; через 30 секунд сидения - `nice sitting here, my imaginary friend..`. Встал - реплика пропадает. Видят все игроки.
+
+## v20.60 - руда из шахты, новый список скинов, 11 обычных кирок
+
+- **Руда из шахты** раздувается на 50% меньше (`Config.MineExpedition.CutsceneOreScale` 2.6 → 1.8) и садится к обычному размеру плавно, с лёгкой пружинкой (0.75 с).
+- **Скины: полный новый список** (`Config.Skins.Definitions`, блок v20.60 в конце Config). Все остальные удалены; у игроков старые ключи игнорируются, надетый удалённый скин = обычная кирка. Оставлен только `TurboPickaxe` (скин геймпасса Rocket Pickaxe).
+  Если своей модели ещё нет, сервер собирает простую по `Shape`/`Colors`/`Material` (`shared/ProceduralSkins`). Своя модель в `Assets` или Workspace всегда главнее.
+
+| Id | Имя | Редкость | Откуда | Модель (Assets) |
+|---|---|---|---|---|
+| AncientStonePickaxe | Ancient Stone Pickaxe | Common | сундуки, гоблины | Skin_Pickaxe_AncientStone |
+| BonePick | Bone Pickaxe | Common | сундуки, гоблины | Skin_Pickaxe_BonePick |
+| ForestPickaxe | Forest Pickaxe | Common | сундуки, награда за группу | Skin_Pickaxe_Forest |
+| JunglePickaxe | Jungle Pickaxe | Uncommon | сундуки, гоблины | Skin_Pickaxe_Jungle |
+| RadioactivePickaxe | Retro Radioactive Pickaxe | Uncommon | торговец | Skin_Pickaxe_Radioactive |
+| AmethystPickaxe | Retro Amethyst Pickaxe | Uncommon | торговец, сундуки | Skin_Pickaxe_Amethyst |
+| AnchorPick | Underwater Anchor | Rare | сундуки, гоблины | Skin_Pickaxe_AnchorPick |
+| PirateCutlass | Pirate Cutlass | Rare | сундуки, гоблины | Skin_Pickaxe_PirateCutlass |
+| BigWoodenPickaxe | Big Retro Wooden Pickaxe | Rare | торговец | Skin_Pickaxe_BigWooden |
+| LovePickaxe | Retro Love Pickaxe | Rare | торговец | Skin_Pickaxe_Love |
+| CactusSword | Cactus Sword | Rare | гоблины | Skin_Pickaxe_CactusSword |
+| FishSkin | Fish Sword | Rare | сундуки | Skin_Pickaxe_Fish |
+| IcePickaxe | Ice Pickaxe | Rare | сундуки, награда за лайк | Skin_Pickaxe_Ice |
+| BattleAxe | Battle Axe | Epic | сундуки, гоблины | Skin_Pickaxe_BattleAxe |
+| MagmaPickaxe | Magma Pickaxe | Epic | сундуки | Skin_Pickaxe_Magma |
+| ElectricPickaxe | Electric Pickaxe | Epic | сундуки | Skin_Pickaxe_Electric |
+| CrystalPickaxe | Retro Crystal Pickaxe | Epic | торговец | Skin_Pickaxe_Crystal |
+| BigMole | Mole Club | Epic | гоблины, лимитка торговца | Skin_Pickaxe_BigMole |
+| TungTungStick | Tung Tung Sahur Stick | Epic | гоблины, лимитка торговца | Skin_Pickaxe_TungTungStick |
+| StarPickaxe | Star Pickaxe | Legendary | сундуки | Skin_Pickaxe_Star |
+| SpectrumPickaxe | Spectrum Pickaxe | Legendary | сундуки | Skin_Pickaxe_Spectrum |
+| GoldSword | Gold Sword | Legendary | сундуки, лимитка торговца | Skin_Pickaxe_GoldSword |
+| GoldKunai | Gold Kunai | Legendary | гоблины, лимитка торговца | Skin_Pickaxe_GoldKunai |
+| Gold | Gold Skin | Legendary | дейлик (7-й день) | Skin_GOLD |
+| GalaxySword | Galaxy Sword | Mythic | сундуки (Legendary), гоблины | Skin_Pickaxe_GalaxySword |
+| MilkyWayPickaxe | Milky Way Pickaxe | Mythic | сундуки (Legendary) | Skin_Pickaxe_MilkyWay |
+| DevSword | Ban Hammer | Mythic | лимитка торговца | Skin_Pickaxe_DevSword |
+| Frostmorn | Frostmourne | Mythic | NPC с мечом | Skin_Frostmorn |
+
+- **Скины с гоблинов** (`Config.GoblinRaid.SkinDrop`): 2% с обычного гоблина, 25% с босса. Выпадает скин с `Goblins = true`, которого у игрока ещё нет (вес по редкости). На табличке лагеря дописано «+ skins».
+- **Обычные кирки: 11 штук** (`Config.PickaxeNames`): Small Stone, Basic, Iron, Copper, Gold, Adamantite, Royal, Whirlwind, Fury, Storm, Chaos. Добавлены тиры 10-11 (урон 65/76, цена 330K/760K). Модель тира N: `Assets.Pickaxe_TierN`. Имя видно в подсказке кирки и на карточке прокачки («Iron Pickaxe: damage 12 → 16»).

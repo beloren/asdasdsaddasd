@@ -194,15 +194,110 @@ builders.CursedCaptainBlade = function(tool)
 	glow(fx, ghost, 6)
 end
 
-function ProceduralSkins.Has(skinId)
-	return builders[skinId] ~= nil
+--------------------------------------------------------------------------------
+-- v20.60: ОБЩИЕ ФОРМЫ для скинов без своего билдера. Берутся из
+-- Config.Skins.Definitions[id]: Shape (Pickaxe/Sword/Axe/Club/Kunai/Hammer),
+-- Colors = { цвет навершия, цвет рукояти }, Material, Rainbow.
+--------------------------------------------------------------------------------
+local RAINBOW = {
+	Color3.fromRGB(255, 80, 80), Color3.fromRGB(255, 170, 60), Color3.fromRGB(255, 240, 80),
+	Color3.fromRGB(90, 230, 110), Color3.fromRGB(80, 170, 255), Color3.fromRGB(190, 100, 255),
+}
+
+local shapes = {}
+
+shapes.Pickaxe = function(tool, head, grip, material, rainbow)
+	handle(tool, grip, Enum.Material.Wood, 3)
+	part(tool, "Collar", nil, Vector3.new(0.5, 0.5, 0.5), head, material, CFrame.new(0, 1.45, 0))
+	for _, side in { -1, 1 } do
+		for i = 1, 3 do
+			local color = rainbow and RAINBOW[(side < 0 and i or i + 3)] or head
+			local size = Vector3.new(0.55, 0.42 - i * 0.07, 0.42 - i * 0.07)
+			part(tool, "Blade", nil, size, color, material,
+				CFrame.new(side * (0.2 + i * 0.42), 1.45 - i * 0.12, 0) * CFrame.Angles(0, 0, math.rad(side * -8 * i)))
+		end
+	end
 end
 
-function ProceduralSkins.Build(skinId)
-	local builder = builders[skinId]
-	if not builder then return nil end
+shapes.Sword = function(tool, head, grip, material, rainbow)
+	handle(tool, grip, Enum.Material.Leather, 1.2)
+	part(tool, "Pommel", Enum.PartType.Ball, Vector3.new(0.4, 0.4, 0.4), head, material, CFrame.new(0, -0.7, 0))
+	part(tool, "Guard", nil, Vector3.new(1.3, 0.2, 0.34), grip, Enum.Material.Metal, CFrame.new(0, 0.65, 0))
+	local segments = rainbow and #RAINBOW or 1
+	local length = 2.6
+	for i = 1, segments do
+		local h = length / segments
+		part(tool, "Blade", nil, Vector3.new(0.32, h, 0.1), rainbow and RAINBOW[i] or head, material,
+			CFrame.new(0, 0.75 + h * (i - 0.5), 0))
+	end
+	part(tool, "Tip", Enum.PartType.Wedge, Vector3.new(0.1, 0.4, 0.32), rainbow and RAINBOW[#RAINBOW] or head, material,
+		CFrame.new(0, 0.75 + length + 0.2, 0) * CFrame.Angles(0, math.rad(90), 0))
+end
+
+shapes.Axe = function(tool, head, grip, material)
+	handle(tool, grip, Enum.Material.Wood, 3.2)
+	part(tool, "Socket", nil, Vector3.new(0.45, 0.6, 0.45), grip, Enum.Material.Metal, CFrame.new(0, 1.4, 0))
+	for _, side in { -1, 1 } do
+		part(tool, "Blade", nil, Vector3.new(0.9, 1.1, 0.12), head, material, CFrame.new(side * 0.6, 1.4, 0))
+		part(tool, "Edge", Enum.PartType.Wedge, Vector3.new(0.12, 1.1, 0.35), head, material,
+			CFrame.new(side * 1.2, 1.4, 0) * CFrame.Angles(0, math.rad(side * -90), 0))
+	end
+end
+
+shapes.Club = function(tool, head, grip, material)
+	handle(tool, grip, Enum.Material.Wood, 2.4)
+	part(tool, "Head", Enum.PartType.Cylinder, Vector3.new(1.6, 0.9, 0.9), head, material,
+		CFrame.new(0, 1.9, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	part(tool, "Cap", Enum.PartType.Ball, Vector3.new(0.9, 0.9, 0.9), head, material, CFrame.new(0, 2.7, 0))
+end
+
+shapes.Kunai = function(tool, head, grip, material)
+	handle(tool, grip, Enum.Material.Fabric, 1)
+	part(tool, "Ring", Enum.PartType.Cylinder, Vector3.new(0.12, 0.5, 0.5), head, material, CFrame.new(0, -0.7, 0))
+	part(tool, "Blade", nil, Vector3.new(0.4, 1, 0.1), head, material, CFrame.new(0, 1, 0))
+	part(tool, "Tip", Enum.PartType.Wedge, Vector3.new(0.1, 0.6, 0.4), head, material,
+		CFrame.new(0, 1.8, 0) * CFrame.Angles(0, math.rad(90), 0))
+end
+
+shapes.Hammer = function(tool, head, grip, material)
+	handle(tool, grip, Enum.Material.Metal, 3)
+	part(tool, "Head", nil, Vector3.new(2, 1, 1), grip, material, CFrame.new(0, 1.9, 0))
+	for _, side in { -1, 1 } do
+		part(tool, "Band", nil, Vector3.new(0.2, 1.08, 1.08), head, Enum.Material.Neon, CFrame.new(side * 0.7, 1.9, 0))
+	end
+end
+
+local function definitionOf(skinId, definition)
+	if definition then return definition end
+	local ok, Config = pcall(function() return require(game:GetService("ReplicatedStorage").Shared.Config) end)
+	return ok and Config.Skins.Definitions[skinId] or nil
+end
+
+function ProceduralSkins.Has(skinId, definition)
+	if builders[skinId] then return true end
+	definition = definitionOf(skinId, definition)
+	return definition ~= nil and shapes[definition.Shape or ""] ~= nil
+end
+
+function ProceduralSkins.Build(skinId, definition)
 	local tool = newTool(skinId)
-	builder(tool)
+	local builder = builders[skinId]
+	if builder then
+		builder(tool)
+	else
+		definition = definitionOf(skinId, definition)
+		local shape = definition and shapes[definition.Shape or ""]
+		if not shape then tool:Destroy(); return nil end
+		local colors = definition.Colors or {}
+		local head = colors[1] or Color3.fromRGB(200, 200, 210)
+		local grip = colors[2] or WOOD
+		local material = definition.Material or Enum.Material.SmoothPlastic
+		shape(tool, head, grip, material, definition.Rainbow == true)
+		if material == Enum.Material.Neon then
+			local top = tool:FindFirstChild("Blade") or tool:FindFirstChild("Head")
+			if top then glow(top, head, 7) end
+		end
+	end
 	weldAll(tool)
 	return tool
 end

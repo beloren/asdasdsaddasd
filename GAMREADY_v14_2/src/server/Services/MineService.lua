@@ -2976,7 +2976,9 @@ function MineService:_shrinkGroundOre(player)
 		local startedAt = os.clock()
 		while true do
 			local alpha = math.clamp((os.clock() - startedAt) / seconds, 0, 1)
-			local scale = from + (1 - from) * alpha
+			-- Плавно, с лёгким «пружинным» доводом (Back Out), а не линейно.
+			local eased = TweenService:GetValue(alpha, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+			local scale = from + (1 - from) * eased
 			for _, crystal in pieces do
 				if crystal.Parent then scaleCrystal(crystal, scale) end
 			end

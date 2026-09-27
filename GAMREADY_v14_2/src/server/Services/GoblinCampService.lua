@@ -575,6 +575,36 @@ local function rewardKill(goblin)
 		local geodeType = Config.Geodes.Order[math.clamp(index, 1, #Config.Geodes.Order)]
 		if geodeType then pcall(Services.GeodeService.AddGeodeDirectly, Services.GeodeService, player, geodeType) end
 	end
+	-- v20.60: скин с гоблина (Config.GoblinRaid.SkinDrop, пул Goblins = true).
+	local skinDrop = CFG.SkinDrop
+	if skinDrop and Services.SkinService and math.random() < (isBoss and (skinDrop.BossChance or 0) or (skinDrop.Chance or 0)) then
+		local data = Services.DataService.GetGeodeData and Services.DataService:GetGeodeData(player)
+		local owned = data and data.OwnedSkins or {}
+		local pool, total = {}, 0
+		for skinId, definition in Config.Skins.Definitions do
+			if definition.Goblins and owned[skinId] ~= true then
+				local weight = (Config.Chests.SkinRarityWeights or {})[definition.Rarity] or 10
+				table.insert(pool, { Id = skinId, Weight = weight })
+				total += weight
+			end
+		end
+		table.sort(pool, function(a, b) return a.Id < b.Id end)
+		if total > 0 then
+			local roll = math.random() * total
+			for _, entry in pool do
+				roll -= entry.Weight
+				if roll <= 0 then
+					local ok, granted = pcall(Services.SkinService.GrantSkin, Services.SkinService, player, entry.Id)
+					if ok and granted and Services.NotifyService then
+						local definition = Config.Skins.Definitions[entry.Id]
+						Services.NotifyService:Show(player, ("Goblin dropped a skin: %s!"):format(definition.DisplayName),
+							{ Icon = "Goblin", Duration = 5, TextColor = Color3.fromRGB(255, 215, 90) })
+					end
+					break
+				end
+			end
+		end
+	end
 	if Services.QuestService then
 		pcall(Services.QuestService.RecordMetric, Services.QuestService, player, "GoblinsKilled", 1)
 	end
@@ -839,7 +869,12 @@ local function rewardText(info)
 	local best = clear[1] and clear[1].Chest
 	local chest = best and Config.Chests.Types[best]
 	if not chest then return "" end
-	return ('🎁 <font color="#%s">%s</font>'):format(colorHex(chest.Color or Color3.new(1, 1, 1)), chest.DisplayName or best)
+	local text = ('🎁 <font color="#%s">%s</font>'):format(colorHex(chest.Color or Color3.new(1, 1, 1)), chest.DisplayName or best)
+	-- v20.60: с гоблинов падают скины - пишем на табличке.
+	if CFG.SkinDrop and (CFG.SkinDrop.Chance or 0) > 0 then
+		text ..= ' + <font color="#FFD75A">skins</font>'
+	end
+	return text
 end
 
 local function formatTime(seconds)

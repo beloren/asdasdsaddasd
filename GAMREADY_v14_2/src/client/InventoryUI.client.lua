@@ -1192,7 +1192,7 @@ renderGrid = function()
 	end
 	for tier = state.PickaxeMaxTier or 1, 1, -1 do
 		local tierConfig = Config.PickaxeTiers[tier]
-		local title = "pickaxe t" .. tier
+		local title = ("pickaxe t" .. tier .. " " .. tostring(tierConfig and tierConfig.DisplayName or "")):lower()
 		if showTools and tierConfig and (query == "" or title:find(query, 1, true)) then
 			order += 1
 			local cell = makeCell()

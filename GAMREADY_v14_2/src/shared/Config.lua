@@ -901,8 +901,10 @@ Config.MineExpedition = {
 	DropThrowSeconds = 0.6,
 	DropThrowArcHeight = 6,
 
-	CutsceneOreScale = 2.6,
-	CutsceneOreShrinkSeconds = 0.5,
+	-- v20.60: руда из шахты раздувается на 50% меньше (было 2.6) и
+	-- садится к обычному размеру плавно, с лёгкой пружинкой.
+	CutsceneOreScale = 1.8,
+	CutsceneOreShrinkSeconds = 0.75,
 
 	-- Руда слегка ЛЕВИТИРУЕТ над землёй и покачивается — так она читается
 	-- как "добыча", а не как валяющийся камень, и её видно поверх травы.
@@ -2024,7 +2026,19 @@ Config.PickaxeTiers = {
 	[7] = { Scale = 1.6, KnockoutPercent = 0.45, KnockoutMax = 5, VfxColor = Color3.fromRGB(90, 160, 255),  Cooldown = 1.0, Damage = 38 },
 	[8] = { Scale = 1.7, KnockoutPercent = 0.50, KnockoutMax = 5, VfxColor = Color3.fromRGB(255, 255, 255), Cooldown = 1.0, Damage = 46 },
 	[9] = { Scale = 1.8, KnockoutPercent = 0.55, KnockoutMax = 5, VfxColor = Color3.fromRGB(255, 215, 0),   Cooldown = 1.0, Damage = 55 },
+	-- v20.60: +2 кирки (всего 11).
+	[10] = { Scale = 1.9, KnockoutPercent = 0.60, KnockoutMax = 5, VfxColor = Color3.fromRGB(90, 230, 255),  Cooldown = 1.0, Damage = 65 },
+	[11] = { Scale = 2.0, KnockoutPercent = 0.65, KnockoutMax = 5, VfxColor = Color3.fromRGB(200, 60, 255),  Cooldown = 1.0, Damage = 76 },
 }
+-- v20.60: ОБЫЧНЫЕ КИРКИ (прокачка у торговца улучшениями). Модель тира N —
+-- ReplicatedStorage.Assets.Pickaxe_TierN (Tool с Handle), как и раньше.
+Config.PickaxeNames = {
+	"Small Stone Pickaxe", "Basic Pickaxe", "Iron Pickaxe", "Copper Pickaxe", "Gold Pickaxe",
+	"Adamantite Pickaxe", "Royal Pickaxe", "Whirlwind Pickaxe", "Fury Pickaxe", "Storm Pickaxe", "Chaos Pickaxe",
+}
+for tier, info in Config.PickaxeTiers do
+	info.DisplayName = Config.PickaxeNames[tier] or ("Pickaxe T" .. tier)
+end
 
 --------------------------------------------------------------------------------
 -- 3 НЕЗАВИСИМЫЕ ВЕТКИ ПРОКАЧКИ: Шахта / Тележка / Кирка.
@@ -2136,6 +2150,8 @@ Config.PickaxeChain = {
 	{ Tier = 7, Cost = 24000 },
 	{ Tier = 8, Cost = 64000 },
 	{ Tier = 9, Cost = 140000 },
+	{ Tier = 10, Cost = 330000 }, -- v20.60: Storm Pickaxe
+	{ Tier = 11, Cost = 760000 }, -- v20.60: Chaos Pickaxe
 }
 -- v20: цены — в масштабе дохода пещеры, где их покупают (Config.NumberGrowth):
 -- пещеру N оплачивает доход пещеры N-1, тележку/кирку тира T — доход
@@ -2866,7 +2882,7 @@ Config.HandCarry = {
 	-- Максимум кусков руды в руках по тиру кирки (индекс = тир 1..8).
 	-- Растёт вместе с прокачкой кирки, но упирается в потолок на тире 5 —
 	-- дальше кирка продолжает расти в бою (урон/кулдаун), не в переноске.
-	CapacityByPickaxeTier = { 2, 4, 6, 8, 10, 10, 10, 10, 10, 10 },
+	CapacityByPickaxeTier = { 2, 4, 6, 8, 10, 10, 10, 10, 10, 10, 10 },
 
 	-- ЗАМЕДЛЕНИЕ (отдельно от замедления тележки, см. Config.Cart) —
 	-- линейно за каждый кусок на горбу, независимо от того, несёт ли игрок
@@ -7387,6 +7403,177 @@ Config.BoulderHitFx = {
 		Seconds = 0.12,  -- за сколько гаснет
 	},
 }
+
+--------------------------------------------------------------------------------
+-- v20.60: СКИНЫ — ПОЛНЫЙ СПИСОК. Всё, чего нет в этом списке, удалено
+-- (в сохранениях у игроков старые ключи просто игнорируются; надетый
+-- удалённый скин = обычная кирка). Исключение — TurboPickaxe: это скин
+-- геймпасса Rocket Pickaxe, без него пасс перестанет работать.
+--
+-- Источник каждого скина:
+--   Chests  = { Common/Rare/Epic/Legendary = true } — выпадает из сундуков;
+--   Goblins = true          — падает с гоблинов (Config.GoblinRaid.SkinDrop);
+--   Merchant = true         — продаётся в лавке торговца (Config.Merchant.Items);
+--   Limited = true          — лимитированная кирка цикла у торговца;
+--   NpcExclusive = true     — только наградой (NPC, дейлик, лайк).
+-- Своя модель: ReplicatedStorage.Assets.<AssetName> (Tool с Handle, как
+-- раньше). Пока её нет — сервер собирает простую модель сам по Shape/
+-- Colors/Material (shared/ProceduralSkins), поэтому скин работает сразу.
+--------------------------------------------------------------------------------
+do
+	local C = Color3.fromRGB
+	local M = Enum.Material
+	local function skin(id, name, rarity, asset, image, shape, colors, material, extra)
+		local def = {
+			Kind = "Pickaxe", DisplayName = name, Rarity = rarity, AssetName = asset, ImageId = image or 0,
+			Procedural = true, Shape = shape, Colors = colors, Material = material,
+		}
+		for key, value in extra or {} do def[key] = value end
+		return id, def
+	end
+	local roster = {}
+	local function add(id, def) roster[id] = def end
+
+	-- ОБЫЧНЫЕ (сундуки, гоблины)
+	add(skin("AncientStonePickaxe", "Ancient Stone Pickaxe", "Common", "Skin_Pickaxe_AncientStone", 0, "Pickaxe", { C(120, 116, 108), C(88, 70, 50) }, M.Slate, { Chests = { Common = true, Rare = true }, Goblins = true }))
+	add(skin("BonePick", "Bone Pickaxe", "Common", "Skin_Pickaxe_BonePick", 0, "Pickaxe", { C(236, 228, 205), C(236, 228, 205) }, M.SmoothPlastic, { Chests = { Common = true, Rare = true }, Goblins = true }))
+	add(skin("ForestPickaxe", "Forest Pickaxe", "Common", "Skin_Pickaxe_Forest", 0, "Pickaxe", { C(80, 150, 70), C(110, 72, 40) }, M.Grass, { Chests = { Common = true, Rare = true } }))
+	-- НЕОБЫЧНЫЕ
+	add(skin("JunglePickaxe", "Jungle Pickaxe", "Uncommon", "Skin_Pickaxe_Jungle", 0, "Pickaxe", { C(40, 120, 60), C(90, 60, 30) }, M.LeafyGrass, { Chests = { Common = true, Rare = true }, Goblins = true }))
+	add(skin("RadioactivePickaxe", "Retro Radioactive Pickaxe", "Uncommon", "Skin_Pickaxe_Radioactive", 132744755925965, "Pickaxe", { C(120, 255, 60), C(50, 50, 50) }, M.Neon, { Merchant = true }))
+	add(skin("AmethystPickaxe", "Retro Amethyst Pickaxe", "Uncommon", "Skin_Pickaxe_Amethyst", 76941906947734, "Pickaxe", { C(170, 90, 230), C(90, 60, 40) }, M.Glass, { Merchant = true, Chests = { Rare = true } }))
+	-- РЕДКИЕ
+	add(skin("AnchorPick", "Underwater Anchor", "Rare", "Skin_Pickaxe_AnchorPick", 0, "Pickaxe", { C(80, 84, 92), C(80, 84, 92) }, M.Metal, { Chests = { Rare = true, Epic = true }, Goblins = true }))
+	add(skin("PirateCutlass", "Pirate Cutlass", "Rare", "Skin_Pickaxe_PirateCutlass", 0, "Sword", { C(210, 215, 225), C(200, 160, 60) }, M.Metal, { Chests = { Rare = true, Epic = true }, Goblins = true }))
+	add(skin("BigWoodenPickaxe", "Big Retro Wooden Pickaxe", "Rare", "Skin_Pickaxe_BigWooden", 121805710908648, "Pickaxe", { C(150, 100, 55), C(110, 72, 40) }, M.Wood, { Merchant = true }))
+	add(skin("LovePickaxe", "Retro Love Pickaxe", "Rare", "Skin_Pickaxe_Love", 115736148291739, "Pickaxe", { C(255, 110, 170), C(255, 220, 235) }, M.SmoothPlastic, { Merchant = true }))
+	add(skin("CactusSword", "Cactus Sword", "Rare", "Skin_Pickaxe_CactusSword", 125983395178047, "Sword", { C(70, 170, 70), C(120, 90, 50) }, M.Grass, { Goblins = true }))
+	add(skin("FishSkin", "Fish Sword", "Rare", "Skin_Pickaxe_Fish", 138909766473481, "Sword", { C(90, 170, 220), C(240, 200, 90) }, M.SmoothPlastic, { Chests = { Rare = true, Epic = true } }))
+	add(skin("IcePickaxe", "Ice Pickaxe", "Rare", "Skin_Pickaxe_Ice", 0, "Pickaxe", { C(170, 225, 255), C(70, 100, 140) }, M.Ice, { Chests = { Rare = true, Epic = true } }))
+	-- ЭПИЧЕСКИЕ
+	add(skin("BattleAxe", "Battle Axe", "Epic", "Skin_Pickaxe_BattleAxe", 0, "Axe", { C(150, 155, 165), C(80, 50, 30) }, M.Metal, { Chests = { Epic = true, Legendary = true }, Goblins = true }))
+	add(skin("MagmaPickaxe", "Magma Pickaxe", "Epic", "Skin_Pickaxe_Magma", 0, "Pickaxe", { C(255, 110, 30), C(40, 30, 30) }, M.Neon, { Chests = { Epic = true, Legendary = true } }))
+	add(skin("ElectricPickaxe", "Electric Pickaxe", "Epic", "Skin_Pickaxe_Electric", 0, "Pickaxe", { C(90, 200, 255), C(255, 230, 60) }, M.Neon, { Chests = { Epic = true, Legendary = true } }))
+	add(skin("CrystalPickaxe", "Retro Crystal Pickaxe", "Epic", "Skin_Pickaxe_Crystal", 128296786196999, "Pickaxe", { C(120, 230, 255), C(90, 90, 110) }, M.Glass, { Merchant = true }))
+	add(skin("BigMole", "Mole Club", "Epic", "Skin_Pickaxe_BigMole", 96146522945116, "Club", { C(110, 80, 60), C(255, 170, 190) }, M.Fabric, { Goblins = true, Limited = true }))
+	add(skin("TungTungStick", "Tung Tung Sahur Stick", "Epic", "Skin_Pickaxe_TungTungStick", 115880001946513, "Club", { C(160, 110, 60), C(110, 72, 40) }, M.Wood, { Goblins = true, Limited = true }))
+	-- ЛЕГЕНДАРНЫЕ
+	add(skin("StarPickaxe", "Star Pickaxe", "Legendary", "Skin_Pickaxe_Star", 0, "Pickaxe", { C(255, 230, 90), C(60, 50, 110) }, M.Neon, { Chests = { Legendary = true } }))
+	add(skin("SpectrumPickaxe", "Spectrum Pickaxe", "Legendary", "Skin_Pickaxe_Spectrum", 0, "Pickaxe", { C(255, 90, 200), C(90, 220, 255) }, M.Neon, { Chests = { Legendary = true }, Rainbow = true }))
+	add(skin("GoldSword", "Gold Sword", "Legendary", "Skin_Pickaxe_GoldSword", 75847632645464, "Sword", { C(255, 210, 60), C(120, 75, 15) }, M.Metal, { Limited = true, Chests = { Legendary = true } }))
+	add(skin("GoldKunai", "Gold Kunai", "Legendary", "Skin_Pickaxe_GoldKunai", 82992142504153, "Kunai", { C(255, 225, 80), C(95, 60, 15) }, M.Metal, { Limited = true, Goblins = true }))
+	add(skin("Gold", "Gold Skin", "Legendary", "Skin_GOLD", 79280932428022, "Pickaxe", { C(255, 205, 50), C(255, 205, 50) }, M.Foil, { NpcExclusive = true }))
+	-- МИФИЧЕСКИЕ
+	add(skin("GalaxySword", "Galaxy Sword", "Mythic", "Skin_Pickaxe_GalaxySword", 0, "Sword", { C(120, 60, 220), C(30, 20, 60) }, M.Neon, { Chests = { Legendary = true }, Goblins = true }))
+	add(skin("MilkyWayPickaxe", "Milky Way Pickaxe", "Mythic", "Skin_Pickaxe_MilkyWay", 0, "Pickaxe", { C(230, 225, 255), C(40, 30, 90) }, M.Neon, { Chests = { Legendary = true } }))
+	add(skin("DevSword", "Ban Hammer", "Mythic", "Skin_Pickaxe_DevSword", 117000062306052, "Hammer", { C(60, 60, 70), C(255, 60, 60) }, M.Metal, { Limited = true }))
+	add(skin("Frostmorn", "Frostmourne", "Mythic", "Skin_Frostmorn", 74383462032767, "Sword", { C(150, 220, 255), C(60, 70, 90) }, M.Ice, { NpcExclusive = true }))
+
+	-- Геймпасс Rocket Pickaxe (см. Config.RocketPickaxe) — оставлен.
+	local turbo = Config.Skins.Definitions.TurboPickaxe
+	if turbo then roster.TurboPickaxe = turbo end
+
+	Config.Skins.Definitions = roster
+	Config.Skins.EnabledKinds = { Pickaxe = true, Cart = false, Ore = false }
+
+	-- Порядок в каталогах (по редкости, внутри — как в списке выше).
+	Config.Skins.Order = {
+		"AncientStonePickaxe", "BonePick", "ForestPickaxe",
+		"JunglePickaxe", "RadioactivePickaxe", "AmethystPickaxe",
+		"AnchorPick", "PirateCutlass", "BigWoodenPickaxe", "LovePickaxe", "CactusSword", "FishSkin", "IcePickaxe",
+		"BattleAxe", "MagmaPickaxe", "ElectricPickaxe", "CrystalPickaxe", "BigMole", "TungTungStick",
+		"StarPickaxe", "SpectrumPickaxe", "GoldSword", "GoldKunai", "Gold",
+		"GalaxySword", "MilkyWayPickaxe", "DevSword", "Frostmorn",
+	}
+
+	-- Бонусы (бюджет по редкости, см. v20.28 выше) и роль одной строкой.
+	local buffs = {
+		AncientStonePickaxe = { Boulder = 0.07, Toughness = 0.03 },
+		BonePick            = { Damage = 0.06, Stagger = 0.04 },
+		ForestPickaxe       = { Luck = 0.05, Speed = 0.05 },
+		JunglePickaxe       = { Speed = 0.08, ChestLuck = 0.06 },
+		RadioactivePickaxe  = { Mutation = 0.10, Stagger = 0.04 },
+		AmethystPickaxe     = { Luck = 0.05, Mutation = 0.06, Money = 0.03 },
+		AnchorPick          = { Toughness = 0.14, Stagger = 0.08, Speed = -0.05 },
+		PirateCutlass       = { Damage = 0.12, ChestLuck = 0.10, Toughness = -0.05 },
+		BigWoodenPickaxe    = { Boulder = 0.15, Perfect = 0.07, Speed = -0.05 },
+		LovePickaxe         = { Mutation = 0.14, Luck = 0.08, Stagger = -0.05 },
+		CactusSword         = { Damage = 0.14, Stagger = 0.08, Luck = -0.03 },
+		FishSkin            = { Money = 0.08, Speed = 0.08, ChestLuck = 0.06, Damage = -0.06 },
+		IcePickaxe          = { Perfect = 0.14, Toughness = 0.08, Speed = -0.04 },
+		BattleAxe           = { Damage = 0.18, Stagger = 0.14, Speed = -0.06 },
+		MagmaPickaxe        = { Boulder = 0.18, Dynamite = 0.14, Toughness = -0.06 },
+		ElectricPickaxe     = { Speed = 0.16, Perfect = 0.12, Luck = 0.04, Toughness = -0.06 },
+		CrystalPickaxe      = { Perfect = 0.22, Luck = 0.10, Toughness = -0.06 },
+		BigMole             = { Boulder = 0.20, ChestLuck = 0.12, Speed = -0.06 },
+		TungTungStick       = { Stagger = 0.22, Boulder = 0.10, Perfect = -0.06 },
+		StarPickaxe         = { Luck = 0.20, Money = 0.14, ChestLuck = 0.12, Toughness = -0.06 },
+		SpectrumPickaxe     = { Mutation = 0.22, Luck = 0.14, Perfect = 0.10, Speed = -0.05 },
+		GoldSword           = { Damage = 0.26, Stagger = 0.14, ChestLuck = 0.06, Luck = -0.05 },
+		GoldKunai           = { Perfect = 0.20, Speed = 0.16, Dynamite = 0.10, Money = -0.04 },
+		Gold                = { Money = 0.18, ChestLuck = 0.14, Dynamite = 0.14, Stagger = -0.08 },
+		GalaxySword         = { Damage = 0.24, Luck = 0.18, Mutation = 0.14, Toughness = -0.08 },
+		MilkyWayPickaxe     = { Luck = 0.24, Mutation = 0.18, Money = 0.14, Speed = -0.06 },
+		DevSword            = { Luck = 0.20, Damage = 0.15, Speed = 0.15, Money = 0.12, Toughness = -0.08 },
+		Frostmorn           = { Perfect = 0.30, Toughness = 0.18, Boulder = 0.14, Money = -0.05 },
+	}
+	local roles = {
+		AncientStonePickaxe = "Boulder breaker", BonePick = "Goblin hunter", ForestPickaxe = "Explorer",
+		JunglePickaxe = "Treasure hunter", RadioactivePickaxe = "Mutation hunter", AmethystPickaxe = "Lucky finder",
+		AnchorPick = "PvP tank", PirateCutlass = "Treasure hunter", BigWoodenPickaxe = "Boulder breaker",
+		LovePickaxe = "Mutation hunter", CactusSword = "Goblin hunter", FishSkin = "Money maker", IcePickaxe = "Perfect striker",
+		BattleAxe = "Goblin hunter", MagmaPickaxe = "Boulder breaker", ElectricPickaxe = "Speed miner",
+		CrystalPickaxe = "Perfect striker", BigMole = "Boulder breaker", TungTungStick = "PvP brawler",
+		StarPickaxe = "Lucky finder", SpectrumPickaxe = "Mutation hunter", GoldSword = "Goblin hunter",
+		GoldKunai = "Perfect striker", Gold = "Money maker", GalaxySword = "All-rounder", MilkyWayPickaxe = "Lucky finder",
+		DevSword = "All-rounder", Frostmorn = "Perfect striker", TurboPickaxe = "Rocket launcher",
+	}
+	local keepTurboBuff = Config.SkinBuffs and Config.SkinBuffs.TurboPickaxe
+	Config.SkinBuffs = buffs
+	Config.SkinBuffs.TurboPickaxe = keepTurboBuff
+	Config.SkinRoles = roles
+	Config.PickaxeSkinBuffs = { Default = { Damage = 0, Luck = 0, Speed = 0 } }
+
+	-- ЛАВКА: скины Merchant = true (цена по редкости), остальное не трогаем.
+	local merchantPrice = { Common = 8000, Uncommon = 20000, Rare = 120000, Epic = 450000, Legendary = 1500000, Mythic = 5000000 }
+	local merchantChance = { Common = 0.7, Uncommon = 0.5, Rare = 0.28, Epic = 0.13, Legendary = 0.05, Mythic = 0.02 }
+	local items = {}
+	for _, item in Config.Merchant.Items or {} do
+		if item.Kind ~= "Skin" then table.insert(items, item) end
+	end
+	local mysterySkins = {}
+	for _, id in Config.Skins.Order do
+		local def = roster[id]
+		if def and def.Merchant then
+			table.insert(items, {
+				Id = "Skin_" .. id, Kind = "Skin", SkinId = id, DisplayName = def.DisplayName, Icon = "⛏",
+				Rarity = def.Rarity, Chance = merchantChance[def.Rarity] or 0.1, Stock = { 1, 1 },
+				Price = merchantPrice[def.Rarity] or 100000,
+			})
+			table.insert(mysterySkins, id)
+		end
+	end
+	Config.Merchant.Items = items
+	for _, row in (Config.Merchant.Mystery and Config.Merchant.Mystery.Pool) or {} do
+		if row.Kind == "Skin" then row.Skins = mysterySkins end
+	end
+	-- Лимитированная кирка цикла — скины Limited = true.
+	local limitedPool = {}
+	for _, id in Config.Skins.Order do
+		if roster[id] and roster[id].Limited then table.insert(limitedPool, id) end
+	end
+	Config.Merchant.Limited.Pool = limitedPool
+	Config.Merchant.Limited.FallbackPool = limitedPool
+
+	-- Награды, которые выдавали удалённые скины.
+	Config.LikeReward.SkinId = "IcePickaxe"
+	Config.GroupReward.SkinId = "ForestPickaxe"
+
+	-- ГОБЛИНЫ: шанс скина с каждого убитого гоблина (у боссов — BossChance).
+	-- Скин из пула Goblins = true, вес — Config.Chests.SkinRarityWeights,
+	-- сначала те, которых у игрока ещё нет. Все собраны — ничего не падает.
+	Config.GoblinRaid.SkinDrop = { Chance = 0.02, BossChance = 0.25 }
+end
 
 -- v20: цена престижа — в масштабе дохода пещеры, где его делают (Config.NumberGrowth).
 if Config.Prestige and Config.Prestige.CostBase then
