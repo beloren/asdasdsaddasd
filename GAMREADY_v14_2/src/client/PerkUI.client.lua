@@ -74,6 +74,26 @@ local upgradeText = upgradeButton:WaitForChild("Text")
 local tabs = panel:WaitForChild("Tabs")
 local perksTab = tabs:WaitForChild("PerksTab")
 local shrinesTab = tabs:WaitForChild("ShrinesTab")
+
+-- v20.67: подписи кнопок (PERKS / SHRINES / купить) всегда крупные и
+-- читаемые: растянуты на всю кнопку, TextScaled и минимум 18 px - даже
+-- если копия окна в месте старая или её подпись кто-то уменьшил.
+local function readableCaption(button, minSize)
+	local caption = button:FindFirstChild("Text") or button:FindFirstChild("Caption")
+	if not (caption and caption:IsA("TextLabel")) then return end
+	caption.AnchorPoint = Vector2.zero
+	caption.Position = UDim2.fromOffset(6, 3)
+	caption.Size = UDim2.new(1, -12, 1, -6)
+	caption.TextScaled = true
+	caption.TextWrapped = false
+	local limit = caption:FindFirstChildOfClass("UITextSizeConstraint") or Instance.new("UITextSizeConstraint")
+	limit.MinTextSize = minSize or 18
+	limit.MaxTextSize = 48
+	limit.Parent = caption
+end
+readableCaption(perksTab, 20)
+readableCaption(shrinesTab, 18)
+readableCaption(upgradeButton, 24)
 local shrinesList = panel:WaitForChild("Shrines")
 local shrineTemplate = shrinesList:WaitForChild("ShrineTemplate")
 local SHRINES = cfg.Shrines or { Order = {}, Types = {} }
