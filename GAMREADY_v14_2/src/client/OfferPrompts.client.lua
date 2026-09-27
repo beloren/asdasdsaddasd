@@ -232,7 +232,9 @@ rocketButton.Active = false
 
 local function renderRocket()
 	local on = player:GetAttribute("RocketMode") == true
-	rocketButton.Visible = on
+	-- v20.65: ракетная кирка без кнопки на экране - просто удар подкидывает.
+	rocketButton.Visible = false
+	local _ = on
 	rocketButton.BackgroundColor3 = Color3.fromRGB(230, 90, 40)
 	if rocketGlow then rocketGlow.Transparency = 0 end
 end

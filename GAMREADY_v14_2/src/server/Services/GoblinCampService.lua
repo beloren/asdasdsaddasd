@@ -41,10 +41,7 @@ local Services
 -- v20.64: бафы игрока действуют и на гоблинов - бонус скина + перк престижа.
 local function playerBonus(player, stat)
 	local total = 0
-	if Services.InventoryService and Services.InventoryService.GetSkinBuffs then
-		local ok, buffs = pcall(Services.InventoryService.GetSkinBuffs, Services.InventoryService, player)
-		if ok and buffs and tonumber(buffs[stat]) then total += buffs[stat] end
-	end
+	-- PrestigeService:Stat = перк + бонус надетого скина.
 	if Services.PrestigeService and Services.PrestigeService.Stat then
 		local ok, value = pcall(Services.PrestigeService.Stat, Services.PrestigeService, player, stat)
 		if ok and tonumber(value) then total += value end

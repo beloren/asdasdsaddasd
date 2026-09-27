@@ -2490,9 +2490,13 @@ Config.CashPassMode = "Highest"
 --------------------------------------------------------------------------------
 Config.RocketPickaxe = {
 	SkinId = "TurboPickaxe", -- v10: это СКИН кирки, а не отдельная кнопка
+	-- v20.65: без кнопки/иконки на экране. Надел скин - готовый удар по
+	-- игроку подкидывает его ВВЕРХ с кувырками и рагдоллом.
 	Cooldown = 18,              -- сек между «ракетными» ударами
-	KnockbackSpeed = 120,       -- обычный рагдолл: 42
-	KnockbackUp = 70,           -- обычный: 30
+	KnockbackSpeed = 25,        -- в сторону (было 120 - улетал вдаль)
+	KnockbackUp = 115,          -- вверх (обычный: 30)
+	Spin = 16,                  -- кувырки в полёте
+	HitStop = 0.08,             -- миг «замирания» перед взлётом
 	RagdollSeconds = 3.5,
 	DropCount = 1,
 	-- Дебаффы, пока режим включён:
@@ -7480,7 +7484,7 @@ do
 	add(skin("FishSkin", "Fish Sword", "Rare", "Skin_Pickaxe_Fish", 138909766473481, "Sword", { C(90, 170, 220), C(240, 200, 90) }, M.SmoothPlastic, { Chests = { Rare = true, Epic = true } }))
 	add(skin("IcePickaxe", "Ice Pickaxe", "Rare", "Skin_Pickaxe_Ice", 0, "Pickaxe", { C(170, 225, 255), C(70, 100, 140) }, M.Ice, { Chests = { Rare = true, Epic = true } }))
 	-- ЭПИЧЕСКИЕ
-	add(skin("BattleAxe", "Battle Axe", "Epic", "Skin_Pickaxe_BattleAxe", 0, "Axe", { C(150, 155, 165), C(80, 50, 30) }, M.Metal, { Chests = { Epic = true, Legendary = true }, Goblins = true }))
+	-- BattleAxe (Battle Axe) убран в v20.65 - модель ещё не готова.
 	add(skin("MagmaPickaxe", "Magma Pickaxe", "Epic", "Skin_Pickaxe_Magma", 0, "Pickaxe", { C(255, 110, 30), C(40, 30, 30) }, M.Neon, { Chests = { Epic = true, Legendary = true } }))
 	add(skin("ElectricPickaxe", "Electric Pickaxe", "Epic", "Skin_Pickaxe_Electric", 0, "Pickaxe", { C(90, 200, 255), C(255, 230, 60) }, M.Neon, { Chests = { Epic = true, Legendary = true } }))
 	add(skin("CrystalPickaxe", "Retro Crystal Pickaxe", "Epic", "Skin_Pickaxe_Crystal", 128296786196999, "Pickaxe", { C(120, 230, 255), C(90, 90, 110) }, M.Glass, { Merchant = true }))
@@ -7510,52 +7514,63 @@ do
 		"AncientStonePickaxe", "BonePick", "ForestPickaxe",
 		"JunglePickaxe", "RadioactivePickaxe", "AmethystPickaxe",
 		"AnchorPick", "PirateCutlass", "BigWoodenPickaxe", "LovePickaxe", "CactusSword", "FishSkin", "IcePickaxe",
-		"BattleAxe", "MagmaPickaxe", "ElectricPickaxe", "CrystalPickaxe", "BigMole", "TungTungStick",
+		"MagmaPickaxe", "ElectricPickaxe", "CrystalPickaxe", "BigMole", "TungTungStick",
 		"StarPickaxe", "SpectrumPickaxe", "GoldSword", "GoldKunai", "Gold",
 		"GalaxySword", "MilkyWayPickaxe", "DevSword", "Frostmorn",
 	}
 
-	-- Бонусы (бюджет по редкости, см. v20.28 выше) и роль одной строкой.
+	-- v20.65: БОНУСЫ ПО КАТЕГОРИЯМ. У каждого источника своя «профессия»,
+	-- и внутри неё чем реже/дороже скин, тем сильнее главный бонус. Минусов
+	-- нет - просто одна кирка лучше другой в СВОЕЙ категории:
+	--   ГОБЛИНЫ   - всё, что падает с гоблинов: Damage (урон по гоблинам);
+	--   СУНДУКИ   - удача, деньги, сундуки, мутации;
+	--   ТОРГОВЕЦ  - ретро-кирки: мутации, валуны, PERFECT;
+	--   НАГРАДЫ   - особые (Gold, Frostmourne, Ban Hammer).
+	-- Главный бонус по редкости: Common 8-10% · Uncommon 12% · Rare 14-20% ·
+	-- Epic 22-28% · Legendary 30-38% · Mythic 40-52%. Второй - вдвое-вчетверо слабее.
 	local buffs = {
-		AncientStonePickaxe = { Boulder = 0.07, Toughness = 0.03 },
-		BonePick            = { Damage = 0.06, Stagger = 0.04 },
-		ForestPickaxe       = { Luck = 0.05, Speed = 0.05 },
-		JunglePickaxe       = { Speed = 0.08, ChestLuck = 0.06 },
-		RadioactivePickaxe  = { Mutation = 0.10, Stagger = 0.04 },
-		AmethystPickaxe     = { Luck = 0.05, Mutation = 0.06, Money = 0.03 },
-		AnchorPick          = { Toughness = 0.14, Stagger = 0.08, Speed = -0.05 },
-		PirateCutlass       = { Damage = 0.12, ChestLuck = 0.10, Toughness = -0.05 },
-		BigWoodenPickaxe    = { Boulder = 0.15, Perfect = 0.07, Speed = -0.05 },
-		LovePickaxe         = { Mutation = 0.14, Luck = 0.08, Stagger = -0.05 },
-		CactusSword         = { Damage = 0.14, Stagger = 0.08, Luck = -0.03 },
-		FishSkin            = { Money = 0.08, Speed = 0.08, ChestLuck = 0.06, Damage = -0.06 },
-		IcePickaxe          = { Perfect = 0.14, Toughness = 0.08, Speed = -0.04 },
-		BattleAxe           = { Damage = 0.18, Stagger = 0.14, Speed = -0.06 },
-		MagmaPickaxe        = { Boulder = 0.18, Dynamite = 0.14, Toughness = -0.06 },
-		ElectricPickaxe     = { Speed = 0.16, Perfect = 0.12, Luck = 0.04, Toughness = -0.06 },
-		CrystalPickaxe      = { Perfect = 0.22, Luck = 0.10, Toughness = -0.06 },
-		BigMole             = { Boulder = 0.20, ChestLuck = 0.12, Speed = -0.06 },
-		TungTungStick       = { Stagger = 0.22, Boulder = 0.10, Perfect = -0.06 },
-		StarPickaxe         = { Luck = 0.20, Money = 0.14, ChestLuck = 0.12, Toughness = -0.06 },
-		SpectrumPickaxe     = { Mutation = 0.22, Luck = 0.14, Perfect = 0.10, Speed = -0.05 },
-		GoldSword           = { Damage = 0.26, Stagger = 0.14, ChestLuck = 0.06, Luck = -0.05 },
-		GoldKunai           = { Perfect = 0.20, Speed = 0.16, Dynamite = 0.10, Money = -0.04 },
-		Gold                = { Money = 0.18, ChestLuck = 0.14, Dynamite = 0.14, Stagger = -0.08 },
-		GalaxySword         = { Damage = 0.24, Luck = 0.18, Mutation = 0.14, Toughness = -0.08 },
-		MilkyWayPickaxe     = { Luck = 0.24, Mutation = 0.18, Money = 0.14, Speed = -0.06 },
-		DevSword            = { Luck = 0.20, Damage = 0.15, Speed = 0.15, Money = 0.12, Toughness = -0.08 },
-		Frostmorn           = { Perfect = 0.30, Toughness = 0.18, Boulder = 0.14, Money = -0.05 },
+		-- ГОБЛИНЫ: урон по гоблинам растёт строго по редкости.
+		AncientStonePickaxe = { Damage = 0.08, Toughness = 0.03 },
+		BonePick            = { Damage = 0.10, Stagger = 0.03 },
+		JunglePickaxe       = { Damage = 0.12, Speed = 0.04 },
+		AnchorPick          = { Damage = 0.16, Toughness = 0.08 },
+		PirateCutlass       = { Damage = 0.18, ChestLuck = 0.06 },
+		CactusSword         = { Damage = 0.20, Stagger = 0.06 },
+		BigMole             = { Damage = 0.26, Boulder = 0.08 },
+		TungTungStick       = { Damage = 0.28, Stagger = 0.10 },
+		GoldKunai           = { Damage = 0.38, Speed = 0.10 },
+		GalaxySword         = { Damage = 0.52, Luck = 0.12 },
+		-- СУНДУКИ: удача / деньги / мутации / скорость / валуны.
+		ForestPickaxe       = { Luck = 0.06, ChestLuck = 0.04 },
+		AmethystPickaxe     = { Luck = 0.10, Money = 0.04 },
+		FishSkin            = { Money = 0.14, ChestLuck = 0.06 },
+		IcePickaxe          = { Perfect = 0.14, Toughness = 0.06 },
+		MagmaPickaxe        = { Boulder = 0.22, Dynamite = 0.10 },
+		ElectricPickaxe     = { Speed = 0.18, Perfect = 0.08 },
+		StarPickaxe         = { Luck = 0.30, ChestLuck = 0.10 },
+		SpectrumPickaxe     = { Mutation = 0.30, Luck = 0.10 },
+		GoldSword           = { Money = 0.30, ChestLuck = 0.10 },
+		MilkyWayPickaxe     = { Luck = 0.40, Mutation = 0.15 },
+		-- ТОРГОВЕЦ (ретро): мутации, валуны, PERFECT.
+		RadioactivePickaxe  = { Mutation = 0.12, Luck = 0.03 },
+		BigWoodenPickaxe    = { Boulder = 0.18, Perfect = 0.04 },
+		LovePickaxe         = { Mutation = 0.18, Luck = 0.05 },
+		CrystalPickaxe      = { Perfect = 0.26, Luck = 0.06 },
+		-- НАГРАДЫ.
+		Gold                = { Money = 0.36, Dynamite = 0.08 },
+		DevSword            = { Damage = 0.30, Luck = 0.15, Money = 0.15, Speed = 0.10 },
+		Frostmorn           = { Perfect = 0.45, Toughness = 0.15, Boulder = 0.10 },
 	}
 	local roles = {
-		AncientStonePickaxe = "Boulder breaker", BonePick = "Goblin hunter", ForestPickaxe = "Explorer",
-		JunglePickaxe = "Treasure hunter", RadioactivePickaxe = "Mutation hunter", AmethystPickaxe = "Lucky finder",
-		AnchorPick = "PvP tank", PirateCutlass = "Treasure hunter", BigWoodenPickaxe = "Boulder breaker",
-		LovePickaxe = "Mutation hunter", CactusSword = "Goblin hunter", FishSkin = "Money maker", IcePickaxe = "Perfect striker",
-		BattleAxe = "Goblin hunter", MagmaPickaxe = "Boulder breaker", ElectricPickaxe = "Speed miner",
-		CrystalPickaxe = "Perfect striker", BigMole = "Boulder breaker", TungTungStick = "PvP brawler",
-		StarPickaxe = "Lucky finder", SpectrumPickaxe = "Mutation hunter", GoldSword = "Goblin hunter",
-		GoldKunai = "Perfect striker", Gold = "Money maker", GalaxySword = "All-rounder", MilkyWayPickaxe = "Lucky finder",
-		DevSword = "All-rounder", Frostmorn = "Perfect striker", TurboPickaxe = "Rocket launcher",
+		AncientStonePickaxe = "Goblin hunter", BonePick = "Goblin hunter", JunglePickaxe = "Goblin hunter",
+		AnchorPick = "Goblin hunter", PirateCutlass = "Goblin hunter", CactusSword = "Goblin hunter",
+		BigMole = "Goblin hunter", TungTungStick = "Goblin hunter", GoldKunai = "Goblin hunter", GalaxySword = "Goblin slayer",
+		ForestPickaxe = "Lucky finder", AmethystPickaxe = "Lucky finder", FishSkin = "Money maker", IcePickaxe = "Perfect striker",
+		MagmaPickaxe = "Boulder breaker", ElectricPickaxe = "Speedster", StarPickaxe = "Lucky finder",
+		SpectrumPickaxe = "Mutation hunter", GoldSword = "Money maker", MilkyWayPickaxe = "Lucky finder",
+		RadioactivePickaxe = "Mutation hunter", BigWoodenPickaxe = "Boulder breaker", LovePickaxe = "Mutation hunter",
+		CrystalPickaxe = "Perfect striker", Gold = "Money maker", DevSword = "All-rounder", Frostmorn = "Perfect striker",
+		TurboPickaxe = "Rocket launcher",
 	}
 	local keepTurboBuff = Config.SkinBuffs and Config.SkinBuffs.TurboPickaxe
 	Config.SkinBuffs = buffs

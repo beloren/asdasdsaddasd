@@ -1469,6 +1469,9 @@ function CombatService:_ragdoll(attacker, victimPlayer, victimHrp, attackerHrp, 
 		Kind = "Knocked",
 		Impulse = impulse,
 		Seconds = cfg.RagdollSeconds,
+		Blast = rawget(cfg, "Blast") or nil,
+		Spin = rawget(cfg, "Spin") or nil,
+		HitStop = rawget(cfg, "HitStop") or nil,
 		By = attacker.DisplayName,
 		Ore = dropped[1] and dropped[1].Name or nil,
 	})
@@ -1566,6 +1569,10 @@ function CombatService:_staggerHit(attacker, victim)
 				KnockbackUp = rocket.KnockbackUp,
 				RagdollSeconds = rocket.RagdollSeconds,
 				DropCount = rocket.DropCount,
+				-- v20.65: смешной полёт вверх - кувырки и миг «замирания».
+				Blast = true,
+				Spin = rocket.Spin,
+				HitStop = rocket.HitStop,
 			})
 			return
 		end
@@ -1681,6 +1688,11 @@ function CombatService:ApplyHit(attacker, victim, damage, knockoutPercent, knock
 		return
 	end
 	if victim.Goblin then
+		-- v20.65: скины-«охотники на гоблинов» (Config.SkinBuffs.<Id>.Damage).
+		if Services.PrestigeService then
+			local ok, bonus = pcall(Services.PrestigeService.Stat, Services.PrestigeService, attacker, "Damage")
+			if ok and tonumber(bonus) then damage *= math.max(0.1, 1 + bonus) end
+		end
 		local dealt = Services.GoblinService:Damage(victim.Goblin, damage, attacker)
 		if dealt and dealt > 0 then self._damageRemote:FireClient(attacker, victim.Hrp, dealt, victim.HitPosition) end
 		spawnHitVfx(victim.HitPosition or victim.Hrp.Position, vfxColor)
@@ -1856,12 +1868,8 @@ function CombatService:_swing(player)
 	-- Мелкий бафф от надетого СКИНА кирки (см. Config.PickaxeSkinBuffs) —
 	-- добавка в долях (0.05 = +5%), намеренно маленькая, чтобы скин не
 	-- обгонял реальный апгрейд тира.
-	if Services.InventoryService then
-		local ok, buffs = pcall(Services.InventoryService.GetSkinBuffs, Services.InventoryService, player)
-		if ok and buffs and buffs.Damage then
-			damage *= (1 + buffs.Damage)
-		end
-	end
+	-- v20.65: бонус Damage скина теперь ТОЛЬКО по гоблинам (см. ApplyHit),
+	-- как и написано в подсказке «Goblin damage».
 
 	-- Кулдаун — теперь СВОЙ у каждого тира (см. Config.PickaxeTiers): слабая
 	-- кирка бьёт редко, прокачанная — часто. Поэтому тир нужен уже здесь,
