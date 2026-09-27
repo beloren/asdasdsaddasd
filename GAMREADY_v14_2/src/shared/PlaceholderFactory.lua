@@ -1172,6 +1172,53 @@ local MUTATION_VFX_PRESETS = {
 		  Lifetime = NumberRange.new(1.1, 1.8), Size = NumberSequence.new(0.6, 1.4), Acceleration = Vector3.new(0, 1.5, 0),
 		  SpreadAngle = Vector2.new(180, 180), LightEmission = 0 },
 	},
+	-- v20.63: заготовки для остальных мутаций (Config.Mutations.<Id>.Particles).
+	-- Своя: ReplicatedStorage.Assets.MutationVFX_<Имя> (Attachment или Part с эмиттерами).
+	Frozen = { -- снежинки медленно падают
+		{ Texture = "rbxasset://textures/particles/sparkles_main.dds", Rate = 4, Speed = NumberRange.new(0.2, 0.6),
+		  Lifetime = NumberRange.new(1.2, 1.8), Size = NumberSequence.new(0.25, 0), Acceleration = Vector3.new(0, -2, 0),
+		  SpreadAngle = Vector2.new(180, 180), LightEmission = 0.6 },
+	},
+	Soaked = { -- капли стекают вниз
+		{ Texture = "rbxasset://textures/particles/sparkles_main.dds", Rate = 6, Speed = NumberRange.new(0.1, 0.4),
+		  Lifetime = NumberRange.new(0.5, 0.8), Size = NumberSequence.new(0.18, 0.1), Acceleration = Vector3.new(0, -18, 0),
+		  SpreadAngle = Vector2.new(40, 40), LightEmission = 0.2 },
+	},
+	Void = { -- тёмные клубы втягиваются
+		{ Texture = "rbxasset://textures/particles/smoke_main.dds", Rate = 5, Speed = NumberRange.new(0.3, 0.9),
+		  Lifetime = NumberRange.new(0.8, 1.3), Size = NumberSequence.new(0.9, 0.2), Acceleration = Vector3.new(0, 0.5, 0),
+		  SpreadAngle = Vector2.new(180, 180), LightEmission = 0 },
+	},
+	Molten = { -- искры-угольки вверх
+		{ Texture = "rbxasset://textures/particles/fire_main.dds", Rate = 7, Speed = NumberRange.new(1, 2.5),
+		  Lifetime = NumberRange.new(0.5, 0.9), Size = NumberSequence.new(0.35, 0), Acceleration = Vector3.new(0, 4, 0),
+		  SpreadAngle = Vector2.new(30, 30), LightEmission = 1 },
+	},
+	Sanguine = { -- тяжёлые капли
+		{ Texture = "rbxasset://textures/particles/sparkles_main.dds", Rate = 3, Speed = NumberRange.new(0.1, 0.3),
+		  Lifetime = NumberRange.new(0.8, 1.1), Size = NumberSequence.new(0.3, 0.15), Acceleration = Vector3.new(0, -10, 0),
+		  SpreadAngle = Vector2.new(30, 30), LightEmission = 0.1 },
+	},
+	Golden = { -- блёстки
+		{ Texture = "rbxasset://textures/particles/sparkles_main.dds", Rate = 6, Speed = NumberRange.new(0.5, 1.5),
+		  Lifetime = NumberRange.new(0.6, 1.0), Size = NumberSequence.new(0.3, 0), Acceleration = Vector3.new(0, 1, 0),
+		  SpreadAngle = Vector2.new(180, 180), LightEmission = 1 },
+	},
+	Radiant = { -- мягкое сияние вокруг
+		{ Texture = "rbxasset://textures/particles/sparkles_main.dds", Rate = 10, Speed = NumberRange.new(1.5, 3),
+		  Lifetime = NumberRange.new(0.4, 0.7), Size = NumberSequence.new(0.4, 0), Acceleration = Vector3.new(0, 0, 0),
+		  SpreadAngle = Vector2.new(180, 180), LightEmission = 1 },
+	},
+	Prismatic = { -- переливающиеся искры
+		{ Texture = "rbxasset://textures/particles/sparkles_main.dds", Rate = 8, Speed = NumberRange.new(1, 2),
+		  Lifetime = NumberRange.new(0.6, 1.0), Size = NumberSequence.new(0.35, 0), Acceleration = Vector3.new(0, 1.5, 0),
+		  SpreadAngle = Vector2.new(180, 180), LightEmission = 1 },
+	},
+	Celestial = { -- звёзды медленно кружат
+		{ Texture = "rbxasset://textures/particles/sparkles_main.dds", Rate = 5, Speed = NumberRange.new(0.3, 0.8),
+		  Lifetime = NumberRange.new(1.2, 2.0), Size = NumberSequence.new(0.45, 0), Acceleration = Vector3.new(0, 0.6, 0),
+		  SpreadAngle = Vector2.new(180, 180), LightEmission = 1 },
+	},
 }
 
 function PlaceholderFactory.MutationVfx(vfxName)

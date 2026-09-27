@@ -1295,8 +1295,19 @@ function InventoryService:Init(services)
 						and os.clock() >= (crystal:GetAttribute("PickupRetryAt") or 0)
 					if (mine or public) and not cooling and ready then
 						local ok, crystalRoot = pcall(CrystalUtil.GetRoot, crystal)
-						if ok and crystalRoot and crystalRoot.Parent
-							and (crystalRoot.Position - root.Position).Magnitude <= (mineDrop and dropRadius or fullRadius) then
+						-- v20.63: выброшенная руками (PublicDrop) - без магнита,
+						-- только если наступить на неё (StepRadius по горизонтали).
+						local inReach = false
+						if ok and crystalRoot and crystalRoot.Parent then
+							if public then
+								local offset = crystalRoot.Position - root.Position
+								inReach = Vector3.new(offset.X, 0, offset.Z).Magnitude <= (Config.MineExpedition.DropStepRadius or 2.5)
+									and math.abs(offset.Y) <= 5
+							else
+								inReach = (crystalRoot.Position - root.Position).Magnitude <= (mineDrop and dropRadius or fullRadius)
+							end
+						end
+						if inReach then
 							pcall(function()
 								if Services.CrystalService then
 									Services.CrystalService:PickupToInventory(player, crystal)

@@ -992,6 +992,9 @@ function CartService:Start()
 				for _, crystal in folder:GetChildren() do
 					if #data.Crystals >= data.Capacity then break end
 					if holderJustExited and crystal:GetAttribute("MineDrop") == true then continue end
+					-- v20.63: выброшенную руками руду тележка не собирает -
+					-- только наступив на неё (InventoryService).
+					if crystal:GetAttribute("PublicDrop") == true then continue end
 					-- Те же условия готовности, что у подбора ногами (см.
 					-- InventoryService): не во время катсцены (руда ещё
 					-- увеличена), не пока садится к обычному размеру, не пока

@@ -314,6 +314,11 @@ function MutationVisuals.Apply(crystal, mutationId, root, targetParts)
 		applyMaterialSwap(crystal, info.Material, Color3.new(1, 1, 1), info.Reflectance, targetParts)
 		animateRainbowSwap(crystal, targetParts)
 	end
+	-- v20.63: частицы поверх основного вида (Config.Mutations.<Id>.Particles).
+	-- Prismatic - без покраски эмиттера (свои цвета заготовки/ассета).
+	if info.Particles and info.Visual ~= "Particles" then
+		applyParticles(crystal, root, info.Particles, info.ParticleColor or (info.Visual ~= "RainbowSwap" and info.Color or nil))
+	end
 end
 
 -- ЧЕРЕДОВАНИЕ МЕЖДУ ЧАСТЯМИ ПРИ НЕСКОЛЬКИХ МУТАЦИЯХ СРАЗУ — по прямому

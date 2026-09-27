@@ -863,7 +863,7 @@ Config.MineExpedition = {
 	-- (Common, Uncommon, Rare, Epic, Legendary, Mythic) — см. CHANGELOG.
 	RarityCard = {
 		Distance = 10,       -- стадов перед камерой (карточка — 3D-объект в мире)
-		ScreenWidth = 0.09,  -- ширина карточки, доля экрана (v20.62: 0.36 → 0.18 → 0.09)
+		ScreenWidth = 0.18,  -- ширина карточки, доля экрана (v20.63: 0.09 → 0.18, вдвое больше)
 		-- v20.62: лицом к камере всегда САМАЯ ШИРОКАЯ грань главной детали
 		-- (если на ней Decal/SurfaceGui - берётся именно та сторона).
 		-- CardRotation - доп. поворот в градусах (X, Y, Z); Z - в плоскости экрана.
@@ -904,14 +904,18 @@ Config.MineExpedition = {
 	},
 
 	-- Выброс руды игроком на Backspace (см. MineService:ThrowOreToGround).
-	DropSelfPickupDelay = 4, -- секунд, столько бросивший не может поднять свой кусок
+	-- v20.63: выброшенная руда не притягивается магнитом и тележкой -
+	-- подбирается только наступив (DropStepRadius стадов по горизонтали).
+	-- Бросивший не может поднять свой кусок DropSelfPickupDelay секунд.
+	DropSelfPickupDelay = 10,
+	DropStepRadius = 2.5,
 	DropThrowDistance = 7,
 	DropThrowSeconds = 0.6,
 	DropThrowArcHeight = 6,
 
 	-- v20.60: руда из шахты раздувается на 50% меньше (было 2.6) и
 	-- садится к обычному размеру плавно, с лёгкой пружинкой.
-	CutsceneOreScale = 1.8,
+	CutsceneOreScale = 1.0, -- v20.63: руда при выпадении больше не увеличивается
 	CutsceneOreShrinkSeconds = 0.75,
 
 	-- Руда слегка ЛЕВИТИРУЕТ над землёй и покачивается — так она читается
@@ -4272,6 +4276,13 @@ Config.Geodes = {
 --     подарить (см. GiftHoldSeconds).
 --------------------------------------------------------------------------------
 Config.Inventory = {
+	-- v20.63: руда в инвентаре/хотбаре - 3D-модель (вариация + мутации),
+	-- а не нарисованная иконка. PreviewOutline - обводка силуэта:
+	-- цвет (чёрный читается на любом фоне), толщина - доля размера ячейки.
+	ModelPreviews = true,
+	PreviewOutline = true,
+	PreviewOutlineColor = Color3.fromRGB(0, 0, 0),
+	PreviewOutlineScale = 0.12,
 	BaseSlots = 24,        -- базовая вместимость рюкзака (стопки, см. StackSize)
 	-- СТАРТОВЫЙ РЮКЗАК — пока не куплена первая тележка (Data.CartUnlocked).
 	-- Держит в честных рамках продажу руды из рюкзака (см.
@@ -7581,6 +7592,17 @@ do
 	-- Скин из пула Goblins = true, вес — Config.Chests.SkinRarityWeights,
 	-- сначала те, которых у игрока ещё нет. Все собраны — ничего не падает.
 	Config.GoblinRaid.SkinDrop = { Chance = 0.02, BossChance = 0.25 }
+end
+
+-- v20.63: ЧАСТИЦЫ МУТАЦИЙ (как у Toxic) - поверх основного вида. Своя:
+-- ReplicatedStorage.Assets.MutationVFX_<Имя> (Attachment, или Part/Model с
+-- ParticleEmitter). Нет своей - встроенная заготовка. Цвет частиц = цвет
+-- мутации (ParticleColor - свой цвет). Убрать - удали строку.
+for mutationId, vfxName in {
+	Frozen = "Frozen", Soaked = "Soaked", Void = "Void", Molten = "Molten", Sanguine = "Sanguine",
+	Golden = "Golden", Radiant = "Radiant", Prismatic = "Prismatic", Celestial = "Celestial",
+} do
+	if Config.Mutations[mutationId] then Config.Mutations[mutationId].Particles = vfxName end
 end
 
 -- v20: цена престижа — в масштабе дохода пещеры, где его делают (Config.NumberGrowth).

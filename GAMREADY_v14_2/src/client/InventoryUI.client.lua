@@ -336,6 +336,122 @@ local function buildOrePreview(stack)
 	return model
 end
 
+-- v20.63: 3D-ПРЕВЬЮ РУДЫ В ЯЧЕЙКЕ вместо нарисованной иконки: настоящая
+-- модель (вариация + все мутации, как в мире) во ViewportFrame и под ней
+-- силуэт-обводка (Config.Inventory.PreviewOutline*). Готовые модели
+-- кэшируются по ключу (руда|вариация|мутации|слиток) и только клонируются.
+local MutationVisuals = require(ReplicatedStorage.Shared.MutationVisuals)
+local MutationRoll = require(ReplicatedStorage.Shared.MutationRoll)
+local previewCache = {}
+
+local function previewKey(stack)
+	return table.concat({ tostring(stack.Ore), tostring(stack.Variant or 1), tostring(stack.Mutations or ""), stack.Smelted and "S" or "" }, "|")
+end
+
+local function mutatedOreTemplate(stack)
+	local key = previewKey(stack)
+	local cached = previewCache[key]
+	if cached then return cached end
+	local model = buildOrePreview(stack)
+	if not model then return nil end
+	local list = MutationRoll.Parse(type(stack.Mutations) == "string" and stack.Mutations:gsub("%s", "") or "")
+	if #list > 0 then
+		local okSplit, groups = pcall(MutationVisuals.SplitPartsForMutations, model, #list)
+		local root = model:IsA("Model") and (model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)) or model
+		for index, mutationId in list do
+			pcall(MutationVisuals.Apply, model, mutationId, root, okSplit and groups and groups[index] or nil)
+		end
+	end
+	for _, d in (model:IsA("Model") and model:GetDescendants() or {}) do
+		if d:IsA("ParticleEmitter") or d:IsA("Light") or d:IsA("BillboardGui") then d:Destroy() end
+	end
+	previewCache[key] = model
+	return model
+end
+
+local function clearModelPreview(preview)
+	for _, name in { "ModelView", "ModelOutline" } do
+		local old = preview:FindFirstChild(name)
+		if old then old:Destroy() end
+	end
+end
+
+local function setModelPreview(preview, stack)
+	local key = previewKey(stack)
+	local existing = preview:FindFirstChild("ModelView")
+	if existing and existing:GetAttribute("Key") == key then return true end
+	clearModelPreview(preview)
+	local template = mutatedOreTemplate(stack)
+	if not template then return false end
+
+	local model = template:Clone()
+	local size
+	if model:IsA("Model") then
+		model:PivotTo(CFrame.new())
+		local boxCF, boundsSize = model:GetBoundingBox()
+		model:PivotTo(CFrame.new(-boxCF.Position))
+		size = boundsSize
+	else
+		model.CFrame = CFrame.new()
+		size = model.Size
+	end
+	local distance = math.max(size.X, size.Y, size.Z) * 1.9 + 0.6
+	local cameraCF = CFrame.lookAt(Vector3.new(distance * 0.45, distance * 0.35, distance), Vector3.new())
+
+	local function viewport(name, zIndex, scale)
+		local frame = Instance.new("ViewportFrame")
+		frame.Name = name
+		frame.BackgroundTransparency = 1
+		frame.AnchorPoint = Vector2.new(0.5, 0.5)
+		frame.Position = UDim2.fromScale(0.5, 0.5)
+		frame.Size = UDim2.fromScale(scale, scale)
+		frame.ZIndex = zIndex
+		local camera = Instance.new("Camera")
+		camera.FieldOfView = 40
+		camera.CFrame = cameraCF
+		camera.Parent = frame
+		frame.CurrentCamera = camera
+		return frame
+	end
+
+	local invCfg = Config.Inventory or {}
+	local outlineOn = invCfg.PreviewOutline ~= false
+	if outlineOn then
+		-- Силуэт: копия модели одним цветом, ровный свет без теней, рамка
+		-- чуть больше основной - по краю модели выступает обводка.
+		local outlineColor = invCfg.PreviewOutlineColor or Color3.new(0, 0, 0)
+		local outline = viewport("ModelOutline", preview.ZIndex, 1 + (invCfg.PreviewOutlineScale or 0.12))
+		outline.Ambient = Color3.new(1, 1, 1)
+		outline.LightColor = Color3.new(0, 0, 0)
+		local silhouette = model:Clone()
+		for _, d in (silhouette:IsA("Model") and silhouette:GetDescendants() or { silhouette }) do
+			if d:IsA("BasePart") then
+				d.Color = outlineColor
+				d.Material = Enum.Material.SmoothPlastic
+				d.Reflectance = 0
+				if d:IsA("MeshPart") then pcall(function() d.TextureID = "" end) end
+			elseif d:IsA("Decal") or d:IsA("Texture") or d:IsA("SurfaceAppearance") then
+				d:Destroy()
+			end
+		end
+		if silhouette:IsA("BasePart") then
+			silhouette.Color = outlineColor
+			silhouette.Material = Enum.Material.SmoothPlastic
+		end
+		silhouette.Parent = outline
+		outline.Parent = preview
+	end
+
+	local main = viewport("ModelView", preview.ZIndex + 1, 1)
+	main.Ambient = Color3.fromRGB(170, 170, 175)
+	main.LightColor = Color3.new(1, 1, 1)
+	main.LightDirection = Vector3.new(-0.6, -1, -0.5)
+	main:SetAttribute("Key", key)
+	model.Parent = main
+	main.Parent = preview
+	return true
+end
+
 -- ЗАПАСНАЯ ЗАЛИВКА: если у руды нет ImageId (или картинка не загрузилась),
 -- ImageLabel остаётся ПУСТЫМ — визуально предмет просто исчезает, хотя он
 -- на месте. Поэтому под картинку всегда кладём кружок цвета руды: даже без
@@ -363,6 +479,7 @@ local function applyPreview(preview, stack)
 			fallbackGear.BackgroundColor3 = gearColor(stack.Gear):Lerp(Color3.new(0, 0, 0), 0.35)
 		end
 		setImagePreview(preview, nil)
+		clearModelPreview(preview)
 		return
 	elseif gearIcon then
 		gearIcon.Visible = false
@@ -386,6 +503,15 @@ local function applyPreview(preview, stack)
 	fallback.Visible = stack ~= nil
 	fallback.BackgroundColor3 = (info and info.Color) or Color3.fromRGB(150, 150, 160)
 
+	-- v20.63: руда - 3D-модель с мутациями вместо картинки.
+	if stack and info and (Config.Inventory or {}).ModelPreviews ~= false then
+		if setModelPreview(preview, stack) then
+			setImagePreview(preview, nil)
+			fallback.Visible = false
+			return
+		end
+	end
+	clearModelPreview(preview)
 	if not setImagePreview(preview, info and info.ImageId or nil) then
 		fillViewport(preview, stack and buildOrePreview(stack) or nil)
 	end
