@@ -26,8 +26,8 @@ local Theme = UiKit.Theme
 
 local Builder = {}
 Builder.Width = 800
-Builder.Height = 520
-Builder.VERSION = 22
+Builder.Height = 570
+Builder.VERSION = 23
 
 local GOLD = Theme.Accents.Gold
 local STAR = Color3.fromRGB(80, 70, 150)
@@ -92,14 +92,14 @@ function Builder.Build()
 	-- Вкладки PERKS / SHRINES.
 	local tabs = UiKit.Group(panel, "Tabs", {
 		Position = UDim2.fromOffset(pad, top),
-		Size = UDim2.fromOffset(290, 36),
+		Size = UDim2.fromOffset(330, 44),
 		ZIndex = 3,
 	})
 	UiKit.List(tabs, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8) })
-	button(tabs, "PerksTab", "PERKS", "Yellow", { LayoutOrder = 1, Size = UDim2.fromOffset(120, 36), ZIndex = 3 })
-	button(tabs, "ShrinesTab", "🗿 SHRINES", "Dark", { LayoutOrder = 2, Size = UDim2.fromOffset(150, 36), ZIndex = 3 })
+	button(tabs, "PerksTab", "PERKS", "Yellow", { LayoutOrder = 1, Size = UDim2.fromOffset(140, 44), ZIndex = 3 })
+	button(tabs, "ShrinesTab", "🗿 SHRINES", "Dark", { LayoutOrder = 2, Size = UDim2.fromOffset(180, 44), ZIndex = 3 })
 
-	local contentTop = top + 46
+	local contentTop = top + 54
 	local contentSize = UDim2.new(1, -(pad * 2 + 300), 1, -(contentTop + pad))
 
 	-- СВЯТИЛИЩА.
@@ -145,18 +145,18 @@ function Builder.Build()
 	local branch = UiKit.Group(tree, "BranchTemplate", { Visible = false, Size = UDim2.new(0.31, 0, 1, 0) })
 	local header = UiKit.Plate(branch, "Header", "Pill", {
 		_Accent = GOLD,
-		Size = UDim2.new(1, 0, 0, 30),
+		Size = UDim2.new(1, 0, 0, 40),
 		BackgroundColor3 = GOLD.Main,
 		BackgroundTransparency = 0,
 		ZIndex = 4,
 	})
 	UiKit.Text(header, "Text", "BRANCH", {
 		_Style = "Heading",
-		Position = UDim2.fromOffset(7, 4),
-		Size = UDim2.new(1, -14, 1, -8),
+		Position = UDim2.fromOffset(10, 4),
+		Size = UDim2.new(1, -20, 1, -8),
 		ZIndex = 5,
 	})
-	UiKit.Group(branch, "Nodes", { Position = UDim2.fromOffset(0, 40), Size = UDim2.new(1, 0, 1, -40) })
+	UiKit.Group(branch, "Nodes", { Position = UDim2.fromOffset(0, 50), Size = UDim2.new(1, 0, 1, -50) })
 
 	-- Узел-«звезда»: круглая кнопка, заливку красит клиент по ветке.
 	local node = Instance.new("ImageButton")
@@ -180,14 +180,14 @@ function Builder.Build()
 		_Accent = GOLD,
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 1, -2),
-		Size = UDim2.fromOffset(58, 22),
+		Size = UDim2.fromOffset(72, 28),
 		BackgroundTransparency = 0.1,
 		ZIndex = 7,
 	})
 	UiKit.Text(chip, "Level", "0/25", {
 		_Style = "Number",
-		Position = UDim2.fromOffset(4, 2),
-		Size = UDim2.new(1, -8, 1, -4),
+		Position = UDim2.fromOffset(3, 1),
+		Size = UDim2.new(1, -6, 1, -2),
 		TextColor3 = GOLD.Light,
 		ZIndex = 8,
 	})
@@ -219,10 +219,10 @@ function Builder.Build()
 	})
 	iconSlot(detail, "Icon", "💰", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 14), Size = UDim2.fromOffset(90, 90), ZIndex = 4 })
 	UiKit.Text(detail, "Title", "Money", { _Style = "Title", Position = UDim2.fromOffset(10, 110), Size = UDim2.new(1, -20, 0, 36), ZIndex = 4 })
-	UiKit.Text(detail, "Level", "LV 0/25", { _Style = "Number", Position = UDim2.fromOffset(10, 148), Size = UDim2.new(1, -20, 0, 24), TextColor3 = GOLD.Light, ZIndex = 4 })
-	UiKit.Text(detail, "Now", "+0%", { _Style = "Body", Position = UDim2.fromOffset(10, 186), Size = UDim2.new(1, -20, 0, 24), TextColor3 = Theme.Colors.SubText, ZIndex = 4 })
-	UiKit.Text(detail, "Next", "> +4%", { _Style = "Heading", Position = UDim2.fromOffset(10, 214), Size = UDim2.new(1, -20, 0, 28), TextColor3 = Theme.Colors.Positive, ZIndex = 4 })
-	UiKit.Text(detail, "Hint", "", { _Style = "Small", Position = UDim2.new(0, 10, 1, -108), Size = UDim2.new(1, -20, 0, 22), TextColor3 = Color3.fromRGB(255, 160, 110), Visible = false, ZIndex = 4 })
+	UiKit.Text(detail, "Level", "LV 0/25", { _Style = "Number", Position = UDim2.fromOffset(10, 148), Size = UDim2.new(1, -20, 0, 32), TextColor3 = GOLD.Light, ZIndex = 4 })
+	UiKit.Text(detail, "Now", "+0%", { _Style = "Heading", Position = UDim2.fromOffset(10, 186), Size = UDim2.new(1, -20, 0, 30), TextColor3 = Theme.Colors.SubText, ZIndex = 4 })
+	UiKit.Text(detail, "Next", "> +4%", { _Style = "Heading", Position = UDim2.fromOffset(10, 220), Size = UDim2.new(1, -20, 0, 36), TextColor3 = Theme.Colors.Positive, ZIndex = 4 })
+	UiKit.Text(detail, "Hint", "", { _Style = "Body", Position = UDim2.new(0, 10, 1, -112), Size = UDim2.new(1, -20, 0, 28), TextColor3 = Color3.fromRGB(255, 160, 110), Visible = false, ZIndex = 4 })
 	button(detail, "UpgradeButton", "⭐ 1", "Green", {
 		Position = UDim2.new(0, 14, 1, -74),
 		Size = UDim2.new(1, -28, 0, 60),

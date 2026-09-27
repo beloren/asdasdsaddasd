@@ -202,6 +202,7 @@ local function rollOffers(rng)
 				Tab = "Shop", Featured = true, Rarity = rarity,
 				DisplayName = info.DisplayName or (rarity .. " Chest"), Icon = "🎁",
 				PriceMinutes = (featured.PriceMinutes or {})[rarity] or 10,
+				MinPrice = (featured.MinPrice or {})[rarity],
 				Stock = featured.Stock or { 1, 1 },
 				AlwaysInStock = featured.AlwaysInStock == true or nil,
 			})
@@ -314,7 +315,7 @@ end
 
 local function basePrice(player, item)
 	if item.PriceMinutes then
-		return niceRound(incomePerMinute(player) * item.PriceMinutes)
+		return math.max(niceRound(incomePerMinute(player) * item.PriceMinutes), tonumber(item.MinPrice) or 0)
 	end
 	return math.max(0, math.floor(tonumber(item.Price) or 0))
 end

@@ -115,9 +115,9 @@ local function setIcon(holder, emoji, imageId, transparency)
 	end
 end
 
-local NODE_SIZE = 58
-local NODE_GAP = 30
-local CHIP_OVERHANG = 10 -- плашка уровня «3/10» свисает ниже узла
+local NODE_SIZE = 60
+local NODE_GAP = 34
+local CHIP_OVERHANG = 13 -- плашка уровня «3/10» свисает ниже узла
 
 local state = { Points = 0 }
 local levels = {}
@@ -168,6 +168,7 @@ local function renderTree()
 					line.Position = UDim2.new(0.5, 0, 0, y - NODE_GAP + CHIP_OVERHANG)
 					line.Size = UDim2.fromOffset(line.Size.X.Offset, NODE_GAP - CHIP_OVERHANG)
 					line.BackgroundColor3 = locked and COLOR_LOCKED or branch.Color
+					line.ZIndex = 1 -- v20.64: линия ПОД узлом и плашкой уровня «0/10»
 					line.Parent = nodes
 				end
 				local node = nodeTemplate:Clone()
@@ -175,7 +176,7 @@ local function renderTree()
 				node.Visible = true
 				node.Position = UDim2.new(0.5, 0, 0, y)
 				node.Size = UDim2.fromOffset(NODE_SIZE, NODE_SIZE)
-				node.ZIndex = 2
+				node.ZIndex = 3 -- выше линии-связки (у неё 1)
 				node.BackgroundColor3 = locked and COLOR_LOCKED or (maxed and branch.Color:Lerp(COLOR_INK, 0.15) or branch.Color:Lerp(COLOR_STAR, 0.55))
 				setIcon(node.Icon, perk.Icon, perk.ImageId, locked and 0.55 or 0)
 				node.LevelChip.Level.Text = maxed and "MAX" or ("%d/%d"):format(info.Level, perk.MaxLevel)

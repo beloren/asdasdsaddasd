@@ -38,6 +38,21 @@ local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- шрифт миро
 local GoblinCampService = {}
 local Services
 
+-- v20.64: бафы игрока действуют и на гоблинов - бонус скина + перк престижа.
+local function playerBonus(player, stat)
+	local total = 0
+	if Services.InventoryService and Services.InventoryService.GetSkinBuffs then
+		local ok, buffs = pcall(Services.InventoryService.GetSkinBuffs, Services.InventoryService, player)
+		if ok and buffs and tonumber(buffs[stat]) then total += buffs[stat] end
+	end
+	if Services.PrestigeService and Services.PrestigeService.Stat then
+		local ok, value = pcall(Services.PrestigeService.Stat, Services.PrestigeService, player, stat)
+		if ok and tonumber(value) then total += value end
+	end
+	return total
+end
+
+
 local CFG = Config.GoblinRaid
 local AI = CFG.Ai or {}
 local FLOW = CFG.Flow or {}
@@ -423,6 +438,8 @@ local function startAttack(goblin, player, hrp, now)
 			and player:GetAttribute("Protected") ~= true and player:GetAttribute("GoblinKicked") ~= true
 			and flat(targetRoot.Position - goblin.Root.Position).Magnitude <= (AI.HitRange or 7) then
 			local damage = GoblinStats.Damage(goblin.Type, goblin.MineTier) * (goblin.DamageMultiplier or 1)
+			-- v20.64: Toughness игрока (скин/перк) режет урон гоблина.
+			damage *= math.max(0.3, 1 - playerBonus(player, "Toughness"))
 			Sfx.play("GoblinAttackHit", targetRoot)
 			if humanoid.Health - damage <= 1 then
 				-- ДОБИЛИ — пинок домой вместо смерти.
@@ -562,7 +579,15 @@ local function rewardKill(goblin)
 	local fraction = carts[1] + math.random() * (carts[2] - carts[1])
 	local isBoss = goblin.Type == "King" or goblin.Type == "Golden"
 	local mult = isBoss and (drops.BossMoneyMult or 5) or 1
-	local amount = math.max(1, math.floor(Config.CartValue(tiers.Mine, tiers.Cart) * fraction * mult))
+	-- v20.64: денежные бафы (пассы x2/x3, зелье денег, тотемы, группа,
+	-- ивент) и бонус Money скина/перка - как при продаже руды.
+	local cashMult = 1
+	if Services.MonetizationService and Services.MonetizationService.GetCashMultiplier then
+		local ok, value = pcall(Services.MonetizationService.GetCashMultiplier, Services.MonetizationService, player)
+		if ok and tonumber(value) then cashMult = value end
+	end
+	cashMult *= math.max(0.1, 1 + playerBonus(player, "Money"))
+	local amount = math.max(1, math.floor(Config.CartValue(tiers.Mine, tiers.Cart) * fraction * mult * cashMult))
 	Services.DataService:AddMoney(player, amount, position, true)
 	if Services.BankService and Services.BankService.SpawnCoinBurst then
 		pcall(Services.BankService.SpawnCoinBurst, Services.BankService, player, position, isBoss and 6 or 2)
@@ -577,7 +602,9 @@ local function rewardKill(goblin)
 	end
 	-- v20.60: скин с гоблина (Config.GoblinRaid.SkinDrop, пул Goblins = true).
 	local skinDrop = CFG.SkinDrop
-	if skinDrop and Services.SkinService and math.random() < (isBoss and (skinDrop.BossChance or 0) or (skinDrop.Chance or 0)) then
+	-- v20.64: шанс скина растёт от ChestLuck (скин/перк Treasure Nose).
+	local skinLuck = math.max(0, 1 + playerBonus(player, "ChestLuck"))
+	if skinDrop and Services.SkinService and math.random() < (isBoss and (skinDrop.BossChance or 0) or (skinDrop.Chance or 0)) * skinLuck then
 		local data = Services.DataService.GetGeodeData and Services.DataService:GetGeodeData(player)
 		local owned = data and data.OwnedSkins or {}
 		local pool, total = {}, 0

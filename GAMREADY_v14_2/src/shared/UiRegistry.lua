@@ -50,7 +50,7 @@ UiRegistry.Entries = {
 	{ Name = "StarterPackOffer", Module = "UiBuilders.StarterPackUi", MinVersion = 21, What = "стартовый набор" },
 	{ Name = "CollectionMenu", Module = "UiBuilders.CollectionMenuUi", MinVersion = 21, What = "книга-меню" },
 	{ Name = "SkinUi", Module = "SkinUiBuilder", MinVersion = 21, What = "скины" },
-	{ Name = "PerkUi", Module = "PerkUiBuilder", MinVersion = 22, What = "перки престижа" },
+	{ Name = "PerkUi", Module = "PerkUiBuilder", MinVersion = 23, What = "перки престижа" },
 	{ Name = "RebirthDialogButtons", Module = "PrestigeUiBuilder", MinVersion = 22, What = "окно престижа у NPC" },
 	{ Name = "MerchantUi", Module = "MerchantUiBuilder", MinVersion = 20, What = "торговец" },
 	{ Name = "MarketTicker", Module = "MerchantUiBuilder", Fn = "BuildMarketTicker", MinVersion = 21, What = "табло курса руды" },

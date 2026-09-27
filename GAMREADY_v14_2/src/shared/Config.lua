@@ -2183,15 +2183,22 @@ Config.LateGameStretch = { [9] = 1.35, [10] = 1.5, [11] = 1.65, [12] = 1.75, [13
 local function stretchFor(cave)
 	return Config.LateGameStretch[cave] or 1
 end
+-- v20.64: ЭКОНОМИКА ДЛИННЕЕ. Мутации раньше почти утраивали доход
+-- (средний множитель цены руды ×2.98), с ChanceScale 0.5 - ×1.74, то есть
+-- реальный доход упал на ~42%. Сверху - цены: пещеры +30%, тележка и кирка
+-- +15%. Итог: путь до пещеры 15 примерно в 2 раза дольше, чем было
+-- (≈70 → ≈140 мин активной игры без пассов), а каждая мутация снова
+-- заметная находка.
+Config.ProgressionCostMult = { Mine = 1.3, Cart = 1.15, Pickaxe = 1.15 }
 for _, entry in Config.MineChain do
 	entry.BaseCost = entry.Cost
-	entry.Cost = niceNumber(entry.Cost * Config.CaveNumberScale(entry.Tier - 1) * stretchFor(entry.Tier))
+	entry.Cost = niceNumber(entry.Cost * Config.CaveNumberScale(entry.Tier - 1) * stretchFor(entry.Tier) * Config.ProgressionCostMult.Mine)
 end
-for _, chain in { Config.CartChain, Config.PickaxeChain } do
+for kind, chain in { Cart = Config.CartChain, Pickaxe = Config.PickaxeChain } do
 	for _, entry in chain do
 		entry.BaseCost = entry.Cost
 		local cave = caveForNineTierLocal(entry.Tier)
-		entry.Cost = niceNumber(entry.Cost * Config.CaveNumberScale(cave) * stretchFor(cave))
+		entry.Cost = niceNumber(entry.Cost * Config.CaveNumberScale(cave) * stretchFor(cave) * (Config.ProgressionCostMult[kind] or 1))
 	end
 end
 
@@ -3735,7 +3742,10 @@ Config.Merchant = {
 	FeaturedChest = {
 		Enabled = true,
 		Weights = { Common = 45, Rare = 32, Epic = 17, Legendary = 6 },
-		PriceMinutes = { Common = 4, Rare = 10, Epic = 25, Legendary = 60 },
+		-- v20.64: сундуки дороже. Цена = минуты дохода игрока, но не
+		-- меньше MinPrice (на ранних пещерах легендарный стоил ~30K).
+		PriceMinutes = { Common = 6, Rare = 18, Epic = 50, Legendary = 150 },
+		MinPrice = { Common = 800, Rare = 8000, Epic = 60000, Legendary = 400000 },
 		Stock = { 1, 2 },
 		AlwaysInStock = false, -- v20.37: после покупки уходит из стока (бесконечны только Storage Chest и Ore Jar)
 	},
@@ -7603,6 +7613,23 @@ for mutationId, vfxName in {
 	Golden = "Golden", Radiant = "Radiant", Prismatic = "Prismatic", Celestial = "Celestial",
 } do
 	if Config.Mutations[mutationId] then Config.Mutations[mutationId].Particles = vfxName end
+end
+
+-- v20.64: МУТАЦИИ РЕЖЕ (вариант C). Все базовые шансы × ChanceScale.
+-- При 0.5 мутирует ~26% руды (было ~46%), 2+ мутации ~3.5%, 3+ ~0.3%.
+-- Числа в Config.Mutations.<Id>.Chance выше - «до уменьшения».
+Config.Mutations.ChanceScale = 0.5
+for _, mutationId in Config.Mutations.Order do
+	local info = Config.Mutations[mutationId]
+	if info and tonumber(info.Chance) then info.Chance = info.Chance * Config.Mutations.ChanceScale end
+end
+
+-- v20.64: ДИНАМИТ ПО ГОБЛИНАМ - доля макс. здоровья гоблина от взрыва
+-- (в центре; у края радиуса вдвое меньше). Боссы - × BossGoblinDamageMult.
+Config.Dynamite.GoblinDamage = 0.35
+Config.Dynamite.BossGoblinDamageMult = 0.25
+for key, share in { Dynamite = 0.35, Dynamite_Medium = 0.6, Dynamite_Mega = 1.0 } do
+	if Config.Dynamite.Types[key] then Config.Dynamite.Types[key].GoblinDamage = share end
 end
 
 -- v20: цена престижа — в масштабе дохода пещеры, где его делают (Config.NumberGrowth).

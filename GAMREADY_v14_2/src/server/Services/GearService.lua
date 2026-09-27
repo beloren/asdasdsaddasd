@@ -465,6 +465,27 @@ function GearService:_explode(player, position, boulderState, boulderPower, stat
 	if boulderState then
 		Services.RockService:ApplyDynamite(boulderState, player, (boulderPower or 1) * power)
 	end
+	-- v20.64: взрыв бьёт и гоблинов (лагерь). Урон - доля их макс. здоровья
+	-- (Config.Dynamite.Types.<вид>.GoblinDamage), у края радиуса вдвое
+	-- меньше; боссы (King/Golden) получают BossGoblinDamageMult от этого.
+	local campService = Services.GoblinCampService
+	if campService and campService.AllGoblins and Services.GoblinService then
+		local share = (cfg.GoblinDamage or Config.Dynamite.GoblinDamage or 0.35) * power
+		local bossMult = Config.Dynamite.BossGoblinDamageMult or 0.25
+		for goblin in campService:AllGoblins() do
+			local root = goblin.Model and goblin.Model.PrimaryPart
+			local humanoid = goblin.Humanoid
+			if not goblin.Dead and root and humanoid and humanoid.Health > 0 then
+				local distance = (root.Position - position).Magnitude
+				if distance <= radius then
+					local falloff = 1 - 0.5 * (distance / math.max(radius, 0.1))
+					local isBoss = goblin.Type == "King" or goblin.Type == "Golden"
+					local damage = humanoid.MaxHealth * share * falloff * (isBoss and bossMult or 1)
+					pcall(Services.GoblinService.Damage, Services.GoblinService, goblin, damage, player)
+				end
+			end
+		end
+	end
 	-- v9: свой динамит бьёт и по хозяину — рагдолл без потери руды,
 	-- щит и безопасная зона от СВОЕГО взрыва не спасают.
 	for _, other in Players:GetPlayers() do
