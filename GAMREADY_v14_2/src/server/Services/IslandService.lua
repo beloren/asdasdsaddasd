@@ -1337,26 +1337,36 @@ function IslandService:_spawnKeeper()
 		cframe = CFrame.lookAt(position, position + away.Unit)
 	end
 
-	local npc, isCustom = PlaceholderFactory.IslandKeeperNPC()
-	local primary = npc.PrimaryPart
-	local facing = npc:FindFirstChild("FacingPoint", true)
-	local correction = 0
-	if facing and facing:IsA("BasePart") then
-		local offset = primary.CFrame:PointToObjectSpace(facing.Position)
-		correction = -math.atan2(offset.X, offset.Z)
-	end
-	npc:PivotTo(cframe * CFrame.Angles(0, correction, 0))
-	npc.Parent = folder
-	if not isCustom then
-		for _, part in npc:GetDescendants() do
-			if part:IsA("BasePart") then part.Anchored = true; part.CanCollide = false end
+	-- v20.77: НПС уже стоит на карте (tools/BuildIslandMap строит модель
+	-- IslandKeeperNPC у хижины ISLANDS) - берём его как есть, только вешаем
+	-- промпт. Удалишь с карты - встанет Assets/IslandKeeperNPC или плейсхолдер.
+	local mapNpc = workspace:FindFirstChild("IslandKeeperNPC", true)
+	local npc, primary
+	if mapNpc and mapNpc:IsA("Model") and mapNpc.PrimaryPart and not mapNpc:IsDescendantOf(folder) then
+		npc, primary = mapNpc, mapNpc.PrimaryPart
+	else
+		local isCustom
+		npc, isCustom = PlaceholderFactory.IslandKeeperNPC()
+		primary = npc.PrimaryPart
+		local facing = npc:FindFirstChild("FacingPoint", true)
+		local correction = 0
+		if facing and facing:IsA("BasePart") then
+			local offset = primary.CFrame:PointToObjectSpace(facing.Position)
+			correction = -math.atan2(offset.X, offset.Z)
 		end
-		pcall(PlaceholderFactory.ShiftNpcHats, npc, -2.2)
-	end
-	local groundY = groundYAt(cframe.Position, { npc, marker })
-	if groundY then
-		local boxCFrame, size = npc:GetBoundingBox()
-		npc:PivotTo(npc:GetPivot() + Vector3.new(0, groundY - (boxCFrame.Position.Y - size.Y / 2), 0))
+		npc:PivotTo(cframe * CFrame.Angles(0, correction, 0))
+		npc.Parent = folder
+		if not isCustom then
+			for _, part in npc:GetDescendants() do
+				if part:IsA("BasePart") then part.Anchored = true; part.CanCollide = false end
+			end
+			pcall(PlaceholderFactory.ShiftNpcHats, npc, -2.2)
+		end
+		local groundY = groundYAt(cframe.Position, { npc, marker })
+		if groundY then
+			local boxCFrame, size = npc:GetBoundingBox()
+			npc:PivotTo(npc:GetPivot() + Vector3.new(0, groundY - (boxCFrame.Position.Y - size.Y / 2), 0))
+		end
 	end
 
 	local prompt = Instance.new("ProximityPrompt")

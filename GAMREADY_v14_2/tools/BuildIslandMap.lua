@@ -13,11 +13,12 @@
 --     (SellZone SELL_ZONE x SELL_ZONE), отдельная ЛАВКА ТОРГОВЦА с маркерами
 --     MerchantSpot / MerchantSpotLook (обе части - одна модель IsBank),
 --     вход в шахту в скале с рельсами к рынку, копёр шахты с колесом, пара
---     домиков, вышка, хижина смотрителя островов (IslandKeeperMarker), табло
---     лайков (LikeGoalBoard), фонари.
---   • 8 коротких тропинок одинаковой длины - каждая упирается в берег с
---     причалом. Дальше ВОДА: базы игроков (Workspace.PlotOrigins) стоят уже
---     в море. Невидимые BridgeSpans/BridgeSpan<N> показывают, где ставить мост.
+--     домиков, вышка, хижина смотрителя островов с НПС-капитаном
+--     (IslandKeeperNPC + IslandKeeperMarker), табло лайков, фонари.
+--   • 8 коротких тропинок одинаковой длины - каждая упирается прямо в базу
+--     игрока (Workspace.PlotOrigins): базы стоят у берега, лицом к острову.
+--     PLOT_PULL = 0 - базы уйдут в море (тогда будут причалы и места под мост).
+--   • Никаких SurfaceGui/BillboardGui, Neon и PointLight - только кубы.
 --   • «Испорченная земля» гоблинов (Workspace.GoblinCamp: Zone + Spawns +
 --     Marker): тёмная земля с фиолетовыми трещинами, большие камни (у них
 --     точки появления), мёртвые деревья, обелиск.
@@ -35,6 +36,7 @@ local BASE_SIZE = 240        -- сторона базы игрока (под т�
 local ROAD_LENGTH = 135      -- длина тропинки от города до берега
 local WATER_GAP = 36         -- минимальный пролив между концом тропинки и краем базы (там твой мост)
 local MIN_BASE_GAP = 8       -- минимум воды между соседними базами (углы не слипаются)
+local PLOT_PULL = 0.6         -- насколько придвинуть базы к острову (0 - в море, 0.6 - на 60% ближе)
 local PLOT_Y = 0.5           -- высота точки PlotOrigins (центр PlotPad толщиной 1)
 local TOWN_RADIUS = 110      -- радиус городка
 local GOBLIN_ANGLE = 22.5    -- направление лагеря гоблинов (между базами 1 и 2)
@@ -57,8 +59,13 @@ local ROAD_END = ROAD_START + ROAD_LENGTH
 local COAST = ROAD_END + 10 -- радиус берега (с лёгким «шумом»)
 -- Круг баз: не ближе WATER_GAP к берегу и так, чтобы 8 квадратов BASE_SIZE
 -- не задевали друг друга углами (внутренние углы соседей расходятся).
-local BASE_RING = math.max(COAST + WATER_GAP + BASE_SIZE / 2,
+local FAR_RING = math.max(COAST + WATER_GAP + BASE_SIZE / 2,
 	BASE_SIZE / 2 + (BASE_SIZE / 2 + MIN_BASE_GAP / 2) / math.tan(math.rad(22.5)))
+-- v20.77: базы придвинуты к острову - расстояние от берега до центра базы
+-- меньше на PLOT_PULL (0.6 = на 60%). Базы заходят краем на пляж, тропинка
+-- упирается прямо в базу (причал и место под мост тогда не нужны).
+local BASE_RING = FAR_RING - PLOT_PULL * (FAR_RING - COAST)
+local BASES_ON_SHORE = BASE_RING - BASE_SIZE / 2 <= COAST
 
 --------------------------------------------------------------------------------
 -- ПАЛИТРА (мягкие сочные цвета симуляторов)
@@ -175,9 +182,10 @@ local function box(parent, name, size, cf, color, props)
 	return p
 end
 
--- Светящаяся деталь - только материал Neon, без PointLight (v20.74).
+-- «Светящаяся» деталь: без Neon и без PointLight - обычный гладкий
+-- пластик яркого цвета (v20.77). Имя оставлено, чтобы было видно, где
+-- задуманы огоньки (легко найти и заменить своим материалом).
 local function glow(p)
-	p.Material = Enum.Material.Neon
 	return p
 end
 
@@ -190,33 +198,16 @@ local function model(parent, name)
 	return m
 end
 
--- МАРКЕР: в Studio виден (полупрозрачный неон + подпись с именем над ним),
--- в игре его прячет сервер (WorldService: всё с атрибутом MapMarker ->
--- Transparency 1, подпись удаляется). Двигай/крути маркеры мышкой как
+-- МАРКЕР: в Studio виден (полупрозрачный цветной кубик, без подписей), в
+-- игре его прячет сервер (WorldService: всё с атрибутом MapMarker ->
+-- Transparency 1). Имя маркера видно в Explorer. Двигай/крути маркеры мышкой как
 -- обычные детали; перёд детали (синяя стрелка Move) - «куда смотрит».
 local function marker(parent, name, size, cf, color, studioTransparency)
 	local p = box(parent, name, size, cf, color or C.Yellow, {
 		Transparency = studioTransparency or 0.35, CanCollide = false, CanQuery = false, CanTouch = false,
-		Material = Enum.Material.Neon, CastShadow = false,
+		CastShadow = false,
 	})
 	p:SetAttribute("MapMarker", true)
-	local gui = Instance.new("BillboardGui")
-	gui.Name = "MarkerLabel"
-	gui.Size = UDim2.fromOffset(170, 26)
-	gui.StudsOffset = Vector3.new(0, size.Y / 2 + 2, 0)
-	gui.AlwaysOnTop = true
-	gui.MaxDistance = 5000 -- видно издалека (базы стоят далеко в море)
-	gui.LightInfluence = 0
-	gui.Parent = p
-	local label = Instance.new("TextLabel")
-	label.BackgroundTransparency = 0.3
-	label.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
-	label.Size = UDim2.fromScale(1, 1)
-	label.FontFace = Font.fromEnum(Enum.Font.GothamBold)
-	label.TextScaled = true
-	label.TextColor3 = color or C.Yellow
-	label.Text = name
-	label.Parent = gui
 	return p
 end
 
@@ -230,28 +221,11 @@ local function stack(parent, name, baseCF, width, depth, height, colors, steps, 
 	end
 end
 
+-- Табличка: просто доска (без SurfaceGui и текста) - надпись/картинку
+-- поставишь свою. text - что задумано на ней (сохраняется атрибутом SignText).
 local function sign(parent, name, text, size, cf, bg, fg)
 	local board = box(parent, name, size, cf, bg or C.Wood)
-	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = face
-		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-		gui.PixelsPerStud = 40
-		gui.LightInfluence = 0
-		gui.Parent = board
-		local label = Instance.new("TextLabel")
-		label.BackgroundTransparency = 1
-		label.Size = UDim2.fromScale(1, 1)
-		label.FontFace = Font.fromEnum(Enum.Font.FredokaOne)
-		label.TextScaled = true
-		label.TextColor3 = fg or C.White
-		label.Text = text
-		label.Parent = gui
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = 3
-		stroke.Color = Color3.fromRGB(40, 30, 20)
-		stroke.Parent = label
-	end
+	board:SetAttribute("SignText", text)
 	return board
 end
 
@@ -278,7 +252,7 @@ for i = 1, 8 do
 	basePositions[i] = polar(baseAngles[i], BASE_RING)
 end
 -- Лагерь гоблинов - ВПЛОТНУЮ к городу: сразу за забором, вход смотрит на площадь.
-local GOBLIN_RADIUS = TOWN_RADIUS + GOBLIN_SIZE / 2 + 8
+local GOBLIN_RADIUS = TOWN_RADIUS + GOBLIN_SIZE / 2 + 4
 local goblinCenter = polar(GOBLIN_ANGLE, GOBLIN_RADIUS)
 
 -- Одна форма тропинки на все 8 (повёрнутая копия) - длина одинаковая.
@@ -300,17 +274,22 @@ end
 
 -- Валуны: в секторах между дорогами - ближние (у города) и дальние (у берега).
 local boulderSpots = {}
+-- Не дальше внутреннего края ближайшей базы (базы заходят на берег).
+local function spotRadius(angle, r)
+	local off = math.abs(((angle + 22.5) % 45) - 22.5) -- угол до ближайшей оси базы
+	return math.min(r, (BASE_RING - BASE_SIZE / 2 - 16) / math.cos(rad(off)))
+end
 for k = 0, 7 do
 	local angle = 22.5 + k * 45
 	local isGoblinSector = math.abs(((angle - GOBLIN_ANGLE + 180) % 360) - 180) < 10
 	if not isGoblinSector then
 		table.insert(boulderSpots, { Pos = polar(angle + (k % 2 == 0 and -5 or 5), TOWN_RADIUS + 38) })
-		table.insert(boulderSpots, { Pos = polar(angle, coastAt(angle) - 38) })
+		table.insert(boulderSpots, { Pos = polar(angle, spotRadius(angle, coastAt(angle) - 38)) })
 	end
 end
 -- Сектор гоблинов занят лагерем - его 2 точки уходят в противоположные сектора.
 for _, k in { 4, 6 } do
-	table.insert(boulderSpots, { Pos = polar(22.5 + k * 45 + 12, (TOWN_RADIUS + coastAt(22.5 + k * 45)) / 2 + 4) })
+	table.insert(boulderSpots, { Pos = polar(22.5 + k * 45 + 12, spotRadius(22.5 + k * 45 + 12, (TOWN_RADIUS + coastAt(22.5 + k * 45)) / 2 + 4)) })
 end
 table.sort(boulderSpots, function(a, b) return a.Pos.Magnitude < b.Pos.Magnitude end)
 for index, spot in boulderSpots do
@@ -331,6 +310,15 @@ end
 
 local function flatAngle(pos)
 	return math.deg(math.atan2(pos.X, -pos.Z)) % 360
+end
+
+local function inBase(pos, margin)
+	local flat = Vector3.new(pos.X, 0, pos.Z)
+	for i = 1, 8 do
+		local rel = CFrame.lookAt(basePositions[i], Vector3.zero):PointToObjectSpace(flat)
+		if math.abs(rel.X) < BASE_SIZE / 2 + margin and math.abs(rel.Z) < BASE_SIZE / 2 + margin then return true end
+	end
+	return false
 end
 
 local function blocked(pos, margin)
@@ -497,21 +485,21 @@ for i = 1, 8 do
 	-- PlotN - центр базы (сюда встанет PlotPad), лицом к городу; PlotNLook -
 	-- точка, на которую база смотрит. Квадрат BaseArea показывает, сколько
 	-- места займёт база размера BASE_SIZE (удобно двигать в Studio).
-	local origin = marker(origins, "Plot" .. i, Vector3.new(6, 1, 6), CFrame.lookAt(pos + Vector3.new(0, PLOT_Y, 0), Vector3.new(0, PLOT_Y, 0)), C.Red)
-	marker(origins, "Plot" .. i .. "Look", Vector3.new(3, 3, 3), CFrame.new(Vector3.new(0, PLOT_Y, 0):Lerp(pos + Vector3.new(0, PLOT_Y, 0), 0.9)), C.Yellow)
-	-- Площадка базы: цветной квадрат + яркая рамка + крупная подпись BASE N.
-	local area = marker(origin, "BaseArea", Vector3.new(BASE_SIZE, 0.2, BASE_SIZE), origin.CFrame, C.Teal, 0.6)
-	local label = area:FindFirstChild("MarkerLabel")
-	label.Size = UDim2.fromOffset(260, 60)
-	label.StudsOffset = Vector3.new(0, 14, 0)
-	label.TextLabel.Text = "BASE " .. i
-	label.TextLabel.TextColor3 = C.White
+	-- v20.77: развёрнуто на 180° - PlotNLook стоит СНАРУЖИ базы (со стороны
+	-- моря), так PlotTemplate встаёт лицом к острову.
+	local out = Vector3.new(pos.X, 0, pos.Z).Unit
+	local center = pos + Vector3.new(0, PLOT_Y, 0)
+	local origin = marker(origins, "Plot" .. i, Vector3.new(6, 1, 6), CFrame.lookAt(center, center + out), C.Red)
+	marker(origins, "Plot" .. i .. "Look", Vector3.new(3, 3, 3), CFrame.new(center + out * 40), C.Yellow)
+	-- Площадка базы: цветной квадрат + рамка (в игре прячутся).
+	marker(origin, "BaseArea", Vector3.new(BASE_SIZE, 0.2, BASE_SIZE), origin.CFrame, C.Teal, 0.6)
 	for side = 0, 3 do
-		local edge = marker(origin, "BaseEdge", Vector3.new(BASE_SIZE, 1, 2), origin.CFrame * CFrame.Angles(0, rad(90 * side), 0) * CFrame.new(0, 0.4, BASE_SIZE / 2 - 1), C.Teal, 0.1)
-		edge:FindFirstChild("MarkerLabel"):Destroy()
+		marker(origin, "BaseEdge", Vector3.new(BASE_SIZE, 1, 2), origin.CFrame * CFrame.Angles(0, rad(90 * side), 0) * CFrame.new(0, 0.4, BASE_SIZE / 2 - 1), C.Teal, 0.1)
 	end
-	-- Причал: деревянный настил на краю берега, где кончается тропинка.
+	-- Причал: деревянный настил на краю берега, где кончается тропинка
+	-- (только если база стоит в воде; на берегу тропинка идёт прямо в базу).
 	local forward = polar(baseAngles[i], 1)
+	if BASES_ON_SHORE then continue end
 	local landing = CFrame.lookAt(forward * (COAST - 2), forward * (COAST + 10))
 	local landingM = model(basesF, "Landing" .. i)
 	box(landingM, "Landing", Vector3.new(18, 0.8, 10), landing * CFrame.new(0, 0.4, 0), C.WoodLight)
@@ -707,7 +695,7 @@ section("Market + merchant", function()
 	local center = CFrame.new(0, 0.5, 0)
 	local half = SELL_ZONE / 2
 	box(pavilion, "SellFloor", Vector3.new(SELL_ZONE + 8, 0.4, SELL_ZONE + 8), center * CFrame.new(0, 0.2, 0), C.WoodLight)
-	box(market, "SellZone", Vector3.new(SELL_ZONE, 0.6, SELL_ZONE), center * CFrame.new(0, 0.5, 0), C.Yellow, { Transparency = 0.45, CanCollide = false, Material = Enum.Material.Neon })
+	box(market, "SellZone", Vector3.new(SELL_ZONE, 0.6, SELL_ZONE), center * CFrame.new(0, 0.5, 0), C.Yellow, { Transparency = 0.45, CanCollide = false })
 	for _, spec in { { Vector3.new(SELL_ZONE + 2, 1, 1), Vector3.new(0, 0.6, half) }, { Vector3.new(SELL_ZONE + 2, 1, 1), Vector3.new(0, 0.6, -half) },
 		{ Vector3.new(1, 1, SELL_ZONE + 2), Vector3.new(half, 0.6, 0) }, { Vector3.new(1, 1, SELL_ZONE + 2), Vector3.new(-half, 0.6, 0) } } do
 		glow(box(pavilion, "SellZoneEdge", spec[1], center * CFrame.new(spec[2]), C.Orange))
@@ -801,6 +789,42 @@ section("Island keeper hut", function()
 	local spot = cf * CFrame.new(0, 0.5, -10)
 	marker(workspace, "IslandKeeperMarker", Vector3.new(2, 1, 2), spot)
 	marker(workspace, "IslandKeeperMarkerLook", Vector3.new(1, 1, 1), CFrame.new(Vector3.new(0, spot.Position.Y, 0)))
+	-- НПС СМОТРИТЕЛЬ ОСТРОВОВ: кубический старый капитан (фуражка, борода,
+	-- подзорная труба) у двери хижины, лицом к площади. IslandService берёт
+	-- ЭТУ модель (вешает на неё промпт TRAVEL); удалишь - поставит свою/
+	-- плейсхолдер на IslandKeeperMarker.
+	local feet = CFrame.lookAt(Vector3.new(spot.Position.X, 0.5, spot.Position.Z), Vector3.new(0, 0.5, 0))
+	local npc = model(townF, "IslandKeeperNPC")
+	npc:SetAttribute("MapNpc", true)
+	local Skin, Coat, Pants, Navy, Gold = Color3.fromRGB(255, 206, 164), C.Teal, Color3.fromRGB(52, 64, 110), Color3.fromRGB(34, 40, 70), Color3.fromRGB(240, 196, 70)
+	local function npcPart(name, size, offset, color)
+		return box(npc, name, size, feet * CFrame.new(offset), color, { CanCollide = false })
+	end
+	local root = npcPart("HumanoidRootPart", Vector3.new(2, 2, 1), Vector3.new(0, 3, 0), Coat)
+	root.Transparency = 1
+	npc.PrimaryPart = root
+	npcPart("LeftLeg", Vector3.new(1, 2, 1), Vector3.new(-0.5, 1, 0), Pants)
+	npcPart("RightLeg", Vector3.new(1, 2, 1), Vector3.new(0.5, 1, 0), Pants)
+	npcPart("LeftBoot", Vector3.new(1.05, 0.5, 1.2), Vector3.new(-0.5, 0.25, -0.1), C.WoodDark)
+	npcPart("RightBoot", Vector3.new(1.05, 0.5, 1.2), Vector3.new(0.5, 0.25, -0.1), C.WoodDark)
+	npcPart("Torso", Vector3.new(2, 2, 1), Vector3.new(0, 3, 0), Coat)
+	npcPart("Belt", Vector3.new(2.05, 0.3, 1.05), Vector3.new(0, 2.25, 0), C.WoodDark)
+	npcPart("Buckle", Vector3.new(0.4, 0.3, 0.1), Vector3.new(0, 2.25, -0.55), Gold)
+	for _, y in { 3.6, 3.0 } do npcPart("CoatButton", Vector3.new(0.2, 0.2, 0.1), Vector3.new(0, y, -0.52), Gold) end
+	npcPart("LeftArm", Vector3.new(1, 2, 1), Vector3.new(-1.5, 3, 0), Coat)
+	npcPart("RightArm", Vector3.new(1, 2, 1), Vector3.new(1.5, 3, 0), Coat)
+	npcPart("LeftHand", Vector3.new(0.9, 0.5, 0.9), Vector3.new(-1.5, 1.75, 0), Skin)
+	npcPart("RightHand", Vector3.new(0.9, 0.5, 0.9), Vector3.new(1.5, 1.75, 0), Skin)
+	npcPart("Spyglass", Vector3.new(0.4, 0.4, 1.6), Vector3.new(1.5, 1.8, -0.7), Gold)
+	npcPart("SpyglassEnd", Vector3.new(0.5, 0.5, 0.3), Vector3.new(1.5, 1.8, -1.55), C.WoodDark)
+	npcPart("Head", Vector3.new(1.2, 1.2, 1.2), Vector3.new(0, 4.6, 0), Skin)
+	npcPart("Beard", Vector3.new(1.25, 0.6, 0.35), Vector3.new(0, 4.2, -0.5), C.White)
+	npcPart("LeftEye", Vector3.new(0.2, 0.2, 0.05), Vector3.new(-0.25, 4.8, -0.62), Navy)
+	npcPart("RightEye", Vector3.new(0.2, 0.2, 0.05), Vector3.new(0.25, 4.8, -0.62), Navy)
+	npcPart("HatBrim", Vector3.new(1.7, 0.2, 1.9), Vector3.new(0, 5.3, -0.1), Navy)
+	npcPart("Hat", Vector3.new(1.35, 0.55, 1.35), Vector3.new(0, 5.65, 0), C.White)
+	npcPart("HatBand", Vector3.new(1.4, 0.2, 1.4), Vector3.new(0, 5.45, 0), Navy)
+	npcPart("HatBadge", Vector3.new(0.45, 0.3, 0.1), Vector3.new(0, 5.65, -0.7), Gold)
 	sign(hut, "IslandSign", "ISLANDS", Vector3.new(8, 2.4, 0.6), cf * CFrame.new(0, 12, -6.6), C.Teal, C.White)
 end)
 
@@ -1009,7 +1033,7 @@ section("Beach", function()
 for i = 0, 55 do
 	local angle = i / 56 * 360 + rng:NextNumber() * 4
 	local p = polar(angle, coastAt(angle) - 20 - rng:NextNumber() * 10, -0.8)
-	do
+	if not inBase(p, 8) then
 		if i % 3 == 0 then
 			palm(p, 0.9 + rng:NextNumber() * 0.4)
 		elseif i % 3 == 1 then
