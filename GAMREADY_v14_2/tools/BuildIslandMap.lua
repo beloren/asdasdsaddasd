@@ -173,16 +173,19 @@ local function box(parent, name, size, cf, color, props)
 	return p
 end
 
-local function glow(p, range)
+-- Светящаяся деталь - только материал Neon, без PointLight (v20.74).
+local function glow(p)
 	p.Material = Enum.Material.Neon
-	if range then
-		local l = Instance.new("PointLight")
-		l.Color = p.Color
-		l.Range = range
-		l.Brightness = 1.3
-		l.Parent = p
-	end
 	return p
+end
+
+-- МОДЕЛЬ: каждый отдельный объект (дерево, фонарь, камень, табличка...) -
+-- своя Model: в Studio его можно целиком удалить или заменить своим.
+local function model(parent, name)
+	local m = Instance.new("Model")
+	m.Name = name
+	m.Parent = parent
+	return m
 end
 
 -- МАРКЕР: в Studio виден (полупрозрачный неон + подпись с именем над ним),
@@ -350,6 +353,7 @@ do
 	-- Трава внутри: крупные кубы с лёгкой «шахматкой» и градиентом к краю.
 	local tile = 64
 	local n = math.ceil(COAST / tile) + 1
+	local grassM = model(groundF, "Grass")
 	for x = -n, n do
 		for z = -n, n do
 			local c = Vector3.new(x * tile, 0, z * tile)
@@ -357,10 +361,11 @@ do
 			if farthest < coastAt(flatAngle(c)) - 34 then
 				local color = lerpColors({ C.Grass3, C.Grass1, C.Grass2 }, c.Magnitude / COAST)
 				if (x + z) % 2 == 0 then color = color:Lerp(C.Leaf1, 0.06) end
-				box(groundF, "Grass", Vector3.new(tile, 6, tile), CFrame.new(c + Vector3.new(0, -3, 0)), color)
+				box(grassM, "Grass", Vector3.new(tile, 6, tile), CFrame.new(c + Vector3.new(0, -3, 0)), color)
 			end
 		end
 	end
+	local coastM = model(shoreF, "Coast")
 	-- Кольцо у берега: сетка кубов 16 стад, тип - по расстоянию до берега.
 	local cell = 16
 	local m = math.ceil((COAST + 140) / cell)
@@ -389,28 +394,30 @@ do
 				end
 				local props = nil
 				if d >= 6 then props = { Transparency = 0.15, Material = Enum.Material.Glass } end
-				box(shoreF, d >= 6 and "Water" or "Shore", Vector3.new(cell, 6, cell), CFrame.new(c + Vector3.new(0, top - 3, 0)), color, props)
+				box(coastM, d >= 6 and "Water" or "Shore", Vector3.new(cell, 6, cell), CFrame.new(c + Vector3.new(0, top - 3, 0)), color, props)
 			end
 		end
 	end
 	-- Открытое море (большие кубы за кольцом) + песчаное дно под водой.
+	local seaM = model(shoreF, "Sea")
 	local seaTile = 512
 	local seaN = math.ceil((COAST + 900) / seaTile)
 	for x = -seaN, seaN do
 		for z = -seaN, seaN do
 			local c = Vector3.new(x * seaTile, 0, z * seaTile)
 			if c.Magnitude > COAST - seaTile * 0.2 then
-				box(shoreF, "Sea", Vector3.new(seaTile, 4, seaTile), CFrame.new(c + Vector3.new(0, -5.6, 0)), C.Deep, { Transparency = 0.1, Material = Enum.Material.Glass })
+				box(seaM, "Sea", Vector3.new(seaTile, 4, seaTile), CFrame.new(c + Vector3.new(0, -5.6, 0)), C.Deep, { Transparency = 0.1, Material = Enum.Material.Glass })
 			end
 		end
 	end
 	-- Невидимая стена в море, чтобы не уплыть за край.
+	local wallM = model(shoreF, "BoundaryWalls")
 	local walls = 48
 	local wallR = COAST + 150
 	for i = 0, walls - 1 do
 		local angle = (i + 0.5) / walls * 360
 		local length = 2 * math.pi * wallR / walls + 6
-		box(shoreF, "BoundaryWall", Vector3.new(length, 200, 4), CFrame.lookAt(polar(angle, wallR, 96), Vector3.new(0, 96, 0)), C.White, {
+		box(wallM, "BoundaryWall", Vector3.new(length, 200, 4), CFrame.lookAt(polar(angle, wallR, 96), Vector3.new(0, 96, 0)), C.White, {
 			Transparency = 1, CanQuery = false, CanTouch = false,
 		})
 	end
@@ -424,25 +431,28 @@ for i = 1, 8 do
 	local road = folder("Road" .. i, roadsF)
 	local forward = polar(angle, 1)
 	local right = Vector3.new(-forward.Z, 0, forward.X)
+	local pathM = model(road, "Path")
 	for s = 1, #roadShape - 1 do
 		local a = roadPoint(angle, roadShape[s])
 		local b = roadPoint(angle, roadShape[s + 1])
 		local length = (b - a).Magnitude + 2
 		local cf = CFrame.lookAt((a + b) / 2, b)
-		box(road, "PathEdge", Vector3.new(20, 0.4, length), cf * CFrame.new(0, 0.2, 0), C.PathEdge)
-		box(road, "Path", Vector3.new(14, 0.4, length), cf * CFrame.new(0, 0.4, 0), (s % 2 == 0) and C.Path or C.Path:Lerp(C.PathDark, 0.25))
+		box(pathM, "PathEdge", Vector3.new(20, 0.4, length), cf * CFrame.new(0, 0.2, 0), C.PathEdge)
+		box(pathM, "Path", Vector3.new(14, 0.4, length), cf * CFrame.new(0, 0.4, 0), (s % 2 == 0) and C.Path or C.Path:Lerp(C.PathDark, 0.25))
 	end
 	local entry = roadPoint(angle, roadShape[2])
 	local post = entry + right * 14
-	box(road, "SignPost", Vector3.new(1.2, 8, 1.2), CFrame.new(post + Vector3.new(0, 4, 0)), C.WoodDark)
-	sign(road, "BaseSign", "BASE " .. i, Vector3.new(8, 3, 0.8), CFrame.lookAt(post + Vector3.new(0, 7.5, 0), post + Vector3.new(0, 7.5, 0) + right), C.Wood, C.Yellow)
+	local signM = model(road, "BaseSign")
+	box(signM, "SignPost", Vector3.new(1.2, 8, 1.2), CFrame.new(post + Vector3.new(0, 4, 0)), C.WoodDark)
+	sign(signM, "Board", "BASE " .. i, Vector3.new(8, 3, 0.8), CFrame.lookAt(post + Vector3.new(0, 7.5, 0), post + Vector3.new(0, 7.5, 0) + right), C.Wood, C.Yellow)
 	for s = 5, #roadShape - 2, 6 do
 		local p = roadPoint(angle, roadShape[s])
 		local side = (s // 6) % 2 == 0 and 13 or -13
 		local at = p + right * side
-		box(road, "LampPost", Vector3.new(1, 9, 1), CFrame.new(at + Vector3.new(0, 4.5, 0)), C.WoodDark)
-		box(road, "LampTop", Vector3.new(2.6, 0.6, 2.6), CFrame.new(at + Vector3.new(0, 10.8, 0)), C.WoodDark)
-		glow(box(road, "Lamp", Vector3.new(1.8, 1.8, 1.8), CFrame.new(at + Vector3.new(0, 9.8, 0)), C.Yellow), 18)
+		local lampM = model(road, "Lamp")
+		box(lampM, "LampPost", Vector3.new(1, 9, 1), CFrame.new(at + Vector3.new(0, 4.5, 0)), C.WoodDark)
+		box(lampM, "LampTop", Vector3.new(2.6, 0.6, 2.6), CFrame.new(at + Vector3.new(0, 10.8, 0)), C.WoodDark)
+		glow(box(lampM, "Light", Vector3.new(1.8, 1.8, 1.8), CFrame.new(at + Vector3.new(0, 9.8, 0)), C.Yellow))
 	end
 end
 
@@ -465,10 +475,11 @@ for i = 1, 8 do
 	-- Причал: деревянный настил на краю берега, где кончается тропинка.
 	local forward = polar(baseAngles[i], 1)
 	local landing = CFrame.lookAt(forward * (COAST - 2), forward * (COAST + 10))
-	box(basesF, "Landing", Vector3.new(18, 0.8, 10), landing * CFrame.new(0, 0.4, 0), C.WoodLight)
+	local landingM = model(basesF, "Landing" .. i)
+	box(landingM, "Landing", Vector3.new(18, 0.8, 10), landing * CFrame.new(0, 0.4, 0), C.WoodLight)
 	for _, x in { -8, 8 } do
-		box(basesF, "LandingPost", Vector3.new(1.4, 7, 1.4), landing * CFrame.new(x, 0.5, -4.4), C.WoodDark)
-		glow(box(basesF, "LandingLamp", Vector3.new(1.4, 1.4, 1.4), landing * CFrame.new(x, 4.4, -4.4), C.Yellow), 14)
+		box(landingM, "LandingPost", Vector3.new(1.4, 7, 1.4), landing * CFrame.new(x, 0.5, -4.4), C.WoodDark)
+		glow(box(landingM, "LandingLamp", Vector3.new(1.4, 1.4, 1.4), landing * CFrame.new(x, 4.4, -4.4), C.Yellow))
 	end
 	-- МЕСТО ПОД МОСТ (невидимое): от края причала до края базы. Выдели
 	-- BridgeSpan<N> в Explorer - увидишь рамку, по ней и ставь свой мост.
@@ -490,15 +501,17 @@ end
 do
 	local cell = 10
 	local r = TOWN_RADIUS - 8
+	local plazaM = model(townF, "Plaza")
 	for x = -math.ceil(r / cell), math.ceil(r / cell) do
 		for z = -math.ceil(r / cell), math.ceil(r / cell) do
 			local c = Vector3.new(x * cell, 0, z * cell)
 			if c.Magnitude <= r then
 				local color = ((x + z) % 2 == 0) and C.StoneLight or C.Stone:Lerp(C.StoneLight, 0.5)
-				box(townF, "Plaza", Vector3.new(cell, 0.5, cell), CFrame.new(c + Vector3.new(0, 0.25, 0)), color)
+				box(plazaM, "Plaza", Vector3.new(cell, 0.5, cell), CFrame.new(c + Vector3.new(0, 0.25, 0)), color)
 			end
 		end
 	end
+	local fenceM = model(townF, "TownFence")
 	-- Заборчик из кубиков по краю городка, проходы под 8 тропинок.
 	local segments = 56
 	for s = 0, segments - 1 do
@@ -512,8 +525,8 @@ do
 		if not nearRoad then
 			local cf = CFrame.lookAt(polar(angle, TOWN_RADIUS), Vector3.zero)
 			local length = 2 * math.pi * TOWN_RADIUS / segments + 0.4
-			box(townF, "FenceRail", Vector3.new(length, 0.8, 0.8), cf * CFrame.new(0, 2.4, 0), C.WoodLight)
-			box(townF, "FencePost", Vector3.new(1.4, 3.4, 1.4), cf * CFrame.new(length / 2, 1.7, 0), C.Wood)
+			box(fenceM, "FenceRail", Vector3.new(length, 0.8, 0.8), cf * CFrame.new(0, 2.4, 0), C.WoodLight)
+			box(fenceM, "FencePost", Vector3.new(1.4, 3.4, 1.4), cf * CFrame.new(length / 2, 1.7, 0), C.Wood)
 		end
 	end
 end
@@ -562,7 +575,7 @@ do
 		for layer = 1, 3 do
 			local s = 3.6 - layer * 0.8
 			local part = box(model, "Crystal", Vector3.new(s, spec[2] / 3, s), cf * CFrame.new(0, spec[2] / 3 * (layer - 0.5), 0), lerpColors({ C.Blue, C.Crystal, C.White }, (layer - 1) / 2))
-			if layer == 3 then glow(part, 18) end
+			if layer == 3 then glow(part) end
 		end
 	end
 	sign(model, "TownSign", "MINER TOWN", Vector3.new(18, 4, 1), base * CFrame.new(0, 34, 6.5), C.Wood, C.Yellow)
@@ -598,8 +611,8 @@ do
 	for _, x in { -5.2, 5.2 } do box(model, "Beam", Vector3.new(1.6, 10, 1.6), cf * CFrame.new(x, 5, -1.4), C.Wood) end
 	box(model, "BeamTop", Vector3.new(12, 1.6, 1.8), cf * CFrame.new(0, 10.4, -1.4), C.Wood)
 	sign(model, "MineSign", "MINE", Vector3.new(7, 2.4, 0.6), cf * CFrame.new(0, 12.4, -1.8), C.WoodDark, C.Yellow)
-	glow(box(model, "Lantern", Vector3.new(1.4, 1.8, 1.4), cf * CFrame.new(-5.2, 8, -2.8), C.Orange), 16)
-	glow(box(model, "Lantern", Vector3.new(1.4, 1.8, 1.4), cf * CFrame.new(5.2, 8, -2.8), C.Orange), 16)
+	glow(box(model, "Lantern", Vector3.new(1.4, 1.8, 1.4), cf * CFrame.new(-5.2, 8, -2.8), C.Orange))
+	glow(box(model, "Lantern", Vector3.new(1.4, 1.8, 1.4), cf * CFrame.new(5.2, 8, -2.8), C.Orange))
 	-- Рельсы от шахты до края рынка в центре.
 	rails(model, (cf * CFrame.new(0, -0.5, -1)).Position, (cf.Position - Vector3.new(0, 0.5, 0)).Unit * (SELL_ZONE / 2 + 10))
 	-- Вагонетка с рудой.
@@ -648,32 +661,35 @@ section("Market + merchant", function()
 	market:SetAttribute("IsBank", true)
 	market.Parent = townF
 
+	local pavilion = model(market, "SellPavilion") -- декор; SellZone/Building - прямо в модели рынка
 	-- ПАВИЛЬОН ПРОДАЖИ.
 	local center = CFrame.new(0, 0.5, 0)
 	local half = SELL_ZONE / 2
-	box(market, "SellFloor", Vector3.new(SELL_ZONE + 8, 0.4, SELL_ZONE + 8), center * CFrame.new(0, 0.2, 0), C.WoodLight)
+	box(pavilion, "SellFloor", Vector3.new(SELL_ZONE + 8, 0.4, SELL_ZONE + 8), center * CFrame.new(0, 0.2, 0), C.WoodLight)
 	box(market, "SellZone", Vector3.new(SELL_ZONE, 0.6, SELL_ZONE), center * CFrame.new(0, 0.5, 0), C.Yellow, { Transparency = 0.45, CanCollide = false, Material = Enum.Material.Neon })
 	for _, spec in { { Vector3.new(SELL_ZONE + 2, 1, 1), Vector3.new(0, 0.6, half) }, { Vector3.new(SELL_ZONE + 2, 1, 1), Vector3.new(0, 0.6, -half) },
 		{ Vector3.new(1, 1, SELL_ZONE + 2), Vector3.new(half, 0.6, 0) }, { Vector3.new(1, 1, SELL_ZONE + 2), Vector3.new(-half, 0.6, 0) } } do
-		glow(box(market, "SellZoneEdge", spec[1], center * CFrame.new(spec[2]), C.Orange))
+		glow(box(pavilion, "SellZoneEdge", spec[1], center * CFrame.new(spec[2]), C.Orange))
 	end
 	-- БЕЗ КРЫШИ (высокие тележки). Низкие столбики с фонарями по углам и
 	-- таблички SELL ORE на высоких шестах СНАРУЖИ зоны - над зоной ничего нет.
 	for _, x in { -1, 1 } do
 		for _, z in { -1, 1 } do
 			local corner = center * CFrame.new(x * (half + 2.5), 0, z * (half + 2.5))
-			stack(market, "Post", corner, 2.4, 2.4, 5, { C.WoodDark, C.Wood }, 2, 0)
-			glow(box(market, "PostLamp", Vector3.new(1.8, 1.8, 1.8), corner * CFrame.new(0, 6, 0), C.Yellow), 18)
+			local postM = model(pavilion, "CornerPost")
+			stack(postM, "Post", corner, 2.4, 2.4, 5, { C.WoodDark, C.Wood }, 2, 0)
+			glow(box(postM, "PostLamp", Vector3.new(1.8, 1.8, 1.8), corner * CFrame.new(0, 6, 0), C.Yellow))
 		end
 	end
 	for side = 0, 3 do
 		local sideCF = center * CFrame.Angles(0, rad(side * 90), 0)
 		local at = sideCF * CFrame.new(half * 0.55, 0, -(half + 5))
-		box(market, "SignPole", Vector3.new(1.2, 14, 1.2), at * CFrame.new(0, 7, 0), C.WoodDark)
-		sign(market, "SellSign", "SELL ORE", Vector3.new(12, 3.4, 0.8), at * CFrame.new(0, 12.5, 0), C.Yellow, C.Red)
+		local sellSignM = model(pavilion, "SellSign")
+		box(sellSignM, "SignPole", Vector3.new(1.2, 14, 1.2), at * CFrame.new(0, 7, 0), C.WoodDark)
+		sign(sellSignM, "SellSign", "SELL ORE", Vector3.new(12, 3.4, 0.8), at * CFrame.new(0, 12.5, 0), C.Yellow, C.Red)
 		-- Полосатый бортик вдоль края пола (низкий, не мешает заезду).
 		for s2 = 0, 10 do
-			box(market, "Curb", Vector3.new((SELL_ZONE + 8) / 11, 0.2, 1), sideCF * CFrame.new(-(SELL_ZONE + 8) / 2 + (s2 + 0.5) * (SELL_ZONE + 8) / 11, 0.5, -(SELL_ZONE + 8) / 2 + 0.5), s2 % 2 == 0 and C.Red or C.White)
+			box(pavilion, "Curb", Vector3.new((SELL_ZONE + 8) / 11, 0.2, 1), sideCF * CFrame.new(-(SELL_ZONE + 8) / 2 + (s2 + 0.5) * (SELL_ZONE + 8) / 11, 0.5, -(SELL_ZONE + 8) / 2 + 0.5), s2 % 2 == 0 and C.Red or C.White)
 		end
 	end
 	-- Building - НЕВИДИМАЯ точка над центром зоны: туда вылетает проданная
@@ -683,8 +699,9 @@ section("Market + merchant", function()
 	})
 	-- Весы и кучи руды по углам зоны (декор, не мешают проходу).
 	for i, o in ipairs({ Vector3.new(-half + 3, 0, -half + 3), Vector3.new(half - 3, 0, half - 3) }) do
-		box(market, "Scale", Vector3.new(4, 3, 4), center * CFrame.new(o + Vector3.new(0, 1.5, 0)), C.StoneDark)
-		glow(box(market, "ScaleOre", Vector3.new(2, 2, 2), center * CFrame.new(o + Vector3.new(0, 4, 0)) * CFrame.Angles(rad(20), rad(i * 30), 0), i == 1 and C.Crystal or C.Yellow), 12)
+		local scaleM = model(pavilion, "OreScale")
+		box(scaleM, "Scale", Vector3.new(4, 3, 4), center * CFrame.new(o + Vector3.new(0, 1.5, 0)), C.StoneDark)
+		glow(box(scaleM, "ScaleOre", Vector3.new(2, 2, 2), center * CFrame.new(o + Vector3.new(0, 4, 0)) * CFrame.Angles(rad(20), rad(i * 30), 0), i == 1 and C.Crystal or C.Yellow))
 	end
 	market.PrimaryPart = building
 
@@ -714,7 +731,7 @@ section("Market + merchant", function()
 		end
 	end
 	sign(shop, "ShopSign", "MERCHANT", Vector3.new(16, 3.4, 0.8), cf * CFrame.new(0, 11, -6.2), C.Purple, C.Yellow)
-	for _, x in { -9, 9 } do glow(box(shop, "ShopLamp", Vector3.new(1.4, 1.8, 1.4), cf * CFrame.new(x, 9, -6.4), C.Yellow), 16) end
+	for _, x in { -9, 9 } do glow(box(shop, "ShopLamp", Vector3.new(1.4, 1.8, 1.4), cf * CFrame.new(x, 9, -6.4), C.Yellow)) end
 	marker(shop, "MerchantSpot", Vector3.new(2, 1, 2), cf * CFrame.new(0, 0.7, 1.5))
 	marker(shop, "MerchantSpotLook", Vector3.new(1, 1, 1), cf * CFrame.new(0, 0.7, -12))
 end)
@@ -732,18 +749,18 @@ do
 	model.Parent = townF
 	stack(model, "Tower", cf, 10, 10, 28, { C.StoneDark, C.Stone, C.StoneLight }, 5, 0.1)
 	for step = 1, 4 do box(model, "Roof", Vector3.new(12 - step * 2.2, 1.6, 12 - step * 2.2), cf * CFrame.new(0, 28 + step * 1.6, 0), C.Red) end
-	glow(box(model, "Beacon", Vector3.new(2, 2, 2), cf * CFrame.new(0, 36.4, 0), C.Yellow), 30)
+	glow(box(model, "Beacon", Vector3.new(2, 2, 2), cf * CFrame.new(0, 36.4, 0), C.Yellow))
 	glow(box(model, "Window", Vector3.new(3, 3, 0.5), cf * CFrame.new(0, 22, -4.9), C.Cream))
 end
 
 -- Хижина смотрителя островов (IslandKeeperMarker) - между дорогами 1 и 2.
 do
 	local cf = gapCFrame(0, 78)
-	house(cf, 14, 12, 9, C.WoodLight, C.Teal, "IslandKeeperHut")
+	local hut = house(cf, 14, 12, 9, C.WoodLight, C.Teal, "IslandKeeperHut")
 	local spot = cf * CFrame.new(0, 0.5, -10)
 	marker(workspace, "IslandKeeperMarker", Vector3.new(2, 1, 2), spot)
 	marker(workspace, "IslandKeeperMarkerLook", Vector3.new(1, 1, 1), CFrame.new(Vector3.new(0, spot.Position.Y, 0)))
-	sign(townF, "IslandSign", "ISLANDS", Vector3.new(8, 2.4, 0.6), cf * CFrame.new(0, 12, -6.6), C.Teal, C.White)
+	sign(hut, "IslandSign", "ISLANDS", Vector3.new(8, 2.4, 0.6), cf * CFrame.new(0, 12, -6.6), C.Teal, C.White)
 end
 
 -- Табло лайков - у площади, лицом к центру.
@@ -751,16 +768,18 @@ do
 	local pos = polar(202.5, SELL_ZONE / 2 + 26, 8)
 	local cf = CFrame.lookAt(pos, Vector3.new(0, 8, 0))
 	box(workspace, "LikeGoalBoard", Vector3.new(14, 9, 1), cf, C.WoodDark)
-	for _, x in { -6, 6 } do box(townF, "BoardLeg", Vector3.new(1, 4, 1), cf * CFrame.new(x, -6.5, 0), C.Wood) end
+	local legs = model(townF, "LikeGoalBoardStand")
+	for _, x in { -6, 6 } do box(legs, "BoardLeg", Vector3.new(1, 4, 1), cf * CFrame.new(x, -6.5, 0), C.Wood) end
 end
 
 -- Фонари по кругу площади.
 for s = 0, 15 do
 	local angle = s * 22.5 + 11.25
 	local at = polar(angle, TOWN_RADIUS - 16)
-	box(townF, "LampPost", Vector3.new(1, 8, 1), CFrame.new(at + Vector3.new(0, 4.5, 0)), C.WoodDark)
-	box(townF, "LampTop", Vector3.new(2.4, 0.6, 2.4), CFrame.new(at + Vector3.new(0, 9.8, 0)), C.WoodDark)
-	glow(box(townF, "Lamp", Vector3.new(1.6, 1.6, 1.6), CFrame.new(at + Vector3.new(0, 8.9, 0)), C.Yellow), 16)
+	local lampM = model(townF, "Lamp")
+	box(lampM, "LampPost", Vector3.new(1, 8, 1), CFrame.new(at + Vector3.new(0, 4.5, 0)), C.WoodDark)
+	box(lampM, "LampTop", Vector3.new(2.4, 0.6, 2.4), CFrame.new(at + Vector3.new(0, 9.8, 0)), C.WoodDark)
+	glow(box(lampM, "Light", Vector3.new(1.6, 1.6, 1.6), CFrame.new(at + Vector3.new(0, 8.9, 0)), C.Yellow))
 end
 
 --------------------------------------------------------------------------------
@@ -784,24 +803,26 @@ section("Goblin land", function()
 		DeadWood = Color3.fromRGB(64, 50, 46),
 	}
 	local half = GOBLIN_SIZE / 2
+	local groundM = model(deco, "CorruptGround")
 	-- Земля: неровные пятна-кубы (крупные -> мелкие, светлее -> темнее к центру).
 	for step = 1, 3 do
 		local side = GOBLIN_SIZE + 4 - (step - 1) * 22
-		box(deco, "CorruptGround", Vector3.new(side, 0.3, side), cf * CFrame.new(0, 0.15 + (step - 1) * 0.15, 0),
+		box(groundM, "CorruptGround", Vector3.new(side, 0.3, side), cf * CFrame.new(0, 0.15 + (step - 1) * 0.15, 0),
 			lerpColors({ Corrupt.Edge, Corrupt.Ground, Corrupt.Deep }, (step - 1) / 2))
 	end
 	for _ = 1, 26 do -- «рваный» край: пятна гнили расползаются на траву
 		local a = rng:NextNumber() * math.pi * 2
 		local r = half - 2 + rng:NextNumber() * 4
 		local sz = 5 + rng:NextNumber() * 5
-		box(deco, "Blight", Vector3.new(sz, 0.3, sz * (0.6 + rng:NextNumber() * 0.6)), cf * CFrame.new(math.cos(a) * r, 0.12, math.sin(a) * r) * CFrame.Angles(0, rng:NextNumber() * 3, 0), Corrupt.Edge)
+		box(groundM, "Blight", Vector3.new(sz, 0.3, sz * (0.6 + rng:NextNumber() * 0.6)), cf * CFrame.new(math.cos(a) * r, 0.12, math.sin(a) * r) * CFrame.Angles(0, rng:NextNumber() * 3, 0), Corrupt.Edge)
 	end
 	-- Светящиеся трещины (тонкие неоновые полосы, ломаные).
 	for _ = 1, 14 do
+		local crackM = model(deco, "Crack")
 		local at = cf * CFrame.new(rng:NextNumber() * GOBLIN_SIZE * 0.8 - GOBLIN_SIZE * 0.4, 0.62, rng:NextNumber() * GOBLIN_SIZE * 0.8 - GOBLIN_SIZE * 0.4)
 		local yaw = rng:NextNumber() * math.pi
 		for seg = 0, 2 do
-			glow(box(deco, "Crack", Vector3.new(0.6, 0.2, 5 + rng:NextNumber() * 4), at * CFrame.Angles(0, yaw + seg * 0.5, 0) * CFrame.new(0, 0, seg * 4), Corrupt.Glow))
+			glow(box(crackM, "Crack", Vector3.new(0.6, 0.2, 5 + rng:NextNumber() * 4), at * CFrame.Angles(0, yaw + seg * 0.5, 0) * CFrame.new(0, 0, seg * 4), Corrupt.Glow))
 		end
 	end
 	-- Крупные камни: 6 скоплений по кругу - у каждого точка появления гоблинов.
@@ -809,14 +830,15 @@ section("Goblin land", function()
 	for i = 1, 6 do
 		local a = (i - 1) / 6 * math.pi * 2 + 0.3
 		local rockCF = cf * CFrame.new(math.cos(a) * half * 0.62, 0, math.sin(a) * half * 0.62)
+		local rockM = model(deco, "RockCluster" .. i)
 		for piece = 1, 3 do
 			local s = (piece == 1) and (9 + rng:NextNumber() * 4) or (4 + rng:NextNumber() * 3)
 			local offset = piece == 1 and Vector3.zero or Vector3.new(rng:NextNumber() * 10 - 5, 0, rng:NextNumber() * 10 - 5)
-			local rock = box(deco, "BigRock", Vector3.new(s, s * 0.8, s * 0.9), rockCF * CFrame.new(offset + Vector3.new(0, s * 0.35, 0)) * CFrame.Angles(rad(rng:NextNumber() * 16 - 8), rng:NextNumber() * 3, rad(rng:NextNumber() * 16 - 8)),
+			local rock = box(rockM, "BigRock", Vector3.new(s, s * 0.8, s * 0.9), rockCF * CFrame.new(offset + Vector3.new(0, s * 0.35, 0)) * CFrame.Angles(rad(rng:NextNumber() * 16 - 8), rng:NextNumber() * 3, rad(rng:NextNumber() * 16 - 8)),
 				piece == 1 and Corrupt.Rock or Corrupt.RockDark)
 			if piece == 1 then
 				-- светящиеся «жилы» на большом камне
-				glow(box(deco, "RockVein", Vector3.new(s * 0.9, 0.4, 0.4), rock.CFrame * CFrame.new(0, s * 0.1, -s * 0.46), Corrupt.Glow), 12)
+				glow(box(rockM, "RockVein", Vector3.new(s * 0.9, 0.4, 0.4), rock.CFrame * CFrame.new(0, s * 0.1, -s * 0.46), Corrupt.Glow))
 			end
 		end
 		-- Точка появления - у камня, со стороны центра лагеря.
@@ -826,31 +848,35 @@ section("Goblin land", function()
 	-- Мёртвые деревья (кривые стволы из кубов).
 	for _, o in { Vector3.new(-half + 10, 0, half - 10), Vector3.new(half - 10, 0, half - 12), Vector3.new(-half + 12, 0, -8), Vector3.new(half - 8, 0, 4) } do
 		local tcf = cf * CFrame.new(o) * CFrame.Angles(0, rng:NextNumber() * 3, 0)
+		local treeM = model(deco, "DeadTree")
 		for seg = 0, 3 do
-			box(deco, "DeadTrunk", Vector3.new(1.8, 3, 1.8), tcf * CFrame.new(seg * 0.5, 1.5 + seg * 3, 0) * CFrame.Angles(0, 0, rad(-6 * seg)), Corrupt.DeadWood)
+			box(treeM, "DeadTrunk", Vector3.new(1.8, 3, 1.8), tcf * CFrame.new(seg * 0.5, 1.5 + seg * 3, 0) * CFrame.Angles(0, 0, rad(-6 * seg)), Corrupt.DeadWood)
 		end
-		box(deco, "DeadBranch", Vector3.new(6, 1, 1), tcf * CFrame.new(2.4, 10.5, 0) * CFrame.Angles(0, 0, rad(30)), Corrupt.DeadWood)
-		box(deco, "DeadBranch", Vector3.new(5, 1, 1), tcf * CFrame.new(-1.2, 9, 0) * CFrame.Angles(0, 0, rad(-35)), Corrupt.DeadWood)
+		box(treeM, "DeadBranch", Vector3.new(6, 1, 1), tcf * CFrame.new(2.4, 10.5, 0) * CFrame.Angles(0, 0, rad(30)), Corrupt.DeadWood)
+		box(treeM, "DeadBranch", Vector3.new(5, 1, 1), tcf * CFrame.new(-1.2, 9, 0) * CFrame.Angles(0, 0, rad(-35)), Corrupt.DeadWood)
 	end
 	-- Тотем-обелиск в центре: камень-градиент, светящийся глаз.
-	stack(deco, "Obelisk", cf * CFrame.new(0, 0, 4), 5, 5, 18, { Corrupt.RockDark, Corrupt.Rock, Corrupt.Glow:Lerp(Corrupt.Rock, 0.5) }, 5, 0.3)
-	glow(box(deco, "ObeliskEye", Vector3.new(2.4, 2.4, 2.4), cf * CFrame.new(0, 19.6, 4) * CFrame.Angles(rad(45), rad(45), 0), Corrupt.Glow), 30)
+	local obeliskM = model(deco, "Obelisk")
+	stack(obeliskM, "Obelisk", cf * CFrame.new(0, 0, 4), 5, 5, 18, { Corrupt.RockDark, Corrupt.Rock, Corrupt.Glow:Lerp(Corrupt.Rock, 0.5) }, 5, 0.3)
+	glow(box(obeliskM, "ObeliskEye", Vector3.new(2.4, 2.4, 2.4), cf * CFrame.new(0, 19.6, 4) * CFrame.Angles(rad(45), rad(45), 0), Corrupt.Glow))
 	-- Вход с табличкой (со стороны города) и ограда из острых камней по краю.
 	local gate = cf * CFrame.new(0, 0, -half)
+	local gateM = model(deco, "Gate")
 	for _, x in { -11, 11 } do
-		stack(deco, "GateStone", gate * CFrame.new(x, 0, 0), 4, 4, 14, { Corrupt.RockDark, Corrupt.Rock }, 3, 0.35)
+		stack(gateM, "GateStone", gate * CFrame.new(x, 0, 0), 4, 4, 14, { Corrupt.RockDark, Corrupt.Rock }, 3, 0.35)
 	end
-	box(deco, "Skull", Vector3.new(4, 4, 4), gate * CFrame.new(0, 12, 0), C.White)
-	glow(box(deco, "SkullEye", Vector3.new(0.9, 0.9, 0.4), gate * CFrame.new(-0.9, 12.4, -2.1), Corrupt.Glow), 10)
-	glow(box(deco, "SkullEye", Vector3.new(0.9, 0.9, 0.4), gate * CFrame.new(0.9, 12.4, -2.1), Corrupt.Glow))
-	box(deco, "SkullPost", Vector3.new(1, 10, 1), gate * CFrame.new(0, 5, 0), Corrupt.DeadWood)
-	sign(deco, "GoblinSign", "GOBLIN LANDS", Vector3.new(12, 2.6, 0.6), gate * CFrame.new(0, 7, -1.2), Corrupt.Deep, Corrupt.Glow)
+	box(gateM, "Skull", Vector3.new(4, 4, 4), gate * CFrame.new(0, 12, 0), C.White)
+	glow(box(gateM, "SkullEye", Vector3.new(0.9, 0.9, 0.4), gate * CFrame.new(-0.9, 12.4, -2.1), Corrupt.Glow))
+	glow(box(gateM, "SkullEye", Vector3.new(0.9, 0.9, 0.4), gate * CFrame.new(0.9, 12.4, -2.1), Corrupt.Glow))
+	box(gateM, "SkullPost", Vector3.new(1, 10, 1), gate * CFrame.new(0, 5, 0), Corrupt.DeadWood)
+	sign(gateM, "GoblinSign", "GOBLIN LANDS", Vector3.new(12, 2.6, 0.6), gate * CFrame.new(0, 7, -1.2), Corrupt.Deep, Corrupt.Glow)
+	local spikesM = model(deco, "SpikeFence")
 	for sideIndex = 0, 3 do
 		local sideCF = cf * CFrame.Angles(0, rad(90 * sideIndex), 0)
 		for x = -half, half, 7 do
 			if not (sideIndex == 0 and math.abs(x) < 16) then
 				local h = 3 + rng:NextNumber() * 4
-				box(deco, "Spike", Vector3.new(2.6, h, 2.6), sideCF * CFrame.new(x + rng:NextNumber() * 2, h / 2, -half) * CFrame.Angles(rad(rng:NextNumber() * 20 - 10), rng:NextNumber() * 3, 0), Corrupt.RockDark)
+				box(spikesM, "Spike", Vector3.new(2.6, h, 2.6), sideCF * CFrame.new(x + rng:NextNumber() * 2, h / 2, -half) * CFrame.Angles(rad(rng:NextNumber() * 20 - 10), rng:NextNumber() * 3, 0), Corrupt.RockDark)
 			end
 		end
 	end
@@ -869,12 +895,13 @@ section("Boulder spots", function()
 	for index, spot in boulderSpots do
 		local p = marker(points, ("Point%02d"):format(index), Vector3.new(4, 1, 4), CFrame.new(spot.Pos + Vector3.new(0, 0.5, 0)), C.StoneDark)
 		p:SetAttribute("Tier", spot.Tier)
-		box(natureF, "RockPatch", Vector3.new(22, 0.3, 22), CFrame.new(spot.Pos + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, rad(index * 17), 0), C.Grass1:Lerp(C.Stone, 0.4))
-		box(natureF, "RockPatch", Vector3.new(14, 0.3, 14), CFrame.new(spot.Pos + Vector3.new(0, 0.3, 0)) * CFrame.Angles(0, rad(index * 29), 0), C.Stone)
+		local patchM = model(natureF, ("RockPatch%02d"):format(index))
+		box(patchM, "RockPatch", Vector3.new(22, 0.3, 22), CFrame.new(spot.Pos + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, rad(index * 17), 0), C.Grass1:Lerp(C.Stone, 0.4))
+		box(patchM, "RockPatch", Vector3.new(14, 0.3, 14), CFrame.new(spot.Pos + Vector3.new(0, 0.3, 0)) * CFrame.Angles(0, rad(index * 29), 0), C.Stone)
 		for r = 1, 5 do
 			local a = r / 5 * math.pi * 2 + rng:NextNumber()
 			local s = 1.6 + rng:NextNumber() * 1.6
-			box(natureF, "Pebble", Vector3.new(s, s * 0.8, s), CFrame.new(spot.Pos + Vector3.new(math.cos(a) * 11, s * 0.4, math.sin(a) * 11)) * CFrame.Angles(0, rng:NextNumber() * 3, 0), C.Stone:Lerp(C.StoneDark, rng:NextNumber()))
+			box(patchM, "Pebble", Vector3.new(s, s * 0.8, s), CFrame.new(spot.Pos + Vector3.new(math.cos(a) * 11, s * 0.4, math.sin(a) * 11)) * CFrame.Angles(0, rng:NextNumber() * 3, 0), C.Stone:Lerp(C.StoneDark, rng:NextNumber()))
 		end
 	end
 end)
@@ -884,27 +911,29 @@ end)
 --------------------------------------------------------------------------------
 local function cubeTree(pos, scale)
 	local cf = CFrame.new(pos) * CFrame.Angles(0, rng:NextNumber() * math.pi, 0)
-	box(natureF, "Trunk", Vector3.new(2.4, 7, 2.4) * scale, cf * CFrame.new(0, 3.5 * scale, 0), C.Wood)
-	box(natureF, "Leaves", Vector3.new(10, 5, 10) * scale, cf * CFrame.new(0, 9 * scale, 0), C.Leaf1)
-	box(natureF, "Leaves", Vector3.new(8, 4, 8) * scale, cf * CFrame.new(0.6 * scale, 12.5 * scale, -0.4 * scale), C.Leaf2)
-	box(natureF, "Leaves", Vector3.new(5, 3, 5) * scale, cf * CFrame.new(-0.4 * scale, 15 * scale, 0.5 * scale), C.Leaf3)
+	local treeM = model(natureF, "Tree")
+	box(treeM, "Trunk", Vector3.new(2.4, 7, 2.4) * scale, cf * CFrame.new(0, 3.5 * scale, 0), C.Wood)
+	box(treeM, "Leaves", Vector3.new(10, 5, 10) * scale, cf * CFrame.new(0, 9 * scale, 0), C.Leaf1)
+	box(treeM, "Leaves", Vector3.new(8, 4, 8) * scale, cf * CFrame.new(0.6 * scale, 12.5 * scale, -0.4 * scale), C.Leaf2)
+	box(treeM, "Leaves", Vector3.new(5, 3, 5) * scale, cf * CFrame.new(-0.4 * scale, 15 * scale, 0.5 * scale), C.Leaf3)
 	if rng:NextNumber() < 0.3 then -- яблочки
 		for _ = 1, 3 do
-			box(natureF, "Fruit", Vector3.new(1, 1, 1) * scale, cf * CFrame.new((rng:NextNumber() * 8 - 4) * scale, (8 + rng:NextNumber() * 3) * scale, -5.2 * scale), C.Red)
+			box(treeM, "Fruit", Vector3.new(1, 1, 1) * scale, cf * CFrame.new((rng:NextNumber() * 8 - 4) * scale, (8 + rng:NextNumber() * 3) * scale, -5.2 * scale), C.Red)
 		end
 	end
 end
 local function palm(pos, scale)
 	local lean = CFrame.Angles(rad(rng:NextNumber() * 14 - 7), rng:NextNumber() * math.pi * 2, rad(10))
 	local cf = CFrame.new(pos) * lean
+	local palmM = model(natureF, "Palm")
 	for s = 0, 4 do
-		box(natureF, "PalmTrunk", Vector3.new(1.8, 3, 1.8) * scale, cf * CFrame.new(0, (1.5 + s * 3) * scale, 0) * CFrame.Angles(0, rad(s * 12), 0), s % 2 == 0 and C.Wood or C.WoodLight)
+		box(palmM, "PalmTrunk", Vector3.new(1.8, 3, 1.8) * scale, cf * CFrame.new(0, (1.5 + s * 3) * scale, 0) * CFrame.Angles(0, rad(s * 12), 0), s % 2 == 0 and C.Wood or C.WoodLight)
 	end
 	local top = cf * CFrame.new(0, 16 * scale, 0)
 	for leaf = 0, 4 do
-		box(natureF, "PalmLeaf", Vector3.new(2.4, 0.6, 8) * scale, top * CFrame.Angles(0, leaf / 5 * math.pi * 2, 0) * CFrame.new(0, 0, -4 * scale) * CFrame.Angles(rad(-18), 0, 0), C.Leaf2)
+		box(palmM, "PalmLeaf", Vector3.new(2.4, 0.6, 8) * scale, top * CFrame.Angles(0, leaf / 5 * math.pi * 2, 0) * CFrame.new(0, 0, -4 * scale) * CFrame.Angles(rad(-18), 0, 0), C.Leaf2)
 	end
-	box(natureF, "Coconut", Vector3.new(1.2, 1.2, 1.2) * scale, top * CFrame.new(0.6 * scale, -0.8 * scale, 0), C.WoodDark)
+	box(palmM, "Coconut", Vector3.new(1.2, 1.2, 1.2) * scale, top * CFrame.new(0.6 * scale, -0.8 * scale, 0), C.WoodDark)
 end
 
 local planted = 0
@@ -928,9 +957,10 @@ for _ = 1, 70 do
 	local r = math.sqrt(rng:NextNumber()) * COAST
 	local pos = Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
 	if not blocked(pos, 0) then
+		local flowersM = model(natureF, "Flowers")
 		for f = 1, 5 do
 			local fp = pos + Vector3.new(rng:NextNumber() * 8 - 4, 0.6, rng:NextNumber() * 8 - 4)
-			box(natureF, "Flower", Vector3.new(1.2, 1.2, 1.2), CFrame.new(fp), ({ C.Pink, C.Yellow, C.White, C.Purple, C.Red })[(f % 5) + 1])
+			box(flowersM, "Flower", Vector3.new(1.2, 1.2, 1.2), CFrame.new(fp), ({ C.Pink, C.Yellow, C.White, C.Purple, C.Red })[(f % 5) + 1])
 		end
 	end
 end
