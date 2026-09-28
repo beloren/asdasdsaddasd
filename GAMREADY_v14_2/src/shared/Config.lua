@@ -2462,6 +2462,9 @@ Config.GamePasses = {
 	DoubleDrops = {  -- 2x награды из жеод (оставлен, подешевел)
 		Id = 1968449069, RewardCount = 2, PriceRobux = 39,
 	},
+	AutoHammer = {   -- v20.80: 🔨 автоудар при раскалывании жеод (кнопка AUTO в сцене)
+		Id = 0, PriceRobux = 49,
+	},
 	DoubleSafe = {   -- v4: 🏦 2x Safe Income — пассивка кристалла на подиуме ×2 (OreIncome.PerMinuteForPlayer)
 		Id = 0, Multiplier = 2, PriceRobux = 79,
 	},
@@ -5757,6 +5760,7 @@ Config.Shop = {
 		{ Id = "CartGuardPass", Tab = "Passes", Title = "🛡 Cart Guard", PriceRobux = Config.GamePasses.CartGuard.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.CartGuard.Id, PassKey = "CartGuard" },
 		{ Id = "FastSmelterPass", Tab = "Passes", Title = "⚡ Fast Smelter", PriceRobux = Config.GamePasses.FastSmelter.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.FastSmelter.Id, PassKey = "FastSmelter" },
 		{ Id = "RocketPickaxePass", Tab = "Passes", Title = "🚀 Rocket Pickaxe", PriceRobux = Config.GamePasses.RocketPickaxe.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.RocketPickaxe.Id, PassKey = "RocketPickaxe" },
+		{ Id = "AutoHammerPass", Tab = "Passes", Title = "🔨 Auto Hammer", PriceRobux = Config.GamePasses.AutoHammer.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.AutoHammer.Id, PassKey = "AutoHammer" },
 		{ Id = "DoubleSafePass", Tab = "Passes", Title = "🏦 2x Safe Income", PriceRobux = Config.GamePasses.DoubleSafe.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.DoubleSafe.Id, PassKey = "DoubleSafe" },
 		{ Id = "FillSafeDeal", Tab = "Boosts", Title = Config.DevProducts.Micro.FillSafe.Icon .. " " .. Config.DevProducts.Micro.FillSafe.Title, PriceRobux = Config.DevProducts.Micro.FillSafe.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.Micro.FillSafe.Id, MicroKey = "FillSafe" },
 		{ Id = "DoubleDropsPass", Tab = "Passes", Title = "2x Geode Rewards", PriceRobux = Config.GamePasses.DoubleDrops.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.DoubleDrops.Id, PassKey = "DoubleDrops" },
@@ -5839,6 +5843,7 @@ Config.Shop.Descriptions = {
 	FastSmelterPass = "x2 faster furnace, +1 slot!",
 	RocketPickaxePass = "The fastest pickaxe!",
 	DoubleSafePass = "x2 safe income!",
+	AutoHammerPass = "Geodes crack themselves - auto hammer!",
 	DoubleDropsPass = "x2 geode rewards!",
 	FillSafeDeal = "Fill your safe instantly!",
 	LuckPotionDeal = "x2 luck for 15 minutes!",
@@ -5906,6 +5911,7 @@ Config.QuickBar = {
 		{ Key = "FastSmelter", Emoji = "⚡", ImageId = 0 },
 		{ Key = "RocketPickaxe", Emoji = "🚀", ImageId = 0 },
 		{ Key = "DoubleSafe", Emoji = "🏦", ImageId = 0 },
+		{ Key = "AutoHammer", Emoji = "🔨", ImageId = 0 },
 	},
 
 	-- Отдельная реклама РАЗОВОГО товара (девпродукт, не геймпасс) — тот же
@@ -7012,6 +7018,17 @@ Config.GeodeCutscene = {
 	SwingUpAngle = 165,
 	SwingDownAngle = 55,
 	HoldAngle = 25,
+	-- v20.80: СТОП-КАДР удара - анимация и камера замирают на миг в момент
+	-- контакта, потом тряска и осколки (последний удар - дольше).
+	HitStop = 0.07,
+	HitStopFinal = 0.14,
+	-- v20.80: КОМБО - клик в течение ComboWindow сек после того, как молот
+	-- освободился, продолжает серию («x2, x3...»); каждый шаг ускоряет
+	-- взмах на ComboSpeedStep, не больше ComboMaxSpeed.
+	ComboWindow = 0.7,
+	ComboSpeedStep = 0.15,
+	ComboMaxSpeed = 1.6,
+	AutoHitDelay = 0.08,          -- автоудар (геймпасс AutoHammer): пауза после взмаха
 	FovStart = 62,
 	FovStepPerHit = -3,           -- с каждым ударом кадр чуть ближе
 	KickBase = -5,                -- FOV-панч первого удара

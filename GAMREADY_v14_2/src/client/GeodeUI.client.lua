@@ -724,6 +724,8 @@ local lockedHumanoid = nil
 local lockedWalkSpeed = 16
 local lockedJumpPower = 50
 local geodeShakeAmp, geodeShakeUntil, geodeShakeTotal = 0, 0, 0.3 -- v14: тряска кадра катсцены
+-- v20.80: состояние удара/комбо/автоудара одной таблицей (лимит 200 локальных в файле).
+local Hit = { StopUntil = 0, Combo = 0, AutoOn = true }
 
 -- ВАЖНО: переиспользуем lockCameraForOpening/unlockCameraForOpening (см.
 -- начало файла — тот же самый "заморозить камеру в Scriptable" механизм,
@@ -808,7 +810,7 @@ local function startOrbitCamera()
 			local back = -root.CFrame.LookVector + root.CFrame.RightVector * 0.55
 			orbitAngle = math.atan2(back.X, back.Z)
 		end
-		orbitAngle += speed * dt
+		if os.clock() >= Hit.StopUntil then orbitAngle += speed * dt end
 		local position = focus + Vector3.new(math.sin(orbitAngle) * radius, height, math.cos(orbitAngle) * radius)
 		local target = CFrame.lookAt(position, focus)
 		current = current and current:Lerp(target, math.clamp(dt * 8, 0, 1)) or target
@@ -1016,12 +1018,28 @@ local function shoulderPose(degrees)
 end
 
 -- Один взмах. onImpact вызывается в момент контакта с жеодой.
-local function playHammerSwing(fast, onImpact)
+-- speed - множитель скорости взмаха (комбо), hitstop - длина стоп-кадра
+-- в момент контакта (0 - без него).
+local function playHammerSwing(fast, onImpact, speed, hitstop)
+	speed = speed or 1
+	hitstop = hitstop or 0
 	local fired = false
 	local function impact()
 		if fired then return end
 		fired = true
-		onImpact()
+		if fast or hitstop <= 0 then
+			onImpact()
+			return
+		end
+		-- v20.80: СТОП-КАДР - анимация и камера замирают на миг, потом
+		-- тряска, осколки и FOV-панч (удар ощущается тяжёлым).
+		Hit.StopUntil = os.clock() + hitstop
+		local track = hammerTrack
+		if track and track.IsPlaying then
+			pcall(function() track:AdjustSpeed(0) end)
+			task.delay(hitstop, function() pcall(function() track:AdjustSpeed(speed) end) end)
+		end
+		task.delay(hitstop, onImpact)
 	end
 	if fast then
 		task.delay(0.05, impact)
@@ -1046,8 +1064,8 @@ local function playHammerSwing(fast, onImpact)
 				connection:Disconnect()
 				impact()
 			end)
-			hammerTrack:Play(0.05, 1, 1)
-			task.delay(math.max(CUT.ImpactDelay or 0.3, (CUT.SwingSeconds or 0.8) * 0.85), function()
+			hammerTrack:Play(0.05, 1, speed)
+			task.delay(math.max(CUT.ImpactDelay or 0.3, (CUT.SwingSeconds or 0.8) * 0.85) / speed, function()
 				if connection.Connected then connection:Disconnect() end
 				impact()
 			end)
@@ -1059,7 +1077,7 @@ local function playHammerSwing(fast, onImpact)
 	-- момент удара головка молота лежит прямо над жеодой со стороны
 	-- игрока, при замахе - над головой, за плечом. Работает для любой
 	-- модели молота (головка ищется как центр всех деталей, кроме ручки).
-	local delayToImpact = CUT.ImpactDelay or 0.3
+	local delayToImpact = (CUT.ImpactDelay or 0.3) / speed
 	local aimedBack, aimedDown = nil, nil
 	local hand = hammerWeld and hammerWeld.Part0
 	local handle = hammerWeld and hammerWeld.Part1
@@ -1114,9 +1132,12 @@ local function playHammerSwing(fast, onImpact)
 			strike:Play()
 			strike.Completed:Connect(function()
 				impact()
-				if motor == shoulderMotor then
-					TweenService:Create(motor, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { C0 = rest }):Play()
-				end
+				-- рука остаётся «в жеоде» на время стоп-кадра, потом отходит
+				task.delay(hitstop, function()
+					if motor == shoulderMotor then
+						TweenService:Create(motor, TweenInfo.new(0.35 / speed, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { C0 = rest }):Play()
+					end
+				end)
 			end)
 		end)
 		task.delay(delayToImpact + 0.2, impact)
@@ -1131,9 +1152,11 @@ local function playHammerSwing(fast, onImpact)
 			strike:Play()
 			strike.Completed:Connect(function()
 				impact()
-				if hammerWeld then
-					TweenService:Create(hammerWeld, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { C0 = hammerRestC0 }):Play()
-				end
+				task.delay(hitstop, function()
+					if hammerWeld then
+						TweenService:Create(hammerWeld, TweenInfo.new(0.3 / speed, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { C0 = hammerRestC0 }):Play()
+					end
+				end)
 			end)
 		end)
 		task.delay(delayToImpact + 0.2, impact)
@@ -1796,13 +1819,47 @@ local function playGeodeFinale(onDone)
 	task.delay(cut.FinalHold or 0.5, onDone)
 end
 
+-- v20.80: КОМБО - клик почти сразу, как молот освободился (в пределах
+-- ComboWindow), продолжает серию: на экране «x2, x3...», взмах быстрее.
+Hit.ComboLabel = label("ComboLabel", "")
+Hit.ComboLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+Hit.ComboLabel.Position = UDim2.fromScale(0.5, 0.2)
+Hit.ComboLabel.Size = UDim2.fromScale(0.3, 0.09)
+Hit.ComboLabel.TextColor3 = Color3.fromRGB(255, 214, 70)
+Hit.ComboLabel.TextStrokeColor3 = Color3.fromRGB(40, 20, 0)
+Hit.ComboLabel.TextStrokeTransparency = 0
+Hit.ComboLabel.ZIndex = 26
+Hit.ComboLabel.Visible = false
+Hit.ComboLabel.Parent = opening
+Hit.ComboScale = Instance.new("UIScale")
+Hit.ComboScale.Parent = Hit.ComboLabel
+
+function Hit.ShowCombo(count)
+	if count < 2 then
+		Hit.ComboLabel.Visible = false
+		return
+	end
+	Hit.ComboLabel.Text = ("x%d COMBO!"):format(count)
+	Hit.ComboLabel.TextColor3 = count >= 6 and Color3.fromRGB(255, 110, 70) or count >= 4 and Color3.fromRGB(255, 170, 60) or Color3.fromRGB(255, 214, 70)
+	Hit.ComboLabel.Visible = true
+	Hit.ComboScale.Scale = 1.5
+	TweenService:Create(Hit.ComboScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+end
+
 local function onCrackHit(fast)
 	if not openRequestActive or not pendingGeodeType or not crackSequenceActive then return end
 	local now = os.clock()
 	if crackTapBusy or now < crackTapReadyAt then return end
 	local cut = Config.GeodeCutscene or {}
 	clickHint.Visible = false
-	crackTapReadyAt = now + (fast and 0.12 or (cut.SwingSeconds or 0.8))
+	local speed = 1
+	if not fast then
+		local inCombo = crackTapReadyAt > 0 and now - crackTapReadyAt <= (cut.ComboWindow or 0.7)
+		Hit.Combo = inCombo and Hit.Combo + 1 or 1
+		speed = math.min(1 + (Hit.Combo - 1) * (cut.ComboSpeedStep or 0.15), cut.ComboMaxSpeed or 1.6)
+		Hit.ShowCombo(Hit.Combo)
+	end
+	crackTapReadyAt = now + (fast and 0.12 or (cut.SwingSeconds or 0.8) / speed)
 	crackTapCount += 1
 	local hitIndex = crackTapCount
 	local required = math.max(2, math.floor(tonumber(Config.Geodes.CrackTapCount) or 3))
@@ -1810,6 +1867,7 @@ local function onCrackHit(fast)
 	local token = crackTapToken
 	destroyCrackBall()
 	if isFinal then crackTapBusy = true end
+	local hitstop = isFinal and (cut.HitStopFinal or 0.14) or (cut.HitStop or 0.07)
 	playHammerSwing(fast, function()
 		if token ~= crackTapToken then return end
 		geodeImpact(hitIndex, isFinal)
@@ -1824,8 +1882,69 @@ local function onCrackHit(fast)
 			shakeGeodeForTap(token, false)
 			spawnCrackBall()
 		end
-	end)
+	end, speed, hitstop)
 end
+
+--------------------------------------------------------------------------------
+-- v20.80: АВТОУДАР (геймпасс Config.GamePasses.AutoHammer). Кнопка AUTO во
+-- время раскола: есть пасс - вкл/выкл (игрок бьёт сам в ритме, комбо
+-- растёт); нет - предложение купить. Выбор запоминается до выхода из игры.
+--------------------------------------------------------------------------------
+Hit.AutoPass = Config.GamePasses.AutoHammer or {}
+Hit.AutoButton = button("AutoHammerButton", "AUTO", Color3.fromRGB(120, 80, 200))
+Hit.AutoButton.AnchorPoint = Vector2.new(1, 1)
+Hit.AutoButton.Position = UDim2.new(1, -20, 1, -100)
+Hit.AutoButton.Size = UDim2.fromOffset(150, 56)
+Hit.AutoButton.ZIndex = 30
+Hit.AutoButton.Visible = false
+Hit.AutoButton.Parent = opening
+do
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = Hit.AutoButton
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 2
+	stroke.Color = Color3.fromRGB(30, 20, 50)
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = Hit.AutoButton
+	local limit = Instance.new("UITextSizeConstraint")
+	limit.MinTextSize = 16
+	limit.MaxTextSize = 30
+	limit.Parent = Hit.AutoButton
+end
+
+function Hit.OwnsAuto()
+	return player:GetAttribute("Owns_AutoHammer") == true
+end
+
+function Hit.RefreshAuto()
+	if Hit.OwnsAuto() then
+		Hit.AutoButton.Text = Hit.AutoOn and "AUTO: ON" or "AUTO: OFF"
+		Hit.AutoButton.BackgroundColor3 = Hit.AutoOn and Color3.fromRGB(70, 190, 90) or Color3.fromRGB(110, 110, 125)
+	else
+		Hit.AutoButton.Text = ("AUTO  R$%d"):format(Hit.AutoPass.PriceRobux or 49)
+		Hit.AutoButton.BackgroundColor3 = Color3.fromRGB(120, 80, 200)
+	end
+end
+Hit.RefreshAuto()
+player:GetAttributeChangedSignal("Owns_AutoHammer"):Connect(Hit.RefreshAuto)
+
+Hit.AutoButton.Activated:Connect(function()
+	if Hit.OwnsAuto() then
+		Hit.AutoOn = not Hit.AutoOn
+		Hit.RefreshAuto()
+	elseif (tonumber(Hit.AutoPass.Id) or 0) ~= 0 then
+		pcall(function() MarketplaceService:PromptGamePassPurchase(player, Hit.AutoPass.Id) end)
+	else
+		warn("[GeodeUI] Геймпасс AutoHammer ещё не создан: впиши его Id в Config.GamePasses.AutoHammer.Id")
+	end
+end)
+
+RunService.Heartbeat:Connect(function()
+	if not (Hit.AutoOn and Hit.OwnsAuto() and crackSequenceActive and openRequestActive) then return end
+	if crackTapBusy or os.clock() < crackTapReadyAt + ((Config.GeodeCutscene or {}).AutoHitDelay or 0.08) then return end
+	onCrackHit(false)
+end)
 
 -- Шарик — простой ImageLabel-билдер (по прямому запросу "сделай
 -- имейджлабел билдер"): круглый (UICorner половина), с обводкой, лёгкой
@@ -1902,6 +2021,10 @@ beginCrack = function()
 	crackTapBusy = false
 	crackTapToken += 1
 	tapSequenceCompleted = false
+	Hit.Combo = 0
+	Hit.ShowCombo(0)
+	Hit.RefreshAuto()
+	Hit.AutoButton.Visible = true
 	crackTapButton.Visible = true
 	spawnCrackBall()
 	crackSequenceActive = true
@@ -2460,6 +2583,8 @@ function closeAll()
 	crackTapToken += 1
 	crackTapButton.Visible = false
 	clickHint.Visible = false
+	Hit.AutoButton.Visible = false
+	Hit.ShowCombo(0)
 	crackTapBusy = false
 	crackTapCount = 0
 	podiumRequestPending = false
@@ -2518,6 +2643,8 @@ local function showResult(payload, newState)
 	crackTapButton.Visible = false
 	destroyCrackBall()
 	clickHint.Visible = false
+	Hit.AutoButton.Visible = false
+	Hit.ShowCombo(0)
 	gui.Enabled = true
 	state = newState or state
 	if goblinResultActive then

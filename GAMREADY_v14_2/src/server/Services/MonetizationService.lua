@@ -257,6 +257,7 @@ local PASS_NOTIFY = {
 	FastSmelter = { Icon = "Reward", Effect = "Smelter x2 faster, +1 slot." },
 	RocketPickaxe = { Icon = "Pickaxe", Effect = "Press R: one hit knocks players flying!" },
 	DoubleDrops = { Icon = "Geode", Effect = "Geodes give x2 rewards." },
+	AutoHammer = { Icon = "Geode", Effect = "Tap AUTO while cracking a geode - you swing on your own." },
 }
 
 local function passTitle(key)
