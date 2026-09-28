@@ -14,16 +14,7 @@
             }
         },
         "ServerStorage": {
-            "$ignoreUnknownInstances": true,
-            "MapTools": {
-                "$className": "Folder",
-                "BuildIslandMap": {
-                    "$path": "tools/BuildIslandMap.lua"
-                },
-                "CheckMapMarkers": {
-                    "$path": "tools/CheckMapMarkers.lua"
-                }
-            }
+            "$ignoreUnknownInstances": true
         },
         "ServerScriptService": {
             "$ignoreUnknownInstances": true,

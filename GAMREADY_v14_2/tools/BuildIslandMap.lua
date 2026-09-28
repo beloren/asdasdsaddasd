@@ -2,11 +2,9 @@
 -- (Grow a Garden и т.п.): гладкий пластик, сочные мягкие цвета, ВСЁ ИЗ
 -- КУБОВ (никаких клиньев, шаров и цилиндров). Ctrl+Z откатывает всё.
 --
--- ЗАПУСК - ОДНОЙ КОМАНДОЙ (строит ВСЮ карту: остров, город, рынок, базы,
--- лагерь гоблинов с точками появления, валуны - и сразу проверяет маркеры):
---   • с Rojo (скрипт лежит в ServerStorage.MapTools) - строка в Command Bar:
---       require(game.ServerStorage.MapTools.BuildIslandMap)()
---   • без Rojo - вставь этот файл целиком в Command Bar и нажми Enter.
+-- ЗАПУСК: вставь этот файл целиком в Command Bar Studio и нажми Enter -
+-- строится ВСЯ карта сразу: остров, город, рынок, базы, лагерь гоблинов с
+-- точками появления, валуны. Больше ничего ставить не нужно.
 -- В Output по каждой части строка «ok» или «ОШИБКА»; лагерь гоблинов
 -- (Zone + Spawns + Marker) строится ПЕРВЫМ, поэтому появится всегда.
 --
@@ -27,9 +25,9 @@
 --   • Пляж ступеньками (песок -> мокрый песок -> мелководье -> море),
 --     пальмы, ракушки, невидимая стена в море.
 --
--- СТАРОЕ НЕ УДАЛЯЕТСЯ: прежние IslandMap / RetroMap / PlotOrigins /
--- GoblinCamp / RubbleBoulderSpawnPoints / Baseplate и модели с IsBank
--- переносятся в ServerStorage.OldMapBackup.
+-- СТАРАЯ КАРТА УДАЛЯЕТСЯ: прежние IslandMap / RetroMap / PlotOrigins /
+-- GoblinCamp / RubbleBoulderSpawnPoints / Baseplate / LikeGoalBoard и модели
+-- с IsBank (запуск ещё раз = чистая пересборка). Вернуть - Ctrl+Z.
 --
 -- Размеры меняются в первых строках. BASE_SIZE - сторона квадрата твоей
 -- базы (PlotTemplate) в стадах; от неё считаются расстояния.
@@ -49,7 +47,6 @@ local SEED = 20260928
 local function build()
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
-local ServerStorage = game:GetService("ServerStorage")
 local recording = ChangeHistoryService:TryBeginRecording("BuildIslandMap")
 local rng = Random.new(SEED)
 local rad = math.rad
@@ -114,17 +111,14 @@ local function lerpColors(list, t)
 end
 
 --------------------------------------------------------------------------------
--- СТАРЫЕ ОБЪЕКТЫ -> ServerStorage.OldMapBackup
+-- СТАРАЯ КАРТА - удаляем (Ctrl+Z вернёт)
 --------------------------------------------------------------------------------
-local backup = ServerStorage:FindFirstChild("OldMapBackup") or Instance.new("Folder")
-backup.Name = "OldMapBackup"
-backup.Parent = ServerStorage
 for _, name in { "IslandMap", "RetroMap", "PlotOrigins", "GoblinCamp", "RubbleBoulderSpawnPoints", "Baseplate", "LikeGoalBoard", "IslandKeeperMarker", "IslandKeeperMarkerLook" } do
 	local old = workspace:FindFirstChild(name)
-	if old then old.Parent = backup end
+	if old then old:Destroy() end
 end
 for _, inst in workspace:GetDescendants() do
-	if inst:IsA("Model") and inst:GetAttribute("IsBank") and inst.Parent then inst.Parent = backup end
+	if inst:IsA("Model") and inst:GetAttribute("IsBank") and inst.Parent then inst:Destroy() end
 end
 
 local map = Instance.new("Model")
@@ -1023,7 +1017,7 @@ if recording then ChangeHistoryService:FinishRecording(recording, Enum.FinishRec
 game:GetService("Selection"):Set({ map })
 local parts = 0
 for _, d in workspace:GetDescendants() do if d:IsA("BasePart") then parts += 1 end end
-print(("[BuildIslandMap] Готово. Тропинки по %d стад, базы на радиусе %d (между соседними ~%d стад), берег ~%d. Точек валунов %d, деревьев %d. Деталей в Workspace: %d. Старое - в ServerStorage.OldMapBackup.")
+print(("[BuildIslandMap] Готово. Тропинки по %d стад, базы на радиусе %d (между соседними ~%d стад), берег ~%d. Точек валунов %d, деревьев %d. Деталей в Workspace: %d.")
 	:format(ROAD_LENGTH, BASE_RING, math.floor(2 * BASE_RING * math.sin(math.pi / 8) - BASE_SIZE), COAST, #boulderSpots, planted, parts))
 local camp = workspace:FindFirstChild("GoblinCamp")
 local spawnCount = 0
@@ -1037,19 +1031,4 @@ else
 end
 end -- build()
 
--- ЗАПУСК. Вставлен целиком в Command Bar -> строит сразу. Лежит модулем
--- (Rojo кладёт его в ServerStorage.MapTools) -> одна строка в Command Bar:
---   require(game.ServerStorage.MapTools.BuildIslandMap)()
--- После постройки сразу запускается проверка CheckMapMarkers (если лежит рядом).
-local function run()
-	build()
-	local checker = script and script.Parent and script.Parent:FindFirstChild("CheckMapMarkers")
-	if checker and checker:IsA("ModuleScript") then
-		local ok, fn = pcall(require, checker)
-		if ok and type(fn) == "function" then fn() end
-	end
-end
-if not (script and script:IsA("ModuleScript")) then
-	run()
-end
-return run
+build()

@@ -144,10 +144,4 @@ if workspace:FindFirstChild("Baseplate") then print("[--]  В Workspace оста
 print(("========== Итог: проблем %d, исправлено мелочей %d =========="):format(problems, fixes))
 end -- check()
 
--- Вставлен в Command Bar -> проверяет сразу. Модулем (ServerStorage.MapTools,
--- кладёт Rojo) -> require(game.ServerStorage.MapTools.CheckMapMarkers)()
--- (BuildIslandMap запускает эту проверку сам после постройки).
-if not (script and script:IsA("ModuleScript")) then
-	check()
-end
-return check
+check()
