@@ -128,11 +128,9 @@ end
 local function refreshHint()
 	local held = player:GetAttribute("HeldGear") or ""
 	if held ~= "" then
-		if held == ((Config.CartPackage and Config.CartPackage.GearKey) or "CartPackage") then
-			showHint(nil)
-		else
-			showHint(ItemHints.For(held))
-		end
+		-- v20.81: упаковка тележки - та же подсказка над хотбаром, что у
+		-- декора/тотемов (раньше у неё была только своя плашка сверху).
+		showHint(ItemHints.For(held))
 		return
 	end
 	local character = player.Character

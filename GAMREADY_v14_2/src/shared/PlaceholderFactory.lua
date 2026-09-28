@@ -535,6 +535,64 @@ end
 -- НПС ОСТРОВОВ в центре мира (см. IslandService). Свой ассет —
 -- "IslandKeeperNPC" в Assets (Model с PrimaryPart), иначе плейсхолдер в
 -- стиле ShopNPC, только другого цвета и с другой подписью.
+-- v20.81: АМУЛЕТ (чарм) - без кругов: квадратная золотая рамка, квадратный
+-- камень цвета чарма, ушко из брусков. Классический пластик со студами
+-- (старый вид Roblox: сверху/спереди Studs, снизу Inlet). Свой вид - положи
+-- в Assets модель "Charm_<Ключ>" (например Charm_Midas) или общую "Charm".
+-- Возвращает model, root (root - рамка; к ней крепятся остальные детали).
+function PlaceholderFactory.CharmModel(key, color)
+	local asset = (key and findAsset(key)) or findAsset("Charm")
+	if asset and asset:IsA("Model") then
+		local root = asset.PrimaryPart or asset:FindFirstChildWhichIsA("BasePart", true)
+		if root then
+			asset.PrimaryPart = root
+			return asset, root
+		end
+	end
+	if asset then asset:Destroy() end
+	color = color or Color3.fromRGB(255, 200, 80)
+	local model = Instance.new("Model")
+	model.Name = "Charm"
+	local function block(name, size, cf, partColor)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = cf
+		p.Color = partColor
+		p.Material = Enum.Material.Plastic
+		p.TopSurface = Enum.SurfaceType.Studs
+		p.FrontSurface = Enum.SurfaceType.Studs
+		p.BackSurface = Enum.SurfaceType.Studs
+		p.LeftSurface = Enum.SurfaceType.Smooth
+		p.RightSurface = Enum.SurfaceType.Smooth
+		p.BottomSurface = Enum.SurfaceType.Inlet
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Massless = true
+		p.Parent = model
+		return p
+	end
+	local gold = Color3.fromRGB(255, 196, 60)
+	local darkGold = Color3.fromRGB(196, 136, 32)
+	local root = block("Frame", Vector3.new(1.4, 1.4, 0.3), CFrame.new(), gold)
+	block("Inset", Vector3.new(1.05, 1.05, 0.36), CFrame.new(), darkGold)
+	block("Gem", Vector3.new(0.6, 0.6, 0.5), CFrame.new(0, 0, -0.08), color)
+	-- уголки-заклёпки по углам рамки
+	for _, x in { -0.55, 0.55 } do
+		for _, y in { -0.55, 0.55 } do
+			block("Rivet", Vector3.new(0.22, 0.22, 0.4), CFrame.new(x, y, 0), darkGold)
+		end
+	end
+	-- ушко: П-образное из трёх брусков
+	block("LoopTop", Vector3.new(0.5, 0.12, 0.14), CFrame.new(0, 1.0, 0), gold)
+	block("LoopLeft", Vector3.new(0.12, 0.3, 0.14), CFrame.new(-0.19, 0.85, 0), gold)
+	block("LoopRight", Vector3.new(0.12, 0.3, 0.14), CFrame.new(0.19, 0.85, 0), gold)
+	model.PrimaryPart = root
+	return model, root
+end
+
 function PlaceholderFactory.IslandKeeperNPC()
 	local asset = findAsset("IslandKeeperNPC")
 	if asset and asset:IsA("Model") and asset.PrimaryPart then

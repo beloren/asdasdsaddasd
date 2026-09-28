@@ -61,6 +61,24 @@ local placementUi = require(ReplicatedStorage.Shared.UiRegistry).Get("PlacementU
 local cartHud = placementUi:WaitForChild("CartHud")
 local hintPlate = cartHud:WaitForChild("Hint")
 local hint = hintPlate:WaitForChild("Text")
+-- v20.81: как у декора (PlacementGhost) - постоянную подсказку пишет строка
+-- предмета над хотбаром (GearHud/AimHint), а эта плашка всплывает только на
+-- ошибку: кликнул туда, где поставить нельзя - на 1.5 с причина красным.
+hintPlate.Visible = false
+local hintToken = 0
+local function flashHint(text)
+	hintToken += 1
+	local token = hintToken
+	hint.Text = string.upper(text)
+	hint.TextColor3 = settings.PreviewBadColor or Color3.fromRGB(255, 70, 70)
+	local hintStroke = hintPlate:FindFirstChild("SkinStroke")
+	if hintStroke then hintStroke.Color = hint.TextColor3 end
+	hintPlate.Visible = true
+	task.delay(1.5, function()
+		if hintToken == token then hintPlate.Visible = false end
+	end)
+end
+local lastReason = nil
 
 --------------------------------------------------------------------------------
 -- ПРИЗРАК
@@ -216,11 +234,7 @@ RunService.RenderStepped:Connect(function()
 	paintGhost(ok)
 
 	cartHud.Visible = true
-	hint.Text = ok and "TAP TO PLACE YOUR CART" or string.upper(reason or "CAN'T PLACE HERE")
-	hint.TextColor3 = ok and (settings.PreviewOkColor or Color3.fromRGB(70, 255, 120))
-		or (settings.PreviewBadColor or Color3.fromRGB(255, 70, 70))
-	local hintStroke = hintPlate:FindFirstChild("SkinStroke")
-	if hintStroke then hintStroke.Color = hint.TextColor3 end
+	lastReason = reason
 end)
 
 --------------------------------------------------------------------------------
@@ -232,7 +246,10 @@ end)
 --------------------------------------------------------------------------------
 local function tryPlace()
 	if not heldPackageTier() then return end
-	if not (lastOk and lastValidCFrame) then return end
+	if not (lastOk and lastValidCFrame) then
+		flashHint(lastReason or "Can't place here")
+		return
+	end
 	-- Серверу уходит ТОЛЬКО точка: всё остальное (поворот, посадка на землю,
 	-- проверки) он считает сам — см. CartService:PlaceCartFromPackage.
 	placeRemote:FireServer(lastValidCFrame.Position)

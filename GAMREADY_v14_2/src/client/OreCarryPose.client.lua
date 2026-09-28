@@ -263,12 +263,21 @@ local function buildPotionModel(plr, key)
 	local glassColor = Color3.fromRGB(220, 240, 255)
 	local root, liquid
 	if info.Charm then
-		-- v18: АМУЛЕТ из сундука — золотой диск с камнем цвета амулета.
-		local gold = Color3.fromRGB(255, 196, 60)
-		root = piece("Disc", Enum.PartType.Cylinder, Vector3.new(0.25, 1.4, 1.4), gold, Enum.Material.Metal, 0, CFrame.Angles(0, math.rad(90), 0))
-		piece("Rim", Enum.PartType.Cylinder, Vector3.new(0.3, 1.1, 1.1), Color3.fromRGB(200, 140, 30), Enum.Material.Metal, 0, CFrame.Angles(0, math.rad(90), 0))
-		liquid = piece("Gem", Enum.PartType.Ball, Vector3.new(0.7, 0.7, 0.7), color, Enum.Material.Neon, 0, CFrame.new(0, 0, -0.18))
-		piece("Loop", Enum.PartType.Cylinder, Vector3.new(0.12, 0.4, 0.4), gold, Enum.Material.Metal, 0, CFrame.new(0, 0.82, 0) * CFrame.Angles(0, math.rad(90), 0))
+		-- v20.81: АМУЛЕТ - квадратная рамка и камень из брусков со студами
+		-- (PlaceholderFactory.CharmModel, общий с превью в инвентаре).
+		model:Destroy()
+		model, root = PlaceholderFactory.CharmModel(key, color)
+		liquid = model:FindFirstChild("Gem") or root
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.Anchored = true
+				part.CanCollide = false
+				part.CanQuery = false
+				part.CanTouch = false
+				part.Massless = true
+				part.CastShadow = false
+			end
+		end
 	else
 		root = piece("Glass", Enum.PartType.Ball, Vector3.new(1.35, 1.35, 1.35), glassColor, Enum.Material.Glass, 0.45, CFrame.new())
 		liquid = piece("Liquid", Enum.PartType.Ball, Vector3.new(1, 1, 1), color, Enum.Material.Neon, 0.1, CFrame.new(0, -0.1, 0))

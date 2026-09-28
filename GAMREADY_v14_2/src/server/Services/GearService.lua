@@ -366,6 +366,7 @@ function GearService:Equip(player, key)
 			pcall(Services.InventoryService.SetHeldOre, Services.InventoryService, player, nil)
 		end
 		clearHeldVisual(player)
+		player:SetAttribute("HeldPotion", nil) -- v20.81: чарм/зелье из рук убираем (раньше оставался вместе с коробкой)
 		player:SetAttribute("HeldGear", key)
 		player:SetAttribute("HeldCartPackage", Services.DataService:GetTiers(player).Cart)
 		return
@@ -379,6 +380,8 @@ function GearService:Equip(player, key)
 		pcall(Services.InventoryService.SetHeldOre, Services.InventoryService, player, nil)
 	end
 	clearHeldVisual(player)
+	player:SetAttribute("HeldPotion", nil) -- v20.81: в руке одно - динамит/сундук, без чарма
+	player:SetAttribute("HeldCartPackage", nil)
 	local visual
 	if Config.Dynamite.Types[key] then
 		visual = dynamiteModel(key)

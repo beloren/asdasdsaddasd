@@ -174,7 +174,8 @@ function ItemPreview.Build(item)
 		model = definition and fromAsset(definition.AssetName)
 	elseif kind == "Charm" then
 		local charm = Config.Potions.Types[item.Charm]
-		model = amulet(charm and charm.Color or Color3.fromRGB(255, 200, 80))
+		local okCharm, charmModel = pcall(PlaceholderFactory.CharmModel, item.Charm, charm and charm.Color)
+		model = okCharm and charmModel or amulet(charm and charm.Color or Color3.fromRGB(255, 200, 80))
 	elseif kind == "PrestigePoint" then
 		model = star()
 	elseif kind == "Relic" then

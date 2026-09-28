@@ -1040,48 +1040,77 @@ local function ownedEssences(data)
 	return list
 end
 
--- Какую эссенцию нанесём: ту, что в руке (если подходит), иначе самую
--- редкую из имеющихся, которой у кристалла ещё нет. nil + причина.
+-- Какую эссенцию нанесём: ту, что в руке, иначе самую редкую из имеющихся,
+-- которую можно нанести. Возвращает essence или nil + причина + candidate
+-- (эссенция, о которой речь в сообщении: «уже есть Frozen» и т.п.).
+-- v20.81: эссенцию в руке НЕ подменяем другой - если её нанести нельзя,
+-- так и говорим (раньше молча бралась другая или промпт пропадал).
+local function essenceBlock(has, mutationId)
+	if has[mutationId] then return "Duplicate" end
+	local groups = Config.Mutations.ExclusiveGroups
+	local group = groups and groups[mutationId]
+	if group then
+		for id in has do
+			if id ~= mutationId and groups[id] == group then return "Clash", id end
+		end
+	end
+	return nil
+end
+
 local function chooseEssence(player, data)
 	local key = data.InstalledGeodeOre
 	if not key or key == "" or not data.GeodeCollection[key] then return nil, "NoCrystal" end
+	local owned = ownedEssences(data)
+	if #owned == 0 then return nil, "NoEssence" end
 	local _, mutations = CollectionKey.Parse(key)
 	local has = {}
 	for _, id in mutations do has[id] = true end
 	local maxPer = (Config.Geodes.Essence and Config.Geodes.Essence.MaxPerCrystal) or 2
-	if #mutations >= maxPer then return nil, "Full" end
-	local owned = ownedEssences(data)
-	if #owned == 0 then return nil, "NoEssence" end
 	local held = player:GetAttribute("HeldGear") or ""
 	local heldMutation = DropTables.EssenceMutation(held)
+	local heldEssence = nil
 	for _, essence in owned do
-		if essence.Mutation == heldMutation and not has[essence.Mutation] then return essence end
+		if essence.Mutation == heldMutation then heldEssence = essence end
 	end
+	if #mutations >= maxPer then return nil, "Full", heldEssence or owned[1] end
+	if heldEssence then
+		local block, other = essenceBlock(has, heldEssence.Mutation)
+		if block then return nil, block, heldEssence, other end
+		return heldEssence
+	end
+	local first, firstBlock, firstOther = nil, nil, nil
 	for _, essence in owned do
-		local group = Config.Mutations.ExclusiveGroups and Config.Mutations.ExclusiveGroups[essence.Mutation]
-		local clash = false
-		if group then
-			for id in has do
-				if Config.Mutations.ExclusiveGroups[id] == group then clash = true end
-			end
-		end
-		if not has[essence.Mutation] and not clash then return essence end
+		local block, other = essenceBlock(has, essence.Mutation)
+		if not block then return essence end
+		if not first then first, firstBlock, firstOther = essence, block, other end
 	end
-	return nil, "AlreadyHas"
+	return nil, firstBlock or "Duplicate", first, firstOther
 end
 
+local function mutationName(id)
+	local mutation = id and Config.Mutations[id]
+	return mutation and mutation.DisplayName or tostring(id)
+end
+
+-- Промпт виден ВСЕГДА, когда на подиуме есть кристалл и у игрока есть хоть
+-- одна эссенция - даже если нанести нельзя (повтор мутации, конфликт,
+-- лимит): тогда нажатие объясняет причину, а не «кнопка пропала».
 function PassiveIncomeService:RefreshEssencePrompt(player)
 	local display = displays[player]
 	local prompt = display and display.EssencePrompt
 	if not (prompt and prompt.Parent) then return end
 	local data = Services.DataService:GetGeodeData(player)
-	local essence = data and chooseEssence(player, data)
-	if essence and not display.PodiumPromptDisabled then
-		local mutation = Config.Mutations[essence.Mutation]
-		prompt.ActionText = ("Apply %s Essence"):format(mutation and mutation.DisplayName or essence.Mutation)
+	if not data or display.PodiumPromptDisabled then
+		prompt.Enabled = false
+		return
+	end
+	local essence, reason, candidate = chooseEssence(player, data)
+	local shown = essence or candidate
+	if shown then
+		prompt.ActionText = ("Apply %s Essence"):format(mutationName(shown.Mutation))
 		prompt.Enabled = true
 	else
-		prompt.Enabled = false
+		prompt.Enabled = false -- нет кристалла или нет эссенций
 	end
 end
 
@@ -1093,11 +1122,12 @@ function PassiveIncomeService:ApplyEssence(player)
 	lastEssenceApply[player] = now
 	local data = Services.DataService:GetGeodeData(player)
 	if not data then return false end
-	local essence, reason = chooseEssence(player, data)
+	local essence, reason, candidate, other = chooseEssence(player, data)
 	if not essence then
 		local text = reason == "NoCrystal" and "Install a crystal on the podium first!"
-			or reason == "Full" and ("This crystal already holds %d mutations."):format((Config.Geodes.Essence and Config.Geodes.Essence.MaxPerCrystal) or 2)
-			or reason == "AlreadyHas" and "Your crystal already has these mutations."
+			or reason == "Full" and ("Can't apply: this crystal already holds %d mutations (max)."):format((Config.Geodes.Essence and Config.Geodes.Essence.MaxPerCrystal) or 2)
+			or reason == "Duplicate" and ("Can't apply: your crystal already has %s!"):format(candidate and mutationName(candidate.Mutation) or "this mutation")
+			or reason == "Clash" and ("Can't apply %s: it doesn't mix with %s on your crystal."):format(candidate and mutationName(candidate.Mutation) or "this essence", mutationName(other))
 			or "You have no essence. Find them in geodes!"
 		Services.NotifyService:Show(player, text, { Icon = "Error" })
 		self:RefreshEssencePrompt(player)
