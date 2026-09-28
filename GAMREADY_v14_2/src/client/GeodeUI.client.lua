@@ -1005,10 +1005,53 @@ local function playHammerSwing(fast, onImpact)
 		if ok then return end
 	end
 	-- ПРОЦЕДУРНЫЙ ВЗМАХ: молот уходит назад-вверх, потом резко вниз.
+	-- v20.68: позы считаются от ЖЕОДЫ, а не «поверни на 45° в руке»: в
+	-- момент удара головка молота лежит прямо над жеодой со стороны
+	-- игрока, при замахе - над головой, за плечом. Работает для любой
+	-- модели молота (головка ищется как центр всех деталей, кроме ручки).
 	local delayToImpact = CUT.ImpactDelay or 0.3
+	local aimedBack, aimedDown = nil, nil
+	local hand = hammerWeld and hammerWeld.Part0
+	local handle = hammerWeld and hammerWeld.Part1
+	if hand and handle and hammerModel and hammerRestC0 and activeGeodeProp and activeGeodeProp.Parent and character then
+		pcall(function()
+			local restHandle = hand.CFrame * hammerRestC0
+			local gripWorld = hand.Position
+			local gripAttachment = hand:FindFirstChild("RightGripAttachment")
+			if gripAttachment then gripWorld = gripAttachment.WorldPosition end
+			-- Центр головки: средняя точка всех деталей, кроме ручки.
+			local sum, count = Vector3.zero, 0
+			for _, part in hammerModel:GetDescendants() do
+				if part:IsA("BasePart") and part ~= handle then
+					sum += part.Position * part.Size.Magnitude
+					count += part.Size.Magnitude
+				end
+			end
+			local headWorld = count > 0 and (sum / count) or (restHandle * CFrame.new(0, handle.Size.Y / 2, 0)).Position
+			local headLocal = restHandle:VectorToObjectSpace(headWorld - gripWorld)
+			if headLocal.Magnitude < 0.05 then return end
+			local function poseFor(direction)
+				local current = restHandle:VectorToWorldSpace(headLocal).Unit
+				local axis = current:Cross(direction)
+				local angle = math.acos(math.clamp(current:Dot(direction), -1, 1))
+				local rotation = axis.Magnitude > 1e-4 and CFrame.fromAxisAngle(axis.Unit, angle) or CFrame.new()
+				local newHandle = CFrame.new(gripWorld) * rotation * CFrame.new(-gripWorld) * restHandle
+				return hand.CFrame:ToObjectSpace(newHandle)
+			end
+			local geodePos = activeGeodeProp:IsA("Model") and activeGeodeProp:GetPivot().Position or activeGeodeProp.Position
+			local _, geodeSize = nil, Vector3.new(2, 2, 2)
+			if activeGeodeProp:IsA("Model") then _, geodeSize = activeGeodeProp:GetBoundingBox() else geodeSize = activeGeodeProp.Size end
+			local target = geodePos + Vector3.new(0, geodeSize.Y * 0.5 + headLocal.Magnitude * 0.05, 0)
+			local toTarget = target - gripWorld
+			local flat = Vector3.new(toTarget.X, 0, toTarget.Z)
+			flat = flat.Magnitude > 0.05 and flat.Unit or Vector3.zAxis
+			aimedDown = poseFor(toTarget.Unit)
+			aimedBack = poseFor((Vector3.yAxis * 1.0 - flat * 0.45).Unit)
+		end)
+	end
 	if hammerWeld and hammerRestC0 then
-		local back = hammerRestC0 * CFrame.Angles(math.rad(-70), 0, 0)
-		local down = hammerRestC0 * CFrame.Angles(math.rad(45), 0, 0)
+		local back = aimedBack or hammerRestC0 * CFrame.Angles(math.rad(-70), 0, 0)
+		local down = aimedDown or hammerRestC0 * CFrame.Angles(math.rad(45), 0, 0)
 		local windup = TweenService:Create(hammerWeld, TweenInfo.new(delayToImpact * 0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { C0 = back })
 		windup:Play()
 		windup.Completed:Connect(function()
@@ -1338,26 +1381,63 @@ end
 -- капли/трейла сразу выдавал редкость (rarityColors) — теперь нейтральный
 -- тёмный цвет для всех, независимо от того, что внутри; какая награда —
 -- игрок узнаёт только подобрав каплю (см. showDropNotification ниже).
-local NEUTRAL_DROP_COLOR = Color3.fromRGB(60, 55, 70)
+local NEUTRAL_DROP_COLOR = Color3.fromRGB(190, 175, 255) -- v20.68: светящийся, но одинаковый у всех - редкость не выдаёт
+local SPARKLE_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds"
 
+local function sparkleBurst(position, count, color)
+	local holder = Instance.new("Part")
+	holder.Name = "GeodeSparkle"
+	holder.Anchored = true
+	holder.CanCollide = false
+	holder.CanQuery = false
+	holder.Transparency = 1
+	holder.Size = Vector3.new(0.2, 0.2, 0.2)
+	holder.CFrame = CFrame.new(position)
+	holder.Parent = workspace
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Texture = SPARKLE_TEXTURE
+	emitter.Color = ColorSequence.new(color or Color3.new(1, 1, 1))
+	emitter.LightEmission = 1
+	emitter.Lifetime = NumberRange.new(0.35, 0.7)
+	emitter.Speed = NumberRange.new(4, 9)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.45), NumberSequenceKeypoint.new(1, 0) })
+	emitter.Transparency = NumberSequence.new(0, 1)
+	emitter.Drag = 4
+	emitter.Enabled = false
+	emitter.Parent = holder
+	emitter:Emit(count or 10)
+	task.delay(1, function() holder:Destroy() end)
+end
+
+-- v20.68: КРАСИВЫЙ ВЫЛЕТ. Капля «выстреливает» из жеоды с попом (растёт
+-- из точки с перелётом), летит по НАСТОЯЩЕЙ баллистике (разгон вверх,
+-- падение под силой тяжести) с кувырком и светящимся хвостом, у земли
+-- отскакивает, брызгает искрами, приплющивается и дальше парит на месте,
+-- медленно крутясь, пока не подберут.
 local function spawnScatterDrop(origin, landPos, flightSeconds, arcHeight, result)
 	local prop = Instance.new("Part")
 	prop.Name = "GeodeDropProp"
 	prop.Shape = Enum.PartType.Ball
 	local baseSize = Vector3.new(1.1, 1.1, 1.1)
-	prop.Size = baseSize
+	prop.Size = baseSize * 0.2
 	prop.Color = NEUTRAL_DROP_COLOR
-	prop.Material = Enum.Material.SmoothPlastic
+	prop.Material = Enum.Material.Neon
 	prop.Anchored = true
 	prop.CanCollide = false
+	prop.CanQuery = false
+	prop.CastShadow = false
 	prop.CFrame = CFrame.new(origin)
 	prop.Parent = workspace
 	propResults[prop] = result
+	local light = Instance.new("PointLight")
+	light.Color = NEUTRAL_DROP_COLOR
+	light.Range = 7
+	light.Brightness = 1.4
+	light.Parent = prop
 
-	-- НАДПИСЬ "1/N" НАД КАПЛЕЙ — как над рудой из шахты (по прямому
-	-- запросу). Показывает ТОЛЬКО шанс, без названия: что именно внутри,
-	-- игрок по-прежнему узнаёт лишь подобрав (это осознанное правило
-	-- дропа, см. NEUTRAL_DROP_COLOR выше), а шанс спойлером не является.
+	-- НАДПИСЬ "1/N" НАД КАПЛЕЙ — только шанс, без названия (что внутри -
+	-- игрок узнаёт, подобрав каплю).
 	local chance = typeof(result) == "table" and tonumber(result.Chance) or nil
 	if chance and chance > 0 then
 		local billboard = Instance.new("BillboardGui")
@@ -1380,57 +1460,79 @@ local function spawnScatterDrop(origin, landPos, flightSeconds, arcHeight, resul
 		label.Parent = billboard
 	end
 
-	local trail = Instance.new("Trail")
 	local a0 = Instance.new("Attachment", prop)
-	a0.Position = Vector3.new(0, 0.5, 0)
+	a0.Position = Vector3.new(0, 0.35, 0)
 	local a1 = Instance.new("Attachment", prop)
-	a1.Position = Vector3.new(0, -0.5, 0)
+	a1.Position = Vector3.new(0, -0.35, 0)
+	local trail = Instance.new("Trail")
 	trail.Attachment0 = a0
 	trail.Attachment1 = a1
-	trail.Color = ColorSequence.new(NEUTRAL_DROP_COLOR)
-	trail.Lifetime = 0.35
+	trail.Color = ColorSequence.new(NEUTRAL_DROP_COLOR, Color3.new(1, 1, 1))
+	trail.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
+	trail.WidthScale = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0) })
+	trail.LightEmission = 1
+	trail.FaceCamera = true
+	trail.Lifetime = 0.45
 	trail.Parent = prop
 
-	task.spawn(function()
-		local steps = math.max(6, math.floor(flightSeconds * 40))
-		for step = 1, steps do
-			if not prop.Parent then return end
-			local linear = step / steps
-			-- ПО ПРЯМОМУ ЗАПРОСУ ("чутка медленнее и плавнее") — плавный
-			-- разгон и торможение (ease-in-out) вместо равномерного
-			-- линейного движения, так более медленный полёт не выглядит
-			-- вялым/дёрганым.
-			local alpha = linear * linear * (3 - 2 * linear) -- smoothstep
-			local pos = origin:Lerp(landPos, alpha) + Vector3.new(0, math.sin(alpha * math.pi) * arcHeight, 0)
-			prop.CFrame = CFrame.new(pos) * CFrame.Angles(0, alpha * math.pi * 3, 0)
-			task.wait(flightSeconds / steps)
-		end
-		if prop.Parent then
-			trail.Enabled = false
-			table.insert(scatterProps, prop)
+	-- Баллистика: вверх с начальной скоростью vy, вниз с «гравитацией» g,
+	-- так чтобы вершина была на arcHeight над стартом, а за flightSeconds
+	-- капля оказалась ровно в landPos.
+	local T = math.max(0.25, flightSeconds)
+	local H = math.max(1, arcHeight)
+	local dy = landPos.Y - origin.Y
+	local vy = (2 * H + 2 * math.sqrt(math.max(0, H * H - H * dy))) / T
+	local g = 2 * (vy * T - dy) / (T * T)
+	local horizontal = Vector3.new(landPos.X - origin.X, 0, landPos.Z - origin.Z)
+	local tumbleAxis = Vector3.new(math.random() * 2 - 1, 0.3, math.random() * 2 - 1).Unit
 
-			-- "ПРИПЛЮЩИВАНИЕ" ПРИ ПРИЗЕМЛЕНИИ (по прямому запросу) —
-			-- пружинка: сначала шире и ниже обычного (удар), потом чуть
-			-- выше и уже обычного (отскок), потом плавно назад к
-			-- нормальной форме. Меняем именно Size (не Scale модели — это
-			-- простой Part), CFrame держим неизменным по центру landPos,
-			-- чтобы приплющивание не "уезжало" по высоте.
-			local cfg = Config.Geodes
-			local landCFrame = CFrame.new(landPos)
-			prop.CFrame = landCFrame
-			local squashV = tonumber(cfg.LandingSquashVertical) or 0.6
-			local squashH = tonumber(cfg.LandingSquashHorizontal) or 1.25
-			local squashSeconds = math.max(0.1, tonumber(cfg.LandingSquashSeconds) or 0.35)
-			local squashedSize = Vector3.new(baseSize.X * squashH, baseSize.Y * squashV, baseSize.Z * squashH)
-			local overshootSize = Vector3.new(baseSize.X * 0.94, baseSize.Y * 1.08, baseSize.Z * 0.94)
-			prop.Size = squashedSize
-			local impactTween = TweenService:Create(prop, TweenInfo.new(squashSeconds * 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = overshootSize })
-			impactTween:Play()
-			impactTween.Completed:Connect(function()
-				if not prop.Parent then return end
-				TweenService:Create(prop, TweenInfo.new(squashSeconds * 0.65, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = baseSize }):Play()
-			end)
+	task.spawn(function()
+		local started = os.clock()
+		while true do
+			RunService.Heartbeat:Wait()
+			if not prop.Parent then return end
+			local t = math.min(os.clock() - started, T)
+			local alpha = t / T
+			local pos = origin + horizontal * alpha + Vector3.new(0, vy * t - 0.5 * g * t * t, 0)
+			-- Поп: 0.2 → 1.25 → 1 за первые 0.2 с.
+			local popT = math.clamp(t / 0.2, 0, 1)
+			local pop = popT < 0.6 and (0.2 + popT / 0.6 * 1.05) or (1.25 - (popT - 0.6) / 0.4 * 0.25)
+			prop.Size = baseSize * pop
+			prop.CFrame = CFrame.new(pos) * CFrame.fromAxisAngle(tumbleAxis, alpha * math.pi * 4)
+			if t >= T then break end
 		end
+		if not prop.Parent then return end
+		sparkleBurst(landPos, 8, NEUTRAL_DROP_COLOR)
+		trail.Enabled = false
+
+		-- Отскок: маленький прыжок на 0.7 стада за 0.28 с.
+		local cfg = Config.Geodes
+		local bounceSeconds = 0.28
+		local bounceStart = os.clock()
+		while prop.Parent do
+			RunService.Heartbeat:Wait()
+			local a = math.clamp((os.clock() - bounceStart) / bounceSeconds, 0, 1)
+			prop.CFrame = CFrame.new(landPos + Vector3.new(0, math.sin(a * math.pi) * 0.7, 0))
+			if a >= 1 then break end
+		end
+		if not prop.Parent then return end
+		prop:SetAttribute("BaseY", landPos.Y)
+		prop.CFrame = CFrame.new(landPos)
+		table.insert(scatterProps, prop)
+
+		-- Приплющивание при приземлении: шире-ниже → чуть выше-уже → норма.
+		local squashV = tonumber(cfg.LandingSquashVertical) or 0.6
+		local squashH = tonumber(cfg.LandingSquashHorizontal) or 1.25
+		local squashSeconds = math.max(0.1, tonumber(cfg.LandingSquashSeconds) or 0.35)
+		local squashedSize = Vector3.new(baseSize.X * squashH, baseSize.Y * squashV, baseSize.Z * squashH)
+		local overshootSize = Vector3.new(baseSize.X * 0.94, baseSize.Y * 1.08, baseSize.Z * 0.94)
+		prop.Size = squashedSize
+		local impactTween = TweenService:Create(prop, TweenInfo.new(squashSeconds * 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = overshootSize })
+		impactTween:Play()
+		impactTween.Completed:Connect(function()
+			if not prop.Parent then return end
+			TweenService:Create(prop, TweenInfo.new(squashSeconds * 0.65, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = baseSize }):Play()
+		end)
 	end)
 end
 
@@ -1449,11 +1551,12 @@ local function playCrackAndScatter(geodeProp, results)
 		or Vector3.new()
 
 	shatterGeodeProp(geodeProp)
+	sparkleBurst(origin, 18, NEUTRAL_DROP_COLOR)
 
 	local dropCount = math.min(cfg.ScatterMaxDrops, math.max(1, #results))
 	for i = 1, dropCount do
 		local result = results[i] or results[1]
-		task.delay((i - 1) * 0.05, function()
+		task.delay((i - 1) * 0.09, function()
 			-- ДРОП ЛЕТИТ В СТОРОНУ ИГРОКА (по прямому запросу), а не в
 			-- случайную сторону: иначе за ним приходилось бегать, а половина
 			-- улетала за спину, где её не видно.
@@ -1504,7 +1607,14 @@ RunService.Heartbeat:Connect(function(dt)
 			propResults[prop] = nil
 			table.remove(scatterProps, i)
 		else
-			prop.CFrame = prop.CFrame * CFrame.Angles(0, dt * 2.4, 0)
+			-- v20.68: парит (лёгкое покачивание) и медленно крутится.
+			local baseY = prop:GetAttribute("BaseY")
+			local spun = prop.CFrame * CFrame.Angles(0, dt * 2.4, 0)
+			if typeof(baseY) == "number" then
+				local bob = math.sin(os.clock() * 3 + prop.Position.X) * 0.18 + 0.2
+				spun = CFrame.new(prop.Position.X, baseY + bob, prop.Position.Z) * spun.Rotation
+			end
+			prop.CFrame = spun
 			if root and (prop.Position - root.Position).Magnitude <= 3.5 then
 				pcall(playUiSound, "GeodeDrop")
 				if showDropNotification then

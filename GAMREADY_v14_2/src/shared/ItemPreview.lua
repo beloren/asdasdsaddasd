@@ -118,7 +118,18 @@ function ItemPreview.Build(item)
 	local kind = item and item.Kind
 	local model
 	if kind == "Crystal" or kind == "Ore" then
-		local ok, ore = pcall(PlaceholderFactory.CollectionOre, item.OreId)
+		-- v20.68: руда шахты - та же модель, что в мире (OreCrystal + вариация),
+		-- а не кристалл коллекции: для руды шахты CollectionOre отдавал
+		-- запасной неоновый брусок («квадратик»). Кристаллы жеод - как раньше.
+		local mineOre = Config.OreByKey and Config.OreByKey[item.OreId]
+		local geodeOre = Config.Geodes and Config.Geodes.Ores and Config.Geodes.Ores[item.OreId]
+		local ok, ore
+		if mineOre and not (kind == "Crystal" and geodeOre) then
+			ok, ore = pcall(PlaceholderFactory.OreCrystal, mineOre, Config.OreVariants and Config.OreVariants[item.Variant or 1])
+		end
+		if not (ok and ore) then
+			ok, ore = pcall(PlaceholderFactory.CollectionOre, item.OreId)
+		end
 		if ok and ore then
 			if ore:IsA("BasePart") then
 				model = Instance.new("Model")
@@ -126,13 +137,17 @@ function ItemPreview.Build(item)
 			else
 				model = ore
 			end
-			if item.Mutations then
+			if item.Mutations and #item.Mutations > 0 then
 				local okMv, MutationVisuals = pcall(require, ReplicatedStorage.Shared.MutationVisuals)
 				if okMv then
-					for _, id in item.Mutations do
-						pcall(MutationVisuals.Apply, model, id, model:FindFirstChildWhichIsA("BasePart", true))
+					local okSplit, groups = pcall(MutationVisuals.SplitPartsForMutations, model, #item.Mutations)
+					for index, id in item.Mutations do
+						pcall(MutationVisuals.Apply, model, id, model:FindFirstChildWhichIsA("BasePart", true), okSplit and groups and groups[index] or nil)
 					end
 				end
+			end
+			for _, d in model:GetDescendants() do
+				if d:IsA("ParticleEmitter") or d:IsA("Light") then d:Destroy() end
 			end
 		end
 	elseif kind == "Money" then

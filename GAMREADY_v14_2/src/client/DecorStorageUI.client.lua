@@ -93,7 +93,7 @@ local function makeCell(parent, order, stack, onClick)
 			if typeof(stack.Mutations) == "string" and stack.Mutations ~= "" then
 				mutations = string.split(stack.Mutations, ",")
 			end
-			local ok, cleanup = pcall(ItemPreview.Mount, preview, { Kind = "Ore", OreId = stack.Ore, Mutations = mutations }, { Spin = false, Tilt = 18 })
+			local ok, cleanup = pcall(ItemPreview.Mount, preview, { Kind = "Ore", OreId = stack.Ore, Variant = stack.Variant, Mutations = mutations }, { Spin = false, Tilt = 18 })
 			if ok and cleanup then table.insert(cleanups, cleanup) end
 		end
 	else
