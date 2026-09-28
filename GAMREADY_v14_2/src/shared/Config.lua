@@ -5740,7 +5740,7 @@ Config.Shop = {
 	-- остаются разовые предложения (стартовый пак, продление щита).
 	-- v20.4: порядок — самые покупаемые сверху (над ними ещё Forever Pack).
 	-- Категория без товаров показывается карточками «?» (скоро).
-	Tabs = { "Cash", "Boosts", "Passes", "Weather", "Geodes", "Dynamite", "Deals", "Skins", "Support" },
+	Tabs = { "Cash", "Boosts", "Support", "Passes", "Weather", "Geodes", "Dynamite", "Deals", "Skins" },
 
 	-- Подпись секции на экране (ключ категории не трогаем — он завязан на
 	-- PreferredTab по всей кодовой базе).

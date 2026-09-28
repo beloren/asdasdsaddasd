@@ -5606,12 +5606,6 @@ local function setupShopUi()
 						scrollToSection(body:FindFirstChild("Section_" .. tabName))
 					end)
 				end
-				-- v20.82: SUPPORT US - мягкая пульсация, чтобы кнопку заметили.
-				if navButton:GetAttribute("SupportButton") == true then
-					local pulse = Instance.new("UIScale")
-					pulse.Parent = navButton
-					TweenService:Create(pulse, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Scale = 1.07 }):Play()
-				end
 			end
 		end
 

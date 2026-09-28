@@ -38,7 +38,7 @@ local UiKit = require(Shared.UiKit)
 local Config = require(ReplicatedStorage.Shared.Config)
 
 local Builder = {}
-Builder.VERSION = 24
+Builder.VERSION = 25
 
 local DEFAULT_TAB_ACCENTS = {
 	Cash = "Green", Boosts = "Gold", Passes = "Purple", Weather = "Blue",
@@ -345,14 +345,12 @@ function Builder.Build()
 	UiKit.List(nav, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), VerticalAlignment = Enum.VerticalAlignment.Center })
 	UiKit.Padding(nav, 0, 2, 2, 2)
 	local navEntries = { { "Forever", "⭐ " .. ((Config.Shop.ForeverPack and Config.Shop.ForeverPack.Title) or "Forever") } }
-	-- v20.82: SUPPORT US - сразу вторая кнопка, залитая розовым.
-	if table.find(tabs, "Support") then
-		table.insert(navEntries, { "Support", "❤ " .. (names.Support or "SUPPORT US") .. " ❤" })
-	end
+	-- v20.83: SUPPORT US стоит на своём месте в Config.Shop.Tabs (4-я кнопка,
+	-- после Forever / Cash / Boosts), просто залита розовым.
 	for _, tabName in tabs do
-		if tabName ~= "Support" then
-			table.insert(navEntries, { tabName, ((emojis[tabName] and (emojis[tabName] .. " ")) or "") .. (names[tabName] or tabName) })
-		end
+		local caption = tabName == "Support" and ("❤ " .. (names.Support or "SUPPORT US") .. " ❤")
+			or ((emojis[tabName] and (emojis[tabName] .. " ")) or "") .. (names[tabName] or tabName)
+		table.insert(navEntries, { tabName, caption })
 	end
 	for order, entry in navEntries do
 		local isSupport = entry[1] == "Support"
