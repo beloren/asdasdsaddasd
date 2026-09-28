@@ -1,7 +1,14 @@
 -- BuildIslandMap: строит карту-ОСТРОВ в стиле современных симуляторов
 -- (Grow a Garden и т.п.): гладкий пластик, сочные мягкие цвета, ВСЁ ИЗ
--- КУБОВ (никаких клиньев, шаров и цилиндров). Вставь целиком в Command Bar
--- Studio и нажми Enter. Ctrl+Z откатывает всё одним шагом.
+-- КУБОВ (никаких клиньев, шаров и цилиндров). Ctrl+Z откатывает всё.
+--
+-- ЗАПУСК - ОДНОЙ КОМАНДОЙ (строит ВСЮ карту: остров, город, рынок, базы,
+-- лагерь гоблинов с точками появления, валуны - и сразу проверяет маркеры):
+--   • с Rojo (скрипт лежит в ServerStorage.MapTools) - строка в Command Bar:
+--       require(game.ServerStorage.MapTools.BuildIslandMap)()
+--   • без Rojo - вставь этот файл целиком в Command Bar и нажми Enter.
+-- В Output по каждой части строка «ok» или «ОШИБКА»; лагерь гоблинов
+-- (Zone + Spawns + Marker) строится ПЕРВЫМ, поэтому появится всегда.
 --
 -- ЧТО СТРОИТСЯ (и что из этого читает код игры):
 --   • Остров-городок в центре: БОЛЬШОЙ ПАВИЛЬОН ПРОДАЖИ РУДЫ прямо в центре
@@ -38,6 +45,8 @@ local GOBLIN_SIZE = 80       -- сторона территории гоблин
 local SELL_ZONE = 44         -- сторона зоны продажи в центре города
 local TREE_COUNT = 80
 local SEED = 20260928
+
+local function build()
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local ServerStorage = game:GetService("ServerStorage")
@@ -347,9 +356,31 @@ local function blocked(pos, margin)
 end
 
 --------------------------------------------------------------------------------
+-- 0) ЛАГЕРЬ ГОБЛИНОВ - ИГРОВАЯ ЧАСТЬ (строится ПЕРВОЙ, до всего остального:
+-- даже если что-то дальше упадёт, гоблины всё равно будут появляться).
+-- Workspace.GoblinCamp: Zone (границы), Spawns/Spawn1..6 (точки появления,
+-- у больших камней), Marker (табличка лагеря). Декор - в секции 5.
+--------------------------------------------------------------------------------
+section("Goblin camp: Zone + Spawns + Marker", function()
+	local camp = Instance.new("Model")
+	camp.Name = "GoblinCamp"
+	camp.Parent = workspace
+	local cf = CFrame.lookAt(goblinCenter, Vector3.zero)
+	local half = GOBLIN_SIZE / 2
+	local zone = marker(camp, "Zone", Vector3.new(GOBLIN_SIZE, 30, GOBLIN_SIZE), cf * CFrame.new(0, 13, 0), Color3.fromRGB(255, 70, 70), 0.9)
+	camp.PrimaryPart = zone
+	local spawns = folder("Spawns", camp)
+	for i = 1, 6 do
+		local a = (i - 1) / 6 * math.pi * 2 + 0.3
+		marker(spawns, "Spawn" .. i, Vector3.new(2, 1, 2), cf * CFrame.new(math.cos(a) * half * 0.38, 1, math.sin(a) * half * 0.38), Color3.fromRGB(90, 220, 90))
+	end
+	marker(camp, "Marker", Vector3.new(2, 2, 2), cf * CFrame.new(0, 1, -half + 14))
+end)
+
+--------------------------------------------------------------------------------
 -- 1) ОСТРОВ: трава, берег ступеньками, пляж, мелководье, море
 --------------------------------------------------------------------------------
-do
+section("Island ground", function()
 	-- Трава внутри: крупные кубы с лёгкой «шахматкой» и градиентом к краю.
 	local tile = 64
 	local n = math.ceil(COAST / tile) + 1
@@ -421,11 +452,12 @@ do
 			Transparency = 1, CanQuery = false, CanTouch = false,
 		})
 	end
-end
+end)
 
 --------------------------------------------------------------------------------
 -- 2) ТРОПИНКИ: песочная середина + светлые края, фонари, указатели
 --------------------------------------------------------------------------------
+section("Roads", function()
 for i = 1, 8 do
 	local angle = baseAngles[i]
 	local road = folder("Road" .. i, roadsF)
@@ -455,6 +487,7 @@ for i = 1, 8 do
 		glow(box(lampM, "Light", Vector3.new(1.8, 1.8, 1.8), CFrame.new(at + Vector3.new(0, 9.8, 0)), C.Yellow))
 	end
 end
+end)
 
 --------------------------------------------------------------------------------
 -- 3) БАЗЫ В ВОДЕ: PlotOrigins + причал у конца тропинки + место под мост
@@ -463,6 +496,7 @@ local origins = Instance.new("Folder")
 origins.Name = "PlotOrigins"
 origins.Parent = workspace
 local bridges = folder("BridgeSpans", basesF)
+section("Bases (PlotOrigins) + landings", function()
 for i = 1, 8 do
 	local pos = basePositions[i]
 	-- PlotN - центр базы (сюда встанет PlotPad), лицом к городу; PlotNLook -
@@ -488,6 +522,7 @@ for i = 1, 8 do
 	local span = marker(bridges, "BridgeSpan" .. i, Vector3.new(14, 1, (to - from).Magnitude), CFrame.lookAt((from + to) / 2, to), C.Orange, 0.6)
 	span:SetAttribute("BaseIndex", i)
 end
+end)
 
 --------------------------------------------------------------------------------
 -- 4) ПОЛУШАХТЁРСКИЙ ГОРОДОК
@@ -498,7 +533,7 @@ local function gapCFrame(k, radius)
 end
 
 -- Площадь: каменные плиты двух тонов (круг из кубов) + бордюр из кубов.
-do
+section("Plaza + fence", function()
 	local cell = 10
 	local r = TOWN_RADIUS - 8
 	local plazaM = model(townF, "Plaza")
@@ -529,11 +564,11 @@ do
 			box(fenceM, "FencePost", Vector3.new(1.4, 3.4, 1.4), cf * CFrame.new(length / 2, 1.7, 0), C.Wood)
 		end
 	end
-end
+end)
 
 -- КОПЁР ШАХТЫ (деревянная башня с колесом из кубов) над стволом рядом с
 -- входом в шахту, светящиеся кристаллы - ориентир, виден издалека.
-do
+section("Mine headframe", function()
 	local model = Instance.new("Model")
 	model.Name = "MineHeadframe"
 	model.Parent = townF
@@ -579,7 +614,7 @@ do
 		end
 	end
 	sign(model, "TownSign", "MINER TOWN", Vector3.new(18, 4, 1), base * CFrame.new(0, 34, 6.5), C.Wood, C.Yellow)
-end
+end)
 
 -- Рельсы из кубов от центра к входу в шахту (скала между дорогами 5 и 6).
 local function rails(parent, from, to)
@@ -594,7 +629,7 @@ local function rails(parent, from, to)
 end
 
 -- Вход в шахту: скала-горка из кубов (градиент камня), тёмный проём, балки.
-do
+section("Mine entrance", function()
 	local model = Instance.new("Model")
 	model.Name = "MineEntrance"
 	model.Parent = townF
@@ -622,7 +657,7 @@ do
 	for o = 1, 4 do
 		glow(box(model, "Ore", Vector3.new(1.3, 1.3, 1.3), cart * CFrame.new(o % 2 == 0 and 0.8 or -0.8, 3.1, -2 + o) * CFrame.Angles(rad(o * 25), rad(o * 40), 0), ({ C.Crystal, C.Yellow, C.Pink, C.Orange })[o]))
 	end
-end
+end)
 
 -- Домик из кубов: стены-градиент, ступенчатая крыша, окна, дверь, труба.
 local function house(cf, w, d, h, wall, roof, name)
@@ -742,7 +777,7 @@ house(gapCFrame(6, 78), 16, 13, 9, C.WoodLight, C.Leaf1, "HouseGreen")
 house(gapCFrame(7, 80), 18, 14, 10, C.White, C.Orange, "HouseOrange")
 
 -- Башня-вышка шахтёров (ориентир) - между дорогами 2 и 3.
-do
+section("Watchtower", function()
 	local cf = gapCFrame(1, 80)
 	local model = Instance.new("Model")
 	model.Name = "Watchtower"
@@ -751,28 +786,29 @@ do
 	for step = 1, 4 do box(model, "Roof", Vector3.new(12 - step * 2.2, 1.6, 12 - step * 2.2), cf * CFrame.new(0, 28 + step * 1.6, 0), C.Red) end
 	glow(box(model, "Beacon", Vector3.new(2, 2, 2), cf * CFrame.new(0, 36.4, 0), C.Yellow))
 	glow(box(model, "Window", Vector3.new(3, 3, 0.5), cf * CFrame.new(0, 22, -4.9), C.Cream))
-end
+end)
 
 -- Хижина смотрителя островов (IslandKeeperMarker) - между дорогами 1 и 2.
-do
+section("Island keeper hut", function()
 	local cf = gapCFrame(0, 78)
 	local hut = house(cf, 14, 12, 9, C.WoodLight, C.Teal, "IslandKeeperHut")
 	local spot = cf * CFrame.new(0, 0.5, -10)
 	marker(workspace, "IslandKeeperMarker", Vector3.new(2, 1, 2), spot)
 	marker(workspace, "IslandKeeperMarkerLook", Vector3.new(1, 1, 1), CFrame.new(Vector3.new(0, spot.Position.Y, 0)))
 	sign(hut, "IslandSign", "ISLANDS", Vector3.new(8, 2.4, 0.6), cf * CFrame.new(0, 12, -6.6), C.Teal, C.White)
-end
+end)
 
 -- Табло лайков - у площади, лицом к центру.
-do
+section("LikeGoalBoard", function()
 	local pos = polar(202.5, SELL_ZONE / 2 + 26, 8)
 	local cf = CFrame.lookAt(pos, Vector3.new(0, 8, 0))
 	box(workspace, "LikeGoalBoard", Vector3.new(14, 9, 1), cf, C.WoodDark)
 	local legs = model(townF, "LikeGoalBoardStand")
 	for _, x in { -6, 6 } do box(legs, "BoardLeg", Vector3.new(1, 4, 1), cf * CFrame.new(x, -6.5, 0), C.Wood) end
-end
+end)
 
 -- Фонари по кругу площади.
+section("Town lamps", function()
 for s = 0, 15 do
 	local angle = s * 22.5 + 11.25
 	local at = polar(angle, TOWN_RADIUS - 16)
@@ -781,16 +817,16 @@ for s = 0, 15 do
 	box(lampM, "LampTop", Vector3.new(2.4, 0.6, 2.4), CFrame.new(at + Vector3.new(0, 9.8, 0)), C.WoodDark)
 	glow(box(lampM, "Light", Vector3.new(1.6, 1.6, 1.6), CFrame.new(at + Vector3.new(0, 8.9, 0)), C.Yellow))
 end
+end)
 
 --------------------------------------------------------------------------------
 -- 5) ТЕРРИТОРИЯ ГОБЛИНОВ - «ИСПОРЧЕННАЯ ЗЕМЛЯ» (GoblinCamp: Zone + Spawns + Marker)
 -- Тёмная больная земля с фиолетовыми светящимися трещинами, мёртвые
 -- деревья и КРУПНЫЕ КАМНИ - гоблины появляются прямо у этих камней.
 --------------------------------------------------------------------------------
-section("Goblin land", function()
-	local camp = Instance.new("Model")
+section("Goblin land decor", function()
+	local camp = workspace:FindFirstChild("GoblinCamp") or Instance.new("Model", workspace)
 	camp.Name = "GoblinCamp"
-	camp.Parent = workspace
 	local cf = CFrame.lookAt(goblinCenter, Vector3.zero) -- «вход» смотрит на город
 	local deco = folder("Decor", camp)
 	local Corrupt = {
@@ -825,8 +861,8 @@ section("Goblin land", function()
 			glow(box(crackM, "Crack", Vector3.new(0.6, 0.2, 5 + rng:NextNumber() * 4), at * CFrame.Angles(0, yaw + seg * 0.5, 0) * CFrame.new(0, 0, seg * 4), Corrupt.Glow))
 		end
 	end
-	-- Крупные камни: 6 скоплений по кругу - у каждого точка появления гоблинов.
-	local spawns = folder("Spawns", camp)
+	-- Крупные камни: 6 скоплений по кругу - у каждого точка появления гоблинов
+	-- (сами точки Spawns уже поставлены в самом начале, секция «Goblin camp»).
 	for i = 1, 6 do
 		local a = (i - 1) / 6 * math.pi * 2 + 0.3
 		local rockCF = cf * CFrame.new(math.cos(a) * half * 0.62, 0, math.sin(a) * half * 0.62)
@@ -841,9 +877,6 @@ section("Goblin land", function()
 				glow(box(rockM, "RockVein", Vector3.new(s * 0.9, 0.4, 0.4), rock.CFrame * CFrame.new(0, s * 0.1, -s * 0.46), Corrupt.Glow))
 			end
 		end
-		-- Точка появления - у камня, со стороны центра лагеря.
-		local inward = cf * CFrame.new(math.cos(a) * half * 0.38, 1, math.sin(a) * half * 0.38)
-		marker(spawns, "Spawn" .. i, Vector3.new(2, 1, 2), inward, Color3.fromRGB(90, 220, 90))
 	end
 	-- Мёртвые деревья (кривые стволы из кубов).
 	for _, o in { Vector3.new(-half + 10, 0, half - 10), Vector3.new(half - 10, 0, half - 12), Vector3.new(-half + 12, 0, -8), Vector3.new(half - 8, 0, 4) } do
@@ -880,9 +913,6 @@ section("Goblin land", function()
 			end
 		end
 	end
-	local zone = marker(camp, "Zone", Vector3.new(GOBLIN_SIZE, 30, GOBLIN_SIZE), cf * CFrame.new(0, 13, 0), Color3.fromRGB(255, 70, 70), 0.9)
-	marker(camp, "Marker", Vector3.new(2, 2, 2), cf * CFrame.new(0, 1, -half + 14))
-	camp.PrimaryPart = zone
 end)
 
 --------------------------------------------------------------------------------
@@ -938,6 +968,7 @@ end
 
 local planted = 0
 local tries = 0
+section("Trees", function()
 while planted < TREE_COUNT and tries < TREE_COUNT * 15 do
 	tries += 1
 	local a = rng:NextNumber() * math.pi * 2
@@ -951,7 +982,9 @@ while planted < TREE_COUNT and tries < TREE_COUNT * 15 do
 		end
 	end
 end
+end)
 -- Цветочные полянки.
+section("Flowers", function()
 for _ = 1, 70 do
 	local a = rng:NextNumber() * math.pi * 2
 	local r = math.sqrt(rng:NextNumber()) * COAST
@@ -964,7 +997,9 @@ for _ = 1, 70 do
 		end
 	end
 end
+end)
 -- Пляж: пальмы, ракушки, камни у воды.
+section("Beach", function()
 for i = 0, 55 do
 	local angle = i / 56 * 360 + rng:NextNumber() * 4
 	local p = polar(angle, coastAt(angle) - 20 - rng:NextNumber() * 10, -0.8)
@@ -979,7 +1014,10 @@ for i = 0, 55 do
 		end
 	end
 end
+end)
 
+--------------------------------------------------------------------------------
+-- ИТОГ: проверка того, что читает игра (гоблины, базы, рынок, валуны).
 --------------------------------------------------------------------------------
 if recording then ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit) end
 game:GetService("Selection"):Set({ map })
@@ -987,3 +1025,31 @@ local parts = 0
 for _, d in workspace:GetDescendants() do if d:IsA("BasePart") then parts += 1 end end
 print(("[BuildIslandMap] Готово. Тропинки по %d стад, базы на радиусе %d (между соседними ~%d стад), берег ~%d. Точек валунов %d, деревьев %d. Деталей в Workspace: %d. Старое - в ServerStorage.OldMapBackup.")
 	:format(ROAD_LENGTH, BASE_RING, math.floor(2 * BASE_RING * math.sin(math.pi / 8) - BASE_SIZE), COAST, #boulderSpots, planted, parts))
+local camp = workspace:FindFirstChild("GoblinCamp")
+local spawnCount = 0
+for _, p in camp and camp:FindFirstChild("Spawns") and camp.Spawns:GetChildren() or {} do
+	if p:IsA("BasePart") then spawnCount += 1 end
+end
+if camp and camp:FindFirstChild("Zone") and spawnCount > 0 then
+	print(("[BuildIslandMap] Гоблины: GoblinCamp есть, точек появления %d."):format(spawnCount))
+else
+	warn("[BuildIslandMap] Гоблины: GoblinCamp/Zone/Spawns НЕ построены - смотри ОШИБКУ выше в Output.")
+end
+end -- build()
+
+-- ЗАПУСК. Вставлен целиком в Command Bar -> строит сразу. Лежит модулем
+-- (Rojo кладёт его в ServerStorage.MapTools) -> одна строка в Command Bar:
+--   require(game.ServerStorage.MapTools.BuildIslandMap)()
+-- После постройки сразу запускается проверка CheckMapMarkers (если лежит рядом).
+local function run()
+	build()
+	local checker = script and script.Parent and script.Parent:FindFirstChild("CheckMapMarkers")
+	if checker and checker:IsA("ModuleScript") then
+		local ok, fn = pcall(require, checker)
+		if ok and type(fn) == "function" then fn() end
+	end
+end
+if not (script and script:IsA("ModuleScript")) then
+	run()
+end
+return run

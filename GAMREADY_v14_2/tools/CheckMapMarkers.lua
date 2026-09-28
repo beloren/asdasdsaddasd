@@ -5,6 +5,8 @@
 -- (в игре такие детали прячет сервер, в Studio их видно).
 local BASE_SIZE = 240 -- сторона твоей базы (PlotTemplate), для проверки наложений
 
+local function check()
+
 local problems, fixes = 0, 0
 local function ok(text) print("[OK]  " .. text) end
 local function bad(text) problems += 1 warn("[!!]  " .. text) end
@@ -140,3 +142,12 @@ if spans then for _, p in spans:GetChildren() do markPart(p) end ok("Рамки 
 if workspace:FindFirstChild("Baseplate") then print("[--]  В Workspace остался Baseplate - если он под островом, убери его") end
 
 print(("========== Итог: проблем %d, исправлено мелочей %d =========="):format(problems, fixes))
+end -- check()
+
+-- Вставлен в Command Bar -> проверяет сразу. Модулем (ServerStorage.MapTools,
+-- кладёт Rojo) -> require(game.ServerStorage.MapTools.CheckMapMarkers)()
+-- (BuildIslandMap запускает эту проверку сам после постройки).
+if not (script and script:IsA("ModuleScript")) then
+	check()
+end
+return check
