@@ -15,6 +15,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
+local OrePreview = require(ReplicatedStorage.Shared.OrePreview)
 
 local ItemPreview = {}
 
@@ -121,13 +122,24 @@ function ItemPreview.Build(item)
 		-- v20.68: руда шахты - та же модель, что в мире (OreCrystal + вариация),
 		-- а не кристалл коллекции: для руды шахты CollectionOre отдавал
 		-- запасной неоновый брусок («квадратик»). Кристаллы жеод - как раньше.
+		-- v20.78: руда шахты - через Shared.OrePreview (то же, что инвентарь и
+		-- сундук-хранилище: модель из Assets + мутации уже наложены).
 		local mineOre = Config.OreByKey and Config.OreByKey[item.OreId]
 		local geodeOre = Config.Geodes and Config.Geodes.Ores and Config.Geodes.Ores[item.OreId]
-		local ok, ore
-		if mineOre and not (kind == "Crystal" and geodeOre) then
-			ok, ore = pcall(PlaceholderFactory.OreCrystal, mineOre, Config.OreVariants and Config.OreVariants[item.Variant or 1])
+		local isMineOre = mineOre and not (kind == "Crystal" and geodeOre)
+		if isMineOre then
+			local okT, template = pcall(OrePreview.Template, { Ore = item.OreId, Variant = item.Variant, Mutations = item.Mutations, Smelted = item.Smelted })
+			if okT and template then
+				model = template:Clone()
+				if model:IsA("BasePart") then
+					local wrap = Instance.new("Model")
+					model.Parent = wrap
+					model = wrap
+				end
+			end
 		end
-		if not (ok and ore) then
+		local ok, ore
+		if not isMineOre then -- кристаллы жеод (не руда шахты)
 			ok, ore = pcall(PlaceholderFactory.CollectionOre, item.OreId)
 		end
 		if ok and ore then

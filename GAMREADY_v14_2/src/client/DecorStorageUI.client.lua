@@ -14,7 +14,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
-local ItemPreview = require(ReplicatedStorage.Shared.ItemPreview)
+local OrePreview = require(ReplicatedStorage.Shared.OrePreview)
 local Builder = require(ReplicatedStorage.Shared.UiBuilders.DecorStorageUi)
 local okSfx, UiSfx = pcall(require, ReplicatedStorage.Shared.UiSfx)
 
@@ -88,13 +88,29 @@ local function makeCell(parent, order, stack, onClick)
 		end
 		local stroke = cell:FindFirstChildWhichIsA("UIStroke")
 		if stroke then stroke.Color = color end
-		if preview and preview:IsA("ViewportFrame") then
-			local mutations = nil
-			if typeof(stack.Mutations) == "string" and stack.Mutations ~= "" then
-				mutations = string.split(stack.Mutations, ",")
+		-- v20.78: руда - та же 3D-модель с мутациями и обводкой, что в
+		-- инвентаре (Shared.OrePreview), а не запасной брусок ItemPreview.
+		if preview then
+			local view = Instance.new("Frame")
+			view.Name = "OreView"
+			view.BackgroundTransparency = 1
+			view.AnchorPoint = preview.AnchorPoint
+			view.Position = preview.Position
+			view.Size = preview.Size
+			view.ZIndex = preview.ZIndex
+			view.Parent = cell
+			preview.Visible = false
+			local ok, mounted = pcall(OrePreview.Mount, view, stack)
+			if not (ok and mounted) then
+				-- модели нет совсем - хотя бы кружок цвета руды
+				local info = Config.OreByKey[stack.Ore]
+				view.BackgroundTransparency = 0
+				view.BackgroundColor3 = info and info.Color or Color3.fromRGB(150, 150, 160)
+				view.Size = UDim2.new(preview.Size.X.Scale * 0.6, preview.Size.X.Offset * 0.6, preview.Size.Y.Scale * 0.6, preview.Size.Y.Offset * 0.6)
+				local corner = Instance.new("UICorner")
+				corner.CornerRadius = UDim.new(1, 0)
+				corner.Parent = view
 			end
-			local ok, cleanup = pcall(ItemPreview.Mount, preview, { Kind = "Ore", OreId = stack.Ore, Variant = stack.Variant, Mutations = mutations }, { Spin = false, Tilt = 18 })
-			if ok and cleanup then table.insert(cleanups, cleanup) end
 		end
 	else
 		if nameLabel then nameLabel.Text = "" end
