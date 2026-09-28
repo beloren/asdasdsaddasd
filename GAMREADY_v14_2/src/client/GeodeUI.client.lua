@@ -781,19 +781,35 @@ end
 local function startOrbitCamera()
 	lockCameraForOpening()
 	stopOrbitCamera()
-	-- v14: не орбита, а постановочный кадр из-за плеча игрока, стоящего у
-	-- наковальни. Имя функции оставлено ради совместимости с остальным кодом.
+	-- v20.79: камера МЕДЛЕННО КРУТИТСЯ ВОКРУГ ИГРОКА, который стоит перед
+	-- жеодой и бьёт её молотом. Центр кадра - между игроком и жеодой, так
+	-- что в кадре всегда оба. Старт - из-за плеча игрока (как раньше), дальше
+	-- по кругу со скоростью Config.GeodeCutscene.OrbitSpeed (град/сек).
 	local cut = Config.GeodeCutscene or {}
-	local offset = cut.CameraOffset or Vector3.new(4.2, 4.4, 7.6)
+	local radius = cut.OrbitRadius or 10
+	local height = cut.OrbitHeight or 4.5
+	local speed = math.rad(cut.OrbitSpeed or 14)
 	local current = nil
+	orbitAngle = nil
 	orbitConnection = RunService.RenderStepped:Connect(function(dt)
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		local focusPart = (activeAnvil and activeAnvil.Parent) and activeAnvil or nil
 		if not root then return end
-		local focus = focusPart and (focusPart.Position + Vector3.new(0, focusPart.Size.Y / 2 + (cut.CameraLookHeight or 1.2), 0))
-			or (root.Position + root.CFrame.LookVector * 4)
-		local position = (root.CFrame * CFrame.new(offset.X, offset.Y, offset.Z)).Position
+		local geodePos = nil
+		if activeGeodeProp and activeGeodeProp.Parent then
+			geodePos = activeGeodeProp:IsA("Model") and activeGeodeProp:GetPivot().Position or activeGeodeProp.Position
+		elseif activeAnvil and activeAnvil.Parent then
+			geodePos = activeAnvil.Position + Vector3.new(0, activeAnvil.Size.Y / 2, 0)
+		end
+		local focus = geodePos and root.Position:Lerp(geodePos, 0.4) or (root.Position + root.CFrame.LookVector * 2)
+		focus += Vector3.new(0, cut.CameraLookHeight or 1.2, 0)
+		if orbitAngle == nil then
+			-- из-за правого плеча: назад и чуть вправо от взгляда игрока
+			local back = -root.CFrame.LookVector + root.CFrame.RightVector * 0.55
+			orbitAngle = math.atan2(back.X, back.Z)
+		end
+		orbitAngle += speed * dt
+		local position = focus + Vector3.new(math.sin(orbitAngle) * radius, height, math.cos(orbitAngle) * radius)
 		local target = CFrame.lookAt(position, focus)
 		current = current and current:Lerp(target, math.clamp(dt * 8, 0, 1)) or target
 		local cf = current
@@ -822,6 +838,8 @@ local hammerRestC0 = nil
 local hammerTrack = nil
 local hiddenToolParts = {}
 local anchoredRoot = nil
+local shoulderMotor, shoulderRestC0 = nil, nil -- v20.79: взмах рукой без своей анимации
+local idleTrack = nil -- v20.79: поза «держит молот» (Config.GeodeCutscene.IdleAnimationId)
 local flashEffect = nil
 
 local function stopHammerAnimation()
@@ -882,6 +900,10 @@ end
 local function detachHammer()
 	if hammerTrack then pcall(function() hammerTrack:Stop(0.15) end) end
 	hammerTrack = nil
+	if idleTrack then pcall(function() idleTrack:Stop(0.2) end) end
+	idleTrack = nil
+	if shoulderMotor and shoulderMotor.Parent and shoulderRestC0 then shoulderMotor.C0 = shoulderRestC0 end
+	shoulderMotor, shoulderRestC0 = nil, nil
 	if hammerModel then hammerModel:Destroy() end
 	hammerModel, hammerWeld, hammerRestC0 = nil, nil, nil
 	for part, value in hiddenToolParts do
@@ -964,6 +986,33 @@ local function attachHammer()
 	model.Name = "GeodeHammer"
 	model.Parent = character
 	hammerModel = model
+	-- Плечо правой руки: без своей анимации удара рука сама замахивается
+	-- (молот приварен к кисти - летит вместе с ней).
+	local motor = character:FindFirstChild("RightShoulder", true) or character:FindFirstChild("Right Shoulder", true)
+	if motor and motor:IsA("Motor6D") then
+		shoulderMotor, shoulderRestC0 = motor, motor.C0
+	end
+	-- Поза «держит молот» на всю сцену (своя анимация, если задана).
+	local idleId = tonumber(CUT.IdleAnimationId) or 0
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local animator = humanoid and (humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid))
+	if idleId ~= 0 and animator then
+		pcall(function()
+			local animation = Instance.new("Animation")
+			animation.AnimationId = "rbxassetid://" .. tostring(idleId)
+			idleTrack = animator:LoadAnimation(animation)
+			idleTrack.Looped = true
+			idleTrack.Priority = Enum.AnimationPriority.Action
+			idleTrack:Play(0.2)
+		end)
+	end
+end
+
+-- Поворот плеча (градусы вперёд-вверх от опущенной руки) - в пространстве
+-- торса, одинаково для R15 и R6.
+local function shoulderPose(degrees)
+	if not (shoulderMotor and shoulderRestC0) then return nil end
+	return CFrame.new(shoulderRestC0.Position) * CFrame.Angles(math.rad(degrees), 0, 0) * shoulderRestC0.Rotation
 end
 
 -- Один взмах. onImpact вызывается в момент контакта с жеодой.
@@ -978,7 +1027,8 @@ local function playHammerSwing(fast, onImpact)
 		task.delay(0.05, impact)
 		return
 	end
-	local id = tonumber(Config.Geodes.HammerAnimationId) or 0
+	local id = tonumber(CUT.HammerAnimationId) or 0
+	if id == 0 then id = tonumber(Config.Geodes.HammerAnimationId) or 0 end
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local animator = humanoid and (humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid))
@@ -1049,7 +1099,28 @@ local function playHammerSwing(fast, onImpact)
 			aimedBack = poseFor((Vector3.yAxis * 1.0 - flat * 0.45).Unit)
 		end)
 	end
-	if hammerWeld and hammerRestC0 then
+	if CUT.ArmSwing ~= false and shoulderMotor and shoulderMotor.Parent then
+		-- v20.79: ИГРОК замахивается рукой (молот в кисти - вместе с ней):
+		-- рука вверх за голову -> резкий удар вниз к жеоде -> назад к стойке.
+		local motor = shoulderMotor
+		local up = shoulderPose(CUT.SwingUpAngle or 165)
+		local down = shoulderPose(CUT.SwingDownAngle or 55)
+		local rest = shoulderPose(CUT.HoldAngle or 25)
+		local windup = TweenService:Create(motor, TweenInfo.new(delayToImpact * 0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { C0 = up })
+		windup:Play()
+		windup.Completed:Connect(function()
+			if motor ~= shoulderMotor then return end
+			local strike = TweenService:Create(motor, TweenInfo.new(delayToImpact * 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { C0 = down })
+			strike:Play()
+			strike.Completed:Connect(function()
+				impact()
+				if motor == shoulderMotor then
+					TweenService:Create(motor, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { C0 = rest }):Play()
+				end
+			end)
+		end)
+		task.delay(delayToImpact + 0.2, impact)
+	elseif hammerWeld and hammerRestC0 then
 		local back = aimedBack or hammerRestC0 * CFrame.Angles(math.rad(-70), 0, 0)
 		local down = aimedDown or hammerRestC0 * CFrame.Angles(math.rad(45), 0, 0)
 		local windup = TweenService:Create(hammerWeld, TweenInfo.new(delayToImpact * 0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { C0 = back })
@@ -1633,14 +1704,15 @@ local function shakeGeodeForTap(token, finalTap)
 	local duration = math.max(0.12, tonumber(Config.Geodes.CrackTapShakeDuration) or 0.22)
 	local stepDuration = duration / 4
 	task.spawn(function()
-		for _, angle in { -12, 10, -7, 0 } do
-			if token ~= crackTapToken or not activeGeodeProp or not activeGeodeProp.Parent then return end
+		-- v20.79: тряска от удара - наклоны и подскок ОТНОСИТЕЛЬНО исходной
+		-- позы (раньше повороты копились, и жеода заваливалась набок).
+		local prop = activeGeodeProp
+		local base = prop and (prop:IsA("Model") and prop:GetPivot() or prop.CFrame)
+		for _, step in { { -12, 0.25 }, { 10, 0.1 }, { -6, 0.05 }, { 0, 0 } } do
+			if token ~= crackTapToken or not prop or not prop.Parent or prop ~= activeGeodeProp then return end
 			pcall(function()
-				if activeGeodeProp:IsA("Model") then
-					activeGeodeProp:PivotTo(activeGeodeProp:GetPivot() * CFrame.Angles(0, 0, math.rad(angle)))
-				else
-					activeGeodeProp.Orientation = Vector3.new(activeGeodeProp.Orientation.X, activeGeodeProp.Orientation.Y, angle)
-				end
+				local cf = base * CFrame.new(0, step[2], 0) * CFrame.Angles(math.rad(step[1] * 0.4), 0, math.rad(step[1]))
+				if prop:IsA("Model") then prop:PivotTo(cf) else prop.CFrame = cf end
 			end)
 			task.wait(stepDuration)
 		end
@@ -1860,6 +1932,11 @@ beginCrack = function()
 	-- v14: игрок у наковальни, молот в руке, кадр из-за плеча.
 	standAtAnvil(activeAnvil)
 	attachHammer()
+	local customSwing = (tonumber(CUT.HammerAnimationId) or 0) ~= 0 or (tonumber(Config.Geodes.HammerAnimationId) or 0) ~= 0
+	if CUT.ArmSwing ~= false and shoulderMotor and not idleTrack and not customSwing then
+		local hold = shoulderPose(CUT.HoldAngle or 25)
+		if hold then TweenService:Create(shoulderMotor, TweenInfo.new(0.25), { C0 = hold }):Play() end
+	end
 	startOrbitCamera()
 	fovTo((Config.GeodeCutscene and Config.GeodeCutscene.FovStart) or Config.Geodes.CameraFOVCracking, Config.Geodes.CameraDollySeconds)
 

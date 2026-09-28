@@ -6992,10 +6992,26 @@ Config.GeodeCutscene = {
 	SwingSeconds = 0.8,           -- минимум между ударами (длина взмаха)
 	ImpactDelay = 0.32,           -- контакт, если в анимации нет маркера
 	ImpactMarker = "Hit",
-	-- Камера из-за плеча: вправо / вверх / назад относительно игрока,
-	-- смотрящего на наковальню.
-	CameraOffset = Vector3.new(4.2, 4.4, 7.6),
+	-- v20.79: камера медленно КРУТИТСЯ ВОКРУГ ИГРОКА (стартует из-за
+	-- плеча). Центр кадра - между игроком и жеодой.
+	OrbitRadius = 10,             -- стадов от центра кадра
+	OrbitHeight = 4.5,            -- над центром кадра
+	OrbitSpeed = 14,              -- градусов в секунду
+	CameraOffset = Vector3.new(4.2, 4.4, 7.6), -- (старый кадр из-за плеча, не используется)
 	CameraLookHeight = 1.2,
+	-- АНИМАЦИИ ИГРОКА (вставь свои ID, 0 = нет):
+	--   HammerAnimationId - ОДИН удар молотом (играется на каждый клик;
+	--     момент контакта - маркер ImpactMarker в анимации, иначе ImpactDelay);
+	--   IdleAnimationId - поза «держит молот» между ударами (в цикле).
+	-- Пока ID удара 0 - игрок замахивается рукой сам (ArmSwing): рука вверх
+	-- (SwingUpAngle) -> удар (SwingDownAngle) -> стойка (HoldAngle), молот
+	-- в кисти летит вместе с рукой.
+	HammerAnimationId = 0,
+	IdleAnimationId = 0,
+	ArmSwing = true,
+	SwingUpAngle = 165,
+	SwingDownAngle = 55,
+	HoldAngle = 25,
 	FovStart = 62,
 	FovStepPerHit = -3,           -- с каждым ударом кадр чуть ближе
 	KickBase = -5,                -- FOV-панч первого удара
