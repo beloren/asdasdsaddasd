@@ -34,11 +34,10 @@
 local BASE_SIZE = 240        -- сторона базы игрока (под твой PlotTemplate)
 local ROAD_LENGTH = 135      -- длина тропинки от города до берега
 local WATER_GAP = 36         -- минимальный пролив между концом тропинки и краем базы (там твой мост)
-local MIN_BASE_GAP = 20      -- минимум воды между соседними базами (углы не слипаются)
+local MIN_BASE_GAP = 8       -- минимум воды между соседними базами (углы не слипаются)
 local PLOT_Y = 0.5           -- высота точки PlotOrigins (центр PlotPad толщиной 1)
 local TOWN_RADIUS = 110      -- радиус городка
 local GOBLIN_ANGLE = 22.5    -- направление лагеря гоблинов (между базами 1 и 2)
-local GOBLIN_RADIUS = 186    -- расстояние лагеря от центра
 local GOBLIN_SIZE = 80       -- сторона территории гоблинов (углы не должны задевать тропинки)
 local SELL_ZONE = 44         -- сторона зоны продажи в центре города
 local TREE_COUNT = 80
@@ -206,7 +205,7 @@ local function marker(parent, name, size, cf, color, studioTransparency)
 	gui.Size = UDim2.fromOffset(170, 26)
 	gui.StudsOffset = Vector3.new(0, size.Y / 2 + 2, 0)
 	gui.AlwaysOnTop = true
-	gui.MaxDistance = 300
+	gui.MaxDistance = 5000 -- видно издалека (базы стоят далеко в море)
 	gui.LightInfluence = 0
 	gui.Parent = p
 	local label = Instance.new("TextLabel")
@@ -278,6 +277,8 @@ for i = 1, 8 do
 	baseAngles[i] = (i - 1) * 45
 	basePositions[i] = polar(baseAngles[i], BASE_RING)
 end
+-- Лагерь гоблинов - ВПЛОТНУЮ к городу: сразу за забором, вход смотрит на площадь.
+local GOBLIN_RADIUS = TOWN_RADIUS + GOBLIN_SIZE / 2 + 8
 local goblinCenter = polar(GOBLIN_ANGLE, GOBLIN_RADIUS)
 
 -- Одна форма тропинки на все 8 (повёрнутая копия) - длина одинаковая.
@@ -498,8 +499,17 @@ for i = 1, 8 do
 	-- места займёт база размера BASE_SIZE (удобно двигать в Studio).
 	local origin = marker(origins, "Plot" .. i, Vector3.new(6, 1, 6), CFrame.lookAt(pos + Vector3.new(0, PLOT_Y, 0), Vector3.new(0, PLOT_Y, 0)), C.Red)
 	marker(origins, "Plot" .. i .. "Look", Vector3.new(3, 3, 3), CFrame.new(Vector3.new(0, PLOT_Y, 0):Lerp(pos + Vector3.new(0, PLOT_Y, 0), 0.9)), C.Yellow)
-	local area = marker(origin, "BaseArea", Vector3.new(BASE_SIZE, 0.2, BASE_SIZE), origin.CFrame, C.White, 0.85)
-	area:FindFirstChild("MarkerLabel"):Destroy()
+	-- Площадка базы: цветной квадрат + яркая рамка + крупная подпись BASE N.
+	local area = marker(origin, "BaseArea", Vector3.new(BASE_SIZE, 0.2, BASE_SIZE), origin.CFrame, C.Teal, 0.6)
+	local label = area:FindFirstChild("MarkerLabel")
+	label.Size = UDim2.fromOffset(260, 60)
+	label.StudsOffset = Vector3.new(0, 14, 0)
+	label.TextLabel.Text = "BASE " .. i
+	label.TextLabel.TextColor3 = C.White
+	for side = 0, 3 do
+		local edge = marker(origin, "BaseEdge", Vector3.new(BASE_SIZE, 1, 2), origin.CFrame * CFrame.Angles(0, rad(90 * side), 0) * CFrame.new(0, 0.4, BASE_SIZE / 2 - 1), C.Teal, 0.1)
+		edge:FindFirstChild("MarkerLabel"):Destroy()
+	end
 	-- Причал: деревянный настил на краю берега, где кончается тропинка.
 	local forward = polar(baseAngles[i], 1)
 	local landing = CFrame.lookAt(forward * (COAST - 2), forward * (COAST + 10))
@@ -549,6 +559,8 @@ section("Plaza + fence", function()
 		for i = 1, 8 do
 			if math.abs(((angle - baseAngles[i] + 180) % 360) - 180) < 8 then nearRoad = true end
 		end
+		-- проход в лагерь гоблинов (он сразу за забором)
+		if math.abs(((angle - GOBLIN_ANGLE + 180) % 360) - 180) < 6 then nearRoad = true end
 		-- у входа в шахту (скала) забор не нужен
 		if math.abs(((angle - (22.5 + 4 * 45) + 180) % 360) - 180) < 12 then nearRoad = true end
 		if not nearRoad then
