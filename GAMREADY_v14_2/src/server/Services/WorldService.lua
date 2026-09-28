@@ -20,6 +20,20 @@ function WorldService:Init(_services)
 end
 
 function WorldService:Start()
+	-- v20.73: МАРКЕРЫ КАРТЫ (tools/BuildIslandMap: PlotOrigins, точки
+	-- гоблинов и валунов, место торговца, рамки под мосты...) в Studio
+	-- видны - полупрозрачные с подписью. В игре их прячем здесь, самым
+	-- первым делом: атрибут MapMarker -> невидимые, без подписи и коллизии.
+	for _, instance in workspace:GetDescendants() do
+		if instance:IsA("BasePart") and instance:GetAttribute("MapMarker") then
+			instance.Transparency = 1
+			instance.CanCollide = false
+			instance.CanTouch = false
+			local label = instance:FindFirstChild("MarkerLabel")
+			if label then label:Destroy() end
+		end
+	end
+
 	-- Банк — либо СВОЯ модель, отмеченная атрибутом "IsBank" = true где
 	-- угодно в workspace (билдер сам решает, где и как её построить —
 	-- код её не трогает, не клонирует и не двигает, использует как есть),

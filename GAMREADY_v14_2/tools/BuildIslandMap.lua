@@ -185,8 +185,34 @@ local function glow(p, range)
 	return p
 end
 
-local function marker(parent, name, size, cf, color)
-	return box(parent, name, size, cf, color or C.Yellow, { Transparency = 1, CanCollide = false, CanQuery = false, CanTouch = false })
+-- МАРКЕР: в Studio виден (полупрозрачный неон + подпись с именем над ним),
+-- в игре его прячет сервер (WorldService: всё с атрибутом MapMarker ->
+-- Transparency 1, подпись удаляется). Двигай/крути маркеры мышкой как
+-- обычные детали; перёд детали (синяя стрелка Move) - «куда смотрит».
+local function marker(parent, name, size, cf, color, studioTransparency)
+	local p = box(parent, name, size, cf, color or C.Yellow, {
+		Transparency = studioTransparency or 0.35, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon, CastShadow = false,
+	})
+	p:SetAttribute("MapMarker", true)
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "MarkerLabel"
+	gui.Size = UDim2.fromOffset(170, 26)
+	gui.StudsOffset = Vector3.new(0, size.Y / 2 + 2, 0)
+	gui.AlwaysOnTop = true
+	gui.MaxDistance = 300
+	gui.LightInfluence = 0
+	gui.Parent = p
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 0.3
+	label.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+	label.Size = UDim2.fromScale(1, 1)
+	label.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+	label.TextScaled = true
+	label.TextColor3 = color or C.Yellow
+	label.Text = name
+	label.Parent = gui
+	return p
 end
 
 -- Столбик-градиент из кубов (снизу вверх), taper - сужение к верху.
@@ -429,10 +455,13 @@ origins.Parent = workspace
 local bridges = folder("BridgeSpans", basesF)
 for i = 1, 8 do
 	local pos = basePositions[i]
-	local origin = marker(origins, "Plot" .. i, Vector3.new(4, 1, 4), CFrame.lookAt(pos + Vector3.new(0, PLOT_Y, 0), Vector3.new(0, PLOT_Y, 0)), C.Red)
-	origin.Transparency = 0.5
-	local look = marker(origins, "Plot" .. i .. "Look", Vector3.new(2, 2, 2), CFrame.new(Vector3.new(0, PLOT_Y, 0):Lerp(pos + Vector3.new(0, PLOT_Y, 0), 0.9)), C.Yellow)
-	look.Transparency = 0.5
+	-- PlotN - центр базы (сюда встанет PlotPad), лицом к городу; PlotNLook -
+	-- точка, на которую база смотрит. Квадрат BaseArea показывает, сколько
+	-- места займёт база размера BASE_SIZE (удобно двигать в Studio).
+	local origin = marker(origins, "Plot" .. i, Vector3.new(6, 1, 6), CFrame.lookAt(pos + Vector3.new(0, PLOT_Y, 0), Vector3.new(0, PLOT_Y, 0)), C.Red)
+	marker(origins, "Plot" .. i .. "Look", Vector3.new(3, 3, 3), CFrame.new(Vector3.new(0, PLOT_Y, 0):Lerp(pos + Vector3.new(0, PLOT_Y, 0), 0.9)), C.Yellow)
+	local area = marker(origin, "BaseArea", Vector3.new(BASE_SIZE, 0.2, BASE_SIZE), origin.CFrame, C.White, 0.85)
+	area:FindFirstChild("MarkerLabel"):Destroy()
 	-- Причал: деревянный настил на краю берега, где кончается тропинка.
 	local forward = polar(baseAngles[i], 1)
 	local landing = CFrame.lookAt(forward * (COAST - 2), forward * (COAST + 10))
@@ -445,7 +474,7 @@ for i = 1, 8 do
 	-- BridgeSpan<N> в Explorer - увидишь рамку, по ней и ставь свой мост.
 	local from = forward * (COAST + 3)
 	local to = forward * (BASE_RING - BASE_SIZE / 2)
-	local span = marker(bridges, "BridgeSpan" .. i, Vector3.new(14, 1, (to - from).Magnitude), CFrame.lookAt((from + to) / 2, to), C.Orange)
+	local span = marker(bridges, "BridgeSpan" .. i, Vector3.new(14, 1, (to - from).Magnitude), CFrame.lookAt((from + to) / 2, to), C.Orange, 0.6)
 	span:SetAttribute("BaseIndex", i)
 end
 
@@ -825,7 +854,7 @@ section("Goblin land", function()
 			end
 		end
 	end
-	local zone = marker(camp, "Zone", Vector3.new(GOBLIN_SIZE, 30, GOBLIN_SIZE), cf * CFrame.new(0, 13, 0), Color3.fromRGB(255, 70, 70))
+	local zone = marker(camp, "Zone", Vector3.new(GOBLIN_SIZE, 30, GOBLIN_SIZE), cf * CFrame.new(0, 13, 0), Color3.fromRGB(255, 70, 70), 0.9)
 	marker(camp, "Marker", Vector3.new(2, 2, 2), cf * CFrame.new(0, 1, -half + 14))
 	camp.PrimaryPart = zone
 end)
