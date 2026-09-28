@@ -837,6 +837,36 @@ section("LikeGoalBoard", function()
 	for _, x in { -6, 6 } do box(legs, "BoardLeg", Vector3.new(1, 4, 1), cf * CFrame.new(x, -6.5, 0), C.Wood) end
 end)
 
+-- ТОПЫ (LeaderboardService): 3 стенда на площади перед зелёным домиком -
+-- ДЕНЬГИ / ПРЕСТИЖ / ДОНАТ. Board - доска (топ-10 рисует сервер на её
+-- передней грани), Plate - табличка «#1 ник» на постаменте, StatueSpot -
+-- маркер, где встанет серая статуя игрока с 1-го места (смотрит на площадь).
+section("Leaderboard stands", function()
+	local stands = model(townF, "LeaderboardStands")
+	local group = polar(292.5, 60)
+	local right = CFrame.lookAt(group, Vector3.zero).RightVector
+	for index, spec in {
+		{ "MoneyStand", Color3.fromRGB(255, 211, 75) },
+		{ "PrestigeStand", Color3.fromRGB(105, 225, 255) },
+		{ "DonationStand", Color3.fromRGB(255, 120, 200) },
+	} do
+		local stand = model(stands, spec[1])
+		local at = group + right * ((index - 2) * 17) + Vector3.new(0, 0.5, 0)
+		local cf = CFrame.lookAt(at, Vector3.new(0, 0.5, 0)) -- перёд (-Z) смотрит в центр площади
+		for _, x in { -7, 7 } do
+			box(stand, "Post", Vector3.new(1.2, 25, 1.2), cf * CFrame.new(x, 12.5, 0.4), C.WoodDark)
+		end
+		box(stand, "Board", Vector3.new(13, 16, 0.8), cf * CFrame.new(0, 16, 0), Color3.fromRGB(40, 32, 26))
+		box(stand, "Header", Vector3.new(15.4, 1.6, 1.4), cf * CFrame.new(0, 24.8, 0.2), spec[2])
+		-- постамент (ступени из кубов) + табличка + место статуи
+		box(stand, "PedestalBase", Vector3.new(6.4, 1, 6.4), cf * CFrame.new(0, 0.5, -7), C.StoneDark)
+		box(stand, "Pedestal", Vector3.new(5, 2, 5), cf * CFrame.new(0, 2, -7), C.Stone)
+		box(stand, "PedestalTop", Vector3.new(5.6, 0.5, 5.6), cf * CFrame.new(0, 3.25, -7), spec[2])
+		box(stand, "Plate", Vector3.new(4.4, 1.4, 0.2), cf * CFrame.new(0, 2, -9.6), Color3.fromRGB(30, 30, 36))
+		marker(stand, "StatueSpot", Vector3.new(2, 0.2, 2), cf * CFrame.new(0, 3.6, -7), C.White)
+	end
+end)
+
 -- Фонари по кругу площади.
 section("Town lamps", function()
 for s = 0, 15 do

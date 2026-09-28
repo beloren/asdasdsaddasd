@@ -70,6 +70,10 @@ local DEFAULT_DATA = {
 	Rebirths = 0,     -- каждый ребёрт даёт постоянный множитель цены кристаллов
 	CartDamage = 0,   -- суммарный фактически нанесённый урон по тележкам
 	PlayTimeSeconds = 0, -- суммарное время в игре между всеми сессиями
+	-- v20.82: ДОНАТ для доски TOP DONATION - сколько Robux игрок потратил в
+	-- игре (девпродукты - по чеку, геймпассы - по цене пасса, каждый один раз).
+	RobuxSpent = 0,
+	RobuxPassesCounted = {}, -- [ключ пасса] = true - уже учтён в RobuxSpent
 	RedeemedCodes = {}, -- уже использованные промокоды (Config.PromoCodes) — каждый разово
 	TutorialVersion = 0,
 	-- ОБУЧЕНИЕ v7 (см. Config.Tutorial/TutorialService). Номер шага живёт в
@@ -296,6 +300,8 @@ local function reconcile(data, player)
 	data.LastSeenAt = nowSeconds
 	player:SetAttribute("OfflineSeconds", offline)
 	data.PlayTimeSeconds = math.max(0, math.floor(tonumber(data.PlayTimeSeconds) or 0))
+	data.RobuxSpent = math.max(0, math.floor(tonumber(data.RobuxSpent) or 0))
+	if typeof(data.RobuxPassesCounted) ~= "table" then data.RobuxPassesCounted = {} end
 	for geodeType in Config.Geodes.Types do
 		data.Geodes[geodeType] = math.max(0, math.floor(tonumber(data.Geodes[geodeType]) or 0))
 	end
@@ -832,6 +838,19 @@ end
 -- Профильный журнал связывает выдачу с сохранением, отдельный DataStore
 -- tombstone не даёт старому PurchaseId повториться после очистки кэша.
 function DataService:ProcessDeveloperProduct(player, receiptInfo, grant)
+	-- v20.82: каждая выданная покупка прибавляет потраченные Robux к донату
+	-- (в том же изменении профиля, что и сама выдача - повтор чека не
+	-- посчитается дважды: он отсекается выше по ProcessedReceipts/tombstone).
+	if typeof(grant) == "function" then
+		local originalGrant = grant
+		grant = function(data)
+			local granted = originalGrant(data)
+			if granted == true then
+				data.RobuxSpent = math.max(0, math.floor(tonumber(data.RobuxSpent) or 0)) + math.max(0, math.floor(tonumber(receiptInfo.CurrencySpent) or 0))
+			end
+			return granted
+		end
+	end
 	local purchaseId = tostring(receiptInfo.PurchaseId or "")
 	if purchaseId == "" or typeof(receiptInfo.ProductId) ~= "number" or typeof(grant) ~= "function" then
 		return "Retry"
@@ -1130,6 +1149,24 @@ end
 function DataService:GetCartDamage(player)
 	local profile = profiles[player]
 	return profile and tonumber(profile.Data.CartDamage) or 0
+end
+
+function DataService:GetRobuxSpent(player)
+	local profile = profiles[player]
+	return profile and math.max(0, tonumber(profile.Data.RobuxSpent) or 0) or 0
+end
+
+-- Геймпасс: прибавляет его цену к донату ОДИН раз за всё время (в т.ч.
+-- пассы, купленные до появления доски - учитываются при первом входе).
+function DataService:CountPassSpending(player, passKey, price)
+	local profile = activeProfile(player)
+	if not profile or profile.MemoryOnly and not RunService:IsStudio() then return false end
+	local data = profile.Data
+	if typeof(data.RobuxPassesCounted) ~= "table" then data.RobuxPassesCounted = {} end
+	if data.RobuxPassesCounted[passKey] then return false end
+	data.RobuxPassesCounted[passKey] = true
+	data.RobuxSpent = math.max(0, math.floor(tonumber(data.RobuxSpent) or 0)) + math.max(0, math.floor(tonumber(price) or 0))
+	return true
 end
 
 function DataService:GetPlayTime(player)

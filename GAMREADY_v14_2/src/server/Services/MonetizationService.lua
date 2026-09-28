@@ -87,6 +87,35 @@ local function syncOwnershipAttributes(player)
 	end
 end
 
+-- v20.82: ДОНАТ - цена каждого купленного геймпасса один раз идёт в
+-- RobuxSpent (доска TOP DONATION). Цена - из Roblox (GetProductInfo), при
+-- ошибке - Config.GamePasses[key].PriceRobux.
+local passPriceCache = {}
+local function passPrice(key)
+	local info = Config.GamePasses[key]
+	if not info or (info.Id or 0) == 0 then return 0 end
+	if passPriceCache[info.Id] then return passPriceCache[info.Id] end
+	local ok, product = pcall(MarketplaceService.GetProductInfo, MarketplaceService, info.Id, Enum.InfoType.GamePass)
+	local price = ok and product and tonumber(product.PriceInRobux) or tonumber(info.PriceRobux) or 0
+	passPriceCache[info.Id] = price
+	return price
+end
+
+local function countPassSpending(player)
+	local data = ownership[player.UserId]
+	if not (data and Services.DataService.CountPassSpending) then return end
+	for key, owned in data do
+		local info = Config.GamePasses[key]
+		-- только реально купленные (свой Id): пассы, выданные через GrantsTo, не считаем дважды
+		if owned == true and info and (info.Id or 0) ~= 0 then
+			local ok, owns = checkPass(player.UserId, info.Id)
+			if ok and owns then
+				Services.DataService:CountPassSpending(player, key, passPrice(key))
+			end
+		end
+	end
+end
+
 local function applyEntitlement(player, key)
 	if key == "RocketPickaxe" and Services.SkinService then
 		-- v10: пасс выдаёт СКИН турбо-кирки (надевается в меню скинов).
@@ -150,6 +179,7 @@ local function loadOwnership(player)
 	syncOwnershipAttributes(player)
 	local ready = next(unresolved) == nil
 	player:SetAttribute("PassEntitlementsReady", ready)
+	task.spawn(pcall, countPassSpending, player) -- v20.82: донат за геймпассы
 	if not ready then
 		if Services.NotifyService then Services.NotifyService:Show(player, "Purchase bonuses could not be verified yet. Paid actions will retry shortly.", { Icon = "Pending" }) end
 		task.spawn(function()
@@ -510,6 +540,9 @@ function MonetizationService:Start()
 		if wasNew then
 			notifyPassPurchased(player, key)
 		end
+		task.spawn(pcall, function()
+			Services.DataService:CountPassSpending(player, key, passPrice(key)) -- v20.82: донат
+		end)
 	end)
 
 	-- ПРОВЕРКА ЦЕЛОСТНОСТИ ВЛАДЕНИЯ (см. отчёт: "золотая обводка у тележки,

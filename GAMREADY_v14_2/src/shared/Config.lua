@@ -26,6 +26,12 @@ Config.Leaderboards = {
 	RefreshInterval = 60,
 	StorePrefix = "PvPExtraction_Leaderboard_02", -- текущие глобальные рейтинги
 	BoardFace = Enum.NormalId.Front,
+	-- v20.82: топы (деньги / престиж / донат) - три стенда в центре города
+	-- (LeaderboardStands, строит tools/BuildIslandMap). Перед каждой доской
+	-- статуя игрока с 1-го места: R6, без одежды, целиком этого цвета.
+	PerPlotBoards = false, -- true - вернуть старые доски у каждой базы
+	StatueColor = Color3.fromRGB(150, 150, 155),
+	StatueMaterial = Enum.Material.Concrete,
 }
 
 --------------------------------------------------------------------------------

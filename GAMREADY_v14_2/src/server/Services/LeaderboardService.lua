@@ -1,7 +1,14 @@
 --------------------------------------------------------------------------------
 -- LeaderboardService
--- Three global OrderedDataStore rankings rendered on physical boards at every
--- plot. Values are batched to protect the DataStore request budget.
+-- v20.82: ТРИ ГЛОБАЛЬНЫХ ТОПА В ЦЕНТРЕ ГОРОДА - деньги, престиж, донат
+-- (потраченные Robux: девпродукты + геймпассы). Каждая доска - стенд
+-- Workspace/.../LeaderboardStands/<Spec>Stand (строит tools/BuildIslandMap):
+--   Board      - BasePart, на его передней грани рисуется топ-10;
+--   Plate      - табличка на постаменте «#1 ник · значение»;
+--   StatueSpot - где стоит СТАТУЯ игрока с 1-го места (R6, серая, без
+--                одежды и лица), смотрит туда же, куда деталь.
+-- Нет стендов на карте - строятся простые у банка. Доски у баз выключены
+-- (Config.Leaderboards.PerPlotBoards).
 --------------------------------------------------------------------------------
 
 local DataStoreService = game:GetService("DataStoreService")
@@ -27,10 +34,11 @@ local nameCache = {}
 local sessionStarted = {}
 
 local SPECS = {
-	{ Key = "Money", PartName = "MoneyBoard", Title = "TOP MONEY", Color = Color3.fromRGB(255, 211, 75) },
-	{ Key = "Rebirths", PartName = "RebirthBoard", Title = "TOP PRESTIGE", Color = Color3.fromRGB(105, 225, 255) },
-	{ Key = "PlayTime", PartName = "CartDamageBoard", Title = "TOP PLAYTIME", Color = Color3.fromRGB(255, 105, 105), IsTime = true },
+	{ Key = "Money", PartName = "MoneyBoard", Stand = "MoneyStand", Title = "TOP MONEY", Color = Color3.fromRGB(255, 211, 75) },
+	{ Key = "Rebirths", PartName = "RebirthBoard", Stand = "PrestigeStand", Title = "TOP PRESTIGE", Color = Color3.fromRGB(105, 225, 255) },
+	{ Key = "Donated", PartName = "DonationBoard", Stand = "DonationStand", Title = "TOP DONATION", Color = Color3.fromRGB(255, 120, 200), Prefix = "R$ " },
 }
+local stands = {} -- [spec.Key] = { Board=, Plate=, Spot=, StatueUserId=, Statue= }
 
 local function formatNumber(value)
 	if BigNum.is(value) then
@@ -95,6 +103,8 @@ local function valueFor(player, key)
 		return Services.DataService:GetRebirths(player)
 	elseif key == "PlayTime" then
 		return Services.DataService:GetPlayTime(player) + math.max(0, os.time() - (sessionStarted[player] or os.time()))
+	elseif key == "Donated" then
+		return Services.DataService:GetRobuxSpent(player)
 	end
 	return Services.DataService:GetCartDamage(player)
 end
@@ -196,7 +206,7 @@ local function renderBoard(part, spec, entries, errorText)
 		valueLabel.Position = UDim2.fromScale(1, 0)
 		valueLabel.Size = UDim2.new(0, 175, 1, 0)
 		valueLabel.BackgroundTransparency = 1
-		valueLabel.Text = spec.IsTime and formatPlayTime(entry.Value) or formatNumber(entry.Value)
+		valueLabel.Text = spec.IsTime and formatPlayTime(entry.Value) or ((spec.Prefix or "") .. formatNumber(entry.Value))
 		valueLabel.TextColor3 = spec.Color
 		valueLabel.TextSize = 27
 		valueLabel.TextXAlignment = Enum.TextXAlignment.Right
@@ -221,7 +231,7 @@ local function fetchEntries(spec)
 		if userId then
 			seen[userId] = true
 			local value = spec.Key == "Money" and moneyDisplayValue(userId, moneyFromRankScore(item.value)) or item.value
-			table.insert(entries, { Name = playerName(userId), Value = value })
+			table.insert(entries, { Name = playerName(userId), Value = value, UserId = userId })
 		end
 	end
 	if spec.Key == "Money" and legacyMoneyStore then
@@ -232,7 +242,7 @@ local function fetchEntries(spec)
 				if userId and not seen[userId] then
 					seen[userId] = true
 					local value = moneyDisplayValue(userId, BigNum.new(item.value))
-					table.insert(entries, { Name = playerName(userId), Value = value })
+					table.insert(entries, { Name = playerName(userId), Value = value, UserId = userId })
 				end
 			end
 		else
@@ -246,6 +256,167 @@ local function fetchEntries(spec)
 		end
 	end
 	return entries, nil
+end
+
+--------------------------------------------------------------------------------
+-- v20.82: СТАТУЯ ТОП-1 - аватар игрока в R6, целиком серый: одежда, лицо,
+-- футболка и текстуры аксессуаров сняты, все детали одного цвета.
+--------------------------------------------------------------------------------
+local function buildStatue(userId)
+	local cfg = Config.Leaderboards
+	local okDesc, description = pcall(Players.GetHumanoidDescriptionFromUserId, Players, userId)
+	if not okDesc or not description then return nil end
+	pcall(function()
+		description.Shirt = 0
+		description.Pants = 0
+		description.GraphicTShirt = 0
+		description.Face = 0
+	end)
+	local okModel, model = pcall(Players.CreateHumanoidModelFromDescription, Players, description, Enum.HumanoidRigType.R6)
+	if not okModel or not model then return nil end
+	local color = cfg.StatueColor or Color3.fromRGB(150, 150, 155)
+	local material = cfg.StatueMaterial or Enum.Material.Concrete
+	for _, d in model:GetDescendants() do
+		if d:IsA("Clothing") or d:IsA("ShirtGraphic") or d:IsA("BodyColors") or d:IsA("Decal")
+			or d:IsA("SurfaceAppearance") or d:IsA("Script") or d:IsA("LocalScript") or d:IsA("Sound") then
+			d:Destroy()
+		elseif d:IsA("SpecialMesh") then
+			d.TextureId = ""
+			d.VertexColor = Vector3.one
+		elseif d:IsA("BasePart") then
+			d.Color = color
+			d.Material = material
+			d.Anchored = true
+			d.CanCollide = false
+			d.CanTouch = false
+			d.CastShadow = true
+			if d:IsA("MeshPart") then pcall(function() d.TextureID = "" end) end
+		end
+	end
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+		humanoid.PlatformStand = true
+		local animator = humanoid:FindFirstChildOfClass("Animator")
+		if animator then animator:Destroy() end
+	end
+	model.Name = "Statue"
+	return model
+end
+
+local function placeStatue(stand, userId)
+	if stand.StatueUserId == userId and stand.Statue and stand.Statue.Parent then return end
+	if stand.Statue then stand.Statue:Destroy() end
+	stand.Statue, stand.StatueUserId = nil, userId
+	if not userId then return end
+	local statue = buildStatue(userId)
+	if not statue then
+		stand.StatueUserId = nil -- попробуем в следующий раз
+		return
+	end
+	local spot = stand.Spot
+	local topY = spot.Position.Y + spot.Size.Y / 2
+	local facing = spot.CFrame.LookVector
+	statue:PivotTo(CFrame.lookAt(spot.Position, spot.Position + Vector3.new(facing.X, 0, facing.Z)))
+	local boxCF, size = statue:GetBoundingBox()
+	statue:PivotTo(statue:GetPivot() + Vector3.new(0, topY - (boxCF.Position.Y - size.Y / 2), 0))
+	statue.Parent = stand.Board.Parent
+	stand.Statue = statue
+end
+
+local function renderPlate(stand, spec, entry)
+	local plate = stand.Plate
+	if not (plate and plate.Parent) then return end
+	local gui = plate:FindFirstChild("PlateGui")
+	if not gui then
+		gui = Instance.new("SurfaceGui")
+		gui.Name = "PlateGui"
+		gui.Face = Enum.NormalId.Front
+		gui.CanvasSize = Vector2.new(460, 140)
+		gui.LightInfluence = 0
+		gui.Parent = plate
+		local frame = Instance.new("Frame")
+		frame.Name = "Frame"
+		frame.Size = UDim2.fromScale(1, 1)
+		frame.BackgroundColor3 = Color3.fromRGB(18, 20, 26)
+		frame.BorderSizePixel = 0
+		frame.Parent = gui
+		local name = WorldUi.Text(nil, "Text", "Number")
+		name.Name = "NameText"
+		name.Size = UDim2.fromScale(1, 0.58)
+		name.BackgroundTransparency = 1
+		name.TextScaled = true
+		name.Parent = frame
+		local value = WorldUi.Text(nil, "Text", "Number")
+		value.Name = "ValueText"
+		value.Position = UDim2.fromScale(0, 0.58)
+		value.Size = UDim2.fromScale(1, 0.42)
+		value.BackgroundTransparency = 1
+		value.TextScaled = true
+		value.Parent = frame
+	end
+	local frame = gui:FindFirstChild("Frame")
+	local nameText = frame and frame:FindFirstChild("NameText")
+	local valueText = frame and frame:FindFirstChild("ValueText")
+	if not (nameText and valueText) then return end
+	nameText.Text = entry and ("#1 " .. entry.Name) or "#1 ???"
+	nameText.TextColor3 = Color3.new(1, 1, 1)
+	valueText.Text = entry and ((spec.Prefix or "") .. formatNumber(entry.Value)) or spec.Title
+	valueText.TextColor3 = spec.Color
+end
+
+-- Простые стенды у банка, если на карте нет LeaderboardStands.
+local function buildFallbackStands()
+	local folder = Instance.new("Model")
+	folder.Name = "LeaderboardStands"
+	local sellZone = Services.WorldService and Services.WorldService:GetSellZone()
+	local center = sellZone and sellZone.Position or Vector3.zero
+	local base = CFrame.new(center + Vector3.new(0, 0, 50)) * CFrame.Angles(0, 0, 0)
+	local lookCF = CFrame.lookAt(base.Position, Vector3.new(center.X, base.Position.Y, center.Z))
+	local function part(parent, name, size, cf, color)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = cf
+		p.Color = color
+		p.Anchored = true
+		p.TopSurface = Enum.SurfaceType.Smooth
+		p.BottomSurface = Enum.SurfaceType.Smooth
+		p.Parent = parent
+		return p
+	end
+	for index, spec in SPECS do
+		local stand = Instance.new("Model")
+		stand.Name = spec.Stand
+		stand.Parent = folder
+		local cf = lookCF * CFrame.new((index - 2) * 17, 0, 0)
+		part(stand, "Board", Vector3.new(13, 16, 0.8), cf * CFrame.new(0, 16, 0), Color3.fromRGB(40, 32, 26))
+		part(stand, "Pedestal", Vector3.new(5, 3, 5), cf * CFrame.new(0, 1.5, -6), Color3.fromRGB(120, 122, 130))
+		part(stand, "Plate", Vector3.new(4.6, 1.4, 0.2), cf * CFrame.new(0, 1.6, -8.6), Color3.fromRGB(30, 30, 36))
+		local spot = part(stand, "StatueSpot", Vector3.new(2, 0.2, 2), cf * CFrame.new(0, 3.1, -6), Color3.new(1, 1, 1))
+		spot.Transparency = 1
+		spot.CanCollide = false
+	end
+	folder.Parent = workspace
+	return folder
+end
+
+function LeaderboardService:_setupStands()
+	local folder = workspace:FindFirstChild("LeaderboardStands", true) or buildFallbackStands()
+	for _, spec in SPECS do
+		local standModel = folder:FindFirstChild(spec.Stand)
+		local board = standModel and standModel:FindFirstChild("Board", true)
+		if board and board:IsA("BasePart") then
+			local spot = standModel:FindFirstChild("StatueSpot", true)
+			local plate = standModel:FindFirstChild("Plate", true)
+			stands[spec.Key] = { Board = board, Plate = plate, Spot = spot and spot:IsA("BasePart") and spot or nil }
+			renderBoard(board, spec, {}, nil)
+			renderPlate(stands[spec.Key], spec, nil)
+		else
+			warn("[LeaderboardService] В LeaderboardStands нет " .. spec.Stand .. "/Board - доска " .. spec.Title .. " не показывается.")
+		end
+	end
 end
 
 function LeaderboardService:Init(services)
@@ -285,6 +456,8 @@ end
 function LeaderboardService:Start()
 	task.spawn(function()
 		task.wait(3)
+		local ok, err = pcall(self._setupStands, self)
+		if not ok then warn("[LeaderboardService] Стенды топов не построены:", err) end
 		while true do
 			self:Refresh()
 			task.wait(Config.Leaderboards.RefreshInterval)
@@ -363,10 +536,21 @@ function LeaderboardService:Refresh()
 				renderBoard(part, spec, entries, errorText)
 			end
 		end
+		local stand = stands[spec.Key]
+		if stand and stand.Board.Parent then
+			renderBoard(stand.Board, spec, entries, errorText)
+			renderPlate(stand, spec, entries[1])
+			if stand.Spot then
+				local ok, err = pcall(placeStatue, stand, entries[1] and entries[1].UserId or nil)
+				if not ok then warn("[LeaderboardService] Статуя " .. spec.Title .. ":", err) end
+			end
+		end
 	end
 end
 
 function LeaderboardService:SetupPlot(plot)
+	-- v20.82: доски у каждой базы выключены - топы стоят в центре города.
+	if not Config.Leaderboards.PerPlotBoards then return end
 	if not plot.LeaderboardCFrame or not plot.Template then
 		return
 	end
