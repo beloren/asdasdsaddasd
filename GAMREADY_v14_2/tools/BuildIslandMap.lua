@@ -4,19 +4,21 @@
 -- Studio и нажми Enter. Ctrl+Z откатывает всё одним шагом.
 --
 -- ЧТО СТРОИТСЯ (и что из этого читает код игры):
---   • Полушахтёрский городок в центре: площадь, копёр шахты с колесом
---     (ориентир), вход в шахту в скале с рельсами и вагонетками, РЫНОК
---     ШАХТЁРОВ (модель IsBank: Building + SellZone + MerchantSpot - продажа
---     руды и торговец), 3 домика, хижина смотрителя островов
---     (IslandKeeperMarker), табло лайков (LikeGoalBoard), фонари, ящики.
---   • 8 баз игроков по кругу (Workspace.PlotOrigins: Plot1..Plot8 + PlotNLook,
---     лицом к городу), 8 тропинок одинаковой длины и формы.
---   • Территория гоблинов (Workspace.GoblinCamp: Zone + Spawns + Marker).
---   • 16 точек валунов (Workspace.RubbleBoulderSpawnPoints, атрибут Tier:
---     ближе к городу - слабые, у берега - сильные).
---   • Сразу за базами - пляж и море: это один большой остров. Берег
---     ступеньками из кубов (трава -> песок -> мелководье -> море), пальмы,
---     ракушки, невидимая стена в море.
+--   • Остров-городок в центре: БОЛЬШОЙ ПАВИЛЬОН ПРОДАЖИ РУДЫ прямо в центре
+--     (SellZone SELL_ZONE x SELL_ZONE), отдельная ЛАВКА ТОРГОВЦА с маркерами
+--     MerchantSpot / MerchantSpotLook (обе части - одна модель IsBank),
+--     вход в шахту в скале с рельсами к рынку, копёр шахты с колесом, пара
+--     домиков, вышка, хижина смотрителя островов (IslandKeeperMarker), табло
+--     лайков (LikeGoalBoard), фонари.
+--   • 8 коротких тропинок одинаковой длины - каждая упирается в берег с
+--     причалом. Дальше ВОДА: базы игроков (Workspace.PlotOrigins) стоят уже
+--     в море. Невидимые BridgeSpans/BridgeSpan<N> показывают, где ставить мост.
+--   • «Испорченная земля» гоблинов (Workspace.GoblinCamp: Zone + Spawns +
+--     Marker): тёмная земля с фиолетовыми трещинами, большие камни (у них
+--     точки появления), мёртвые деревья, обелиск.
+--   • 16 точек валунов (Workspace.RubbleBoulderSpawnPoints, атрибут Tier).
+--   • Пляж ступеньками (песок -> мокрый песок -> мелководье -> море),
+--     пальмы, ракушки, невидимая стена в море.
 --
 -- СТАРОЕ НЕ УДАЛЯЕТСЯ: прежние IslandMap / RetroMap / PlotOrigins /
 -- GoblinCamp / RubbleBoulderSpawnPoints / Baseplate и модели с IsBank
@@ -25,13 +27,16 @@
 -- Размеры меняются в первых строках. BASE_SIZE - сторона квадрата твоей
 -- базы (PlotTemplate) в стадах; от неё считаются расстояния.
 local BASE_SIZE = 240        -- сторона базы игрока (под твой PlotTemplate)
-local ROAD_LENGTH = 270      -- длина тропинки от города до базы
+local ROAD_LENGTH = 135      -- длина тропинки от города до берега
+local WATER_GAP = 36         -- минимальный пролив между концом тропинки и краем базы (там твой мост)
+local MIN_BASE_GAP = 20      -- минимум воды между соседними базами (углы не слипаются)
 local PLOT_Y = 0.5           -- высота точки PlotOrigins (центр PlotPad толщиной 1)
 local TOWN_RADIUS = 110      -- радиус городка
 local GOBLIN_ANGLE = 22.5    -- направление лагеря гоблинов (между базами 1 и 2)
-local GOBLIN_RADIUS = 300    -- расстояние лагеря от центра
-local GOBLIN_SIZE = 130      -- сторона территории гоблинов
-local TREE_COUNT = 200
+local GOBLIN_RADIUS = 186    -- расстояние лагеря от центра
+local GOBLIN_SIZE = 80       -- сторона территории гоблинов (углы не должны задевать тропинки)
+local SELL_ZONE = 44         -- сторона зоны продажи в центре города
+local TREE_COUNT = 80
 local SEED = 20260928
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
@@ -42,8 +47,13 @@ local rad = math.rad
 
 local ROAD_START = TOWN_RADIUS - 6
 local ROAD_END = ROAD_START + ROAD_LENGTH
-local BASE_RING = ROAD_END + 24 + BASE_SIZE / 2
-local COAST = BASE_RING + BASE_SIZE * 0.75 + 90 -- радиус берега (с «шумом»)
+-- Остров кончается там же, где тропинки: базы стоят уже В ВОДЕ, через
+-- пролив WATER_GAP (мост строишь сам).
+local COAST = ROAD_END + 10 -- радиус берега (с лёгким «шумом»)
+-- Круг баз: не ближе WATER_GAP к берегу и так, чтобы 8 квадратов BASE_SIZE
+-- не задевали друг друга углами (внутренние углы соседей расходятся).
+local BASE_RING = math.max(COAST + WATER_GAP + BASE_SIZE / 2,
+	BASE_SIZE / 2 + (BASE_SIZE / 2 + MIN_BASE_GAP / 2) / math.tan(math.rad(22.5)))
 
 --------------------------------------------------------------------------------
 -- ПАЛИТРА (мягкие сочные цвета симуляторов)
@@ -122,7 +132,7 @@ local shoreF = folder("Shore")
 local roadsF = folder("Roads")
 local townF = folder("Town")
 local natureF = folder("Nature")
-local basesF = folder("BaseClearings")
+local basesF = folder("Landings")
 
 --------------------------------------------------------------------------------
 -- КУБЫ
@@ -201,7 +211,10 @@ end
 -- Берег чуть «гуляет» (сумма синусов) - остров не идеально круглый.
 local function coastAt(angleDeg)
 	local a = rad(angleDeg)
-	return COAST + math.sin(a * 3 + 0.7) * 22 + math.sin(a * 7 + 2.1) * 12 + math.sin(a * 13) * 6
+	-- У тропинок (каждые 45°) берег ровный - тропинка упирается прямо в воду.
+	local nearRoad = math.abs(((angleDeg + 22.5) % 45) - 22.5) / 22.5 -- 0 у тропинки, 1 между
+	local wobble = math.sin(a * 3 + 0.7) * 9 + math.sin(a * 7 + 2.1) * 5 + math.sin(a * 13) * 3
+	return COAST + wobble * nearRoad + 14 * nearRoad
 end
 
 --------------------------------------------------------------------------------
@@ -236,13 +249,14 @@ local boulderSpots = {}
 for k = 0, 7 do
 	local angle = 22.5 + k * 45
 	local isGoblinSector = math.abs(((angle - GOBLIN_ANGLE + 180) % 360) - 180) < 10
-	if isGoblinSector then
-		table.insert(boulderSpots, { Pos = polar(angle - 9, coastAt(angle) - 150) })
-		table.insert(boulderSpots, { Pos = polar(angle + 9, coastAt(angle) - 150) })
-	else
-		table.insert(boulderSpots, { Pos = polar(angle + (k % 2 == 0 and -5 or 5), TOWN_RADIUS + 95) })
-		table.insert(boulderSpots, { Pos = polar(angle, coastAt(angle) - 150) })
+	if not isGoblinSector then
+		table.insert(boulderSpots, { Pos = polar(angle + (k % 2 == 0 and -5 or 5), TOWN_RADIUS + 38) })
+		table.insert(boulderSpots, { Pos = polar(angle, coastAt(angle) - 38) })
 	end
+end
+-- Сектор гоблинов занят лагерем - его 2 точки уходят в противоположные сектора.
+for _, k in { 4, 6 } do
+	table.insert(boulderSpots, { Pos = polar(22.5 + k * 45 + 12, (TOWN_RADIUS + coastAt(22.5 + k * 45)) / 2 + 4) })
 end
 table.sort(boulderSpots, function(a, b) return a.Pos.Magnitude < b.Pos.Magnitude end)
 for index, spot in boulderSpots do
@@ -386,27 +400,32 @@ for i = 1, 8 do
 end
 
 --------------------------------------------------------------------------------
--- 3) БАЗЫ: PlotOrigins + поляны под базами
+-- 3) БАЗЫ В ВОДЕ: PlotOrigins + причал у конца тропинки + место под мост
 --------------------------------------------------------------------------------
 local origins = Instance.new("Folder")
 origins.Name = "PlotOrigins"
 origins.Parent = workspace
+local bridges = folder("BridgeSpans", basesF)
 for i = 1, 8 do
 	local pos = basePositions[i]
-	local cf = CFrame.lookAt(pos, Vector3.zero)
-	for step = 1, 2 do
-		local side = BASE_SIZE + 44 - (step - 1) * 20
-		box(basesF, "Clearing" .. i, Vector3.new(side, 0.3, side), cf * CFrame.new(0, 0.15 + (step - 1) * 0.15, 0), step == 1 and C.GrassEdge or C.Grass3)
-	end
-	for _, corner in { Vector3.new(1, 0, 1), Vector3.new(-1, 0, 1), Vector3.new(1, 0, -1), Vector3.new(-1, 0, -1) } do
-		local at = cf * CFrame.new(corner * (BASE_SIZE / 2 + 18))
-		box(basesF, "FlagPole", Vector3.new(1, 12, 1), at * CFrame.new(0, 6, 0), C.White)
-		box(basesF, "Flag", Vector3.new(0.4, 3, 4.4), at * CFrame.new(0, 10.3, 2.4), ({ C.Red, C.Blue, C.Yellow, C.Purple, C.Orange, C.Teal, C.Pink, C.Leaf2 })[i])
-	end
 	local origin = marker(origins, "Plot" .. i, Vector3.new(4, 1, 4), CFrame.lookAt(pos + Vector3.new(0, PLOT_Y, 0), Vector3.new(0, PLOT_Y, 0)), C.Red)
 	origin.Transparency = 0.5
 	local look = marker(origins, "Plot" .. i .. "Look", Vector3.new(2, 2, 2), CFrame.new(Vector3.new(0, PLOT_Y, 0):Lerp(pos + Vector3.new(0, PLOT_Y, 0), 0.9)), C.Yellow)
 	look.Transparency = 0.5
+	-- Причал: деревянный настил на краю берега, где кончается тропинка.
+	local forward = polar(baseAngles[i], 1)
+	local landing = CFrame.lookAt(forward * (COAST - 2), forward * (COAST + 10))
+	box(basesF, "Landing", Vector3.new(18, 0.8, 10), landing * CFrame.new(0, 0.4, 0), C.WoodLight)
+	for _, x in { -8, 8 } do
+		box(basesF, "LandingPost", Vector3.new(1.4, 7, 1.4), landing * CFrame.new(x, 0.5, -4.4), C.WoodDark)
+		glow(box(basesF, "LandingLamp", Vector3.new(1.4, 1.4, 1.4), landing * CFrame.new(x, 4.4, -4.4), C.Yellow), 14)
+	end
+	-- МЕСТО ПОД МОСТ (невидимое): от края причала до края базы. Выдели
+	-- BridgeSpan<N> в Explorer - увидишь рамку, по ней и ставь свой мост.
+	local from = forward * (COAST + 3)
+	local to = forward * (BASE_RING - BASE_SIZE / 2)
+	local span = marker(bridges, "BridgeSpan" .. i, Vector3.new(14, 1, (to - from).Magnitude), CFrame.lookAt((from + to) / 2, to), C.Orange)
+	span:SetAttribute("BaseIndex", i)
 end
 
 --------------------------------------------------------------------------------
@@ -449,13 +468,13 @@ do
 	end
 end
 
--- ЦЕНТР: копёр шахты (деревянная башня с колесом из кубов) над стволом,
--- светящиеся кристаллы и вагонетка - виден с любой базы.
+-- КОПЁР ШАХТЫ (деревянная башня с колесом из кубов) над стволом рядом с
+-- входом в шахту, светящиеся кристаллы - ориентир, виден издалека.
 do
 	local model = Instance.new("Model")
 	model.Name = "MineHeadframe"
 	model.Parent = townF
-	local base = CFrame.new(0, 0.5, 0)
+	local base = gapCFrame(5, 84)
 	-- Ствол шахты: тёмный квадрат в каменной обвязке.
 	box(model, "ShaftRim", Vector3.new(18, 1.4, 18), base * CFrame.new(0, 0.7, 0), C.StoneDark)
 	box(model, "Shaft", Vector3.new(12, 1.5, 12), base * CFrame.new(0, 0.8, 0), C.Coal)
@@ -531,7 +550,8 @@ do
 	sign(model, "MineSign", "MINE", Vector3.new(7, 2.4, 0.6), cf * CFrame.new(0, 12.4, -1.8), C.WoodDark, C.Yellow)
 	glow(box(model, "Lantern", Vector3.new(1.4, 1.8, 1.4), cf * CFrame.new(-5.2, 8, -2.8), C.Orange), 16)
 	glow(box(model, "Lantern", Vector3.new(1.4, 1.8, 1.4), cf * CFrame.new(5.2, 8, -2.8), C.Orange), 16)
-	rails(model, (cf * CFrame.new(0, -0.5, -1)).Position, Vector3.new(0, 0, 0) + (cf.Position - Vector3.new(0, 0.5, 0)).Unit * 12)
+	-- Рельсы от шахты до края рынка в центре.
+	rails(model, (cf * CFrame.new(0, -0.5, -1)).Position, (cf.Position - Vector3.new(0, 0.5, 0)).Unit * (SELL_ZONE / 2 + 10))
 	-- Вагонетка с рудой.
 	local cart = cf * CFrame.new(0, 1.4, -14)
 	box(model, "Cart", Vector3.new(4.4, 2.6, 6), cart * CFrame.new(0, 1.3, 0), C.StoneDark)
@@ -565,66 +585,89 @@ local function house(cf, w, d, h, wall, roof, name)
 	return model
 end
 
--- РЫНОК ШАХТЁРОВ (банк). Код ищет модель с IsBank: Building, SellZone, MerchantSpot.
+-- РЫНОК ШАХТЁРОВ (банк) - ОДНА модель с IsBank (код ищет в ней Building,
+-- SellZone и MerchantSpot):
+--   • в центре города - большой павильон продажи: SellZone SELL_ZONE x
+--     SELL_ZONE под крышей на столбах (Building - крыша, над ней вылетает
+--     проданная руда);
+--   • отдельная ЛАВКА ТОРГОВЦА между дорогами 3 и 4, в ней маркер
+--     MerchantSpot (там стоит торговец) и MerchantSpotLook (куда смотрит).
 do
-	local cf = gapCFrame(2, 72)
 	local market = Instance.new("Model")
 	market.Name = "MinersMarket"
 	market:SetAttribute("IsBank", true)
 	market.Parent = townF
-	local building = box(market, "Building", Vector3.new(30, 13, 16), cf * CFrame.new(0, 6.5, 7), C.Cream)
-	box(market, "BuildingBase", Vector3.new(31, 2, 17), cf * CFrame.new(0, 1, 7), C.WoodDark)
-	for step = 1, 4 do
-		box(market, "Roof", Vector3.new(33, 1.3, 19 - (step - 1) * 4), cf * CFrame.new(0, 13.65 + (step - 1) * 1.3, 7), C.Blue:Lerp(Color3.new(0, 0, 0), (step - 1) * 0.05))
+
+	-- ПАВИЛЬОН ПРОДАЖИ.
+	local center = CFrame.new(0, 0.5, 0)
+	local half = SELL_ZONE / 2
+	box(market, "SellFloor", Vector3.new(SELL_ZONE + 8, 0.4, SELL_ZONE + 8), center * CFrame.new(0, 0.2, 0), C.WoodLight)
+	box(market, "SellZone", Vector3.new(SELL_ZONE, 0.6, SELL_ZONE), center * CFrame.new(0, 0.5, 0), C.Yellow, { Transparency = 0.45, CanCollide = false, Material = Enum.Material.Neon })
+	for _, spec in { { Vector3.new(SELL_ZONE + 2, 1, 1), Vector3.new(0, 0.6, half) }, { Vector3.new(SELL_ZONE + 2, 1, 1), Vector3.new(0, 0.6, -half) },
+		{ Vector3.new(1, 1, SELL_ZONE + 2), Vector3.new(half, 0.6, 0) }, { Vector3.new(1, 1, SELL_ZONE + 2), Vector3.new(-half, 0.6, 0) } } do
+		glow(box(market, "SellZoneEdge", spec[1], center * CFrame.new(spec[2]), C.Orange))
 	end
-	-- Полосатый навес из кубов.
-	for s = 0, 9 do
-		box(market, "Awning", Vector3.new(3, 0.8, 7), cf * CFrame.new(-13.5 + s * 3, 11, -4.5) * CFrame.Angles(rad(-14), 0, 0), s % 2 == 0 and C.Red or C.White)
-	end
-	sign(market, "MarketSign", "MINER'S MARKET", Vector3.new(22, 4, 0.8), cf * CFrame.new(0, 17, -1.6), C.Wood, C.Yellow)
-	for _, x in { -10, 0, 10 } do
-		box(market, "Stall", Vector3.new(7, 3, 3), cf * CFrame.new(x, 1.5, -3), C.WoodLight)
-		for o = 1, 3 do
-			glow(box(market, "OrePile", Vector3.new(1.3, 1.3, 1.3), cf * CFrame.new(x - 2.4 + o * 1.4, 3.6, -3) * CFrame.Angles(rad(o * 20), rad(o * 33), 0), ({ C.Crystal, C.Yellow, C.Pink, C.Purple })[(o + x // 10) % 4 + 1]))
+	-- Столбы по углам и по серединам сторон (проходы открыты со всех сторон).
+	for _, x in { -1, 1 } do
+		for _, z in { -1, 1 } do
+			stack(market, "Pillar", center * CFrame.new(x * (half + 2), 0, z * (half + 2)), 3, 3, 18, { C.WoodDark, C.Wood, C.WoodLight }, 3, 0)
 		end
 	end
-	local ZONE = 22
-	local zoneCF = cf * CFrame.new(0, 0.3, -8 - ZONE / 2)
-	box(market, "SellZone", Vector3.new(ZONE, 0.6, ZONE), zoneCF, C.Yellow, { Transparency = 0.5, CanCollide = false, Material = Enum.Material.Neon })
-	for _, spec in { { Vector3.new(ZONE + 1, 0.8, 0.8), Vector3.new(0, 0.2, ZONE / 2) }, { Vector3.new(ZONE + 1, 0.8, 0.8), Vector3.new(0, 0.2, -ZONE / 2) },
-		{ Vector3.new(0.8, 0.8, ZONE + 1), Vector3.new(ZONE / 2, 0.2, 0) }, { Vector3.new(0.8, 0.8, ZONE + 1), Vector3.new(-ZONE / 2, 0.2, 0) } } do
-		glow(box(market, "SellZoneEdge", spec[1], zoneCF * CFrame.new(spec[2]), C.Orange))
+	local building = box(market, "Building", Vector3.new(SELL_ZONE + 10, 2, SELL_ZONE + 10), center * CFrame.new(0, 19, 0), C.Wood)
+	for step = 1, 4 do
+		local side = SELL_ZONE + 10 - step * 9
+		box(market, "Roof", Vector3.new(side, 1.6, side), center * CFrame.new(0, 19.8 + step * 1.6, 0), (step % 2 == 1) and C.Red or C.White)
 	end
-	sign(market, "SellSign", "SELL ORE", Vector3.new(10, 3, 0.6), zoneCF * CFrame.new(0, 6.5, ZONE / 2 + 0.6), C.Red, C.White)
-	box(market, "SellSignPost", Vector3.new(1, 5, 1), zoneCF * CFrame.new(0, 2.5, ZONE / 2 + 0.6), C.WoodDark)
-	marker(market, "MerchantSpot", Vector3.new(2, 1, 2), zoneCF * CFrame.new(ZONE / 2 + 7, 0.2, 0))
-	box(market, "MerchantRug", Vector3.new(7, 0.2, 7), zoneCF * CFrame.new(ZONE / 2 + 7, 0, 0), C.Purple)
+	-- Полосатая бахрома по краю крыши.
+	for side = 0, 3 do
+		local sideCF = center * CFrame.Angles(0, rad(side * 90), 0)
+		for s = 0, 10 do
+			box(market, "Fringe", Vector3.new((SELL_ZONE + 10) / 11, 2.2, 0.6), sideCF * CFrame.new(-(SELL_ZONE + 10) / 2 + (s + 0.5) * (SELL_ZONE + 10) / 11, 17, -(SELL_ZONE + 10) / 2), s % 2 == 0 and C.Red or C.White)
+		end
+		sign(market, "SellSign", "SELL ORE", Vector3.new(18, 4.5, 0.8), sideCF * CFrame.new(0, 25.5, -(SELL_ZONE + 10) / 2 + 6), C.Yellow, C.Red)
+	end
+	-- Весы и кучи руды по углам зоны (декор, не мешают проходу).
+	for i, o in ipairs({ Vector3.new(-half + 3, 0, -half + 3), Vector3.new(half - 3, 0, half - 3) }) do
+		box(market, "Scale", Vector3.new(4, 3, 4), center * CFrame.new(o + Vector3.new(0, 1.5, 0)), C.StoneDark)
+		glow(box(market, "ScaleOre", Vector3.new(2, 2, 2), center * CFrame.new(o + Vector3.new(0, 4, 0)) * CFrame.Angles(rad(20), rad(i * 30), 0), i == 1 and C.Crystal or C.Yellow), 12)
+	end
 	market.PrimaryPart = building
+
+	-- ЛАВКА ТОРГОВЦА.
+	local shop = Instance.new("Model")
+	shop.Name = "MerchantShop"
+	shop.Parent = market
+	local cf = gapCFrame(2, 76)
+	box(shop, "ShopFloor", Vector3.new(24, 0.6, 18), cf * CFrame.new(0, 0.3, 2), C.WoodLight)
+	stack(shop, "BackWall", cf * CFrame.new(0, 0, 10), 24, 2, 12, { C.Purple:Lerp(Color3.new(0, 0, 0), 0.2), C.Purple }, 2, 0)
+	for _, x in { -11, 11 } do
+		stack(shop, "SideWall", cf * CFrame.new(x, 0, 4), 2, 12, 12, { C.Purple:Lerp(Color3.new(0, 0, 0), 0.2), C.Purple }, 2, 0)
+	end
+	for step = 1, 4 do
+		box(shop, "ShopRoof", Vector3.new(27, 1.3, 21 - (step - 1) * 4.6), cf * CFrame.new(0, 12.65 + (step - 1) * 1.3, 2.5), (step % 2 == 1) and C.Purple:Lerp(C.White, 0.2) or C.Yellow)
+	end
+	-- Прилавок (торговец стоит ЗА ним, игрок подходит спереди).
+	box(shop, "Counter", Vector3.new(16, 3.4, 3), cf * CFrame.new(0, 1.7, -4), C.Wood)
+	box(shop, "CounterTop", Vector3.new(17, 0.6, 3.6), cf * CFrame.new(0, 3.7, -4), C.WoodLight)
+	for o = 1, 4 do
+		glow(box(shop, "Potion", Vector3.new(1, 1.6, 1), cf * CFrame.new(-6 + o * 2.4, 4.8, -4), ({ C.Pink, C.Crystal, C.Yellow, C.Leaf3 })[o]))
+	end
+	for o = 1, 3 do
+		box(shop, "Shelf", Vector3.new(18, 0.6, 1.6), cf * CFrame.new(0, 3 + o * 2.4, 8.4), C.WoodDark)
+		for q = 1, 5 do
+			box(shop, "ShelfItem", Vector3.new(1.4, 1.4, 1.2), cf * CFrame.new(-7 + q * 2.8, 3.9 + o * 2.4, 8.4), ({ C.Red, C.Blue, C.Yellow, C.Teal, C.Orange })[(q + o) % 5 + 1])
+		end
+	end
+	sign(shop, "ShopSign", "MERCHANT", Vector3.new(16, 3.4, 0.8), cf * CFrame.new(0, 11, -6.2), C.Purple, C.Yellow)
+	for _, x in { -9, 9 } do glow(box(shop, "ShopLamp", Vector3.new(1.4, 1.8, 1.4), cf * CFrame.new(x, 9, -6.4), C.Yellow), 16) end
+	marker(shop, "MerchantSpot", Vector3.new(2, 1, 2), cf * CFrame.new(0, 0.7, 1.5))
+	marker(shop, "MerchantSpotLook", Vector3.new(1, 1, 1), cf * CFrame.new(0, 0.7, -12))
 end
 
 -- Домики и мастерские.
 house(gapCFrame(3, 78), 18, 14, 10, C.Cream, C.Red, "HouseRed")
 house(gapCFrame(6, 78), 16, 13, 9, C.WoodLight, C.Leaf1, "HouseGreen")
 house(gapCFrame(7, 80), 18, 14, 10, C.White, C.Orange, "HouseOrange")
-
--- Склад шахтёров: навес на столбах, ящики и бочки (между дорогами 6 и 7).
-do
-	local cf = gapCFrame(5, 80)
-	local model = Instance.new("Model")
-	model.Name = "MinerStorage"
-	model.Parent = townF
-	for _, x in { -8, 8 } do
-		for _, z in { -5, 5 } do box(model, "Post", Vector3.new(1.4, 9, 1.4), cf * CFrame.new(x, 4.5, z), C.Wood) end
-	end
-	for step = 1, 3 do box(model, "Roof", Vector3.new(20, 1, 14 - (step - 1) * 4), cf * CFrame.new(0, 9.5 + (step - 1), 0), C.Red:Lerp(C.WoodDark, 0.3)) end
-	for i = 1, 6 do
-		local s = 2.6 + rng:NextNumber()
-		box(model, "Crate", Vector3.new(s, s, s), cf * CFrame.new(-6 + (i - 1) * 2.6, s / 2, 2 + (i % 2) * 2.6) * CFrame.Angles(0, rad(rng:NextNumber() * 20), 0), C.WoodLight)
-	end
-	for i = 1, 3 do box(model, "Barrel", Vector3.new(2.6, 3.4, 2.6), cf * CFrame.new(4 + i * 1.4, 1.7, -3), C.Wood) end
-	box(model, "Pickaxes", Vector3.new(0.6, 5, 0.6), cf * CFrame.new(-7, 2.5, -4.6) * CFrame.Angles(0, 0, rad(15)), C.WoodDark)
-	box(model, "PickHead", Vector3.new(3.4, 0.8, 0.8), cf * CFrame.new(-6.4, 4.8, -4.6) * CFrame.Angles(0, 0, rad(15)), C.StoneDark)
-end
 
 -- Башня-вышка шахтёров (ориентир) - между дорогами 2 и 3.
 do
@@ -650,7 +693,7 @@ end
 
 -- Табло лайков - у площади, лицом к центру.
 do
-	local pos = polar(202.5, 40, 8)
+	local pos = polar(202.5, SELL_ZONE / 2 + 26, 8)
 	local cf = CFrame.lookAt(pos, Vector3.new(0, 8, 0))
 	box(workspace, "LikeGoalBoard", Vector3.new(14, 9, 1), cf, C.WoodDark)
 	for _, x in { -6, 6 } do box(townF, "BoardLeg", Vector3.new(1, 4, 1), cf * CFrame.new(x, -6.5, 0), C.Wood) end
@@ -666,67 +709,98 @@ for s = 0, 15 do
 end
 
 --------------------------------------------------------------------------------
--- 5) ТЕРРИТОРИЯ ГОБЛИНОВ (GoblinCamp: Zone + Spawns + Marker)
+-- 5) ТЕРРИТОРИЯ ГОБЛИНОВ - «ИСПОРЧЕННАЯ ЗЕМЛЯ» (GoblinCamp: Zone + Spawns + Marker)
+-- Тёмная больная земля с фиолетовыми светящимися трещинами, мёртвые
+-- деревья и КРУПНЫЕ КАМНИ - гоблины появляются прямо у этих камней.
 --------------------------------------------------------------------------------
 do
 	local camp = Instance.new("Model")
 	camp.Name = "GoblinCamp"
 	camp.Parent = workspace
-	local cf = CFrame.lookAt(goblinCenter, Vector3.zero)
+	local cf = CFrame.lookAt(goblinCenter, Vector3.zero) -- «вход» смотрит на город
 	local deco = folder("Decor", camp)
-	for step = 1, 3 do
-		local side = GOBLIN_SIZE + 24 - (step - 1) * 24
-		box(deco, "Mud", Vector3.new(side, 0.3, side), cf * CFrame.new(0, 0.15 + (step - 1) * 0.15, 0), lerpColors({ C.Grass1:Lerp(C.Mud, 0.5), C.Mud, C.MudDark }, (step - 1) / 2))
-	end
+	local Corrupt = {
+		Edge = C.Grass1:Lerp(Color3.fromRGB(90, 70, 90), 0.55),
+		Ground = Color3.fromRGB(74, 56, 78),
+		Deep = Color3.fromRGB(46, 34, 54),
+		Rock = Color3.fromRGB(70, 64, 84),
+		RockDark = Color3.fromRGB(44, 40, 56),
+		Glow = Color3.fromRGB(190, 70, 255),
+		DeadWood = Color3.fromRGB(64, 50, 46),
+	}
 	local half = GOBLIN_SIZE / 2
+	-- Земля: неровные пятна-кубы (крупные -> мелкие, светлее -> темнее к центру).
+	for step = 1, 3 do
+		local side = GOBLIN_SIZE + 4 - (step - 1) * 22
+		box(deco, "CorruptGround", Vector3.new(side, 0.3, side), cf * CFrame.new(0, 0.15 + (step - 1) * 0.15, 0),
+			lerpColors({ Corrupt.Edge, Corrupt.Ground, Corrupt.Deep }, (step - 1) / 2))
+	end
+	for _ = 1, 26 do -- «рваный» край: пятна гнили расползаются на траву
+		local a = rng:NextNumber() * math.pi * 2
+		local r = half - 2 + rng:NextNumber() * 4
+		local sz = 5 + rng:NextNumber() * 5
+		box(deco, "Blight", Vector3.new(sz, 0.3, sz * (0.6 + rng:NextNumber() * 0.6)), cf * CFrame.new(math.cos(a) * r, 0.12, math.sin(a) * r) * CFrame.Angles(0, rng:NextNumber() * 3, 0), Corrupt.Edge)
+	end
+	-- Светящиеся трещины (тонкие неоновые полосы, ломаные).
+	for _ = 1, 14 do
+		local at = cf * CFrame.new(rng:NextNumber() * GOBLIN_SIZE * 0.8 - GOBLIN_SIZE * 0.4, 0.62, rng:NextNumber() * GOBLIN_SIZE * 0.8 - GOBLIN_SIZE * 0.4)
+		local yaw = rng:NextNumber() * math.pi
+		for seg = 0, 2 do
+			glow(box(deco, "Crack", Vector3.new(0.6, 0.2, 5 + rng:NextNumber() * 4), at * CFrame.Angles(0, yaw + seg * 0.5, 0) * CFrame.new(0, 0, seg * 4), Corrupt.Glow))
+		end
+	end
+	-- Крупные камни: 6 скоплений по кругу - у каждого точка появления гоблинов.
+	local spawns = folder("Spawns", camp)
+	for i = 1, 6 do
+		local a = (i - 1) / 6 * math.pi * 2 + 0.3
+		local rockCF = cf * CFrame.new(math.cos(a) * half * 0.62, 0, math.sin(a) * half * 0.62)
+		for piece = 1, 3 do
+			local s = (piece == 1) and (9 + rng:NextNumber() * 4) or (4 + rng:NextNumber() * 3)
+			local offset = piece == 1 and Vector3.zero or Vector3.new(rng:NextNumber() * 10 - 5, 0, rng:NextNumber() * 10 - 5)
+			local rock = box(deco, "BigRock", Vector3.new(s, s * 0.8, s * 0.9), rockCF * CFrame.new(offset + Vector3.new(0, s * 0.35, 0)) * CFrame.Angles(rad(rng:NextNumber() * 16 - 8), rng:NextNumber() * 3, rad(rng:NextNumber() * 16 - 8)),
+				piece == 1 and Corrupt.Rock or Corrupt.RockDark)
+			if piece == 1 then
+				-- светящиеся «жилы» на большом камне
+				glow(box(deco, "RockVein", Vector3.new(s * 0.9, 0.4, 0.4), rock.CFrame * CFrame.new(0, s * 0.1, -s * 0.46), Corrupt.Glow), 12)
+			end
+		end
+		-- Точка появления - у камня, со стороны центра лагеря.
+		local inward = cf * CFrame.new(math.cos(a) * half * 0.38, 1, math.sin(a) * half * 0.38)
+		marker(spawns, "Spawn" .. i, Vector3.new(2, 1, 2), inward, Color3.fromRGB(90, 220, 90))
+	end
+	-- Мёртвые деревья (кривые стволы из кубов).
+	for _, o in { Vector3.new(-half + 10, 0, half - 10), Vector3.new(half - 10, 0, half - 12), Vector3.new(-half + 12, 0, -8), Vector3.new(half - 8, 0, 4) } do
+		local tcf = cf * CFrame.new(o) * CFrame.Angles(0, rng:NextNumber() * 3, 0)
+		for seg = 0, 3 do
+			box(deco, "DeadTrunk", Vector3.new(1.8, 3, 1.8), tcf * CFrame.new(seg * 0.5, 1.5 + seg * 3, 0) * CFrame.Angles(0, 0, rad(-6 * seg)), Corrupt.DeadWood)
+		end
+		box(deco, "DeadBranch", Vector3.new(6, 1, 1), tcf * CFrame.new(2.4, 10.5, 0) * CFrame.Angles(0, 0, rad(30)), Corrupt.DeadWood)
+		box(deco, "DeadBranch", Vector3.new(5, 1, 1), tcf * CFrame.new(-1.2, 9, 0) * CFrame.Angles(0, 0, rad(-35)), Corrupt.DeadWood)
+	end
+	-- Тотем-обелиск в центре: камень-градиент, светящийся глаз.
+	stack(deco, "Obelisk", cf * CFrame.new(0, 0, 4), 5, 5, 18, { Corrupt.RockDark, Corrupt.Rock, Corrupt.Glow:Lerp(Corrupt.Rock, 0.5) }, 5, 0.3)
+	glow(box(deco, "ObeliskEye", Vector3.new(2.4, 2.4, 2.4), cf * CFrame.new(0, 19.6, 4) * CFrame.Angles(rad(45), rad(45), 0), Corrupt.Glow), 30)
+	-- Вход с табличкой (со стороны города) и ограда из острых камней по краю.
+	local gate = cf * CFrame.new(0, 0, -half)
+	for _, x in { -11, 11 } do
+		stack(deco, "GateStone", gate * CFrame.new(x, 0, 0), 4, 4, 14, { Corrupt.RockDark, Corrupt.Rock }, 3, 0.35)
+	end
+	box(deco, "Skull", Vector3.new(4, 4, 4), gate * CFrame.new(0, 12, 0), C.White)
+	glow(box(deco, "SkullEye", Vector3.new(0.9, 0.9, 0.4), gate * CFrame.new(-0.9, 12.4, -2.1), Corrupt.Glow), 10)
+	glow(box(deco, "SkullEye", Vector3.new(0.9, 0.9, 0.4), gate * CFrame.new(0.9, 12.4, -2.1), Corrupt.Glow))
+	box(deco, "SkullPost", Vector3.new(1, 10, 1), gate * CFrame.new(0, 5, 0), Corrupt.DeadWood)
+	sign(deco, "GoblinSign", "GOBLIN LANDS", Vector3.new(12, 2.6, 0.6), gate * CFrame.new(0, 7, -1.2), Corrupt.Deep, Corrupt.Glow)
 	for sideIndex = 0, 3 do
 		local sideCF = cf * CFrame.Angles(0, rad(90 * sideIndex), 0)
-		for x = -half, half, 3 do
-			if not (sideIndex == 0 and math.abs(x) < 11) then
-				local h = 8 + rng:NextNumber() * 3
-				box(deco, "Palisade", Vector3.new(2.6, h, 2.6), sideCF * CFrame.new(x, h / 2, -half), C.WoodDark:Lerp(C.Wood, rng:NextNumber()))
-				box(deco, "PalisadeTop", Vector3.new(1.4, 1.4, 1.4), sideCF * CFrame.new(x, h + 0.7, -half), C.WoodLight)
+		for x = -half, half, 7 do
+			if not (sideIndex == 0 and math.abs(x) < 16) then
+				local h = 3 + rng:NextNumber() * 4
+				box(deco, "Spike", Vector3.new(2.6, h, 2.6), sideCF * CFrame.new(x + rng:NextNumber() * 2, h / 2, -half) * CFrame.Angles(rad(rng:NextNumber() * 20 - 10), rng:NextNumber() * 3, 0), Corrupt.RockDark)
 			end
 		end
 	end
-	local gate = cf * CFrame.new(0, 0, -half)
-	for _, x in { -12, 12 } do box(deco, "GatePost", Vector3.new(3, 16, 3), gate * CFrame.new(x, 8, 0), C.WoodDark) end
-	box(deco, "GateBeam", Vector3.new(27, 2.4, 3), gate * CFrame.new(0, 15, 0), C.Wood)
-	box(deco, "Skull", Vector3.new(4, 4, 4), gate * CFrame.new(0, 18.4, 0), C.White)
-	glow(box(deco, "SkullEye", Vector3.new(0.9, 0.9, 0.4), gate * CFrame.new(-0.9, 18.8, -2.1), C.Red), 10)
-	glow(box(deco, "SkullEye", Vector3.new(0.9, 0.9, 0.4), gate * CFrame.new(0.9, 18.8, -2.1), C.Red))
-	sign(deco, "GoblinSign", "GOBLIN LANDS", Vector3.new(14, 3, 0.6), gate * CFrame.new(0, 12, -1.8), C.MudDark, C.Red)
-	-- Шатры из кубов (ступеньками) по краям.
-	for _, spec in { { -38, 38 }, { 38, 38 }, { -42, -8 }, { 42, -8 }, { 0, 46 } } do
-		local tcf = cf * CFrame.new(spec[1], 0, spec[2]) * CFrame.Angles(0, rad(rng:NextNumber() * 360), 0)
-		local color = ({ C.Leaf1, C.Mud, C.Purple, C.WoodDark })[rng:NextInteger(1, 4)]
-		for step = 1, 4 do
-			box(deco, "Tent", Vector3.new(11, 2, 10 - (step - 1) * 2.4), tcf * CFrame.new(0, 1 + (step - 1) * 2, 0), color:Lerp(Color3.new(0, 0, 0), (step - 1) * 0.06))
-		end
-	end
-	local fire = cf * CFrame.new(0, 0.4, 8)
-	for a = 0, 5 do box(deco, "FireStone", Vector3.new(2, 1.4, 2), fire * CFrame.Angles(0, rad(a * 60), 0) * CFrame.new(4, 0.7, 0), C.StoneDark) end
-	for layer, color in ipairs({ C.Red, C.Orange, C.Yellow }) do
-		local s = 4 - layer
-		glow(box(deco, "Flame", Vector3.new(s, s, s), fire * CFrame.new(0, layer * 1.3, 0) * CFrame.Angles(rad(layer * 20), rad(layer * 35), 0), color), layer == 1 and 30 or nil)
-	end
-	local fx = Instance.new("Fire")
-	fx.Heat = 8
-	fx.Size = 6
-	fx.Parent = deco:FindFirstChild("Flame")
-	stack(deco, "Totem", cf * CFrame.new(-28, 0, -20), 4, 4, 16, { C.MudDark, C.Leaf1, C.Grass1 }, 5, 0.2)
-	glow(box(deco, "TotemEye", Vector3.new(2, 2, 2), cf * CFrame.new(-28, 17, -20), C.Red), 14)
-	for _, o in { Vector3.new(-half + 6, 0, -half + 6), Vector3.new(half - 6, 0, -half + 6), Vector3.new(-half + 6, 0, half - 6), Vector3.new(half - 6, 0, half - 6) } do
-		box(deco, "TorchPole", Vector3.new(0.9, 7, 0.9), cf * CFrame.new(o + Vector3.new(0, 3.5, 0)), C.WoodDark)
-		glow(box(deco, "TorchFlame", Vector3.new(1.4, 1.4, 1.4), cf * CFrame.new(o + Vector3.new(0, 7.6, 0)), C.Orange), 16)
-	end
 	local zone = marker(camp, "Zone", Vector3.new(GOBLIN_SIZE, 30, GOBLIN_SIZE), cf * CFrame.new(0, 13, 0), Color3.fromRGB(255, 70, 70))
-	local spawns = folder("Spawns", camp)
-	for i = 1, 6 do
-		local a = (i - 1) / 6 * math.pi * 2
-		marker(spawns, "Spawn" .. i, Vector3.new(2, 1, 2), cf * CFrame.new(math.cos(a) * GOBLIN_SIZE * 0.28, 1, math.sin(a) * GOBLIN_SIZE * 0.28 + 8), Color3.fromRGB(90, 220, 90))
-	end
-	marker(camp, "Marker", Vector3.new(2, 2, 2), cf * CFrame.new(0, 1, -half + 16))
+	marker(camp, "Marker", Vector3.new(2, 2, 2), cf * CFrame.new(0, 1, -half + 14))
 	camp.PrimaryPart = zone
 end
 

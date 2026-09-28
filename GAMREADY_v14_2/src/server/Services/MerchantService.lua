@@ -802,6 +802,12 @@ function MerchantService:_spawnNpc()
 	local building = bankModel and bankModel:FindFirstChild("Building", true)
 	local center = building and building:IsA("BasePart") and building.Position or zone.Position
 	local outward = Vector3.new(spot.X - center.X, 0, spot.Z - center.Z)
+	-- v20.71: своя лавка - торговец смотрит на деталь MerchantSpotLook
+	-- (например, из-за прилавка на площадь), а не «от здания банка».
+	local lookMarker = bankModel and bankModel:FindFirstChild("MerchantSpotLook", true)
+	if lookMarker and lookMarker:IsA("BasePart") then
+		outward = Vector3.new(lookMarker.Position.X - spot.X, 0, lookMarker.Position.Z - spot.Z)
+	end
 	if outward.Magnitude < 0.5 then outward = zone.CFrame.LookVector * Vector3.new(1, 0, 1) end
 	model:PivotTo(CFrame.lookAt(spot, spot + outward.Unit))
 	if CFG.ShowBoard == false then
