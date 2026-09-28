@@ -137,7 +137,28 @@ local basesF = folder("Landings")
 --------------------------------------------------------------------------------
 -- КУБЫ
 --------------------------------------------------------------------------------
+-- ПАУЗЫ: в Studio у Command Bar есть лимит времени выполнения - без пауз
+-- скрипт обрывался на середине (и, например, не успевал построить лагерь
+-- гоблинов). Каждые 200 деталей даём Studio «вздохнуть».
+local built = 0
+local function breathe()
+	built += 1
+	if built % 200 == 0 and task and task.wait then task.wait() end
+end
+
+-- Каждая часть карты строится отдельно: если одна упадёт с ошибкой,
+-- остальные всё равно построятся, а ошибка будет в Output.
+local function section(name, fn)
+	local ok, err = pcall(fn)
+	if ok then
+		print(("[BuildIslandMap] %s - ok (%d деталей)"):format(name, built))
+	else
+		warn(("[BuildIslandMap] %s - ОШИБКА: %s"):format(name, tostring(err)))
+	end
+end
+
 local function box(parent, name, size, cf, color, props)
+	breathe()
 	local p = Instance.new("Part")
 	p.Name = name
 	p.Anchored = true
@@ -592,7 +613,7 @@ end
 --     проданная руда);
 --   • отдельная ЛАВКА ТОРГОВЦА между дорогами 3 и 4, в ней маркер
 --     MerchantSpot (там стоит торговец) и MerchantSpotLook (куда смотрит).
-do
+section("Market + merchant", function()
 	local market = Instance.new("Model")
 	market.Name = "MinersMarket"
 	market:SetAttribute("IsBank", true)
@@ -607,25 +628,30 @@ do
 		{ Vector3.new(1, 1, SELL_ZONE + 2), Vector3.new(half, 0.6, 0) }, { Vector3.new(1, 1, SELL_ZONE + 2), Vector3.new(-half, 0.6, 0) } } do
 		glow(box(market, "SellZoneEdge", spec[1], center * CFrame.new(spec[2]), C.Orange))
 	end
-	-- Столбы по углам и по серединам сторон (проходы открыты со всех сторон).
+	-- БЕЗ КРЫШИ (высокие тележки). Низкие столбики с фонарями по углам и
+	-- таблички SELL ORE на высоких шестах СНАРУЖИ зоны - над зоной ничего нет.
 	for _, x in { -1, 1 } do
 		for _, z in { -1, 1 } do
-			stack(market, "Pillar", center * CFrame.new(x * (half + 2), 0, z * (half + 2)), 3, 3, 18, { C.WoodDark, C.Wood, C.WoodLight }, 3, 0)
+			local corner = center * CFrame.new(x * (half + 2.5), 0, z * (half + 2.5))
+			stack(market, "Post", corner, 2.4, 2.4, 5, { C.WoodDark, C.Wood }, 2, 0)
+			glow(box(market, "PostLamp", Vector3.new(1.8, 1.8, 1.8), corner * CFrame.new(0, 6, 0), C.Yellow), 18)
 		end
 	end
-	local building = box(market, "Building", Vector3.new(SELL_ZONE + 10, 2, SELL_ZONE + 10), center * CFrame.new(0, 19, 0), C.Wood)
-	for step = 1, 4 do
-		local side = SELL_ZONE + 10 - step * 9
-		box(market, "Roof", Vector3.new(side, 1.6, side), center * CFrame.new(0, 19.8 + step * 1.6, 0), (step % 2 == 1) and C.Red or C.White)
-	end
-	-- Полосатая бахрома по краю крыши.
 	for side = 0, 3 do
 		local sideCF = center * CFrame.Angles(0, rad(side * 90), 0)
-		for s = 0, 10 do
-			box(market, "Fringe", Vector3.new((SELL_ZONE + 10) / 11, 2.2, 0.6), sideCF * CFrame.new(-(SELL_ZONE + 10) / 2 + (s + 0.5) * (SELL_ZONE + 10) / 11, 17, -(SELL_ZONE + 10) / 2), s % 2 == 0 and C.Red or C.White)
+		local at = sideCF * CFrame.new(half * 0.55, 0, -(half + 5))
+		box(market, "SignPole", Vector3.new(1.2, 14, 1.2), at * CFrame.new(0, 7, 0), C.WoodDark)
+		sign(market, "SellSign", "SELL ORE", Vector3.new(12, 3.4, 0.8), at * CFrame.new(0, 12.5, 0), C.Yellow, C.Red)
+		-- Полосатый бортик вдоль края пола (низкий, не мешает заезду).
+		for s2 = 0, 10 do
+			box(market, "Curb", Vector3.new((SELL_ZONE + 8) / 11, 0.2, 1), sideCF * CFrame.new(-(SELL_ZONE + 8) / 2 + (s2 + 0.5) * (SELL_ZONE + 8) / 11, 0.5, -(SELL_ZONE + 8) / 2 + 0.5), s2 % 2 == 0 and C.Red or C.White)
 		end
-		sign(market, "SellSign", "SELL ORE", Vector3.new(18, 4.5, 0.8), sideCF * CFrame.new(0, 25.5, -(SELL_ZONE + 10) / 2 + 6), C.Yellow, C.Red)
 	end
+	-- Building - НЕВИДИМАЯ точка над центром зоны: туда вылетает проданная
+	-- руда (WorldService:GetBankTopPosition). Ничего не загораживает.
+	local building = box(market, "Building", Vector3.new(4, 4, 4), center * CFrame.new(0, 16, 0), C.Yellow, {
+		Transparency = 1, CanCollide = false, CanQuery = false, CanTouch = false,
+	})
 	-- Весы и кучи руды по углам зоны (декор, не мешают проходу).
 	for i, o in ipairs({ Vector3.new(-half + 3, 0, -half + 3), Vector3.new(half - 3, 0, half - 3) }) do
 		box(market, "Scale", Vector3.new(4, 3, 4), center * CFrame.new(o + Vector3.new(0, 1.5, 0)), C.StoneDark)
@@ -662,7 +688,7 @@ do
 	for _, x in { -9, 9 } do glow(box(shop, "ShopLamp", Vector3.new(1.4, 1.8, 1.4), cf * CFrame.new(x, 9, -6.4), C.Yellow), 16) end
 	marker(shop, "MerchantSpot", Vector3.new(2, 1, 2), cf * CFrame.new(0, 0.7, 1.5))
 	marker(shop, "MerchantSpotLook", Vector3.new(1, 1, 1), cf * CFrame.new(0, 0.7, -12))
-end
+end)
 
 -- Домики и мастерские.
 house(gapCFrame(3, 78), 18, 14, 10, C.Cream, C.Red, "HouseRed")
@@ -713,7 +739,7 @@ end
 -- Тёмная больная земля с фиолетовыми светящимися трещинами, мёртвые
 -- деревья и КРУПНЫЕ КАМНИ - гоблины появляются прямо у этих камней.
 --------------------------------------------------------------------------------
-do
+section("Goblin land", function()
 	local camp = Instance.new("Model")
 	camp.Name = "GoblinCamp"
 	camp.Parent = workspace
@@ -802,12 +828,12 @@ do
 	local zone = marker(camp, "Zone", Vector3.new(GOBLIN_SIZE, 30, GOBLIN_SIZE), cf * CFrame.new(0, 13, 0), Color3.fromRGB(255, 70, 70))
 	marker(camp, "Marker", Vector3.new(2, 2, 2), cf * CFrame.new(0, 1, -half + 14))
 	camp.PrimaryPart = zone
-end
+end)
 
 --------------------------------------------------------------------------------
 -- 6) ТОЧКИ ВАЛУНОВ (16 шт.) + каменистые пятна из кубов
 --------------------------------------------------------------------------------
-do
+section("Boulder spots", function()
 	local points = Instance.new("Folder")
 	points.Name = "RubbleBoulderSpawnPoints"
 	points.Parent = workspace
@@ -822,7 +848,7 @@ do
 			box(natureF, "Pebble", Vector3.new(s, s * 0.8, s), CFrame.new(spot.Pos + Vector3.new(math.cos(a) * 11, s * 0.4, math.sin(a) * 11)) * CFrame.Angles(0, rng:NextNumber() * 3, 0), C.Stone:Lerp(C.StoneDark, rng:NextNumber()))
 		end
 	end
-end
+end)
 
 --------------------------------------------------------------------------------
 -- 7) ПРИРОДА: кубические деревья, кусты, цветы; у берега - пальмы и ракушки
