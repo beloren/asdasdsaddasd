@@ -842,6 +842,9 @@ end)
 -- передней грани), Plate - табличка «#1 ник» на постаменте, StatueSpot -
 -- маркер, где встанет серая статуя игрока с 1-го места (смотрит на площадь).
 section("Leaderboard stands", function()
+	-- Свои стенды из tools/BuildLeaderboardStands (лежат прямо в Workspace)
+	-- не трогаем и второй комплект не строим.
+	if workspace:FindFirstChild("LeaderboardStands") then return end
 	local stands = model(townF, "LeaderboardStands")
 	local group = polar(292.5, 60)
 	local right = CFrame.lookAt(group, Vector3.zero).RightVector

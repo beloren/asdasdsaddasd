@@ -2540,6 +2540,25 @@ Config.Offers = {
 -- в MonetizationService — см. предупреждение там же про то, почему нельзя
 -- заводить второй такой колбэк где-то ещё).
 --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- v20.82: ДОНАТЫ «SUPPORT US» - девпродукты без игровой выдачи: просто
+-- поддержать игру. Каждая покупка идёт в TOP DONATION (RobuxSpent), игроку
+-- - «спасибо», серверу - объявление (AnnounceFrom и дороже).
+-- Id = 0 - товар ещё не создан (в магазине карточка неактивна). Создай
+-- Developer Product в Creator Hub с этой ценой и впиши Id.
+--------------------------------------------------------------------------------
+Config.Donations = {
+	AnnounceFrom = 100, -- от скольки R$ объявлять всему серверу
+	Items = {
+		{ Key = "Donate10",   Id = 0, PriceRobux = 10,   Title = "🍬 Candy",        Description = "A tiny thank-you!" },
+		{ Key = "Donate50",   Id = 0, PriceRobux = 50,   Title = "☕ Coffee",       Description = "Keeps the devs awake!" },
+		{ Key = "Donate100",  Id = 0, PriceRobux = 100,  Title = "🍕 Pizza",        Description = "Fuel for a new update!" },
+		{ Key = "Donate500",  Id = 0, PriceRobux = 500,  Title = "💎 Diamond Fan",  Description = "You're amazing! Top Donation board!" },
+		{ Key = "Donate1000", Id = 0, PriceRobux = 1000, Title = "👑 Legend",       Description = "A true legend of the mine!" },
+		{ Key = "Donate5000", Id = 0, PriceRobux = 5000, Title = "🌟 Mega Patron",  Description = "Your statue deserves the plaza!" },
+	},
+}
+
 Config.DevProducts = {
 	-- ПОГОДНЫЕ ИВЕНТЫ ЗА ROBUX — по прямому запросу, самые первые в списке
 	-- dev-продуктов. Покупка мгновенно запускает соответствующий ивент
@@ -5721,7 +5740,7 @@ Config.Shop = {
 	-- остаются разовые предложения (стартовый пак, продление щита).
 	-- v20.4: порядок — самые покупаемые сверху (над ними ещё Forever Pack).
 	-- Категория без товаров показывается карточками «?» (скоро).
-	Tabs = { "Cash", "Boosts", "Passes", "Weather", "Geodes", "Dynamite", "Deals", "Skins" },
+	Tabs = { "Cash", "Boosts", "Passes", "Weather", "Geodes", "Dynamite", "Deals", "Skins", "Support" },
 
 	-- Подпись секции на экране (ключ категории не трогаем — он завязан на
 	-- PreferredTab по всей кодовой базе).
@@ -5734,6 +5753,7 @@ Config.Shop = {
 		Dynamite = "Dynamite",
 		Deals = "Special Offers",
 		Skins = "Skins",
+		Support = "SUPPORT US",
 	},
 
 	-- ГРАДИЕНТ ФОНА НА КАЖДУЮ СЕКЦИЮ (по прямому запросу — "раскрась
@@ -5755,6 +5775,13 @@ Config.Shop = {
 	CardsPerPage = 6,
 
 	Items = {
+		-- v20.82: SUPPORT US - донаты (Config.Donations).
+		{ Id = "Donate10Deal", Tab = "Support", Title = Config.Donations.Items[1].Title, PriceRobux = 10, ImageId = 0, ProductType = "DevProduct", ProductId = Config.Donations.Items[1].Id, DonationKey = "Donate10", Description = Config.Donations.Items[1].Description },
+		{ Id = "Donate50Deal", Tab = "Support", Title = Config.Donations.Items[2].Title, PriceRobux = 50, ImageId = 0, ProductType = "DevProduct", ProductId = Config.Donations.Items[2].Id, DonationKey = "Donate50", Description = Config.Donations.Items[2].Description },
+		{ Id = "Donate100Deal", Tab = "Support", Title = Config.Donations.Items[3].Title, PriceRobux = 100, ImageId = 0, ProductType = "DevProduct", ProductId = Config.Donations.Items[3].Id, DonationKey = "Donate100", Description = Config.Donations.Items[3].Description },
+		{ Id = "Donate500Deal", Tab = "Support", Title = Config.Donations.Items[4].Title, PriceRobux = 500, ImageId = 0, ProductType = "DevProduct", ProductId = Config.Donations.Items[4].Id, DonationKey = "Donate500", Description = Config.Donations.Items[4].Description },
+		{ Id = "Donate1000Deal", Tab = "Support", Title = Config.Donations.Items[5].Title, PriceRobux = 1000, ImageId = 0, ProductType = "DevProduct", ProductId = Config.Donations.Items[5].Id, DonationKey = "Donate1000", Description = Config.Donations.Items[5].Description },
+		{ Id = "Donate5000Deal", Tab = "Support", Title = Config.Donations.Items[6].Title, PriceRobux = 5000, ImageId = 0, ProductType = "DevProduct", ProductId = Config.Donations.Items[6].Id, DonationKey = "Donate5000", Description = Config.Donations.Items[6].Description },
 		-- ГЕЙМПАССЫ — покупаются один раз, эффект навсегда (см. Config.GamePasses).
 		-- v10: ГЕЙМПАССЫ — покупаются один раз (Config.GamePasses).
 		{ Id = "DoubleCashPass", Tab = "Passes", Title = "💰 2x Money", PriceRobux = Config.GamePasses.DoubleCash.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.DoubleCash.Id, PassKey = "DoubleCash" },
@@ -5836,8 +5863,8 @@ Config.Shop.ForeverPack = {
 -- v20: заголовок окна, акценты секций и короткие описания карточек магазина
 -- (строка под названием товара, как «+200 Meteor Shards!» на референсе).
 Config.Shop.WindowTitle = "Prospector's Shop"
-Config.Shop.TabAccents = { Cash = "Green", Boosts = "Gold", Passes = "Purple", Weather = "Blue", Geodes = "Orange", Dynamite = "Red", Deals = "Pink", Skins = "Teal", Forever = "Orange" }
-Config.Shop.TabEmoji = { Cash = "💵", Boosts = "⚡", Passes = "🎫", Weather = "⛅", Geodes = "🪨", Dynamite = "🧨", Deals = "🎁", Skins = "⛏" }
+Config.Shop.TabAccents = { Cash = "Green", Boosts = "Gold", Passes = "Purple", Weather = "Blue", Geodes = "Orange", Dynamite = "Red", Deals = "Pink", Skins = "Teal", Forever = "Orange", Support = "Pink" }
+Config.Shop.TabEmoji = { Cash = "💵", Boosts = "⚡", Passes = "🎫", Weather = "⛅", Geodes = "🪨", Dynamite = "🧨", Deals = "🎁", Skins = "⛏", Support = "❤" }
 Config.Shop.Descriptions = {
 	DoubleCashPass = "x2 money from every sale!",
 	DoubleLuckPass = "x2 mutation luck, rarer ore!",

@@ -165,4 +165,98 @@ function OrePreview.Mount(container, stack)
 	return true
 end
 
+-- v20.82: ЛЮБАЯ МОДЕЛЬ в ячейке (жеода, кристалл банка...): разворачивается
+-- САМОЙ ШИРОКОЙ стороной к камере (тонкая ось - от камеры), под ней
+-- чёрный силуэт-обводка. model забирается (не клонируется). key - чтобы не
+-- пересобирать то же самое при каждой перерисовке.
+function OrePreview.MountModel(container, model, key)
+	if not (container and model) then return false end
+	local existing = container:FindFirstChild("ModelView")
+	if key and existing and existing:GetAttribute("Key") == key then
+		model:Destroy()
+		return true
+	end
+	OrePreview.Clear(container)
+	if model:IsA("BasePart") then
+		local wrap = Instance.new("Model")
+		model.Parent = wrap
+		model = wrap
+	end
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+		elseif d:IsA("ParticleEmitter") or d:IsA("Light") or d:IsA("BillboardGui") or d:IsA("ProximityPrompt")
+			or d:IsA("Script") or d:IsA("LocalScript") or d:IsA("Sound") or d:IsA("Beam") or d:IsA("Trail") then
+			d:Destroy()
+		end
+	end
+	-- Разворот: оси габарита модели -> самая тонкая смотрит на камеру (Z),
+	-- самая длинная - по горизонтали (X), если модель не вытянута вверх.
+	local boxCF, size = model:GetBoundingBox()
+	local axes = {
+		{ Len = size.X, Dir = boxCF.RightVector },
+		{ Len = size.Y, Dir = boxCF.UpVector },
+		{ Len = size.Z, Dir = boxCF.LookVector },
+	}
+	table.sort(axes, function(a, b) return a.Len < b.Len end)
+	local depthDir = axes[1].Dir -- тонкая
+	local upDir = axes[2].Dir -- средняя - вертикаль кадра (широкая по X)
+	if axes[3].Dir:Dot(boxCF.UpVector) > 0.9 then upDir = axes[3].Dir end -- высокая модель остаётся стоя
+	local rightDir = upDir:Cross(depthDir)
+	-- orient переводит локальные X/Y/Z в right/up/depth; обратный поворот
+	-- кладёт тонкую ось на Z (к камере), а up - на Y.
+	local orient = CFrame.fromMatrix(Vector3.zero, rightDir, upDir, depthDir)
+	model:PivotTo(orient:Inverse() * model:GetPivot())
+	local centerCF, bounds = model:GetBoundingBox()
+	model:PivotTo(CFrame.new(-centerCF.Position) * model:GetPivot())
+	local distance = math.max(bounds.X, bounds.Y) * 1.55 + bounds.Z * 0.5 + 0.4
+	local cameraCF = CFrame.lookAt(Vector3.new(distance * 0.12, distance * 0.16, distance), Vector3.zero)
+	local baseZ = container:IsA("GuiObject") and container.ZIndex or 1
+
+	local function viewport(name, zIndex, scale)
+		local frame = Instance.new("ViewportFrame")
+		frame.Name = name
+		frame.BackgroundTransparency = 1
+		frame.AnchorPoint = Vector2.new(0.5, 0.5)
+		frame.Position = UDim2.fromScale(0.5, 0.5)
+		frame.Size = UDim2.fromScale(scale, scale)
+		frame.ZIndex = zIndex
+		local camera = Instance.new("Camera")
+		camera.FieldOfView = 40
+		camera.CFrame = cameraCF
+		camera.Parent = frame
+		frame.CurrentCamera = camera
+		return frame
+	end
+	local invCfg = Config.Inventory or {}
+	local outline = viewport("ModelOutline", baseZ, 1 + (invCfg.PreviewOutlineScale or 0.12))
+	outline.Ambient = Color3.new(1, 1, 1)
+	outline.LightColor = Color3.new(0, 0, 0)
+	local silhouette = model:Clone()
+	for _, d in silhouette:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Color = invCfg.PreviewOutlineColor or Color3.new(0, 0, 0)
+			d.Material = Enum.Material.SmoothPlastic
+			d.Reflectance = 0
+			d.Transparency = math.min(d.Transparency, 0.02)
+			if d:IsA("MeshPart") then pcall(function() d.TextureID = "" end) end
+		elseif d:IsA("Decal") or d:IsA("Texture") or d:IsA("SurfaceAppearance") then
+			d:Destroy()
+		elseif d:IsA("SpecialMesh") then
+			d.TextureId = ""
+		end
+	end
+	silhouette.Parent = outline
+	outline.Parent = container
+	local main = viewport("ModelView", baseZ + 1, 1)
+	main.Ambient = Color3.fromRGB(170, 170, 175)
+	main.LightColor = Color3.new(1, 1, 1)
+	main.LightDirection = Vector3.new(-0.6, -1, -0.5)
+	if key then main:SetAttribute("Key", key) end
+	model.Parent = main
+	main.Parent = container
+	return true
+end
+
 return OrePreview

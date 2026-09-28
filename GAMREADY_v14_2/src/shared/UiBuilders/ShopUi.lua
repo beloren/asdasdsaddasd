@@ -38,11 +38,11 @@ local UiKit = require(Shared.UiKit)
 local Config = require(ReplicatedStorage.Shared.Config)
 
 local Builder = {}
-Builder.VERSION = 23
+Builder.VERSION = 24
 
 local DEFAULT_TAB_ACCENTS = {
 	Cash = "Green", Boosts = "Gold", Passes = "Purple", Weather = "Blue",
-	Geodes = "Orange", Dynamite = "Red", Deals = "Pink", Skins = "Teal", Forever = "Orange",
+	Geodes = "Orange", Dynamite = "Red", Deals = "Pink", Skins = "Teal", Forever = "Orange", Support = "Pink",
 }
 
 function Builder.TabAccent(tabName)
@@ -345,15 +345,29 @@ function Builder.Build()
 	UiKit.List(nav, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), VerticalAlignment = Enum.VerticalAlignment.Center })
 	UiKit.Padding(nav, 0, 2, 2, 2)
 	local navEntries = { { "Forever", "⭐ " .. ((Config.Shop.ForeverPack and Config.Shop.ForeverPack.Title) or "Forever") } }
+	-- v20.82: SUPPORT US - сразу вторая кнопка, залитая розовым.
+	if table.find(tabs, "Support") then
+		table.insert(navEntries, { "Support", "❤ " .. (names.Support or "SUPPORT US") .. " ❤" })
+	end
 	for _, tabName in tabs do
-		table.insert(navEntries, { tabName, ((emojis[tabName] and (emojis[tabName] .. " ")) or "") .. (names[tabName] or tabName) })
+		if tabName ~= "Support" then
+			table.insert(navEntries, { tabName, ((emojis[tabName] and (emojis[tabName] .. " ")) or "") .. (names[tabName] or tabName) })
+		end
 	end
 	for order, entry in navEntries do
-		local button, caption = UiKit.Button(nav, "Nav_" .. entry[1], entry[2], "Dark", {
+		local isSupport = entry[1] == "Support"
+		local button, caption = UiKit.Button(nav, "Nav_" .. entry[1], entry[2], isSupport and "Red" or "Dark", {
 			LayoutOrder = order,
 			Size = UDim2.fromOffset(46 + utf8.len(entry[2]) * 9, 32),
 			ZIndex = 3,
 		})
+		if isSupport then
+			button:SetAttribute("SupportButton", true)
+			button.BackgroundColor3 = Color3.fromRGB(255, 90, 170)
+			local old = button:FindFirstChildWhichIsA("UIGradient")
+			if old then old:Destroy() end
+			UiKit.Gradient(button, Color3.fromRGB(255, 120, 200), Color3.fromRGB(170, 70, 255), 0, "SupportGradient")
+		end
 		caption.TextWrapped = false
 		caption.TextScaled = true
 		local limit = Instance.new("UITextSizeConstraint")
@@ -364,7 +378,7 @@ function Builder.Build()
 			stroke.Color = UiKit.Accent(Builder.TabAccent(entry[1])).Main
 			stroke.Thickness = 2
 		end
-		caption.TextColor3 = UiKit.Accent(Builder.TabAccent(entry[1])).Light
+		caption.TextColor3 = isSupport and Color3.new(1, 1, 1) or UiKit.Accent(Builder.TabAccent(entry[1])).Light
 	end
 
 	local body = UiKit.Scroll(content, "Body", {
@@ -386,6 +400,35 @@ function Builder.Build()
 		UiKit.List(section, { Padding = UDim.new(0, 6) })
 		local header = UiKit.SectionHeader(section, "SectionHeader", names[tabName] or tabName, Builder.TabAccent(tabName))
 		header.LayoutOrder = 1
+		if tabName == "Support" then
+			-- v20.82: баннер «SUPPORT US» вместо простого заголовка.
+			header:Destroy()
+			local banner = Instance.new("Frame")
+			banner.Name = "SectionHeader"
+			banner.LayoutOrder = 1
+			banner.Size = UDim2.new(1, 0, 0, 78)
+			banner.BackgroundColor3 = Color3.new(1, 1, 1)
+			banner.BorderSizePixel = 0
+			banner.Parent = section
+			UiKit.Corner(banner, 12)
+			UiKit.Gradient(banner, Color3.fromRGB(255, 110, 190), Color3.fromRGB(140, 70, 255), 0, "BannerGradient")
+			UiKit.Stroke(banner, Color3.fromRGB(255, 220, 245), 2, 0, "BannerStroke")
+			local title = UiKit.Text(banner, "Title", "❤ SUPPORT US ❤", {
+				_Style = "Title",
+				Size = UDim2.new(1, -20, 0, 42),
+				Position = UDim2.fromOffset(10, 4),
+				TextColor3 = Color3.new(1, 1, 1),
+			})
+			title.TextScaled = true
+			local sub = UiKit.Text(banner, "Subtitle", "Every donation helps us build new updates - and puts you on the TOP DONATION board!", {
+				_Style = "Body",
+				Size = UDim2.new(1, -20, 0, 26),
+				Position = UDim2.fromOffset(10, 46),
+				TextColor3 = Color3.fromRGB(255, 235, 250),
+			})
+			sub.TextScaled = true
+			sub.TextWrapped = true
+		end
 		local cards = UiKit.Group(section, "Cards_" .. tabName, {
 			LayoutOrder = 2,
 			Size = UDim2.new(1, 0, 0, 0),

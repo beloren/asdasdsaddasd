@@ -601,6 +601,29 @@ function MonetizationService:Start()
 			return Enum.ProductPurchaseDecision.NotProcessedYet
 		end
 
+		-- v20.82: ДОНАТЫ «SUPPORT US» (Config.Donations) - без игровой выдачи;
+		-- сумма сама идёт в RobuxSpent (DataService:ProcessDeveloperProduct).
+		for _, donation in (Config.Donations and Config.Donations.Items) or {} do
+			if (donation.Id or 0) ~= 0 and receiptInfo.ProductId == donation.Id then
+				local decision = process(function(data)
+					data.DonationsCount = (tonumber(data.DonationsCount) or 0) + 1
+					return true
+				end)
+				if decision == Enum.ProductPurchaseDecision.PurchaseGranted then
+					local amount = tonumber(receiptInfo.CurrencySpent) or donation.PriceRobux or 0
+					Services.NotifyService:Show(player, ("❤ THANK YOU for supporting the game! (R$ %d)"):format(amount), { Icon = "Gift", Duration = 5 })
+					if amount >= (Config.Donations.AnnounceFrom or 100) then
+						for _, other in Players:GetPlayers() do
+							if other ~= player then
+								pcall(Services.NotifyService.Show, Services.NotifyService, other, ("❤ %s supported the game with R$ %d!"):format(player.DisplayName, amount), { Icon = "Gift", Duration = 4 })
+							end
+						end
+					end
+				end
+				return decision
+			end
+		end
+
 		-- v10: МИКРОТРАНЗАКЦИИ (Config.DevProducts.Micro).
 		for microKey, micro in devProductsMicro() do
 			if (micro.Id or 0) ~= 0 and receiptInfo.ProductId == micro.Id then

@@ -528,6 +528,37 @@ local function setButtonText(item, value)
 	end
 end
 
+-- v20.82: 3D-ПРЕВЬЮ вместо иконок в меню жеод и в банке: модель (жеода /
+-- кристалл) широкой стороной к камере + чёрная обводка, без цветного
+-- кружка-подложки. Одной таблицей (лимит локальных переменных файла).
+local Preview3D = {
+	Ore = require(ReplicatedStorage.Shared.OrePreview),
+	Item = require(ReplicatedStorage.Shared.ItemPreview),
+}
+function Preview3D.Mount(icon, build, key)
+	icon.Image = ""
+	icon.BackgroundTransparency = 1
+	local corner = icon:FindFirstChildWhichIsA("UICorner")
+	if corner then corner:Destroy() end
+	local ok, model = pcall(build)
+	if ok and model then
+		local okMount, mounted = pcall(Preview3D.Ore.MountModel, icon, model, key)
+		if okMount and mounted then return true end
+	end
+	return false
+end
+function Preview3D.Geode(icon, geodeType)
+	return Preview3D.Mount(icon, function()
+		local source = PlaceholderFactory.Geode(geodeType)
+		return source and source:Clone()
+	end, "Geode|" .. tostring(geodeType))
+end
+function Preview3D.Crystal(icon, key, entry)
+	return Preview3D.Mount(icon, function()
+		return Preview3D.Item.Build({ Kind = "Crystal", OreId = entry.OreId or key, Mutations = entry.Mutations })
+	end, "Crystal|" .. tostring(key))
+end
+
 local function renderVault()
 	if not state then return end
 	clearCards(geodeGrid, geodeTemplate)
@@ -550,19 +581,21 @@ local function renderVault()
 		slotBackground.BackgroundTransparency = slotBackground.Image == "" and 0 or 1
 		local icon = card:FindFirstChild("Icon", true)
 		local configuredImage = imageUri(Config.Geodes.Images[geodeType])
-		if configuredImage ~= "" then
-			icon.Image = configuredImage
-			icon.BackgroundTransparency = 1
-		else
-			icon.BackgroundColor3 = geodeInfo.Color
-			icon.BackgroundTransparency = 0
-		end
 		card:FindFirstChild("Name").Text = geodeInfo.DisplayName:upper()
 		card:FindFirstChild("Count").Text = "x" .. tostring(count)
 		card.Parent = geodeGrid
+		if not Preview3D.Geode(icon, geodeType) then
+			-- модели нет - как раньше картинка/цвет
+			if configuredImage ~= "" then
+				icon.Image = configuredImage
+			else
+				icon.BackgroundColor3 = geodeInfo.Color
+				icon.BackgroundTransparency = 0
+			end
+		end
 		local function showInfo()
 			selectedGeodeType = geodeType
-			selectedGeodeImage = icon.Image
+			selectedGeodeImage = configuredImage
 			selectedGeodeColor = geodeInfo.Color
 			-- v18: шансы из shared/DropTables — ровно то, что роллит сервер.
 			local chanceLines = { '<font color="#FFFFFF">DROP CHANCES</font>' }
@@ -630,6 +663,7 @@ if buyOpenButton and buyGeodesPanel and buyGeodesGrid and buyGeodeTemplate then
 				icon.Image = ""
 				icon.BackgroundTransparency = 1
 				card:FindFirstChild("Name").Text = geodeInfo.DisplayName:upper()
+				local has3D = false
 				card:FindFirstChild("Owned").Text = "OWNED x" .. tostring(state.Geodes[geodeType] or 0)
 				local buyButton = card:FindFirstChild("BuyButton")
 				if pack.Id == 0 then
@@ -648,7 +682,7 @@ if buyOpenButton and buyGeodesPanel and buyGeodesGrid and buyGeodeTemplate then
 					task.spawn(function()
 						local ok, productInfo = pcall(MarketplaceService.GetProductInfo, MarketplaceService, pack.Id, Enum.InfoType.Product)
 						local iconId = ok and productInfo and tonumber(productInfo.IconImageAssetId) or 0
-						if iconId ~= 0 and card.Parent then
+						if iconId ~= 0 and card.Parent and not has3D then
 							icon.Image = "rbxassetid://" .. tostring(iconId)
 							icon.BackgroundTransparency = 1
 						end
@@ -658,6 +692,7 @@ if buyOpenButton and buyGeodesPanel and buyGeodesGrid and buyGeodeTemplate then
 					end)
 				end
 				card.Parent = buyGeodesGrid
+				has3D = Preview3D.Geode(icon, geodeType) -- v20.82: 3D-жеода вместо иконки продукта
 			end
 		end
 	end
@@ -2306,12 +2341,15 @@ renderPodium = function()
 		slotBackground.BackgroundTransparency = slotBackground.Image == "" and 0 or 1
 		local icon = card:FindFirstChild("Icon", true)
 		local configuredImage = imageUri(entry.ImageId)
-		if configuredImage ~= "" then
-			icon.Image = configuredImage
-			icon.BackgroundTransparency = 1
-		else
-			icon.BackgroundColor3 = entry.Color or Color3.new(1, 1, 1)
-			icon.BackgroundTransparency = 0
+		-- v20.82: 3D-кристалл с мутациями и обводкой, без кружка сзади.
+		if not Preview3D.Crystal(icon, oreId, entry) then
+			if configuredImage ~= "" then
+				icon.Image = configuredImage
+				icon.BackgroundTransparency = 1
+			else
+				icon.BackgroundColor3 = entry.Color or Color3.new(1, 1, 1)
+				icon.BackgroundTransparency = 0
+			end
 		end
 		applyMutationBadge(icon, entry.Mutations)
 		card:FindFirstChild("Name").Text = ("%s (LVL %d)"):format(entry.DisplayName:upper(), entry.Level or 1)

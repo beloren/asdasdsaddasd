@@ -408,8 +408,15 @@ function LeaderboardService:_setupStands()
 		local standModel = folder:FindFirstChild(spec.Stand)
 		local board = standModel and standModel:FindFirstChild("Board", true)
 		if board and board:IsA("BasePart") then
+			-- превью из tools/BuildLeaderboardStands - в игре заменяем настоящим
+			for _, name in { "StatuePreview" } do
+				local preview = standModel:FindFirstChild(name, true)
+				if preview then preview:Destroy() end
+			end
 			local spot = standModel:FindFirstChild("StatueSpot", true)
 			local plate = standModel:FindFirstChild("Plate", true)
+			local oldPlateGui = plate and plate:FindFirstChild("PlateGui")
+			if oldPlateGui then oldPlateGui:Destroy() end
 			stands[spec.Key] = { Board = board, Plate = plate, Spot = spot and spot:IsA("BasePart") and spot or nil }
 			renderBoard(board, spec, {}, nil)
 			renderPlate(stands[spec.Key], spec, nil)
