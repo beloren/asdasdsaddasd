@@ -443,6 +443,46 @@ function MineService:RepositionNpc(player, plot)
 	stabilizeNpc(record.Npc, plot.MinerGroundY or (plot.Pad.Position.Y + plot.Pad.Size.Y / 2), record.IsCustom)
 end
 
+-- v20.93: ИМЯ НАД ШАХТЁРОМ («OLD MINER») всегда НАД ГОЛОВОЙ. Раньше
+-- табличка ассета/стандартное имя Humanoid иногда висели по центру тела
+-- (привязка к корню/без Adornee). Все BillboardGui модели - к голове, над
+-- её верхним краем; своей нет - наша с именем модели/DisplayName.
+local function pinNameTag(npc)
+	local head = npc:FindFirstChild("Head", true)
+	if not (head and head:IsA("BasePart")) then return end
+	local humanoid = npc:FindFirstChildOfClass("Humanoid")
+	local found = false
+	for _, gui in npc:GetDescendants() do
+		if gui:IsA("BillboardGui") and gui:FindFirstChildWhichIsA("TextLabel", true) then
+			found = true
+			gui.Adornee = head
+			gui.ExtentsOffsetWorldSpace = Vector3.new(0, 1, 0) -- верх головы
+			gui.ExtentsOffset = Vector3.zero
+			gui.StudsOffsetWorldSpace = Vector3.zero
+			gui.StudsOffset = Vector3.new(0, 1.2, 0)
+		end
+	end
+	if not found and humanoid then
+		local text = (humanoid.DisplayName ~= "" and humanoid.DisplayName) or npc.Name
+		local gui = Instance.new("BillboardGui")
+		gui.Name = "NameTag"
+		gui.Adornee = head
+		gui.Size = UDim2.new(5, 0, 0.9, 0)
+		gui.ExtentsOffsetWorldSpace = Vector3.new(0, 1, 0)
+		gui.StudsOffset = Vector3.new(0, 1, 0)
+		gui.MaxDistance = 80
+		gui.LightInfluence = 0
+		gui.Parent = head
+		local label = WorldUi.Text(nil, "Text", "Heading")
+		label.BackgroundTransparency = 1
+		label.Size = UDim2.fromScale(1, 1)
+		label.TextScaled = true
+		label.Text = string.upper(text)
+		label.Parent = gui
+	end
+	if humanoid then humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
+end
+
 function MineService:SetupPlot(player, plot)
 	if not plot.MinerCFrame then
 		return -- нет шахты/маркера ещё — участок в процессе постройки
@@ -459,6 +499,7 @@ function MineService:SetupPlot(player, plot)
 	npc:PivotTo(plot.MinerCFrame * CFrame.Angles(0, correction, 0))
 	npc.Parent = plot.Content
 	stabilizeNpc(npc, plot.MinerGroundY or (plot.Pad.Position.Y + plot.Pad.Size.Y / 2), isCustom)
+	pcall(pinNameTag, npc)
 	if isCustom then task.defer(startNpcIdle, npc) end
 
 	local prompt = Instance.new("ProximityPrompt")
@@ -2376,6 +2417,7 @@ local function attachCutsceneChance(crystal, priceGui)
 	priceGui:GetPropertyChangedSignal("Enabled"):Connect(function()
 		if gui.Parent then gui.Enabled = priceGui.Enabled end
 	end)
+	pcall(require(ReplicatedStorage.Shared.MutationLabel).Stack, root) -- v20.93
 end
 
 function MineService:_markAsGigantic(crystal)
@@ -2417,6 +2459,7 @@ function MineService:_markAsGigantic(crystal)
 	priceGui:GetPropertyChangedSignal("Enabled"):Connect(function()
 		badge.Enabled = priceGui.Enabled
 	end)
+	pcall(require(ReplicatedStorage.Shared.MutationLabel).Stack, root) -- v20.93
 end
 
 -- Масштаб куска руды, одинаково для Model и для BasePart-плейсхолдера.

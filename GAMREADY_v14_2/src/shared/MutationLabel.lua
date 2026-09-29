@@ -42,4 +42,28 @@ function MutationLabel.Rich(source)
 	return table.concat(parts, '<font color="#FFFFFF"> + </font>')
 end
 
+-- v20.93: ТАБЛИЧКИ НАД РУДОЙ СТОПКОЙ, без наложений. Снизу вверх:
+-- PriceGui (имя/шанс/цена + строка мутаций) -> GiganticBadge -> CutsceneChance.
+-- Каждая встаёт над ВЕРХНИМ краем предыдущей (по её реальной высоте), а не
+-- на фиксированной высоте - раньше ценник с мутациями вырастал и залезал
+-- на плашку GIGANTIC. Вызывать после любого изменения размеров.
+local STACK = { "PriceGui", "GiganticBadge", "CutsceneChance" }
+local GAP = 0.12
+function MutationLabel.Stack(root)
+	if not root then return end
+	local top = nil
+	for _, name in STACK do
+		local gui = root:FindFirstChild(name)
+		if gui and gui:IsA("BillboardGui") then
+			local height = gui.Size.Y.Scale
+			if top == nil then
+				top = gui.StudsOffset.Y + height / 2
+			else
+				gui.StudsOffset = Vector3.new(gui.StudsOffset.X, top + GAP + height / 2, gui.StudsOffset.Z)
+				top = top + GAP + height
+			end
+		end
+	end
+end
+
 return MutationLabel

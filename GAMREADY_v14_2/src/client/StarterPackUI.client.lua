@@ -95,56 +95,53 @@ end
 
 player:SetAttribute("StarterPackOfferActive", false)
 
-local trackedJumpButton
-local jumpButtonConnections = {}
-
-local function findBalanceBounds()
-	for _, name in { "MoneyPill", "MoneyLabel", "Balance", "BalanceFrame" } do
-		local candidate = playerGui:FindFirstChild(name, true)
-		if candidate and candidate:IsA("GuiObject") and candidate.Visible then
-			return candidate.AbsolutePosition, candidate.AbsoluteSize
+-- v20.93: СТАРТОВЫЙ НАБОР - ОДНА ПЛАВАЮЩАЯ ИКОНКА у правого края экрана
+-- (как значок геймпасса): квадратная картинка набора + маленький таймер
+-- снизу, радужная рамка. Клик - окно «что внутри». На телефоне - меньше и
+-- выше середины экрана (не мешает кнопке прыжка и деньгам сверху).
+local function restyleBannerAsIcon()
+	if not (banner and banner:IsA("GuiObject")) or banner:GetAttribute("IconStyle") then return end
+	banner:SetAttribute("IconStyle", true)
+	local title = banner:FindFirstChild("RainbowTitle")
+	if title and title:IsA("GuiObject") then title.Visible = false end
+	if bannerIcon and bannerIcon:IsA("GuiObject") then
+		bannerIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		bannerIcon.Position = UDim2.fromScale(0.5, 0.44)
+		bannerIcon.Size = UDim2.fromScale(0.82, 0.82)
+	end
+	local countdown = banner:FindFirstChild("Countdown")
+	if countdown and countdown:IsA("TextLabel") then
+		countdown.AnchorPoint = Vector2.new(0.5, 1)
+		countdown.Position = UDim2.new(0.5, 0, 1, 10)
+		countdown.Size = UDim2.new(1.1, 0, 0, 22)
+		countdown.TextXAlignment = Enum.TextXAlignment.Center
+		countdown.TextScaled = true
+		countdown.BackgroundTransparency = 0.15
+		countdown.BackgroundColor3 = Color3.fromRGB(30, 20, 40)
+		countdown.TextColor3 = Color3.new(1, 1, 1)
+		countdown.ZIndex = 12
+		if not countdown:FindFirstChildOfClass("UICorner") then
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(1, 0)
+			corner.Parent = countdown
 		end
 	end
-	return nil
+	local stroke = banner:FindFirstChild("SkinStroke") or banner:FindFirstChildOfClass("UIStroke")
+	if stroke then stroke.Thickness = 3 end
 end
+restyleBannerAsIcon()
 
 local function updateBannerLayout()
 	if not (banner and banner:IsA("GuiObject")) then return end
 	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800, 600)
 	local mobile = UserInputService.TouchEnabled or viewport.X < 700
-	banner.AnchorPoint = Vector2.new(1, 1)
-	local jumpButton = mobile and playerGui:FindFirstChild("JumpButton", true) or nil
-	if jumpButton ~= trackedJumpButton then
-		for _, connection in jumpButtonConnections do connection:Disconnect() end
-		jumpButtonConnections = {}
-		trackedJumpButton = jumpButton
-		if jumpButton and jumpButton:IsA("GuiObject") then
-			for _, property in { "AbsolutePosition", "AbsoluteSize", "Visible" } do
-				table.insert(jumpButtonConnections, jumpButton:GetPropertyChangedSignal(property):Connect(updateBannerLayout))
-			end
-		end
-	end
-	if jumpButton and jumpButton:IsA("GuiObject") and jumpButton.Visible then
-		-- Prefer the space above JumpButton, but move below it if that space
-		-- intersects the balance HUD in the top-right corner.
-		local bannerHeight = math.max(1, banner.AbsoluteSize.Y)
-		local jumpTop = jumpButton.AbsolutePosition.Y
-		local jumpBottom = jumpTop + jumpButton.AbsoluteSize.Y
-		local aboveTop = jumpTop - 14 - bannerHeight
-		local balancePosition, balanceSize = findBalanceBounds()
-		local overlapsBalance = balancePosition
-			and aboveTop < balancePosition.Y + balanceSize.Y + 8
-			and aboveTop + bannerHeight > balancePosition.Y - 8
-		local belowTop = jumpBottom + 14
-		local useBelow = overlapsBalance and belowTop + bannerHeight <= viewport.Y - 8
-		local top = useBelow and belowTop or aboveTop
-		banner.Position = UDim2.fromOffset(viewport.X - 14, math.max(8, top + bannerHeight))
-	else
-		banner.Position = mobile and UDim2.new(1, -14, 1, -14) or UDim2.new(1, -20, 1, -20)
-	end
+	banner.AnchorPoint = Vector2.new(1, 0.5)
+	banner.Size = UDim2.fromOffset(84, 84)
+	-- ПК - правый край по центру высоты; телефон - правый край, выше середины.
+	banner.Position = mobile and UDim2.new(1, -10, 0.36, 0) or UDim2.new(1, -16, 0.5, 0)
 	bannerBasePosition = banner.Position
 	if bannerScale then
-		bannerScale.Scale = mobile and math.clamp(viewport.X / 520, 0.58, 0.74) or 1
+		bannerScale.Scale = mobile and math.clamp(viewport.Y / 560, 0.62, 0.8) or 1
 	end
 end
 
@@ -275,9 +272,11 @@ local function startRainbow(token)
 	if not (banner and banner:IsA("GuiObject") and rainbowTitle and rainbowTitle:IsA("TextLabel")) then return end
 	task.spawn(function()
 		local hue = 0
+		local stroke = banner:FindFirstChild("SkinStroke") or banner:FindFirstChildOfClass("UIStroke")
 		while rainbowToken == token and banner.Visible do
 			hue = (hue + 0.01) % 1
 			rainbowTitle.TextColor3 = Color3.fromHSV(hue, 0.85, 1)
+			if stroke then stroke.Color = Color3.fromHSV(hue, 0.85, 1) end -- v20.93: радужная рамка иконки
 			task.wait(0.03)
 		end
 	end)

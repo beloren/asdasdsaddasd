@@ -147,9 +147,10 @@ end
 -- Активные квесты для трекера (STORY + несданные DAILY).
 local function trackedQuests(state)
 	local list = {}
-	for _, quest in state and state.Starter or {} do
+	for storyIndex, quest in state and state.Starter or {} do
 		if quest.Active then
 			quest.Kind = "Story"
+			quest.StoryIndex = storyIndex -- v20.93: номер сюжетного квеста (для авто-навигации)
 			table.insert(list, quest)
 			break
 		end
@@ -184,7 +185,10 @@ local function applyNavigation(list)
 	selectedId = chosen and chosen.Id or nil
 	if selectedId ~= navQuestId then
 		navQuestId = selectedId
-		navShown = false
+		-- v20.93: первые сюжетные квесты после туториала - путь к цели показан
+		-- СРАЗУ (клик по квесту - спрятать); дальше - только по клику.
+		local autoCount = (Config.QuestMarker and Config.QuestMarker.AutoNavStoryQuests) or 2
+		navShown = chosen ~= nil and chosen.Kind == "Story" and (tonumber(chosen.StoryIndex) or math.huge) <= autoCount
 	end
 	local key = chosen and navKeyOf(chosen) or nil
 	player:SetAttribute("QuestNavId", selectedId or "")

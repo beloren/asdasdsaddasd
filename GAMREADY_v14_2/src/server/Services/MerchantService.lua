@@ -478,6 +478,22 @@ function MerchantService:BuildState(player)
 	for _, offer in cycleOffers do
 		if not offer.Limited and not offer.Featured and visibleFor(player, offer) then add(offer) end
 	end
+	-- v20.93: ПОРЯДОК В ЛАВКЕ: сверху сундук-«фичер», потом лимитки, дальше
+	-- всё по цене от дешёвого к дорогому; распроданное - в самом конце.
+	local function group(entry)
+		if entry.Featured then return 0 end
+		if (tonumber(entry.Stock) or 0) <= 0 then return 3 end
+		if entry.Limited then return 1 end
+		return 2
+	end
+	table.sort(items, function(a, b)
+		local ga, gb = group(a), group(b)
+		if ga ~= gb then return ga < gb end
+		local pa, pb = tonumber(a.Price) or math.huge, tonumber(b.Price) or math.huge
+		if pa ~= pb then return pa < pb end
+		return tostring(a.Id) < tostring(b.Id)
+	end)
+	for index, entry in items do entry.Order = index end
 	local data = Services.DataService:GetGeodeData(player)
 	return {
 		EquippedSkin = data and data.EquippedSkins and data.EquippedSkins.Pickaxe or "",

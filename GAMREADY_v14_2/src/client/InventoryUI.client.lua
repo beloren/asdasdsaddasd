@@ -740,6 +740,41 @@ end
 
 -- Слот кирки остаётся чужим: им владеет CustomCartUI.
 local pickaxeSlot = bar:FindFirstChild("PickaxeSlot")
+
+-- v20.93: КИРКА - 3D-иконка вместо надписи «Pickaxe / T1»: в хотбаре -
+-- та кирка, что сейчас у игрока (со скином), в сетке - кирка своего тира.
+-- Модель широкой стороной к камере + чёрная обводка (OrePreview.MountModel).
+local PickaxeIcon = { Templates = {} }
+function PickaxeIcon.FromTool(tool)
+	local model = Instance.new("Model")
+	for _, child in tool:GetChildren() do
+		if child:IsA("BasePart") or child:IsA("Model") or child:IsA("Folder") then child:Clone().Parent = model end
+	end
+	return #model:GetChildren() > 0 and model or nil
+end
+function PickaxeIcon.ForTier(tier)
+	local template = PickaxeIcon.Templates[tier]
+	if template == nil then
+		local ok, tool = pcall(PlaceholderFactory.Pickaxe, tier)
+		template = ok and tool and PickaxeIcon.FromTool(tool) or false
+		if ok and tool then tool:Destroy() end
+		PickaxeIcon.Templates[tier] = template
+	end
+	return template and template:Clone() or nil
+end
+function PickaxeIcon.Current()
+	local character = player.Character
+	local tool = (character and character:FindFirstChildOfClass("Tool")) or player.Backpack:FindFirstChildOfClass("Tool")
+	return tool and PickaxeIcon.FromTool(tool), tool and tool.Name or ""
+end
+function PickaxeIcon.Mount(preview, model, key)
+	if not (preview and model) then return false end
+	local ok, mounted = pcall(OrePreview.MountModel, preview, model, key)
+	if ok and mounted and (preview:IsA("ImageLabel") or preview:IsA("ImageButton")) then
+		preview.Image = ""
+	end
+	return ok and mounted
+end
 local shieldLabel = pickaxeSlot and pickaxeSlot:FindFirstChild("ShieldLabel")
 
 renderHotbar = function()
@@ -771,10 +806,18 @@ renderHotbar = function()
 		if key then key.Text = isCart and "S" or "F" end
 		if shieldLabel then shieldLabel.Visible = isCart end
 		local count = pickaxeSlot:FindFirstChild("CountLabel")
-		if count then count.Text = isCart and "" or ("T" .. tostring(state.PickaxeTier)) end
-		-- v20.50: название по центру слота, как у остальных.
+		if count then count.Text = "" end
+		-- v20.93: вместо «Pickaxe / T1» - 3D-иконка кирки в руке (со скином).
 		local pickName = pickaxeSlot:FindFirstChild("ToolName")
-		if pickName then pickName.Text = isCart and "" or "Pickaxe" end
+		if pickName then pickName.Text = "" end
+		local pickPreview = pickaxeSlot:FindFirstChild("Preview")
+		if pickPreview and not isCart then
+			local model, toolName = PickaxeIcon.Current()
+			model = model or PickaxeIcon.ForTier(state.PickaxeTier or 1)
+			PickaxeIcon.Mount(pickPreview, model, ("Hotbar|%s|%s"):format(tostring(state.PickaxeTier), toolName or ""))
+		elseif pickPreview then
+			OrePreview.Clear(pickPreview)
+		end
 	end
 end
 
@@ -1247,10 +1290,13 @@ renderGrid = function()
 				highlight.Thickness = equipped and SLOT_EQUIP_THICKNESS or 0
 			end
 			local nameLabel = cell:FindFirstChild("ToolName")
-			if nameLabel then nameLabel.Text = "T" .. tier end
+			if nameLabel then nameLabel.Text = "" end -- v20.93: вместо «T1» - 3D-кирка
 			local countText = cell:FindFirstChild("CountLabel")
 			if countText then countText.Text = equipped and "ON" or "" end
-			setImagePreview(cell:FindFirstChild("Preview"), Config.Icons and Config.Icons.Pickaxe or nil)
+			local cellPreview = cell:FindFirstChild("Preview")
+			if not PickaxeIcon.Mount(cellPreview, PickaxeIcon.ForTier(tier), "Tier|" .. tier) then
+				setImagePreview(cellPreview, Config.Icons and Config.Icons.Pickaxe or nil)
+			end
 
 			local capturedTier = tier
 			cell.Activated:Connect(function()

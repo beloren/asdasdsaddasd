@@ -173,6 +173,7 @@ local function attachPriceGui(crystal, oreInfo, value, chanceFraction, mutationN
 	label.RichText = true
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.Text = text
+	pcall(MutationLabel.Stack, gui.Parent) -- v20.93: GIGANTIC и 1/N - выше ценника, без наложений
 	return label
 end
 
@@ -975,6 +976,15 @@ function CrystalService:PickupToInventory(player, crystal)
 	end
 	self:_sendPickupFx(player, crystal, root)
 	crystal:Destroy()
+	-- v20.93: подбор шагом тоже засчитывается в туториал («PICK UP ORE») и
+	-- квесты - раньше считался только старый путь InventoryService:TryPickup,
+	-- и шаг туториала не закрывался, сколько руды ни подбери.
+	if Services.TutorialService then
+		pcall(Services.TutorialService.Count, Services.TutorialService, player, "OrePickedUp", 1)
+	end
+	if Services.QuestService and Services.QuestService.RecordMetric then
+		pcall(Services.QuestService.RecordMetric, Services.QuestService, player, "OrePickedUp", 1)
+	end
 	return true
 end
 

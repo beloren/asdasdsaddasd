@@ -134,97 +134,160 @@ local function isBoulderModel(model)
 	return model:IsA("Model") and (model:GetAttribute("IsRubbleBoulder") == true or model.Name == "RubbleBoulder")
 end
 
-local function createBillboard(model, head, humanoid)
-	local height = head.Size.Y * 0.5 + 0.5
-	local template = cloneTemplate("GoblinTemplate", model.Name .. "Billboard", head, height)
-	if template then
-		local icon = template:FindFirstChild("GoblinIcon", true)
-		local placeholder = icon and icon:FindFirstChild("IconPlaceholder", true)
-		if icon and icon:IsA("ImageLabel") then
-			icon.Image = Config.Goblins.IconImage or ""
-		end
-		if placeholder and placeholder:IsA("TextLabel") then
-			placeholder.Visible = not icon or not icon:IsA("ImageLabel") or icon.Image == ""
-			placeholder.TextColor3 = tierColor(model:GetAttribute("GoblinMineTier") or 1)
-		end
-		local info = template:FindFirstChild("Info", true)
-		local title = info and info:FindFirstChild("Title", true)
-		local healthBack = info and info:FindFirstChild("HealthBack", true)
-		local healthFill = healthBack and healthBack:FindFirstChild("Fill", true)
-		local healthText = healthBack and healthBack:FindFirstChild("Health", true)
-		if not (title and title:IsA("TextLabel") and healthFill and healthFill:IsA("GuiObject") and healthText and healthText:IsA("TextLabel")) then
-			template:Destroy()
-		else
-			local tier = model:GetAttribute("GoblinMineTier") or 1
-			local definition = Config.Goblins.Types[model:GetAttribute("GoblinType") or "Warrior"]
-			local record = {Gui = template, Head = head, Humanoid = humanoid, Title = title, Fill = healthFill, Health = healthText, Tier = tier, Name = definition and definition.DisplayName or "Goblin"}
-			record.Title.Text = ("<b>%s <font color=\"#69EB82\">Lv. %d</font></b>"):format(record.Name, record.Tier)
-			local function updateHealth(health)
-				local ratio = math.clamp(health / humanoid.MaxHealth, 0, 1)
-				record.Fill.Size = UDim2.fromScale(ratio, 1)
-				record.Fill.BackgroundColor3 = ratio <= 0.3 and Color3.fromRGB(230, 60, 60) or ratio <= 0.6 and Color3.fromRGB(245, 190, 55) or Color3.fromRGB(90, 220, 90)
-				record.Health.Text = ("HP %d/%d"):format(math.max(0, math.ceil(health)), math.ceil(humanoid.MaxHealth))
-				record.Gui.Enabled = health > 0
+-- v20.93: ПЛАШКА ГОБЛИНА - минимализм: сверху 3D-голова этого гоблина
+-- СПЕРЕДИ с чёрной обводкой (ViewportFrame + силуэт), под ней название,
+-- ниже тонкая полоска HP без цифр. Цвет названия - по тиру.
+local GOBLIN_BOARD_STUDS = Vector2.new(3.4, 3.6)
+
+-- Голова + всё, что на ней (шлем, уши, аксессуары) - детали рядом с головой.
+local function headModel(model, head)
+	local holder = Instance.new("Model")
+	local center = head.Position
+	local reach = head.Size.Magnitude * 0.9
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") and part.Transparency < 1 and part.Name ~= "HumanoidRootPart" then
+			local isHead = part == head
+			local near = (part.Position - center).Magnitude <= reach
+				and part.Position.Y >= center.Y - head.Size.Y * 0.6
+			local accessory = part:FindFirstAncestorWhichIsA("Accessory")
+			if isHead or (near and (accessory or not part.Parent:FindFirstChildOfClass("Humanoid"))) then
+				local copy = part:Clone()
+				for _, child in copy:GetChildren() do
+					if not (child:IsA("Decal") or child:IsA("SpecialMesh") or child:IsA("SurfaceAppearance") or child:IsA("Texture")) then
+						child:Destroy()
+					end
+				end
+				copy.Anchored = true
+				copy.CanCollide = false
+				copy.Parent = holder
 			end
-			updateHealth(humanoid.Health)
-			record.HealthConnection = humanoid.HealthChanged:Connect(updateHealth)
-			return record
 		end
 	end
+	return holder
+end
 
-	local gui = newBillboard(model.Name .. "Billboard", head, height)
+local function headViewports(parent, model, head)
+	local look = head.CFrame.LookVector
+	local distance = head.Size.Magnitude * 1.55
+	local center = head.Position + Vector3.new(0, head.Size.Y * 0.1, 0)
+	local cameraCF = CFrame.lookAt(center + look * distance + Vector3.new(0, head.Size.Y * 0.15, 0), center)
+	local function viewport(name, scale, zIndex, silhouette)
+		local frame = Instance.new("ViewportFrame")
+		frame.Name = name
+		frame.BackgroundTransparency = 1
+		frame.AnchorPoint = Vector2.new(0.5, 0.5)
+		frame.Position = UDim2.fromScale(0.5, 0.5)
+		frame.Size = UDim2.fromScale(scale, scale)
+		frame.ZIndex = zIndex
+		local camera = Instance.new("Camera")
+		camera.FieldOfView = 40
+		camera.CFrame = cameraCF
+		camera.Parent = frame
+		frame.CurrentCamera = camera
+		local copy = headModel(model, head)
+		if silhouette then
+			frame.Ambient = Color3.new(1, 1, 1)
+			frame.LightColor = Color3.new(0, 0, 0)
+			for _, d in copy:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.Color = Color3.new(0, 0, 0)
+					d.Material = Enum.Material.SmoothPlastic
+					if d:IsA("MeshPart") then pcall(function() d.TextureID = "" end) end
+				elseif d:IsA("Decal") or d:IsA("Texture") or d:IsA("SurfaceAppearance") then
+					d:Destroy()
+				elseif d:IsA("SpecialMesh") then
+					d.TextureId = ""
+				end
+			end
+		else
+			frame.Ambient = Color3.fromRGB(175, 175, 180)
+			frame.LightColor = Color3.new(1, 1, 1)
+			frame.LightDirection = Vector3.new(-0.4, -1, -0.6)
+		end
+		copy.Parent = frame
+		frame.Parent = parent
+		return frame
+	end
+	viewport("HeadOutline", 1.14, 2, true)
+	viewport("HeadView", 1, 3, false)
+end
 
-	local icon = Instance.new("ImageLabel")
-	icon.Name = "GoblinIcon"
-	icon.Size = UDim2.fromOffset(38, 38)
-	icon.Position = UDim2.fromOffset(1, 1)
-	icon.BackgroundTransparency = 1
-	icon.BorderSizePixel = 0
-	icon.Image = Config.Goblins.IconImage or ""
-	icon.ScaleType = Enum.ScaleType.Fit
-	icon.Parent = gui
-	local placeholder = makeText(icon, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 18)
-	placeholder.Text = "G"
-	placeholder.TextColor3 = tierColor(model:GetAttribute("GoblinMineTier") or 1)
-	placeholder.Visible = icon.Image == ""
-
-	local info = Instance.new("Frame")
-	info.Size = UDim2.fromOffset(156, 38)
-	info.Position = UDim2.fromOffset(42, 1)
-	info.BackgroundTransparency = 1
-	info.BorderSizePixel = 0
-	info.Parent = gui
-	local title = makeText(info, UDim2.new(1, -12, 0, 19), UDim2.fromOffset(6, 1), 11)
-	title.TextColor3 = Color3.fromRGB(238, 240, 235)
-	local healthBack = Instance.new("Frame")
-	healthBack.Size = UDim2.new(1, -12, 0, 14)
-	healthBack.Position = UDim2.new(0, 6, 1, -18)
-	healthBack.BackgroundColor3 = Color3.fromRGB(7, 8, 9)
-	healthBack.BackgroundTransparency = 0.15
-	healthBack.BorderSizePixel = 0
-	healthBack.ClipsDescendants = true
-	healthBack.Parent = info
-	local healthFill = Instance.new("Frame")
-	healthFill.Name = "Fill"
-	healthFill.Size = UDim2.fromScale(1, 1)
-	healthFill.BackgroundColor3 = Color3.fromRGB(104, 207, 80)
-	healthFill.BorderSizePixel = 0
-	healthFill.Parent = healthBack
-	local healthText = makeText(healthBack, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 8)
-	healthText.ZIndex = 2
-	healthText.TextColor3 = Color3.new(1, 1, 1)
-	convertChildrenToScale(gui, BILLBOARD_PIXELS)
+local function createBillboard(model, head, humanoid)
+	local height = head.Size.Y * 0.5 + 0.4
+	local gui = Instance.new("BillboardGui")
+	gui.Name = model.Name .. "Billboard"
+	gui.ResetOnSpawn = false
+	gui.Size = UDim2.fromScale(GOBLIN_BOARD_STUDS.X, GOBLIN_BOARD_STUDS.Y)
+	gui.SizeOffset = Vector2.new(0, 0.5)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, height, 0)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.MaxDistance = 110
+	gui.Adornee = head
+	gui.Parent = playerGui
 
 	local tier = model:GetAttribute("GoblinMineTier") or 1
 	local definition = Config.Goblins.Types[model:GetAttribute("GoblinType") or "Warrior"]
-	local record = {Gui = gui, Head = head, Humanoid = humanoid, Title = title, Fill = healthFill, Health = healthText, Tier = tier, Name = definition and definition.DisplayName or "Goblin"}
-	record.Title.Text = ("<b>%s <font color=\"#69EB82\">Lv. %d</font></b>"):format(record.Name, record.Tier)
+	local name = definition and definition.DisplayName or "Goblin"
+
+	-- голова (квадрат сверху)
+	local headFrame = Instance.new("Frame")
+	headFrame.Name = "HeadIcon"
+	headFrame.BackgroundTransparency = 1
+	headFrame.AnchorPoint = Vector2.new(0.5, 0)
+	headFrame.Position = UDim2.fromScale(0.5, 0)
+	headFrame.Size = UDim2.fromScale(0.62, 0.58)
+	headFrame.SizeConstraint = Enum.SizeConstraint.RelativeYY
+	headFrame.Parent = gui
+	local okHead = pcall(headViewports, headFrame, model, head)
+	if not okHead then headFrame:Destroy() end
+
+	-- название
+	local title = WorldUi.Text(nil, "Text", "Heading")
+	title.Name = "Title"
+	title.BackgroundTransparency = 1
+	title.AnchorPoint = Vector2.new(0.5, 0)
+	title.Position = UDim2.fromScale(0.5, 0.6)
+	title.Size = UDim2.fromScale(1, 0.22)
+	title.TextScaled = true
+	title.Text = string.upper(name)
+	title.TextColor3 = tierColor(tier):Lerp(Color3.new(1, 1, 1), 0.35)
+	title.Parent = gui
+
+	-- тонкая полоска HP без цифр
+	local healthBack = Instance.new("Frame")
+	healthBack.Name = "HealthBack"
+	healthBack.AnchorPoint = Vector2.new(0.5, 0)
+	healthBack.Position = UDim2.fromScale(0.5, 0.86)
+	healthBack.Size = UDim2.fromScale(0.78, 0.07)
+	healthBack.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+	healthBack.BackgroundTransparency = 0.2
+	healthBack.BorderSizePixel = 0
+	healthBack.ClipsDescendants = true
+	healthBack.Parent = gui
+	local backCorner = Instance.new("UICorner")
+	backCorner.CornerRadius = UDim.new(1, 0)
+	backCorner.Parent = healthBack
+	local backStroke = Instance.new("UIStroke")
+	backStroke.Color = Color3.new(0, 0, 0)
+	backStroke.Thickness = 1.5
+	backStroke.Parent = healthBack
+	local healthFill = Instance.new("Frame")
+	healthFill.Name = "Fill"
+	healthFill.Size = UDim2.fromScale(1, 1)
+	healthFill.BackgroundColor3 = Color3.fromRGB(90, 220, 90)
+	healthFill.BorderSizePixel = 0
+	healthFill.Parent = healthBack
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(1, 0)
+	fillCorner.Parent = healthFill
+
+	local record = { Gui = gui, Head = head, Humanoid = humanoid, Title = title, Fill = healthFill, Tier = tier, Name = name }
 	local function updateHealth(health)
-		local ratio = math.clamp(health / humanoid.MaxHealth, 0, 1)
-		record.Fill.Size = UDim2.fromScale(ratio, 1)
-		record.Fill.BackgroundColor3 = ratio <= 0.3 and Color3.fromRGB(230, 60, 60) or ratio <= 0.6 and Color3.fromRGB(245, 190, 55) or Color3.fromRGB(90, 220, 90)
-		record.Health.Text = ("HP %d/%d"):format(math.max(0, math.ceil(health)), math.ceil(humanoid.MaxHealth))
-		record.Gui.Enabled = health > 0
+		local ratio = math.clamp(health / math.max(1, humanoid.MaxHealth), 0, 1)
+		healthFill.Size = UDim2.fromScale(ratio, 1)
+		healthFill.BackgroundColor3 = ratio <= 0.3 and Color3.fromRGB(230, 60, 60) or ratio <= 0.6 and Color3.fromRGB(245, 190, 55) or Color3.fromRGB(90, 220, 90)
+		gui.Enabled = health > 0
 	end
 	updateHealth(humanoid.Health)
 	record.HealthConnection = humanoid.HealthChanged:Connect(updateHealth)

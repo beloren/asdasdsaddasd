@@ -290,6 +290,7 @@ end
 -- подсказки, — отдельного поля профиля заводить не нужно.
 --------------------------------------------------------------------------------
 function TutorialService:ShowHint(player, hintKey)
+	if Config.Tutorial.ShowHints == false then return false end -- v20.93: подсказки выключены
 	local text = Config.Tutorial.Hints and Config.Tutorial.Hints[hintKey]
 	if not text then return false end
 	local data = Services.DataService:GetGeodeData(player)
