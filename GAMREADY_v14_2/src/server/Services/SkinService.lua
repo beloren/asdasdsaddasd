@@ -216,6 +216,33 @@ function SkinService:SetupPlayer(player)
 			data.SkinStarterGranted = previousStarterGranted
 		end
 	end
+	-- v20.101: ОТКАТ ТЕСТОВОЙ ВЫДАЧИ. Раньше в Studio (DeveloperTestGrants)
+	-- аккаунту разработчика открывались ВСЕ скины разом и сохранялись в
+	-- профиль. Если выдачи для игрока больше нет, а профиль ею помечен -
+	-- скины сбрасываются, надетые снимаются; дальше скин даётся только при
+	-- получении (жеода, НПС, геймпасс).
+	if not testGrant and (tonumber(data.DeveloperTestGrantVersion) or 0) > 0 then
+		local previousOwned = table.clone(data.OwnedSkins)
+		local previousEquipped = table.clone(data.EquippedSkins)
+		local previousVersion = data.DeveloperTestGrantVersion
+		data.OwnedSkins = {}
+		data.EquippedSkins = { Pickaxe = "", Cart = "", Ore = "" }
+		data.DeveloperTestGrantVersion = 0
+		if Services.DataService:SaveProfile(player) then
+			syncRocketSkin(player, "")
+			-- купленный геймпасс турбо-кирки - скин остаётся (выдан по праву)
+			local monetization = Services.MonetizationService
+			local rocket = Config.RocketPickaxe and Config.RocketPickaxe.SkinId
+			if rocket and monetization and monetization.HasPass then
+				local ok, has = pcall(monetization.HasPass, monetization, player, "RocketPickaxe")
+				if ok and has then self:GrantSkin(player, rocket) end
+			end
+		else
+			data.OwnedSkins = previousOwned
+			data.EquippedSkins = previousEquipped
+			data.DeveloperTestGrantVersion = previousVersion
+		end
+	end
 	if Config.Skins.GrantRandomStarterSkin and not data.SkinStarterGranted then
 		local pool = {}
 		for skinId, definition in Config.Skins.Definitions do
