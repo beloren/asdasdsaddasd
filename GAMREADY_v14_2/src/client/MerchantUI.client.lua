@@ -294,6 +294,12 @@ local function refreshRow(itemId)
 	main.Stock.TextColor3 = soldOut and Color3.fromRGB(255, 110, 110) or Color3.fromRGB(205, 205, 205)
 	main.IconBox.Icon.ImageTransparency = soldOut and 0.55 or 0
 	main.IconBox.Emoji.TextTransparency = soldOut and 0.55 or 0
+	local model3D = main.IconBox:FindFirstChild("Model3D")
+	if model3D then
+		for _, view in model3D:GetChildren() do
+			if view:IsA("ViewportFrame") then view.ImageTransparency = soldOut and 0.55 or 0 end
+		end
+	end
 	-- v20.27: не в стоке — вся строка слегка темнее (товар виден, но не купить).
 	local shade = row.Frame:FindFirstChild("SoldOutShade")
 	if not shade then
@@ -467,6 +473,59 @@ local function decorateFeatured(frame, data)
 	end
 end
 
+-- v20.92: 3D-ПРЕВЬЮ ТОВАРА вместо эмодзи/иконки - модель широкой стороной к
+-- камере + чёрный силуэт-обводка (OrePreview.MountModel), как у жеод, скинов
+-- и кристаллов. Сундук-«фичер» крутится своим видом (decorateFeatured).
+local Preview3D = {
+	Ore = require(ReplicatedStorage.Shared.OrePreview),
+	Item = require(ReplicatedStorage.Shared.ItemPreview),
+	Factory = require(ReplicatedStorage.Shared.PlaceholderFactory),
+}
+function Preview3D.Build(data)
+	local kind = data.Kind
+	if kind == "Skin" and data.SkinId then
+		return Preview3D.Item.SkinModel(data.SkinId)
+	elseif kind == "Geode" and data.GeodeType then
+		local source = Preview3D.Factory.Geode(data.GeodeType)
+		return source and source:Clone()
+	elseif kind == "Potion" and data.Potion then
+		local info = Config.Potions and Config.Potions.Types[data.Potion]
+		if info and info.Charm then
+			return (Preview3D.Factory.CharmModel(data.Potion, info.Color))
+		end
+		return (Preview3D.Factory.PotionModel(data.Potion, info and info.Color))
+	elseif kind == "Placeable" and data.PlaceableId then
+		return require(ReplicatedStorage.Shared.PlaceableFactory).BuildItem(data.PlaceableId)
+	elseif kind == "Chest" and data.ChestRarity then
+		return require(ReplicatedStorage.Shared.PlaceableFactory).BuildChest(data.ChestRarity)
+	end
+	return nil
+end
+function Preview3D.Mount(iconBox, data)
+	if data.Featured then return false end -- у «фичера» свой крутящийся сундук
+	local ok, model = pcall(Preview3D.Build, data)
+	if not (ok and model) then return false end
+	local holder = iconBox:FindFirstChild("Model3D")
+	if not holder then
+		holder = Instance.new("Frame")
+		holder.Name = "Model3D"
+		holder.BackgroundTransparency = 1
+		holder.AnchorPoint = Vector2.new(0.5, 0.5)
+		holder.Position = UDim2.fromScale(0.5, 0.5)
+		holder.Size = UDim2.fromScale(0.92, 0.92)
+		holder.ZIndex = (iconBox.Icon and iconBox.Icon.ZIndex or 4) + 1
+		holder.Parent = iconBox
+	end
+	local okMount, mounted = pcall(Preview3D.Ore.MountModel, holder, model, tostring(data.Id))
+	if okMount and mounted then
+		iconBox.Icon.Image = ""
+		iconBox.Emoji.Text = ""
+		return true
+	end
+	holder:Destroy()
+	return false
+end
+
 local function buildRow(data)
 	local frame = template:Clone()
 	frame.Name = data.Id
@@ -476,6 +535,7 @@ local function buildRow(data)
 	main:FindFirstChild("Name").Text = tr(data.DisplayName or data.Id)
 	main.IconBox.Icon.Image = data.Image or ""
 	main.IconBox.Emoji.Text = data.Image and "" or (data.Icon or "?")
+	Preview3D.Mount(main.IconBox, data)
 	main.Rarity.BackgroundColor3 = rarityColor(data.Rarity)
 	main.Rarity.Label.Text = tr(data.Rarity or "")
 	frame.BuyRow.Position = UDim2.fromOffset(10, 150)

@@ -462,6 +462,10 @@ function MerchantService:BuildState(player)
 			Wished = wishlist[item.Id] == true,
 			Featured = item.Featured == true or nil,
 			ChestRarity = item.ChestRarity,
+			-- v20.92: для 3D-превью в карточке
+			Potion = item.Potion,
+			PlaceableId = item.PlaceableId,
+			GeodeType = item.Kind == "Geode" and geodeTypeFor(player, item.GeodeOffset) or nil,
 		})
 	end
 	for _, offer in cycleOffers do

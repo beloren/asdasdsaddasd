@@ -82,25 +82,7 @@ end
 local OrePreview = require(ReplicatedStorage.Shared.OrePreview)
 local ItemPreview = require(ReplicatedStorage.Shared.ItemPreview)
 local function skinModel(skinId)
-	local definition = Config.Skins and Config.Skins.Definitions and Config.Skins.Definitions[skinId]
-	if not definition then return nil end
-	local model = ItemPreview.Build({ Kind = "Skin", SkinId = skinId })
-	-- ItemPreview отдаёт кубик-заглушку, если ассета нет - тогда простая модель
-	if model and model:GetAttribute("Placeholder") ~= true then
-		return model
-	end
-	if model then model:Destroy() end
-	local okProc, ProceduralSkins = pcall(require, ReplicatedStorage.Shared.ProceduralSkins)
-	if okProc and ProceduralSkins.Has(skinId, definition) then
-		local ok, tool = pcall(ProceduralSkins.Build, skinId, definition)
-		if ok and tool then
-			local holder = Instance.new("Model")
-			for _, child in tool:GetChildren() do child.Parent = holder end
-			tool:Destroy()
-			return holder
-		end
-	end
-	return nil
+	return ItemPreview.SkinModel(skinId) -- v20.92: общая сборка (и для лавки торговца)
 end
 
 local function mountSkin(image, skinId)

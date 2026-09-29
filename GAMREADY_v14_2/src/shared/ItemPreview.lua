@@ -224,6 +224,27 @@ function ItemPreview.Build(item)
 	return model
 end
 
+-- v20.92: МОДЕЛЬ СКИНА КИРКИ для превью: ассет (Assets/папки/Workspace),
+-- иначе простая из ProceduralSkins. nil - модели нет.
+function ItemPreview.SkinModel(skinId)
+	local definition = Config.Skins and Config.Skins.Definitions and Config.Skins.Definitions[skinId]
+	if not definition then return nil end
+	local model = ItemPreview.Build({ Kind = "Skin", SkinId = skinId })
+	if model and model:GetAttribute("Placeholder") ~= true then return model end
+	if model then model:Destroy() end
+	local okProc, ProceduralSkins = pcall(require, ReplicatedStorage.Shared.ProceduralSkins)
+	if okProc and ProceduralSkins.Has(skinId, definition) then
+		local ok, tool = pcall(ProceduralSkins.Build, skinId, definition)
+		if ok and tool then
+			local holder = Instance.new("Model")
+			for _, child in tool:GetChildren() do child.Parent = holder end
+			tool:Destroy()
+			return holder
+		end
+	end
+	return nil
+end
+
 -- Вешает превью в viewport. opts: Spin (true), Tilt (градусы), Zoom (1).
 -- Возвращает функцию очистки.
 function ItemPreview.Mount(viewport, item, opts)
