@@ -1755,6 +1755,34 @@ end
 -- -Z. Табло над головой (BillboardGui "MerchantBoard") заполняет клиент:
 -- курс и таймер меняются каждую секунду, гонять их с сервера незачем.
 --------------------------------------------------------------------------------
+-- v20.91: NPC РОВНО НА МАРКЕРЕ. Ступни (самая нижняя ВИДИМАЯ деталь, без
+-- HumanoidRootPart и невидимых хитбоксов) встают на НИЖНЮЮ грань маркера,
+-- по центру маркера; лицом по facing (вектор). Корень модели заякорен,
+-- чтобы физика не уронила/не подбросила NPC. Без поиска земли лучом.
+function PlaceholderFactory.StandOnMarker(model, marker, facing)
+	local cf, half = marker.CFrame, marker.Size / 2
+	local groundY = cf.Position.Y - (math.abs(cf.RightVector.Y) * half.X + math.abs(cf.UpVector.Y) * half.Y + math.abs(cf.LookVector.Y) * half.Z)
+	local flat = Vector3.new(facing.X, 0, facing.Z)
+	if flat.Magnitude < 0.01 then flat = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z) end
+	if flat.Magnitude < 0.01 then flat = Vector3.new(0, 0, -1) end
+	local base = Vector3.new(cf.Position.X, groundY, cf.Position.Z)
+	model:PivotTo(CFrame.lookAt(base, base + flat.Unit))
+	local bottom
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") and part.Transparency < 1 and part.Name ~= "HumanoidRootPart" then
+			local pcf, h = part.CFrame, part.Size / 2
+			local b = pcf.Position.Y - (math.abs(pcf.RightVector.Y) * h.X + math.abs(pcf.UpVector.Y) * h.Y + math.abs(pcf.LookVector.Y) * h.Z)
+			bottom = bottom and math.min(bottom, b) or b
+		end
+	end
+	if bottom then
+		model:PivotTo(model:GetPivot() + Vector3.new(0, groundY - bottom, 0))
+	end
+	local root = model.PrimaryPart or model:FindFirstChild("HumanoidRootPart", true)
+	if root and root:IsA("BasePart") then root.Anchored = true end
+	return groundY
+end
+
 function PlaceholderFactory.BankMerchant()
 	local asset = findAsset(Config.Merchant and Config.Merchant.AssetName or "BankMerchant")
 	local model

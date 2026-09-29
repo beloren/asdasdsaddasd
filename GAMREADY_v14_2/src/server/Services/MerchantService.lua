@@ -745,13 +745,18 @@ end
 --------------------------------------------------------------------------------
 -- НПС
 --------------------------------------------------------------------------------
-local function findSpot(bankModel)
+local function findSpotMarker(bankModel)
 	if not bankModel then return nil end
 	for _, name in { "MerchantSpot", "SlimeSpot" } do
 		local marker = bankModel:FindFirstChild(name, true)
-		if marker and marker:IsA("BasePart") then return marker.Position end
+		if marker and marker:IsA("BasePart") then return marker end
 	end
 	return nil
+end
+
+local function findSpot(bankModel)
+	local marker = findSpotMarker(bankModel)
+	return marker and marker.Position or nil
 end
 
 -- ОСТАТКИ СЛАЙМА в модели банка (своя модель из места, собранная ещё при
@@ -809,7 +814,14 @@ function MerchantService:_spawnNpc()
 		outward = Vector3.new(lookMarker.Position.X - spot.X, 0, lookMarker.Position.Z - spot.Z)
 	end
 	if outward.Magnitude < 0.5 then outward = zone.CFrame.LookVector * Vector3.new(1, 0, 1) end
-	model:PivotTo(CFrame.lookAt(spot, spot + outward.Unit))
+	-- v20.91: есть маркер MerchantSpot - ноги ровно на его нижней грани
+	-- (раньше пивот модели ставился в ЦЕНТР маркера: выше/ниже земли).
+	local spotMarker = findSpotMarker(bankModel)
+	if spotMarker then
+		PlaceholderFactory.StandOnMarker(model, spotMarker, outward)
+	else
+		model:PivotTo(CFrame.lookAt(spot, spot + outward.Unit))
+	end
 	if CFG.ShowBoard == false then
 		local board = model:FindFirstChild("MerchantBoard", true)
 		if board then board:Destroy() end

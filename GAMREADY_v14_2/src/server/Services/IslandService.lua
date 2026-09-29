@@ -1419,6 +1419,10 @@ function IslandService:_spawnKeeper()
 	local npc, primary
 	if mapNpc and mapNpc:IsA("Model") and mapNpc.PrimaryPart and not mapNpc:IsDescendantOf(folder) then
 		npc, primary = mapNpc, mapNpc.PrimaryPart
+		-- v20.91: маркер главнее - модель с карты тоже встаёт ровно на него
+		if marker and marker:IsA("BasePart") then
+			PlaceholderFactory.StandOnMarker(npc, marker, cframe.LookVector)
+		end
 	else
 		local isCustom
 		npc, isCustom = PlaceholderFactory.IslandKeeperNPC()
@@ -1437,10 +1441,17 @@ function IslandService:_spawnKeeper()
 			end
 			pcall(PlaceholderFactory.ShiftNpcHats, npc, -2.2)
 		end
-		local groundY = groundYAt(cframe.Position, { npc, marker })
-		if groundY then
-			local boxCFrame, size = npc:GetBoundingBox()
-			npc:PivotTo(npc:GetPivot() + Vector3.new(0, groundY - (boxCFrame.Position.Y - size.Y / 2), 0))
+		if marker and marker:IsA("BasePart") then
+			-- v20.91: ступни РОВНО на нижней грани IslandKeeperMarker (без луча к
+			-- земле - он попадал на крыши/под пол, и NPC стоял выше/ниже).
+			local facing = (cframe * CFrame.Angles(0, correction, 0)).LookVector
+			PlaceholderFactory.StandOnMarker(npc, marker, facing)
+		else
+			local groundY = groundYAt(cframe.Position, { npc, marker })
+			if groundY then
+				local boxCFrame, size = npc:GetBoundingBox()
+				npc:PivotTo(npc:GetPivot() + Vector3.new(0, groundY - (boxCFrame.Position.Y - size.Y / 2), 0))
+			end
 		end
 	end
 
