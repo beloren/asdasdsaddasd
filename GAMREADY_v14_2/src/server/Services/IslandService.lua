@@ -1418,6 +1418,17 @@ function IslandService:_spawnKeeper()
 	-- IslandKeeperNPC у хижины ISLANDS) - берём его как есть, только вешаем
 	-- промпт. Удалишь с карты - встанет Assets/IslandKeeperNPC или плейсхолдер.
 	local mapNpc = workspace:FindFirstChild("IslandKeeperNPC", true)
+	-- v20.99: СВОЯ МОДЕЛЬ ИЗ ASSETS ГЛАВНЕЕ КУБИЧЕСКОГО НПС С КАРТЫ. Билдер
+	-- карты (tools/BuildIslandMap) ставит кубического капитана без скелета
+	-- (атрибут MapNpc) - раньше он побеждал, и твой риг из
+	-- ReplicatedStorage.Assets.IslandKeeperNPC со стойкой не появлялся.
+	-- Твоя модель, поставленная на карту руками (без MapNpc), по-прежнему главнее.
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local customAsset = assets and assets:FindFirstChild("IslandKeeperNPC", true)
+	if mapNpc and mapNpc:GetAttribute("MapNpc") == true and customAsset and customAsset:IsA("Model") then
+		mapNpc:Destroy()
+		mapNpc = nil
+	end
 	-- v20.98: своя модель без PrimaryPart тоже годится (корень - HumanoidRootPart
 	-- или первая деталь); раньше без PrimaryPart ставился плейсхолдер, а твоя
 	-- модель стояла рядом без анимации.

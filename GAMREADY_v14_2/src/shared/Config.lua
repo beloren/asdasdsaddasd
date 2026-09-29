@@ -5212,7 +5212,7 @@ Config.CameraLandBob = {
 Config.NpcIdleAnimations = {
 	MinerNPC = "rbxassetid://135179224993807",        -- шахтёр у шахты
 	BankMerchant = "rbxassetid://99114631993170",     -- продавец потайной лавки (Ore Merchant)
-	IslandKeeperNPC = "rbxassetid://91690783976536",  -- продавец островов
+	IslandKeeperNPC = "rbxassetid://87008744413457",  -- продавец островов
 }
 
 -- v20.96: ТЕКСТУРА СТАДОВ на всех плейсхолдер-предметах (зелья, амулеты,
