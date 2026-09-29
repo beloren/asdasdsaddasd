@@ -56,12 +56,29 @@ local function showTooltip(icon, title, body)
 	-- слева стоят соседние иконки, и подсказка бы их закрывала.
 	local camera = workspace.CurrentCamera
 	local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
-	local x = icon.AbsolutePosition.X + icon.AbsoluteSize.X
 	local y = icon.AbsolutePosition.Y - 8
-	x = math.clamp(x, tooltip.AbsoluteSize.X + 8, viewport.X - 8)
 	y = math.max(y, tooltip.AbsoluteSize.Y + 8)
-	tooltip.Position = UDim2.fromOffset(x, y)
+	-- v20.87: панель слева (телефон) - подсказка растёт ВПРАВО от левого края
+	-- иконки; справа (ПК) - влево от правого края, как раньше.
+	if icon.AbsolutePosition.X + icon.AbsoluteSize.X / 2 < viewport.X / 2 then
+		tooltip.AnchorPoint = Vector2.new(0, 1)
+		local x = math.clamp(icon.AbsolutePosition.X, 8, math.max(8, viewport.X - tooltip.AbsoluteSize.X - 8))
+		tooltip.Position = UDim2.fromOffset(x, y)
+	else
+		tooltip.AnchorPoint = Vector2.new(1, 1)
+		local x = icon.AbsolutePosition.X + icon.AbsoluteSize.X
+		x = math.clamp(x, tooltip.AbsoluteSize.X + 8, viewport.X - 8)
+		tooltip.Position = UDim2.fromOffset(x, y)
+	end
 	tooltip.Visible = true
+	-- на телефоне (нет мыши) подсказка сама прячется через 4 с
+	if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
+		local token = {}
+		tooltip:SetAttribute("ShownToken", tostring(token))
+		task.delay(4, function()
+			if tooltip:GetAttribute("ShownToken") == tostring(token) and shownFor == icon then hideTooltip() end
+		end)
+	end
 end
 
 -- На телефоне наведения нет, поэтому подсказка открывается нажатием и

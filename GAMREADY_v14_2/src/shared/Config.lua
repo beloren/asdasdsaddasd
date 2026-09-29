@@ -5508,9 +5508,11 @@ Config.UiLayout = {
 			-- Джойстик — левый низ, прыжок — правый низ: там ничего не ставим.
 			-- Деньги/престиж (Hud/HudGui) и подсказки тележки/NPC на телефоне
 			-- расставляет CustomCartUI — здесь их нет.
-			-- Статусы (баффы, погода, сейв-зона) — правый низ, над кнопкой
-			-- прыжка и левее кнопки ракеты; растут вверх.
-			["BuffBar/Bar"] = { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -100, 1, -130) },
+			-- v20.87: статусы (баффы, дебаффы, погода, сейв-зона) — ТОЧНО левый
+			-- нижний угол; иконки растут от угла вправо и вверх. Тап по иконке —
+			-- подсказка над ней (второй тап или через 4 с — скрыть).
+			["BuffBar/Bar"] = { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 6, 1, -6) },
+			["BuffBar/Bar/UIGridLayout"] = { StartCorner = Enum.StartCorner.BottomLeft, HorizontalAlignment = Enum.HorizontalAlignment.Left },
 			-- Лента добычи — под деньгами, покороче.
 			["LootFeedUi/Feed"] = { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 96), Size = UDim2.fromOffset(300, 300) },
 			-- Предложения — над кнопкой прыжка, левее неё.
