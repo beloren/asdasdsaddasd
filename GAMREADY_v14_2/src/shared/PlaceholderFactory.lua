@@ -936,10 +936,12 @@ function PlaceholderFactory.CartPackage(tier)
 	model.PrimaryPart = root
 
 	-- ленты крест-накрест и обод крышки
+	-- v20.103: крышка ПОВЫШЕ и детали не делят одни плоскости (раньше верх
+	-- крышки, коробки и лент совпадали - текстуры мерцали).
 	studBlock(model, "Strap", Vector3.new(0.4, 2.06, 2.26), CFrame.new(), accent)
-	studBlock(model, "Strap", Vector3.new(2.26, 2.06, 0.4), CFrame.new(), accent)
-	studBlock(model, "Lid", Vector3.new(2.3, 0.3, 2.3), CFrame.new(0, 0.85, 0), accent:Lerp(bodyColor, 0.35))
-	studBlock(model, "Bow", Vector3.new(0.7, 0.3, 0.7), CFrame.new(0, 1.15, 0), trim)
+	studBlock(model, "Strap", Vector3.new(2.28, 2.04, 0.42), CFrame.new(), accent)
+	studBlock(model, "Lid", Vector3.new(2.3, 0.3, 2.3), CFrame.new(0, 1.2, 0), accent:Lerp(bodyColor, 0.35))
+	studBlock(model, "Bow", Vector3.new(0.7, 0.3, 0.7), CFrame.new(0, 1.51, 0), trim)
 	if tier >= 4 then
 		for _, x in { -1.05, 1.05 } do
 			for _, z in { -1.05, 1.05 } do
@@ -950,12 +952,12 @@ function PlaceholderFactory.CartPackage(tier)
 	if tier >= 7 then
 		for _, x in { -1.05, 1.05 } do
 			for _, z in { -1.05, 1.05 } do
-				studBlock(model, "Corner", Vector3.new(0.4, 0.4, 0.4), CFrame.new(x, 0.95, z), Color3.fromRGB(255, 205, 60))
+				studBlock(model, "Corner", Vector3.new(0.42, 0.42, 0.42), CFrame.new(x, 1.21, z), Color3.fromRGB(255, 205, 60))
 			end
 		end
 	end
 	if tier >= 9 then
-		studBlock(model, "Crown", Vector3.new(0.36, 0.36, 0.36), CFrame.new(0, 1.48, 0), Color3.fromRGB(255, 240, 150))
+		studBlock(model, "Crown", Vector3.new(0.36, 0.36, 0.36), CFrame.new(0, 1.85, 0), Color3.fromRGB(255, 240, 150))
 	end
 	weldToRoot(model)
 	root.Anchored = true
