@@ -320,6 +320,9 @@ local function stationCFrame(model, name, fallback)
 		lookTarget.CanCollide = false
 		lookTarget.CanQuery = false
 		lookTarget.CanTouch = false
+		for _, gui in lookTarget:GetDescendants() do
+			if gui:IsA("BillboardGui") or gui:IsA("SurfaceGui") then gui.Enabled = false end
+		end
 	end
 	look = Vector3.new(look.X, 0, look.Z)
 	if look.Magnitude < 0.01 then look = Vector3.new(0, 0, -1) end
@@ -343,7 +346,21 @@ end
 -- v20.25: точка постройки — маркер в модели острова, а если его нет —
 -- Config.Islands.Definitions.<Id>.Stations[имя] (Offset/Yaw от центра верха
 -- острова), а если нет и этого — defaultOffset.
+-- v20.89: name может быть списком имён - берётся первый найденный маркер
+-- (новое понятное имя, потом старое "StationMarker" для совместимости).
 local function stationFor(model, definition, name, top, defaultOffset)
+	if type(name) == "table" then
+		local found = nil
+		for _, candidate in name do -- 1) маркер, который реально лежит в модели
+			if model:FindFirstChild(candidate, true) then found = candidate break end
+		end
+		if not found then -- 2) имя, для которого есть Offset/Yaw в Config
+			for _, candidate in name do
+				if definition.Stations and definition.Stations[candidate] then found = candidate break end
+			end
+		end
+		name = found or name[1]
+	end
 	local spec = definition.Stations and definition.Stations[name]
 	local offset = (spec and typeof(spec.Offset) == "Vector3") and spec.Offset or defaultOffset or Vector3.zero
 	local yaw = spec and tonumber(spec.Yaw) or 0
@@ -1055,7 +1072,7 @@ function IslandService:_buildIsland(player, islandId, animate)
 
 	-- Постройки — детьми модели острова, чтобы ехали вместе с ним.
 	if islandId == "Anvil" then
-		local station = stationFor(model, definition, "StationMarker", fallbackTop)
+		local station = stationFor(model, definition, { "AnvilMarker", "StationMarker" }, fallbackTop)
 		local building = Services.GeodeService:BuildBuilding(player, station, model)
 		if building then snapBottomTo(building, station.Position.Y) end
 	elseif islandId == "Income" then
@@ -1065,7 +1082,7 @@ function IslandService:_buildIsland(player, islandId, animate)
 		local safeGround = groundRef(model, "SafeGround", safeCFrame)
 		Services.PassiveIncomeService:BuildStructures(player, podiumCFrame, safeCFrame, podiumGround, model, safeGround)
 	elseif islandId == "Smelter" then
-		local station = stationFor(model, definition, "StationMarker", fallbackTop)
+		local station = stationFor(model, definition, { "SmelterMarker", "StationMarker" }, fallbackTop)
 		self:_buildSmelter(player, model, station)
 	end
 

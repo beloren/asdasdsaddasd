@@ -6396,9 +6396,11 @@ Config.Notify = {
 -- к участку) — твоё, код ничего не добавляет. Внутри макета —
 -- маркеры построек (детали, лежащие НА поверхности; постройка встаёт на
 -- нижнюю грань маркера, "<Имя>Look" — куда постройка смотрит лицом):
---   Anvil:   StationMarker            — наковальня (Assets/GeodeBuilding)
---   Income:  PodiumMarker, SafeMarker — подиум (Assets/GeodePodium) и сейф (Assets/GeodeSafe)
---   Smelter: StationMarker            — плавильня (Assets/Smelter, промпт на детали "Mouth")
+--   Anvil:   AnvilMarker  (+ AnvilMarkerLook)   — наковальня (Assets/GeodeBuilding)
+--   Income:  PodiumMarker (+ PodiumMarkerLook)  — подиум (Assets/GeodePodium)
+--            SafeMarker   (+ SafeMarkerLook)    — сейф (Assets/GeodeSafe)
+--   Smelter: SmelterMarker (+ SmelterMarkerLook) — плавильня (Assets/Smelter, промпт на детали "Mouth")
+--   (старое имя StationMarker у наковальни и плавильни тоже работает)
 -- Нет макета — строится простой остров-плейсхолдер (без мостов).
 --
 -- Прочие ассеты: Ingot_<КлючРуды> или общий "Ingot" — модель слитка
@@ -6457,7 +6459,7 @@ Config.Islands = {
 			-- острова НЕТ маркера с тем же именем (маркер главнее — его можно
 			-- таскать и крутить мышкой в Studio, см. tools/AddIslandMarkers.lua).
 			Stations = {
-				StationMarker = { Offset = Vector3.new(0, 0, 0), Yaw = 0 }, -- наковальня жеод
+				AnvilMarker = { Offset = Vector3.new(0, 0, 0), Yaw = 0 }, -- наковальня жеод (+ AnvilMarkerLook - куда смотрит)
 			},
 		},
 		Income = {
@@ -6472,8 +6474,8 @@ Config.Islands = {
 			Model = "Island_Income",
 			PlotMarker = "IslandIncomeMarker",
 			Stations = {
-				PodiumMarker = { Offset = Vector3.new(-3.8, 0, 0), Yaw = 0 }, -- подиум кристалла
-				SafeMarker = { Offset = Vector3.new(4.2, 0, 0), Yaw = 0 },    -- сейф
+				PodiumMarker = { Offset = Vector3.new(-3.8, 0, 0), Yaw = 0 }, -- подиум кристалла (+ PodiumMarkerLook)
+				SafeMarker = { Offset = Vector3.new(4.2, 0, 0), Yaw = 0 },    -- сейф (+ SafeMarkerLook)
 			},
 		},
 		Smelter = {
@@ -6487,7 +6489,7 @@ Config.Islands = {
 			Model = "Island_Smelter",
 			PlotMarker = "IslandSmelterMarker",
 			Stations = {
-				StationMarker = { Offset = Vector3.new(0, 0, 0), Yaw = 0 }, -- плавильня
+				SmelterMarker = { Offset = Vector3.new(0, 0, 0), Yaw = 0 }, -- плавильня (+ SmelterMarkerLook)
 			},
 		},
 	},
