@@ -555,8 +555,10 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	if kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.Touch then
 		if processed and kind ~= Enum.UserInputType.MouseButton1 then return end
 		strike()
-	elseif input.KeyCode == Enum.KeyCode.ButtonR2 or input.KeyCode == Enum.KeyCode.Space then
-		if not processed or input.KeyCode == Enum.KeyCode.ButtonR2 then strike() end
+	elseif input.KeyCode == Enum.KeyCode.ButtonR2 then
+		-- v20.104: пробел (прыжок) больше НЕ бьёт по валуну - только клик/тап
+		-- (и курок геймпада).
+		strike()
 	end
 end)
 

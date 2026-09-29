@@ -396,6 +396,8 @@ local MineVeinMath = require(ReplicatedStorage.Shared.MineVeinMath)
 local UiSfx = require(ReplicatedStorage.Shared.UiSfx)
 
 local tryVeinHit, stopArcVisual -- объявлены заранее (используются до определения)
+-- v20.104: мгновенный отклик на клик (см. predictHit ниже)
+local Predict = { Fn = nil, Last = nil }
 local ui = nil -- ссылки на части интерфейса (см. ensureVeinUi)
 local activeRoundToken = nil
 local sentForToken = nil
@@ -551,7 +553,13 @@ tryVeinHit = function()
 	if not token or sentForToken == token then return end
 	sentForToken = token
 	pickSwingUntil = os.clock() + 0.18
-	arcHitRemote:FireServer(token, os.clock() - roundReceivedAt)
+	local elapsed = os.clock() - roundReceivedAt
+	arcHitRemote:FireServer(token, elapsed)
+	-- v20.104: БЕЗ ЗАДЕРЖКИ. Раньше кирка ехала дальше и вердикт ждал ответа
+	-- сервера (пинг туда-обратно). Теперь кирка замирает сразу, вердикт и
+	-- звук - по тому же расчёту, что у сервера; ответ сервера потом лишь
+	-- уточняет (если вдруг не совпал).
+	if Predict.Fn then pcall(Predict.Fn, elapsed) end
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -1013,10 +1021,18 @@ stopArcVisual = function()
 end
 
 -- Реакция интерфейса на удар: PERFECT / GOOD / MISS заметно разные.
-local function playHitFeedback(data)
+-- predicted = true - локальный мгновенный отклик до ответа сервера
+-- (только кирка, вердикт, вспышка, звук, тряска).
+local function playHitFeedback(data, predicted)
 	ensureVeinUi()
 	local quality = data.Quality or "Good"
 	local color = QUALITY_COLORS[quality] or QUALITY_COLORS.Good
+	local already = false
+	if not predicted then
+		local last = Predict.Last
+		Predict.Last = nil
+		already = last ~= nil and last.Quality == quality and os.clock() - last.At < 1.5
+	end
 
 	-- Кирка застывает там, где засчитан удар.
 	activeRoundToken = nil
@@ -1044,6 +1060,7 @@ local function playHitFeedback(data)
 	ghostToken += 1
 	for _, entry in zonePieces do fadeZone(entry.Piece, false, 0.15) end
 
+	if not already then
 	-- Вердикт.
 	local verdict = ui.Verdict
 	verdict.Text = quality == "Perfect" and "PERFECT!" or quality == "Good" and "GOOD" or "MISS"
@@ -1085,6 +1102,10 @@ local function playHitFeedback(data)
 	end)
 
 	spawnUiSparks(x, quality)
+	UiSfx.play(quality == "Perfect" and "MineHitPerfect" or quality == "Good" and "MineHitGood" or "MineHitMiss")
+	cameraShake(quality == "Perfect" and 0.45 or quality == "Good" and 0.2 or 0.08, quality == "Perfect" and 0.35 or 0.25)
+	end -- not already
+	if predicted then return end
 	markPip(data.RoundIndex or 1, quality)
 	if data.LuckBonus then
 		ui.Luck.Text = ("LUCK +%d%%"):format(math.floor(data.LuckBonus * 100 + 0.5))
@@ -1094,9 +1115,28 @@ local function playHitFeedback(data)
 		end
 	end
 
-	UiSfx.play(quality == "Perfect" and "MineHitPerfect" or quality == "Good" and "MineHitGood" or "MineHitMiss")
-	cameraShake(quality == "Perfect" and 0.45 or quality == "Good" and 0.2 or 0.08, quality == "Perfect" and 0.35 or 0.25)
 	spawnMineRocks(data.DoorPosition, data.MineSize, data.Rocks, quality, data.MineCenter)
+end
+
+-- v20.104: предсказание удара на клиенте (тот же расчёт, что в
+-- MineService:_onArcHit, без окна лага).
+Predict.Fn = function(elapsed)
+	local position = MineVeinMath.NeedlePosition(elapsed, roundSweepSeconds, roundMotion, roundFlips)
+	local zonesNow = MineVeinMath.ZonesAt(roundZones, elapsed, roundShrink)
+	if not zonesNow then return end
+	local tolerance = Config.MineExpedition.VeinHitTolerance or 0
+	local zone = MineVeinMath.ZoneAt(zonesNow, position, tolerance)
+	local otherPosition, pickIndex = nil, 1
+	if roundDual then
+		otherPosition = MineVeinMath.MirrorPosition(position)
+		local other = MineVeinMath.ZoneAt(zonesNow, otherPosition, tolerance)
+		if MineVeinMath.Rank(other) > MineVeinMath.Rank(zone) then
+			zone, position, otherPosition, pickIndex = other, otherPosition, position, 2
+		end
+	end
+	local quality = zone and zone.Kind or "Miss"
+	Predict.Last = { Quality = quality, At = os.clock() }
+	playHitFeedback({ Quality = quality, Position = position, OtherPosition = otherPosition, PickIndex = pickIndex }, true)
 end
 
 --------------------------------------------------------------------------------

@@ -1156,15 +1156,11 @@ end
 function PlaceholderFactory.Coin()
 	-- Денежный лут должен сохранять квадратную форму независимо от Coin-ассета
 	-- в Studio, поэтому для сундуков и валунов создаётся фиксированная деталь.
-	return newPart({
-		Name = "Coin",
-		Shape = Enum.PartType.Block,
-		Size = Config.CoinFx.CoinSize,
-		Color = Config.CoinFx.CoinColor,
-		Material = Enum.Material.Neon,
-		Anchored = false,
-		CanCollide = false,
-	})
+	-- v20.104: квадратная монетка-кубик со стадами (как весь лут)
+	local coin = studBlock(nil, "Coin", Config.CoinFx.CoinSize, CFrame.new(), Config.CoinFx.CoinColor)
+	coin.Anchored = false
+	coin.CanCollide = false
+	return coin
 end
 
 --------------------------------------------------------------------------------

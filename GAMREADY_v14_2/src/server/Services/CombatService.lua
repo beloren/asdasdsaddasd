@@ -1331,6 +1331,18 @@ local function dropOneOre(victimPlayer, victimHrp)
 		end
 	end
 
+	-- v20.104: руды в руке нет - выбиваем случайный кусок из ИНВЕНТАРЯ
+	-- (раньше при PvP-нокдауне без руды в руке не выпадало ничего).
+	if Services.InventoryService and Services.InventoryService.TakeRandomOreForKnockout then
+		local crystal, removed = Services.InventoryService:TakeRandomOreForKnockout(victimPlayer)
+		if crystal and removed then
+			crystal:PivotTo(CFrame.new(origin))
+			Services.CrystalService:MakeLoose(crystal, ejectVelocity(), victimPlayer.UserId, victimPlayer.Character, victimPlayer.UserId)
+			local info = Config.OreByKey[removed.Ore]
+			return { Name = info and info.DisplayName or "Ore", Value = removed.Value or 0 }
+		end
+	end
+
 	if Services.HandCarryService and Services.HandCarryService.RemoveMostValuable
 		and Services.HandCarryService:GetCount(victimPlayer) > 0
 	then

@@ -1018,6 +1018,30 @@ function InventoryService:TakeOneByUid(player, uid)
 	return removed
 end
 
+-- v20.104: PvP-нокдаун выбивает руду ИЗ ИНВЕНТАРЯ (не только из руки):
+-- снимает 1 случайный кусок руды и сразу создаёт его в мире. Возвращает
+-- созданный кристалл и снятую запись (или nil).
+function InventoryService:TakeRandomOreForKnockout(player)
+	local backpack = backpackOf(player)
+	if not backpack or #backpack == 0 then return nil end
+	local candidates = {}
+	for index, stack in backpack do
+		if type(stack) == "table" and stack.Ore and (stack.Count or 1) > 0 then table.insert(candidates, index) end
+	end
+	if #candidates == 0 then return nil end
+	local index = candidates[math.random(1, #candidates)]
+	local uid = backpack[index].Uid
+	local removed = self:RemoveAt(player, index, 1, true)
+	if removed and uid and player:GetAttribute("HeldOreUid") == uid and not findByUid(backpackOf(player), uid) then
+		self:SetHeldOre(player, nil)
+	end
+	self:Sync(player)
+	if not removed or not Services.CrystalService then return nil end
+	local ok, crystal = pcall(Services.CrystalService.CreateFromStack, Services.CrystalService, removed)
+	if not ok or not crystal then return nil, removed end
+	return crystal, removed
+end
+
 function InventoryService:GetStackByUid(player, uid)
 	return (findByUid(backpackOf(player), uid))
 end

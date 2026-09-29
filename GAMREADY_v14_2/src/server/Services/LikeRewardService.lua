@@ -121,7 +121,22 @@ function LikeRewardService:Claim(player)
 	-- достаточно было выдать жеоды, чтобы награда считалась забранной
 	-- НАВСЕГДА — и если скин по какой-то причине не выдавался, игрок терял
 	-- именно то, ради чего он вообще жал кнопку.
-	local skinGranted = Services.SkinService:GrantNpcSkin(player, Config.LikeReward.SkinId)
+	-- v20.104: раньше любой сбой выдачи скина (занята другая транзакция -
+	-- "Busy", нет ассета в Assets - "MissingAsset") оставлял награду
+	-- невыданной, а окно - на «CHECKING...» навсегда. Теперь: занято -
+	-- несколько повторов; нет ассета - скин всё равно записывается в профиль
+	-- (появится в меню, как только ассет будет в Assets), награда выдаётся.
+	local skinId = Config.LikeReward.SkinId
+	local skinGranted, reason = false, nil
+	for _ = 1, 6 do
+		skinGranted, reason = Services.SkinService:GrantNpcSkin(player, skinId)
+		if skinGranted or reason ~= "Busy" then break end
+		task.wait(0.5)
+	end
+	if not skinGranted and reason == "MissingAsset" and Config.Skins.Definitions[skinId] then
+		data.OwnedSkins[skinId] = true
+		skinGranted = true
+	end
 	if not skinGranted then
 		claiming[player] = nil
 		warn(("[LikeRewardService] Не удалось выдать скин %s игроку %s - награда НЕ помечена забранной, игрок сможет забрать её позже. Проверь ассет Config.Skins.Definitions.%s.AssetName в ReplicatedStorage/Assets."):format(

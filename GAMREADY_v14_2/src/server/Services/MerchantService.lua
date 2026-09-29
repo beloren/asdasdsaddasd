@@ -145,7 +145,7 @@ local function rollOffers(rng)
 					used[placeableId] = true
 					picked += 1
 					table.insert(offers, {
-						Id = "P_" .. placeableId, Kind = "Placeable", PlaceableId = placeableId, Tab = "Base",
+						Id = "P_" .. placeableId, Kind = "Placeable", PlaceableId = placeableId, Tab = "Totems",
 						Rarity = info.Rarity, DisplayName = info.DisplayName, Icon = info.Icon,
 						Price = info.Price, Stock = base.TotemStock or { 1, 1 },
 						SortTier = tier, TotemTier = tier,
@@ -171,7 +171,7 @@ local function rollOffers(rng)
 				local weight = placeables.DecorWeights[decorId] or 1
 				local chance = def.StockChance or math.clamp(minChance + (weight / math.max(maxWeight, 1)) * (maxChance - minChance), 0, 1)
 				table.insert(offers, {
-					Id = "P_" .. placeableId, Kind = "Placeable", PlaceableId = placeableId, Tab = "Base",
+					Id = "P_" .. placeableId, Kind = "Placeable", PlaceableId = placeableId, Tab = "Decor",
 					Rarity = info.Rarity, DisplayName = info.DisplayName, Icon = info.Icon,
 					Price = info.Price, Stock = base.DecorStock or { 1, 1 }, Chance = def.AlwaysInStock and 1 or chance,
 					SortTier = 0, DecorIndex = index, AlwaysInStock = def.AlwaysInStock == true or nil,
@@ -582,7 +582,7 @@ function MerchantService._openMystery(player)
 		local geodeType = geodeTypeFor(player, pick.GeodeOffset)
 		if geodeType and Services.GeodeService:AddGeodeDirectly(player, geodeType) == true then
 			local info = Config.Geodes.Types[geodeType]
-			return true, nil, { Kind = "Geode", Title = info.DisplayName, Text = info.DisplayName, Rarity = info.Rarity }
+			return true, nil, { Kind = "Geode", GeodeType = geodeType, Title = info.DisplayName, Text = info.DisplayName, Rarity = info.Rarity }
 		end
 	elseif pick.Kind == "Decor" then
 		local placeables = Config.Placeables
@@ -590,7 +590,7 @@ function MerchantService._openMystery(player)
 		local placeableId = PlaceableCatalog.DecorId(decorId)
 		local info = PlaceableCatalog.Info(placeableId)
 		if info and Services.BaseDecorService and Services.BaseDecorService:GrantItem(player, placeableId, 1) == true then
-			return true, nil, { Kind = "Decor", Title = info.DisplayName, Text = info.DisplayName, Rarity = info.Rarity }
+			return true, nil, { Kind = "Decor", PlaceableId = placeableId, Title = info.DisplayName, Text = info.DisplayName, Rarity = info.Rarity }
 		end
 	elseif pick.Kind == "Skin" then
 		local candidates = {}
@@ -736,7 +736,14 @@ end
 
 function MerchantService:_newCycle()
 	cycle += 1
-	local rng = Random.new()
+	-- v20.104: СТОК ОДИНАКОВЫЙ У ВСЕХ ИГРОКОВ НА ВСЕХ СЕРВЕРАХ. Цикл
+	-- считается от общего времени (номер = время / CycleSeconds), и бросок
+	-- стока сидится этим номером: в любом сервере в один и тот же момент
+	-- лежит один и тот же товар в том же количестве, и обновляется он
+	-- одновременно (как сток в Grow a Garden).
+	local period = math.max(30, tonumber(CFG.CycleSeconds) or 300)
+	local cycleIndex = math.floor(workspace:GetServerTimeNow() / period)
+	local rng = Random.new(cycleIndex * 7919 + 104729)
 	local multiplier, bucket = rollMarket(rng)
 	marketMultiplier = multiplier
 	marketBucketId = bucket.Id
@@ -744,7 +751,7 @@ function MerchantService:_newCycle()
 	itemById = table.clone(staticById)
 	for _, offer in cycleOffers do itemById[offer.Id] = offer end
 	globalStock = rollStock(rng)
-	nextRestockAt = workspace:GetServerTimeNow() + CFG.CycleSeconds
+	nextRestockAt = (cycleIndex + 1) * period
 
 	workspace:SetAttribute("MarketMultiplier", marketMultiplier)
 	workspace:SetAttribute("MarketBucket", marketBucketId)

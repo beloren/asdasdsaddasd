@@ -96,6 +96,12 @@ local function detailOf(item)
 		return (tonumber(item.Value) or 0) > 0 and ("JUNK · $" .. NumberFormat.abbreviate(item.Value)) or "JUNK · WORTHLESS"
 	elseif kind == "Buff" then
 		return "TEMPORARY BUFF"
+	elseif kind == "Geode" then
+		return "GEODE · OPEN AT THE ANVIL"
+	elseif kind == "Decor" or kind == "Placeable" then
+		return "DECOR · PLACE ON YOUR BASE"
+	elseif kind == "Totem" then
+		return "TOTEM"
 	end
 	return ""
 end

@@ -1812,6 +1812,15 @@ Config.Cart = {
 	-- потолок силы, важен в основном для того, чтобы держать вес тележки
 	-- (не давать ей проседать) — не про "жёсткость" реакции.
 	FollowResponsiveness = 4,
+	-- v20.104: АНТИ-УЛЁТ (CartService guardFling): скорость, с которой
+	-- тележка догоняет игрока, потолок скорости тележки/держателя, дистанция,
+	-- дальше которой тележку сразу ставит к игроку, и высота, выше которой
+	-- тележка считается потерянной (возвращается упаковкой).
+	FollowMaxVelocity = 60,
+	FlingMaxSpeed = 90,
+	FlingSnapDistance = 18,
+	FlingHolderUpSpeed = 70,
+	MaxHeight = 600,
 	FollowMaxForce = 40000,
 	FollowForceGravityMultiplier = 8, -- минимум силы = масса тележки × gravity × это число
 	FollowRotationResponsiveness = 30, -- поворот САМОЙ тележки относительно направления игрока остаётся куда более снятым — люфт нужен только по позиции
@@ -2370,12 +2379,12 @@ Config.Stagger = {
 	DecayDelay = 4,           -- сек без ударов, после которых шкала начинает спадать
 	DecayPerSecond = 0.35,    -- доля шкалы в секунду при спаде
 
-	RagdollSeconds = 3, -- v9: было 2.2
+	RagdollSeconds = 4, -- v20.104: +1 сек (было 3)
 	ImmunitySeconds = 3,      -- после подъёма: удары не заполняют шкалу
 	KnockbackSpeed = 42,      -- горизонтальный отлёт при рагдолле
 	KnockbackUp = 30,
 
-	DropCount = 1,            -- сколько руды вылетает при рагдолле
+	DropCount = 2,            -- v20.104: каждый нокдаун = -2 руды (рука → инвентарь → в руках → тележка)
 
 	-- ПАРИРОВАНИЕ (только встречные удары, отдельной кнопки блока нет).
 	ClashWindow = 0.3,        -- оба замахнулись друг на друга в пределах этого окна
@@ -3242,6 +3251,16 @@ Config.Mutations = {
 		Color = Color3.fromRGB(180, 220, 255),
 		IconId = 111788924594491,
 	},
+	-- v20.104: ИСТИННАЯ руда - вся руда с ВАЛУНОВ (не из шахты) получает её
+	-- гарантированно, поверх обычных мутаций: +50% к цене, мотивация ломать
+	-- валуны. Не случайная (Chance = 0, нет в Order), в книгу мутаций и
+	-- объявления в чат не идёт; видна строкой «True» над рудой.
+	True = {
+		DisplayName = "True",
+		Chance = 0,
+		Multiplier = 1.5,
+		Color = Color3.fromRGB(255, 236, 140),
+	},
 	Toxic = {
 		DisplayName = "Toxic",
 		Chance = 0.035,
@@ -3862,7 +3881,7 @@ Config.Potions = {
 	Order = { "Potion_MoneyX3", "Potion_Money", "Potion_Luck", "Potion_Mutation", "Potion_Damage", "Potion_Speed" },
 	MaxStack = 99,
 	Types = {
-		Potion_Speed    = { Buff = "Speed",          Amount = 1.0,  Seconds = 180, DisplayName = "x2 Speed Potion",    Icon = "⚡", Color = Color3.fromRGB(90, 200, 255) },
+		Potion_Speed    = { Buff = "Speed",          Amount = 0.25, Seconds = 180, DisplayName = "Speed Potion",    Icon = "⚡", Color = Color3.fromRGB(90, 200, 255) },
 		Potion_Damage   = { Buff = "Damage",         Amount = 1.0,  Seconds = 180, DisplayName = "x2 Damage Potion",   Icon = "💪", Color = Color3.fromRGB(255, 90, 70) },
 		Potion_Money    = { Buff = "Money",          Amount = 1.0,  Seconds = 180, DisplayName = "x2 Money Potion",    Icon = "💰", Color = Color3.fromRGB(255, 215, 70) },
 		Potion_Luck     = { Buff = "Luck",           Amount = 0.15, Seconds = 300, DisplayName = "x2 Luck Potion",     Icon = "🍀", Color = Color3.fromRGB(110, 235, 120) },
@@ -4463,13 +4482,13 @@ Config.Buffs = {
 		Description = "Doubles the money you earn from selling ore.",
 	},
 	Speed = {
-		DisplayName = "2X SPEED",
-		Amount = 1.0,
+		DisplayName = "+25% SPEED",
+		Amount = 0.25, -- v20.104: было x2 - слишком быстро
 		Rarity = "Rare",
 		ImageId = 0,
 		IconText = "SP",
 		Color = Color3.fromRGB(120, 200, 255),
-		Description = "Doubles your movement speed.",
+		Description = "+25% movement speed.",
 	},
 }
 
@@ -5197,13 +5216,13 @@ Config.Icons = {
 -- (одно небольшое «вверх»). Сила зависит от скорости падения.
 Config.CameraLandBob = {
 	Enabled = true,
-	Stiffness = 230,      -- жёсткость пружины: больше — быстрее
-	Damping = 17,         -- затухание: меньше — больше покачиваний
-	MinFallSpeed = 14,    -- медленнее этого (ступенька) — не качаем
-	FullFallSpeed = 55,   -- скорость, при которой толчок = KickVelocity
-	KickVelocity = 6.5,   -- скорость «проседания», студ/с (≈0.25 студа вниз на обычном прыжке)
-	MaxScale = 1.7,       -- потолок для высоких падений
-	PitchDegrees = 1.2,   -- лёгкий кивок вниз вместе с проседанием
+	Stiffness = 200,      -- жёсткость пружины: больше — быстрее
+	Damping = 12,         -- v20.104: было 17 - теперь заметное «пружинит обратно»
+	MinFallSpeed = 12,    -- медленнее этого (ступенька) — не качаем
+	FullFallSpeed = 45,   -- скорость, при которой толчок = KickVelocity
+	KickVelocity = 14,    -- v20.104: было 6.5 - пружина при прыжке в ~2 раза сильнее
+	MaxScale = 2.2,       -- потолок для высоких падений
+	PitchDegrees = 2.5,   -- кивок вниз вместе с проседанием
 }
 
 -- v20.96: ПОСТОЯННАЯ СТОЙКА НПС (см. src/shared/NpcIdle.lua). ID кладётся в
@@ -5412,7 +5431,7 @@ Config.CoinFx = {
 	-- и слияние частых россыпей (MergeWindow) — продажа целой тележки больше
 	-- не заваливает кадр сотнями деталей.
 	CoinColor = Color3.fromRGB(255, 196, 40),  -- читают и другие эффекты (гоблины, валуны)
-	CoinSize = Vector3.new(0.9, 0.9, 0.18),    -- квадратная плитка: X/Y — сторона, Z — толщина
+	CoinSize = Vector3.new(0.7, 0.7, 0.7),     -- v20.104: квадратный кубик со стадами
 	MinCoins = 4,
 	MaxCoins = 12,
 	CoinsPerWeight = 1,       -- +монет за каждое начисление в окне дебаунса (Weight)
@@ -7299,9 +7318,12 @@ Config.GoldenBoulder = {
 --------------------------------------------------------------------------------
 -- v14 — ЛАВКА: вкладки, лимитированная кирка, товары для базы, продажа реликвий
 --------------------------------------------------------------------------------
+-- v20.104: 3 вкладки - общий магазин, тотемы, декор (купленное падает в
+-- обычный инвентарь).
 Config.Merchant.Tabs = {
 	{ Id = "Shop", Label = "SHOP" },
-	{ Id = "Base", Label = "TOTEMS & DECOR" }, -- купленное падает в обычный инвентарь
+	{ Id = "Totems", Label = "TOTEMS" },
+	{ Id = "Decor", Label = "DECOR" },
 }
 Config.Merchant.BaseOffers = {
 	TotemSlots = 6, -- legacy: v4 катает Config.Placeables.TotemsPerTier на каждый тир

@@ -40,16 +40,16 @@ local function money(tier)
 	local model = Instance.new("Model")
 	local gold = Color3.fromRGB(255, 200, 60)
 	local count = tier == 3 and 7 or tier == 2 and 5 or 3
+	-- v20.104: стопка КВАДРАТНЫХ монет-кубиков со стадами (как в мире)
 	for i = 1, count do
-		part(model, "Coin", Enum.PartType.Cylinder, Vector3.new(0.22, 1.3, 1.3), gold, Enum.Material.Metal,
-			CFrame.new(math.sin(i) * 0.08, i * 0.24, math.cos(i) * 0.08) * CFrame.Angles(0, 0, math.rad(90)))
+		PlaceholderFactory.StudBlock(model, "Coin", Vector3.new(1.1, 0.24, 1.1),
+			CFrame.new(math.sin(i) * 0.1, i * 0.26, math.cos(i) * 0.1) * CFrame.Angles(0, math.rad(i * 17), 0), gold)
 	end
 	if tier == 3 then
-		part(model, "Bag", Enum.PartType.Ball, Vector3.new(1.6, 1.5, 1.6), Color3.fromRGB(150, 110, 60), Enum.Material.Fabric, CFrame.new(1.3, 0.8, 0))
-		part(model, "Tie", Enum.PartType.Cylinder, Vector3.new(0.3, 0.6, 0.6), Color3.fromRGB(110, 75, 40), Enum.Material.Fabric, CFrame.new(1.3, 1.6, 0) * CFrame.Angles(0, 0, math.rad(90)))
-		part(model, "Sign", nil, Vector3.new(0.6, 0.6, 0.05), gold, Enum.Material.Neon, CFrame.new(1.3, 0.85, -0.8))
+		PlaceholderFactory.StudBlock(model, "Bag", Vector3.new(1.4, 1.4, 1.4), CFrame.new(1.4, 0.7, 0), Color3.fromRGB(150, 110, 60))
+		PlaceholderFactory.StudBlock(model, "Tie", Vector3.new(0.6, 0.3, 0.6), CFrame.new(1.4, 1.56, 0), Color3.fromRGB(110, 75, 40))
+		PlaceholderFactory.StudBlock(model, "Sign", Vector3.new(0.6, 0.6, 0.1), CFrame.new(1.4, 0.8, -0.74), gold)
 	end
-	part(model, "Shine", Enum.PartType.Ball, Vector3.new(0.25, 0.25, 0.25), Color3.new(1, 1, 1), Enum.Material.Neon, CFrame.new(-0.35, count * 0.24 + 0.2, -0.3))
 	return model
 end
 
@@ -179,10 +179,43 @@ function ItemPreview.Build(item)
 	elseif kind == "Skin" then
 		local definition = Config.Skins.Definitions[item.SkinId]
 		model = definition and fromAsset(definition.AssetName)
-	elseif kind == "Charm" then
-		local charm = Config.Potions.Types[item.Charm]
-		local okCharm, charmModel = pcall(PlaceholderFactory.CharmModel, item.Charm, charm and charm.Color)
+	elseif kind == "Charm" or kind == "Potion" then
+		-- v20.104: зелье (Potion_*) - бутылочка, а не амулет
+		local key = item.Potion or item.Charm
+		local charm = Config.Potions.Types[key]
+		local isPotion = kind == "Potion" or (type(key) == "string" and key:sub(1, 7) == "Potion_")
+		local okCharm, charmModel
+		if isPotion then
+			okCharm, charmModel = pcall(PlaceholderFactory.PotionModel, key, charm and charm.Color)
+		else
+			okCharm, charmModel = pcall(PlaceholderFactory.CharmModel, key, charm and charm.Color)
+		end
 		model = okCharm and charmModel or amulet(charm and charm.Color or Color3.fromRGB(255, 200, 80))
+	elseif kind == "Geode" then
+		-- v20.104: жеода (покупка «???», награды) - её модель, а не руда
+		local okGeode, geode = pcall(PlaceholderFactory.Geode, item.GeodeType or "Stone")
+		if okGeode and geode then
+			if geode:IsA("BasePart") then
+				model = Instance.new("Model")
+				geode.Parent = model
+			else
+				model = geode
+			end
+		end
+	elseif kind == "Chest" then
+		-- v20.104: сундук - его модель (своя из Assets или ящик цвета редкости)
+		local okPf, PlaceableFactory = pcall(require, ReplicatedStorage.Shared.PlaceableFactory)
+		if okPf then
+			local okBuild, built = pcall(PlaceableFactory.BuildChest, item.Rarity or "Common")
+			if okBuild then model = built end
+		end
+	elseif kind == "Decor" or kind == "Placeable" or kind == "Totem" then
+		-- v20.104: декор/тотем - сама модель предмета
+		local okPf, PlaceableFactory = pcall(require, ReplicatedStorage.Shared.PlaceableFactory)
+		if okPf and item.PlaceableId then
+			local okBuild, built = pcall(PlaceableFactory.BuildItem, item.PlaceableId)
+			if okBuild then model = built end
+		end
 	elseif kind == "PrestigePoint" then
 		model = star()
 	elseif kind == "Relic" then

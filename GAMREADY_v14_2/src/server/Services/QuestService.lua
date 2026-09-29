@@ -137,7 +137,20 @@ local function grantItems(player, reward)
 		local feed = {}
 		for _, item in reward.Items do
 			local icon, text = itemLabel(item)
-			table.insert(feed, { Icon = icon, Text = text, Rarity = item.Rarity or "Rare" })
+			-- v20.104: описание для 3D-превью в ленте (client/LootFeed)
+			local preview = nil
+			if item.Kind == "Gear" and Config.Potions and Config.Potions.Types[item.Key] then
+				preview = { Kind = "Potion", Potion = item.Key }
+			elseif item.Kind == "Chest" then
+				preview = { Kind = "Chest", Rarity = item.Rarity }
+			elseif item.Kind == "Placeable" then
+				preview = { Kind = "Decor", PlaceableId = item.Id }
+			elseif item.Kind == "Geode" then
+				preview = { Kind = "Geode", GeodeType = Config.Geodes.Order[math.clamp(Config.GeodeTypeIndexForCave(tiers.Mine) + (item.Offset or 0), 1, #Config.Geodes.Order)] }
+			elseif item.Kind == "PrestigePoints" then
+				preview = { Kind = "PrestigePoint" }
+			end
+			table.insert(feed, { Icon = icon, Text = text, Rarity = item.Rarity or "Rare", Preview = preview })
 		end
 		if #feed > 0 then pcall(Services.NotifyService.LootFeed, Services.NotifyService, player, feed) end
 	end

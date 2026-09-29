@@ -1383,6 +1383,20 @@ function DataService:IncrementBranch(player, kind)
 	return false
 end
 
+-- v20.104: откат шага ветки, если модель нового тира не собралась (иначе
+-- деньги возвращались, а тир по данным оставался поднятым - и шахта при
+-- следующей пересборке «прыгала» на другой тир).
+function DataService:DecrementBranch(player, kind)
+	local profile = activeProfile(player)
+	if not profile then return false end
+	local field = kind .. "Index"
+	if (profile.Data[field] or 0) > 0 then
+		profile.Data[field] -= 1
+		return true
+	end
+	return false
+end
+
 -- Денежная стоимость СЛЕДУЮЩЕГО ребёрта — растёт геометрически, отдельно
 -- от того, что уже потрачено на прокачку до текущего потолка (тот прогресс
 -- всё равно сгорает при ребёрте).

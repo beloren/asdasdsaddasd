@@ -19,7 +19,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local MerchantUiBuilder = {}
-MerchantUiBuilder.VERSION = 20
+MerchantUiBuilder.VERSION = 21 -- v20.104: 3 вкладки (SHOP / TOTEMS / DECOR)
 
 local ACCENT = "Green"
 

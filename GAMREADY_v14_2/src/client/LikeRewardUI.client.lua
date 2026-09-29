@@ -79,9 +79,26 @@ ui.Dimmer.Activated:Connect(function()
 end)
 
 local waitingFavorite = false
+-- v20.104: СТОРОЖ. Если ни промпт избранного, ни ответ сервера не пришли
+-- (в Studio промпт не показывается, сервер не смог выдать) - кнопка не
+-- висит на «CHECKING...»: через несколько секунд снова можно нажать.
+local pendingToken = 0
+local function resetButtonLater(seconds)
+	pendingToken += 1
+	local token = pendingToken
+	task.delay(seconds, function()
+		if token ~= pendingToken or state.Claimed then return end
+		waitingFavorite = false
+		favoriteButton.Active = true
+		ui.SetCaption(ACTION_TEXT)
+	end)
+end
 local function claim()
 	ui.SetCaption("✅ VERIFIED!")
-	if not state.Claimed then remote:FireServer("Claim") end
+	if not state.Claimed then
+		remote:FireServer("Claim")
+		resetButtonLater(10)
+	end
 end
 
 AvatarEditorService.PromptSetFavoriteCompleted:Connect(function(itemId, _itemType, result)
@@ -108,6 +125,7 @@ favoriteButton.Activated:Connect(function()
 		return
 	end
 	waitingFavorite = true
+	resetButtonLater(25)
 	local ok, err = pcall(function()
 		AvatarEditorService:PromptSetFavorite(game.PlaceId, Enum.AvatarItemType.Asset, true)
 	end)
@@ -139,7 +157,9 @@ remote.OnClientEvent:Connect(function(action, payload)
 			UiSfx.play("UiSuccess")
 			ui.Celebrate("🎉 CLAIMED! THANKS!")
 		end
-	elseif not ui.Open then
+	elseif not ui.Open or not waitingFavorite then
+		-- не забрано (в т.ч. сервер отказал) - кнопка снова активна
+		pendingToken += 1
 		favoriteButton.Active = true
 		ui.SetCaption(ACTION_TEXT)
 	end

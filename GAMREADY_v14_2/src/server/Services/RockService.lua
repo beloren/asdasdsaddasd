@@ -669,6 +669,24 @@ function RockService:IsPlotBoulder(state)
 	return state ~= nil and state.Point ~= nil and state.Point:GetAttribute("PlotOwnerUserId") ~= nil
 end
 
+-- v20.104: валун на ЧУЖОЙ базе ломать нельзя (ни киркой, ни динамитом).
+function RockService:IsForeignPlotBoulder(state, player)
+	if not (state and state.Point and player) then return false end
+	local owner = state.Point:GetAttribute("PlotOwnerUserId")
+	return owner ~= nil and owner ~= player.UserId
+end
+
+local foreignNoticeAt = {}
+local function refuseForeign(self, state, player)
+	if not self:IsForeignPlotBoulder(state, player) then return false end
+	local now = os.clock()
+	if now - (foreignNoticeAt[player] or 0) > 3 then
+		foreignNoticeAt[player] = now
+		Services.NotifyService:Show(player, "This boulder belongs to another player's base", { Icon = "Boulder" })
+	end
+	return true
+end
+
 function RockService:Start()
 	local folder = workspace:FindFirstChild("RubbleBoulderSpawnPoints")
 	local points = {}
@@ -940,8 +958,9 @@ end
 function RockService:FindInHitbox(attacker, hrp, hitboxSize, forwardOffset)
 	local half = hitboxSize / 2
 	local best, bestDistance
+	local attackerPlayer = typeof(attacker) == "Instance" and attacker:IsA("Player") and attacker or nil
 	for _, state in active do
-		if state.Model.Parent and state.Health > 0 then
+		if state.Model.Parent and state.Health > 0 and not (attackerPlayer and self:IsForeignPlotBoulder(state, attackerPlayer)) then
 			local position = state.Model:GetPivot().Position
 			local localPosition = hrp.CFrame:PointToObjectSpace(position)
 			if math.abs(localPosition.X) <= half.X and math.abs(localPosition.Y) <= half.Y + 3
@@ -1332,6 +1351,7 @@ local function playBreakAnimation(model, tier)
 end
 
 function RockService:Damage(state, player, damage)
+	if refuseForeign(self, state, player) then return 0 end
 	damage = tonumber(damage)
 	if not damage or damage ~= damage or math.abs(damage) == math.huge or damage <= 0 then return 0 end
 	if not state or not state.Model.Parent or state.Health <= 0 then return 0 end
@@ -1474,7 +1494,7 @@ function RockService:_rollRelicReward(player, tier, rich, result, options)
 	end
 	if not relicId then return end
 	local info = Config.Relics.Types[relicId]
-	table.insert(rich, 1, { Kind = "Relic", Icon = info.Icon, Rarity = info.Rarity, Text = info.DisplayName, Color = info.Color })
+	table.insert(rich, 1, { Kind = "Relic", RelicId = relicId, Icon = info.Icon, Rarity = info.Rarity, Text = info.DisplayName, Color = info.Color })
 	task.spawn(function()
 		local ok, err = pcall(decor.GrantRelic, decor, player, relicId, options.Golden and "GoldenBoulder" or "Boulder")
 		if not ok then warn("[RockService] выдача реликвии упала:", err) end
@@ -1510,7 +1530,7 @@ function RockService:GrantBoulderRewards(player, tier, position, deferNotificati
 			local rarity = crystal:GetAttribute("CrystalRarity") or "Common"
 			local key = name .. "|" .. rarity
 			if not grouped[key] then
-				grouped[key] = { Name = name, Rarity = rarity, Count = 0 }
+				grouped[key] = { Name = name, Rarity = rarity, Count = 0, OreId = crystal:GetAttribute("CrystalOre"), Variant = crystal:GetAttribute("CrystalVariant") }
 				table.insert(order, key)
 			end
 			grouped[key].Count += 1
@@ -1518,7 +1538,7 @@ function RockService:GrantBoulderRewards(player, tier, position, deferNotificati
 		for _, key in order do
 			local entry = grouped[key]
 			table.insert(rich, {
-				Kind = "Ore", Icon = "⛏️", Rarity = entry.Rarity,
+				Kind = "Ore", Icon = "⛏️", Rarity = entry.Rarity, OreId = entry.OreId, Variant = entry.Variant,
 				Text = entry.Count > 1 and ("%s x%d"):format(entry.Name, entry.Count) or entry.Name,
 				Color = Config.RarityColors[entry.Rarity] or Color3.fromRGB(140, 220, 255),
 			})
@@ -1527,7 +1547,7 @@ function RockService:GrantBoulderRewards(player, tier, position, deferNotificati
 		if math.random() < (cfg.GeodeChance or 0) then
 			local geodeType = geodeTypeForTier(tier)
 			local color = Config.Geodes.Types[geodeType] and Config.Geodes.Types[geodeType].Color or Color3.new(1, 1, 1)
-			table.insert(rich, { Kind = "Geode", Icon = "🪨", Text = tostring(geodeType), Color = color })
+			table.insert(rich, { Kind = "Geode", GeodeType = geodeType, Icon = "🪨", Text = tostring(geodeType), Color = color })
 			-- ЗАЧИСЛЕНИЕ — В ОТДЕЛЬНОЙ КОРУТИНЕ. AddGeodesAndSave ходит в
 			-- DataStore, а UpdateBuilding пересобирает модель хранилища; и
 			-- то и другое висело прямо на кадре разбития валуна и давало
@@ -1608,7 +1628,7 @@ function RockService:GrantBoulderRewards(player, tier, position, deferNotificati
 			local geodeType = geodeTypeForTier(tier)
 			geodeCounts[geodeType] = (geodeCounts[geodeType] or 0) + 1
 			table.insert(drops, "GEODE: " .. geodeType)
-			table.insert(rich, { Kind = "Geode", Icon = "🪨", Text = tostring(geodeType), Color = Config.Geodes.Types[geodeType] and Config.Geodes.Types[geodeType].Color or Color3.new(1, 1, 1) })
+			table.insert(rich, { Kind = "Geode", GeodeType = geodeType, Icon = "🪨", Text = tostring(geodeType), Color = Config.Geodes.Types[geodeType] and Config.Geodes.Types[geodeType].Color or Color3.new(1, 1, 1) })
 			if Services.GoblinService then
 				local geodeColor = Config.Geodes.Types[geodeType] and Config.Geodes.Types[geodeType].Color or Color3.new(1, 1, 1)
 				task.delay(visualDelay, function()
@@ -1620,7 +1640,7 @@ function RockService:GrantBoulderRewards(player, tier, position, deferNotificati
 			local oreId = ORE_BY_TIER[tier]
 			table.insert(drops, "CRYSTAL: " .. (Config.Geodes.Ores[oreId].DisplayName or oreId))
 			local oreRarity = Config.Geodes.Ores[oreId].Rarity or "Rare"
-			table.insert(rich, { Kind = "Crystal", Icon = "💎", Rarity = oreRarity, Text = Config.Geodes.Ores[oreId].DisplayName or oreId, Color = Config.RarityColors[oreRarity] or Color3.fromRGB(140, 220, 255) })
+			table.insert(rich, { Kind = "Crystal", OreId = oreId, Icon = "💎", Rarity = oreRarity, Text = Config.Geodes.Ores[oreId].DisplayName or oreId, Color = Config.RarityColors[oreRarity] or Color3.fromRGB(140, 220, 255) })
 			task.delay(visualDelay, function()
 				spawnLooseCrystal(oreId, tier, position, nil, player, "Boulder")
 			end)
@@ -1802,6 +1822,7 @@ end
 
 -- Удар киркой (через обычный хитбокс) по валуну.
 function RockService:OnPickaxeHit(state, player)
+	if refuseForeign(self, state, player) then return end
 	if not state or not state.Model.Parent or (state.Progress or 0) >= 1 then return end
 	local pickaxeTier = equippedPickaxeTierFor(player)
 	local need = boulderHitsNeeded(state.Tier, pickaxeTier)
@@ -1950,6 +1971,7 @@ end
 
 -- Динамит (GearService): доля прогресса по разнице тиров. true — сработал.
 function RockService:ApplyDynamite(state, player, powerMultiplier)
+	if refuseForeign(self, state, player) then return false end
 	if not state or not state.Model.Parent or (state.Progress or 0) >= 1 then return false end
 	local cfg = Config.Dynamite
 	local diff = state.Tier - equippedPickaxeTierFor(player)
@@ -2482,7 +2504,7 @@ function RockService:DepositCarrying(player)
 	local oreInfo = Config.Geodes.Ores[entry.OreId]
 	local rarity = oreInfo and oreInfo.Rarity or "Rare"
 	Services.NotifyService:LootFeed(player, {
-		{ Icon = "💎", Text = ("%s → BANK STOCK"):format(oreInfo and oreInfo.DisplayName or entry.OreId), Sub = "Sold to the merchant", Rarity = rarity, Color = Config.RarityColors[rarity] },
+		{ Kind = "Crystal", OreId = entry.OreId, Icon = "💎", Text = ("%s → BANK STOCK"):format(oreInfo and oreInfo.DisplayName or entry.OreId), Sub = "Sold to the merchant", Rarity = rarity, Color = Config.RarityColors[rarity] },
 	})
 	Services.NotifyService:Show(player, "CRYSTAL SOLD → BANK STOCK", { Icon = "Crystal" })
 	return true

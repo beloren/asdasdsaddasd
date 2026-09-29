@@ -1121,7 +1121,7 @@ function BaseDecorService:GrantRelic(player, relicId, source)
 	end
 	local color = PlaceableCatalog.RarityColor(info.Rarity)
 	Services.NotifyService:LootFeed(player, {
-		{ Icon = info.Icon, Text = ("%s #%s"):format(info.DisplayName, serial > 0 and tostring(serial) or "?"), Color = color, Rarity = info.Rarity, Sub = "RELIC → inventory" },
+		{ Kind = "Relic", RelicId = relicId, Icon = info.Icon, Text = ("%s #%s"):format(info.DisplayName, serial > 0 and tostring(serial) or "?"), Color = color, Rarity = info.Rarity, Sub = "RELIC → inventory" },
 	}, { Title = "RELIC FOUND!", Color = color })
 	return record
 end

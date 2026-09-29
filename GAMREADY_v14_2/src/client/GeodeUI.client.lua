@@ -1796,6 +1796,10 @@ local function shakeGeodeForTap(token, finalTap)
 		if token ~= crackTapToken then return end
 		crackTapBusy = false
 		if finalTap then
+			-- v20.104: запрос на открытие - ровно ОДИН раз за раскол (скип
+			-- раньше мог отправить второй, и сервер отвечал отказом поверх
+			-- уже открытой жеоды - окно ломалось, награда не показывалась).
+			if tapSequenceCompleted then return end
 			tapSequenceCompleted = true
 			crackTapButton.Visible = false
 			remote:FireServer("OpenGeode", pendingGeodeType, pendingOpenCount)
@@ -1902,6 +1906,7 @@ end
 
 local function onCrackHit(fast)
 	if not openRequestActive or not pendingGeodeType or not crackSequenceActive then return end
+	if Hit.Finalizing then return end -- v20.104: финальный удар уже идёт
 	local now = os.clock()
 	if crackTapBusy or now < crackTapReadyAt then return end
 	local cut = Config.GeodeCutscene or {}
@@ -1920,10 +1925,14 @@ local function onCrackHit(fast)
 	local isFinal = crackTapCount >= required
 	local token = crackTapToken
 	destroyCrackBall()
-	if isFinal then crackTapBusy = true end
+	if isFinal then
+		crackTapBusy = true
+		Hit.Finalizing = true
+	end
 	local hitstop = isFinal and (cut.HitStopFinal or 0.14) or (cut.HitStop or 0.07)
 	playHammerSwing(fast, function()
 		if token ~= crackTapToken then return end
+		if Hit.Finalizing and not isFinal then return end -- запоздалый удар после финала
 		geodeImpact(hitIndex, isFinal)
 		if isFinal then
 			playGeodeFinale(function()
@@ -2075,6 +2084,7 @@ beginCrack = function()
 	crackTapBusy = false
 	crackTapToken += 1
 	tapSequenceCompleted = false
+	Hit.Finalizing = false
 	Hit.Combo = 0
 	Hit.ShowCombo(0)
 	Hit.RefreshAuto()
@@ -2955,17 +2965,26 @@ skipButton.Activated:Connect(function()
 		closeAll()
 		return
 	end
-	if not (crackSequenceActive and openRequestActive) or skipBusy then return end
+	if not (crackSequenceActive and openRequestActive) or skipBusy or Hit.Finalizing or tapSequenceCompleted then return end
+	-- v20.104: СКИП = сразу финальный удар. Раньше скип долбил onCrackHit
+	-- пачкой быстрых ударов: тряска прошлого удара снимала «занято» посреди
+	-- финала, проходил ВТОРОЙ финальный удар и второй запрос на открытие -
+	-- сервер отвечал отказом, окно ломалось и ничего не выпадало.
 	skipBusy = true
+	Hit.Finalizing = true
+	crackTapBusy = true
 	local token = crackTapToken
-	task.spawn(function()
-		for _ = 1, (tonumber(Config.Geodes.CrackTapCount) or 5) + 2 do
-			if crackTapToken ~= token or not crackSequenceActive or not openRequestActive then break end
-			crackTapReadyAt = 0 -- пропускаем задержку между засчитанными ударами
-			onCrackHit(true)
-			task.wait(0.05)
-		end
+	local required = math.max(2, math.floor(tonumber(Config.Geodes.CrackTapCount) or 3))
+	crackTapCount = math.max(crackTapCount, required)
+	stopHammerAnimation()
+	destroyCrackBall()
+	clickHint.Visible = false
+	pcall(geodeImpact, required, true)
+	playGeodeFinale(function()
 		skipBusy = false
+		if token ~= crackTapToken then return end
+		crackTapBusy = false
+		shakeGeodeForTap(token, true)
 	end)
 end)
 

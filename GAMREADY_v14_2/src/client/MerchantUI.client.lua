@@ -187,6 +187,11 @@ local function makeTabButton(tab)
 	tabButtons[tab.Id] = b
 end
 for _, tab in CFG.Tabs or { { Id = "Shop", Label = "SHOP" } } do makeTabButton(tab) end
+-- v20.104: вкладки из старой сборки окна (например «TOTEMS & DECOR»),
+-- которых больше нет в Config.Merchant.Tabs, - прячем.
+for _, child in tabsBar:GetChildren() do
+	if child:IsA("GuiButton") and not tabButtons[child.Name] then child.Visible = false end
+end
 
 local function setExpanded(itemId)
 	expandedId = itemId

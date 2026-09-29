@@ -62,6 +62,40 @@ end
 local order = 0
 local cards = {}
 
+-- v20.104: 3D-ПРЕВЬЮ ТОГО, ЧТО ВЫПАЛО (вместо эмодзи). Описание берётся из
+-- item.Preview (формат ItemPreview.Build) или выводится из полей карточки
+-- (Kind + OreId/GeodeType/RelicId/...). Нечего показать - эмодзи как раньше.
+local ItemPreview = nil
+pcall(function() ItemPreview = require(ReplicatedStorage.Shared.ItemPreview) end)
+local PREVIEW_KINDS = { Ore = true, Crystal = true, Geode = true, Relic = true, Chest = true, Money = true, Potion = true, Charm = true, Decor = true, Placeable = true, Skin = true, Junk = true, PrestigePoint = true, Essence = true }
+local function previewOf(item)
+	if typeof(item.Preview) == "table" and item.Preview.Kind then return item.Preview end
+	local kind = item.Kind
+	if not (kind and PREVIEW_KINDS[kind]) then return nil end
+	if (kind == "Ore" or kind == "Crystal") and not item.OreId then return nil end
+	if kind == "Geode" and not item.GeodeType then return nil end
+	if kind == "Relic" and not item.RelicId then return nil end
+	return item
+end
+local function mountPreview(body, item)
+	if not ItemPreview then return false end
+	local descriptor = previewOf(item)
+	if not descriptor then return false end
+	local slot = body:FindFirstChild("Emoji") or body:FindFirstChild("Image")
+	if not slot then return false end
+	local viewport = Instance.new("ViewportFrame")
+	viewport.Name = "Preview3D"
+	viewport.BackgroundTransparency = 1
+	viewport.AnchorPoint = slot.AnchorPoint
+	viewport.Position = slot.Position
+	viewport.Size = slot.Size
+	viewport.ZIndex = slot.ZIndex + 1
+	viewport.Parent = body
+	local ok = pcall(ItemPreview.Mount, viewport, descriptor, { Spin = true, SpinSpeed = 1.2, Tilt = 16 })
+	if not ok then viewport:Destroy() return false end
+	return true
+end
+
 local function removeCard(card)
 	for index, existing in cards do
 		if existing == card then table.remove(cards, index) break end
@@ -99,6 +133,10 @@ local function pushCard(item, delaySeconds)
 		local isAsset = iconValue:match("^rbxasset") or iconValue:match("^%d+$")
 		if image then image.Image = isAsset and (iconValue:match("^%d+$") and "rbxassetid://" .. iconValue or iconValue) or "" end
 		if emoji then emoji.Text = isAsset and "" or iconValue end
+		if mountPreview(body, item) then
+			if image then image.Image = "" end
+			if emoji then emoji.Text = "" end
+		end
 
 		local title = body:WaitForChild("Title")
 		title.Position = UDim2.fromOffset(62, item.Sub and 6 or 0)

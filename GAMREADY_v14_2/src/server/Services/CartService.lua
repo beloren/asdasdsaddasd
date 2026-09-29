@@ -734,6 +734,41 @@ local function assistCartTraversal(data)
 	end
 end
 
+-- v20.104: АНТИ-УЛЁТ. Физика иногда выталкивала застрявшую тележку (и
+-- держателя вместе с ней) в небо. Каждый кадр: тележка слишком быстрая или
+-- слишком далеко от точки у игрока - ставим её на место и гасим скорость;
+-- держателя, которого подбросило вверх быстрее прыжка, - тоже гасим.
+local function guardFling(data)
+	local root = data.Root
+	if not (root and root.Parent) then return end
+	local cfg = Config.Cart
+	local maxSpeed = cfg.FlingMaxSpeed or 90
+	local anchor = data.FollowAnchor
+	local tooFast = root.AssemblyLinearVelocity.Magnitude > maxSpeed
+	local tooFar = anchor and anchor.Parent and (root.Position - anchor.Position).Magnitude > (cfg.FlingSnapDistance or 18)
+	if tooFast or tooFar then
+		root.AssemblyLinearVelocity = Vector3.zero
+		root.AssemblyAngularVelocity = Vector3.zero
+		if anchor and anchor.Parent then
+			pcall(function() data.Model:PivotTo(data.Model:GetPivot() + (anchor.Position - root.Position)) end)
+		end
+	end
+	if data.HolderUserId then
+		local holder = Players:GetPlayerByUserId(data.HolderUserId)
+		local hrp = holder and holder.Character and holder.Character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local v = hrp.AssemblyLinearVelocity
+			local upLimit = cfg.FlingHolderUpSpeed or 70
+			local flat = Vector3.new(v.X, 0, v.Z)
+			if v.Y > upLimit or flat.Magnitude > maxSpeed then
+				local clampedFlat = flat.Magnitude > maxSpeed and flat.Unit * 16 or flat
+				hrp.AssemblyLinearVelocity = Vector3.new(clampedFlat.X, math.min(v.Y, 0), clampedFlat.Z)
+				hrp.AssemblyAngularVelocity = Vector3.zero
+			end
+		end
+	end
+end
+
 -- Тележка гоблина не является частью его физической сборки. Она отдельно
 -- заанкорена и визуально следует за корнем гоблина серверным обновлением.
 local function followGoblinCart(data)
@@ -894,8 +929,16 @@ function CartService:Start()
 			local ok, err = pcall(function()
 				local fallen = {}
 				for _, data in carts do
-					if not data.PaidFillPendingSave and not data.GeodeSavePending
-						and not data.GoblinStolen and data.Root.Parent and data.Root.Position.Y < -60 then
+					-- v20.104: потерянной считается и тележка, которую ВЫБРОСИЛО
+					-- вверх (выше MaxHeight), и та, чей корпус уничтожил движок
+					-- (упала за FallenPartsDestroyHeight): раньше такая оставалась
+					-- «в руках», и игрок застревал в режиме тележки (невидимые
+					-- промпты, не открывался сундук).
+					local rootGone = not (data.Root and data.Root.Parent) or not data.Model.Parent
+					local lost = rootGone
+						or data.Root.Position.Y < -60
+						or data.Root.Position.Y > (Config.Cart.MaxHeight or 600)
+					if lost and (rootGone or (not data.PaidFillPendingSave and not data.GeodeSavePending and not data.GoblinStolen)) then
 						table.insert(fallen, data)
 					end
 				end
@@ -962,6 +1005,11 @@ function CartService:Start()
 			elseif data.HolderUserId ~= nil then
 				limitTurning(data, dt)
 				assistCartTraversal(data)
+				guardFling(data)
+			elseif data.Root and data.Root.Parent and data.Root.AssemblyLinearVelocity.Magnitude > (Config.Cart.FlingMaxSpeed or 90) * 1.5 then
+				-- свободная тележка, которую выстрелило физикой
+				data.Root.AssemblyLinearVelocity = Vector3.zero
+				data.Root.AssemblyAngularVelocity = Vector3.zero
 			end
 		end
 	end)
@@ -2077,6 +2125,7 @@ function CartService:Attach(data, player)
 		data.Root.AssemblyMass * workspace.Gravity * Config.Cart.FollowForceGravityMultiplier
 	)
 	followPosition.Responsiveness = Config.Cart.FollowResponsiveness
+	followPosition.MaxVelocity = Config.Cart.FollowMaxVelocity or 60 -- v20.104: догоняет, но не «выстреливает»
 	followPosition.Parent = data.Root
 
 	local followOrientation = Instance.new("AlignOrientation")
@@ -2277,9 +2326,11 @@ function CartService:Detach(data, diedDrop)
 		data.JumpConn:Disconnect()
 		data.JumpConn = nil
 	end
-	setShieldVisible(data, false) -- тележка больше не под чьей-то защитой, VFX/обводка скрыты
-	setSprintVfx(data, false) -- Heartbeat больше не зовёт limitTurning для неё — гасим явно, а не ждём кадр
-	Sfx.play("CartDrop", data.Root)
+	-- v20.104: визуал - в pcall: у уничтоженной тележки он падал с ошибкой,
+	-- и держатель ниже так и оставался «с тележкой в руках».
+	pcall(setShieldVisible, data, false) -- тележка больше не под чьей-то защитой, VFX/обводка скрыты
+	pcall(setSprintVfx, data, false) -- Heartbeat больше не зовёт limitTurning для неё — гасим явно, а не ждём кадр
+	pcall(Sfx.play, "CartDrop", data.Root)
 
 	local holder = Players:GetPlayerByUserId(holderId)
 	if holder then
@@ -2291,10 +2342,10 @@ function CartService:Detach(data, diedDrop)
 			humanoid.AutoRotate = true -- обычные повороты снова управляются Humanoid
 			humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true) -- тележка сдана — прыжок снова доступен
 		end
-		stopDragAnimation(holder)
+		pcall(stopDragAnimation, holder)
 		holderYaw[holderId] = nil
 	end
-	updatePrompt(data)
+	pcall(updatePrompt, data)
 	data.LastActivityTime = os.clock() -- с этого момента тележка свободна — начинается отсчёт простоя (см. Start)
 
 	-- После разрыва Motor6D тележка снова отдельная физическая сборка —
@@ -3140,7 +3191,8 @@ function CartService:_destroy(data)
 		self:ReleaseGoblinCart(data)
 	end
 	if data.HolderUserId then
-		self:Detach(data)
+		local ok, err = pcall(self.Detach, self, data)
+		if not ok then warn("[CartService] Detach при уничтожении:", err) end
 	end
 	carts[data.Model] = nil
 	if ownerIndex[data.OwnerUserId] == data then
@@ -3153,7 +3205,7 @@ function CartService:_destroy(data)
 			owner:SetAttribute("CartDeployed", false)
 		end
 	end
-	data.Model:Destroy()
+	pcall(function() data.Model:Destroy() end)
 end
 
 return CartService

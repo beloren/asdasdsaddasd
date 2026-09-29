@@ -627,6 +627,10 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 			end
 		end
 	end
+	-- v20.104: руда с валуна - «True» (истинная), +к цене (Config.Mutations.True).
+	if source == "Boulder" and Config.Mutations.True then
+		mutations, mutationMultiplier = MutationRoll.ForceInclude(mutations, mutationMultiplier, "True")
+	end
 	if mutationMultiplier > 1 then
 		value = math.floor(value * mutationMultiplier + 0.5)
 	end
@@ -656,16 +660,26 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 		local combinedChance = 1
 		-- Чередование деталей между мутациями при комбинации нескольких —
 		-- по прямому запросу, см. MutationVisuals.SplitPartsForMutations.
-		local partGroups = MutationVisuals.SplitPartsForMutations(crystal, #mutations)
-		for index, id in mutations do
-			MutationVisuals.Apply(crystal, id, root, partGroups and partGroups[index])
+		-- v20.104: «True» без своего вида - детали делятся только между
+		-- мутациями, у которых вид есть.
+		local visualCount = 0
+		for _, id in mutations do
+			if id ~= "True" then visualCount += 1 end
+		end
+		local partGroups = MutationVisuals.SplitPartsForMutations(crystal, math.max(visualCount, 1))
+		local visualIndex = 0
+		for _, id in mutations do
+			if id ~= "True" then
+				visualIndex += 1
+				MutationVisuals.Apply(crystal, id, root, partGroups and partGroups[visualIndex])
+			end
 			table.insert(names, Config.Mutations[id].DisplayName)
 			-- ФАКТИЧЕСКИЙ шанс этого игрока, а не базовый из конфига: шансы
 			-- редких мутаций растут от ребёртов и тира шахты, и печатать в
 			-- чат базовое число значило бы врать игроку. Раскрытие реальных
 			-- вероятностей — требование Roblox к Random Item Generator'ам.
 			combinedChance *= MutationRoll.EffectiveChance(id, luck, weatherBoosts and weatherBoosts[id])
-			if miner and Services.MutationBookService then
+			if miner and Services.MutationBookService and id ~= "True" then
 				Services.MutationBookService:RecordFound(miner, tier, id)
 			end
 		end
@@ -674,7 +688,7 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 			if okChance and tonumber(single) and single > 0 then displayChance = math.min(displayChance, single) end
 		end
 		mutationLabel = table.concat(names, " ")
-		if miner and shouldAnnounceMutations(mutations) then
+		if miner and shouldAnnounceMutations(mutations) and not (#mutations == 1 and mutations[1] == "True") then
 			-- "{name} found a rare Frozen/Molten/Radiant ore! (5% chance)"
 			-- Если сработало НЕСКОЛЬКО мутаций сразу (они умеют
 			-- комбинироваться) — множественное число и ОБЩИЙ (перемноженный)
@@ -714,7 +728,11 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 	crystal:SetAttribute("CrystalDisplayChance", displayChance) -- v9: переживает рюкзак/печь
 	-- v9: книга коллекции по руде (+ маленькая награда за новое).
 	if miner and Services.MutationBookService and Services.MutationBookService.RecordOre then
-		pcall(Services.MutationBookService.RecordOre, Services.MutationBookService, miner, oreInfo.Key, mutations)
+		local bookMutations = {}
+		for _, id in mutations do
+			if id ~= "True" then table.insert(bookMutations, id) end
+		end
+		pcall(Services.MutationBookService.RecordOre, Services.MutationBookService, miner, oreInfo.Key, bookMutations)
 	end
 	local priceLabel = attachPriceGui(crystal, oreInfo, value, displayChance, mutationLabel, variantInfo)
 	if #mutations > 0 then

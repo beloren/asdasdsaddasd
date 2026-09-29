@@ -476,8 +476,9 @@ function UpgradeService:_tryBuy(player, kind)
 	-- шахта становилась тира 2 (при модели тира 1), шаг MineChain[1] за
 	-- $220 пропускался даром, а MineIndex > 0 ещё и запускал миграцию
 	-- тележки в CartService:SetupPlayer у новичка посреди обучения.
+	local branchIncremented = false
 	if not (kind == "Mine" and step.Repair == true) then
-		Services.DataService:IncrementBranch(player, kind)
+		branchIncremented = Services.DataService:IncrementBranch(player, kind) == true
 	end
 
 	if kind == "Mine" and step.Repair == true then
@@ -506,6 +507,7 @@ function UpgradeService:_tryBuy(player, kind)
 			-- Покупка откатилась целиком — держать игрока в 5-секундном
 			-- откате не за что, снимаем его сразу.
 			releaseUpgradeCooldown(player)
+			if branchIncremented then Services.DataService:DecrementBranch(player, kind) end
 			Services.DataService:AddMoney(player, step.Cost)
 			warn(("[UpgradeService] Апгрейд шахты для %s не удался - деньги (%d) возвращены."):format(player.Name, step.Cost))
 			Services.NotifyService:Show(player, "Mine upgrade failed. Your money was refunded.", { Icon = "Refund" })
@@ -525,6 +527,7 @@ function UpgradeService:_tryBuy(player, kind)
 		-- и без денег. Раньше результат вызова просто игнорировался.
 		if not Services.CartService:UpgradeOwnedCart(player) then
 			releaseUpgradeCooldown(player) -- см. комментарий в ветке Mine выше
+			if branchIncremented then Services.DataService:DecrementBranch(player, kind) end
 			Services.DataService:AddMoney(player, step.Cost)
 			warn(("[UpgradeService] Апгрейд тележки для %s не удался - деньги (%d) возвращены."):format(player.Name, step.Cost))
 			Services.NotifyService:Show(player, "Cart upgrade failed. Your money was refunded.", { Icon = "Refund" })

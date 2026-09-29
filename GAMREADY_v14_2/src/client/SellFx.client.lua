@@ -284,7 +284,13 @@ local function newCoin()
 	coin.Shape = Enum.PartType.Block
 	coin.Size = COIN.CoinSize
 	coin.Color = COIN.CoinColor
-	coin.Material = Enum.Material.SmoothPlastic
+	-- v20.104: кубик со стадами (классический пластик Roblox)
+	coin.Material = Enum.Material.Plastic
+	coin.TopSurface = Enum.SurfaceType.Studs
+	coin.FrontSurface = Enum.SurfaceType.Studs
+	coin.BackSurface = Enum.SurfaceType.Studs
+	coin.BottomSurface = Enum.SurfaceType.Inlet
+	pcall(function() require(game:GetService("ReplicatedStorage").Shared.StudTexture).ApplyPart(coin) end)
 	stripPhysics(coin)
 	coin.CastShadow = false
 	coin.Locked = true
