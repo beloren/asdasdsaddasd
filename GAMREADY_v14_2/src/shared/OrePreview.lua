@@ -191,23 +191,70 @@ function OrePreview.MountModel(container, model, key)
 			d:Destroy()
 		end
 	end
-	-- Разворот: оси габарита модели -> самая тонкая смотрит на камеру (Z),
-	-- самая длинная - по горизонтали (X), если модель не вытянута вверх.
-	local boxCF, size = model:GetBoundingBox()
-	local axes = {
-		{ Len = size.X, Dir = boxCF.RightVector },
-		{ Len = size.Y, Dir = boxCF.UpVector },
-		{ Len = size.Z, Dir = boxCF.LookVector },
-	}
-	table.sort(axes, function(a, b) return a.Len < b.Len end)
-	local depthDir = axes[1].Dir -- тонкая
-	local upDir = axes[2].Dir -- средняя - вертикаль кадра (широкая по X)
-	if axes[3].Dir:Dot(boxCF.UpVector) > 0.9 then upDir = axes[3].Dir end -- высокая модель остаётся стоя
-	local rightDir = upDir:Cross(depthDir)
-	-- orient переводит локальные X/Y/Z в right/up/depth; обратный поворот
-	-- кладёт тонкую ось на Z (к камере), а up - на Y.
-	local orient = CFrame.fromMatrix(Vector3.zero, rightDir, upDir, depthDir)
-	model:PivotTo(orient:Inverse() * model:GetPivot())
+	-- v20.90: РАЗВОРОТ ШИРОКОЙ СТОРОНОЙ К КАМЕРЕ. GetBoundingBox выровнен по
+	-- пивоту модели, а у кирки ручка часто повёрнута под углом - «тонкая
+	-- ось» получалась неверной. Теперь перебираем реальные оси деталей и
+	-- берём направление, в котором модель ТОНЬШЕ ВСЕГО (оно смотрит на
+	-- камеру); самая длинная сторона в этой плоскости - вертикально.
+	local corners = {}
+	local candidates = {}
+	local parts = {}
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d.Transparency < 1 then table.insert(parts, d) end
+	end
+	table.sort(parts, function(a, b) return a.Size.Magnitude > b.Size.Magnitude end)
+	for index, part in parts do
+		local cf, h = part.CFrame, part.Size / 2
+		for _, sx in { -1, 1 } do
+			for _, sy in { -1, 1 } do
+				for _, sz in { -1, 1 } do
+					table.insert(corners, (cf * CFrame.new(h.X * sx, h.Y * sy, h.Z * sz)).Position)
+				end
+			end
+		end
+		if index <= 12 then
+			table.insert(candidates, cf.RightVector)
+			table.insert(candidates, cf.UpVector)
+			table.insert(candidates, cf.LookVector)
+		end
+	end
+	local pivotCF = model:GetPivot()
+	for _, v in { pivotCF.RightVector, pivotCF.UpVector, pivotCF.LookVector } do table.insert(candidates, v) end
+	local function extent(dir)
+		local lo, hi = math.huge, -math.huge
+		for _, p in corners do
+			local v = p:Dot(dir)
+			if v < lo then lo = v end
+			if v > hi then hi = v end
+		end
+		return hi - lo
+	end
+	if #corners > 0 then
+		local depthDir, best = candidates[1], math.huge
+		for _, dir in candidates do
+			local e = extent(dir)
+			if e < best - 1e-3 then depthDir, best = dir, e end
+		end
+		-- вертикаль кадра: самая длинная ось, перпендикулярная глубине
+		local upDir, longest = nil, -1
+		for _, dir in candidates do
+			local flat = dir - depthDir * dir:Dot(depthDir)
+			if flat.Magnitude > 0.7 then
+				flat = flat.Unit
+				local e = extent(flat)
+				if e > longest + 1e-3 then upDir, longest = flat, e end
+			end
+		end
+		if not upDir then
+			upDir = math.abs(depthDir.Y) < 0.9 and (Vector3.yAxis - depthDir * depthDir.Y).Unit or Vector3.xAxis
+		end
+		-- «верх» модели остаётся сверху, если это возможно
+		if upDir:Dot(pivotCF.UpVector) < 0 then upDir = -upDir end
+		local rightDir = upDir:Cross(depthDir).Unit
+		upDir = depthDir:Cross(rightDir).Unit
+		local orient = CFrame.fromMatrix(Vector3.zero, rightDir, upDir, depthDir)
+		model:PivotTo(orient:Inverse() * model:GetPivot())
+	end
 	local centerCF, bounds = model:GetBoundingBox()
 	model:PivotTo(CFrame.new(-centerCF.Position) * model:GetPivot())
 	local distance = math.max(bounds.X, bounds.Y) * 1.55 + bounds.Z * 0.5 + 0.4

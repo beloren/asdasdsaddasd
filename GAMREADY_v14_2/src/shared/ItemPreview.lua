@@ -97,8 +97,13 @@ local function star()
 end
 
 local function fromAsset(assetName)
+	-- v20.90: ищем как сервер (SkinService.findSkinAsset): Assets, в т.ч.
+	-- во вложенных папках, потом Workspace. Раньше - только прямые дети
+	-- Assets, и скин из папки показывался картинкой вместо 3D.
+	if not assetName then return nil end
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
-	local source = assets and assetName and assets:FindFirstChild(assetName)
+	local source = assets and (assets:FindFirstChild(assetName) or assets:FindFirstChild(assetName, true))
+		or workspace:FindFirstChild(assetName, true)
 	if not source then return nil end
 	local clone = source:Clone()
 	if clone:IsA("BasePart") then

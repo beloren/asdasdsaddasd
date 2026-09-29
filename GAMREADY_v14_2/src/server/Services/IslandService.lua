@@ -271,13 +271,54 @@ local function buildPlaceholderIsland(islandId, topCFrame, definition)
 end
 
 -- Ставит модель так, чтобы её низ (по видимым габаритам) лёг на topY.
+-- v20.90: ПОСАДКА ПОСТРОЙКИ НА ЗЕМЛЮ ОСТРОВА.
+--   1) Если внутри модели постройки лежит маркер-опора (GroundMarker /
+--      AnvilMarker / SmelterMarker / StationMarker) - на землю встаёт ЕГО низ
+--      (маркер после этого невидим).
+--   2) Иначе низ считается только по ВИДИМЫМ деталям (Transparency < 1).
+--      Раньше брался габарит всей модели - невидимый Root/хитбокс ниже
+--      видимой части «поднимал» наковальню в воздух.
+local GROUND_MARKERS = { "GroundMarker", "AnvilMarker", "SmelterMarker", "StationMarker" }
+local function partBottom(part)
+	local cf, half = part.CFrame, part.Size / 2
+	return cf.Position.Y - (math.abs(cf.RightVector.Y) * half.X + math.abs(cf.UpVector.Y) * half.Y + math.abs(cf.LookVector.Y) * half.Z)
+end
 local function snapBottomTo(model, topY)
-	local ok, cf, size = pcall(function() return model:GetBoundingBox() end)
-	if not ok then return end
-	local halfHeight = math.abs(cf.RightVector.Y) * size.X / 2
-		+ math.abs(cf.UpVector.Y) * size.Y / 2
-		+ math.abs(cf.LookVector.Y) * size.Z / 2
-	local bottom = cf.Position.Y - halfHeight
+	model:SetAttribute("IslandStructure", true) -- её внутренние маркеры - не маркеры острова
+	local bottom
+	for _, name in GROUND_MARKERS do
+		local marker = model:FindFirstChild(name, true)
+		if marker and marker:IsA("Model") then
+			marker = marker.PrimaryPart or marker:FindFirstChildWhichIsA("BasePart")
+		end
+		if marker and marker:IsA("BasePart") then
+			bottom = partBottom(marker)
+			for _, hidden in { marker, table.unpack(marker:GetDescendants()) } do
+				if hidden:IsA("BasePart") then
+					hidden.Transparency = 1
+					hidden.CanCollide = false
+					hidden.CanQuery = false
+					hidden.CanTouch = false
+				elseif hidden:IsA("BillboardGui") or hidden:IsA("SurfaceGui") then
+					hidden.Enabled = false
+				end
+			end
+			break
+		end
+	end
+	if not bottom then
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") and part.Transparency < 1 then
+				local b = partBottom(part)
+				bottom = bottom and math.min(bottom, b) or b
+			end
+		end
+	end
+	if not bottom then
+		local ok, cf, size = pcall(function() return model:GetBoundingBox() end)
+		if not ok then return end
+		bottom = cf.Position.Y - (math.abs(cf.RightVector.Y) * size.X / 2 + math.abs(cf.UpVector.Y) * size.Y / 2 + math.abs(cf.LookVector.Y) * size.Z / 2)
+	end
 	model:PivotTo(model:GetPivot() + Vector3.new(0, topY - bottom, 0))
 end
 
@@ -288,8 +329,25 @@ end
 -- есть: постройка смотрит "лицом" на неё. Маркеры после чтения
 -- становятся невидимыми и неосязаемыми.
 -- Возвращает CFrame точки на поверхности (Y = низ маркера) или fallback.
+-- Маркер острова по имени - кроме маркеров ВНУТРИ уже построенных построек
+-- (у наковальни/печи может быть свой маркер-опора с тем же именем).
+local function findIslandMarker(model, name)
+	for _, d in model:GetDescendants() do
+		if d.Name == name then
+			local inside = false
+			local node = d.Parent
+			while node and node ~= model do
+				if node:GetAttribute("IslandStructure") then inside = true break end
+				node = node.Parent
+			end
+			if not inside then return d end
+		end
+	end
+	return nil
+end
+
 local function stationCFrame(model, name, fallback)
-	local marker = model:FindFirstChild(name, true)
+	local marker = findIslandMarker(model, name)
 	-- v20.25: маркер может быть и моделью (плита + стрелка из
 	-- tools/AddIslandMarkers) — тогда точка и поворот берутся с её PrimaryPart.
 	local markerRoot = marker
@@ -313,7 +371,7 @@ local function stationCFrame(model, name, fallback)
 	local drop = math.abs(cf.RightVector.Y) * half.X + math.abs(cf.UpVector.Y) * half.Y + math.abs(cf.LookVector.Y) * half.Z
 	local ground = Vector3.new(cf.Position.X, cf.Position.Y - drop, cf.Position.Z)
 	local look = cf.LookVector
-	local lookTarget = model:FindFirstChild(name .. "Look", true)
+	local lookTarget = findIslandMarker(model, name .. "Look")
 	if lookTarget and lookTarget:IsA("BasePart") then
 		look = lookTarget.Position - marker.Position
 		lookTarget.Transparency = 1
@@ -352,7 +410,7 @@ local function stationFor(model, definition, name, top, defaultOffset)
 	if type(name) == "table" then
 		local found = nil
 		for _, candidate in name do -- 1) маркер, который реально лежит в модели
-			if model:FindFirstChild(candidate, true) then found = candidate break end
+			if findIslandMarker(model, candidate) then found = candidate break end
 		end
 		if not found then -- 2) имя, для которого есть Offset/Yaw в Config
 			for _, candidate in name do
