@@ -54,6 +54,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
+local NpcNameTag = require(ReplicatedStorage.Shared.NpcNameTag) -- v20.97: подпись над НПС
 local NpcIdle = require(ReplicatedStorage.Shared.NpcIdle) -- v20.96: стойка шахтёра
 local CrystalUtil = require(ReplicatedStorage.Shared.CrystalUtil)
 local Sfx = require(ReplicatedStorage.Shared.Sfx)
@@ -451,7 +452,6 @@ end
 local function pinNameTag(npc)
 	local head = npc:FindFirstChild("Head", true)
 	if not (head and head:IsA("BasePart")) then return end
-	local humanoid = npc:FindFirstChildOfClass("Humanoid")
 	local found = false
 	for _, gui in npc:GetDescendants() do
 		if gui:IsA("BillboardGui") and gui:FindFirstChildWhichIsA("TextLabel", true) then
@@ -463,25 +463,11 @@ local function pinNameTag(npc)
 			gui.StudsOffset = Vector3.new(0, 1.2, 0)
 		end
 	end
-	if not found and humanoid then
-		local text = (humanoid.DisplayName ~= "" and humanoid.DisplayName) or npc.Name
-		local gui = Instance.new("BillboardGui")
-		gui.Name = "NameTag"
-		gui.Adornee = head
-		gui.Size = UDim2.new(5, 0, 0.9, 0)
-		gui.ExtentsOffsetWorldSpace = Vector3.new(0, 1, 0)
-		gui.StudsOffset = Vector3.new(0, 1, 0)
-		gui.MaxDistance = 80
-		gui.LightInfluence = 0
-		gui.Parent = head
-		local label = WorldUi.Text(nil, "Text", "Heading")
-		label.BackgroundTransparency = 1
-		label.Size = UDim2.fromScale(1, 1)
-		label.TextScaled = true
-		label.Text = string.upper(text)
-		label.Parent = gui
+	if not found then
+		-- v20.97: подпись в общем стиле НПС (не имя модели)
+		NpcNameTag.Ensure(npc, "Old Miner")
 	end
-	if humanoid then humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
+	NpcNameTag.HideHumanoidNames(npc)
 end
 
 function MineService:SetupPlot(player, plot)

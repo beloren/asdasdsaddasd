@@ -21,6 +21,7 @@ local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили м�
 Config.NpcBillboard = Config.NpcBillboard or {}
 Config.NpcBillboard.ShopNPC = Config.NpcBillboard.ShopNPC or { Height = 1.55, SizeWidth = 240, SizeHeight = 90 }
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
+local NpcNameTag = require(ReplicatedStorage.Shared.NpcNameTag) -- v20.97: подпись над НПС
 
 local ShopNpcService = {}
 
@@ -179,7 +180,12 @@ function ShopNpcService:SetupPlot(player, plot)
 	if not isCustom then
 		PlaceholderFactory.ShiftNpcHats(npc, -2.20)
 		ensureShopGui(npc, primaryPart)
+	elseif not npc:FindFirstChild("gui", true) then
+		-- v20.97: своя модель без подписи - та же подпись над головой
+		ensureShopGui(npc, primaryPart)
+		NpcNameTag.PinToHead(npc, npc:FindFirstChild("gui", true))
 	end
+	NpcNameTag.HideHumanoidNames(npc)
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ObjectText = ""

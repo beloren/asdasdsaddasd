@@ -19,6 +19,7 @@ Config.NpcBillboard = Config.NpcBillboard or {}
 Config.NpcBillboard.RebirthNPC = Config.NpcBillboard.RebirthNPC or { Height = 3, SizeWidth = 4.2, SizeHeight = 1.0 }
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
+local NpcNameTag = require(ReplicatedStorage.Shared.NpcNameTag) -- v20.97: подпись над НПС
 local Sfx = require(ReplicatedStorage.Shared.Sfx)
 
 local RebirthService = {}
@@ -335,7 +336,11 @@ function RebirthService:SetupPlot(player, plot)
 		if infoGui then
 			infoGui:Destroy()
 		end
+	elseif not npc:FindFirstChild("gui", true) then
+		-- v20.97: своя модель без подписи - та же подпись, что у плейсхолдера
+		ensureRebirthDialogGui(npc, primaryPart)
 	end
+	NpcNameTag.HideHumanoidNames(npc)
 
 	-- v20.21: везде «Prestige Mayor» — и в своей модели: надпись name с
 	-- «rebirth», имя Humanoid над головой (Roblox показывает имя модели).

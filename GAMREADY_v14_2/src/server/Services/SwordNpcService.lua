@@ -1,5 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local NpcNameTag = require(ReplicatedStorage.Shared.NpcNameTag) -- v20.97: подпись над НПС
+
 local SwordNpcService = {}
 local Services
 local remote
@@ -31,6 +33,7 @@ local function setupNpc(npc)
 	prompt:SetAttribute("PromptKind", "Talk")
 	prompt:SetAttribute("PromptColor", "Blue")
 	configuredNpcs[npc] = true
+	NpcNameTag.Ensure(npc, "Zavtrack") -- v20.97: подпись в общем стиле, без имени модели
 	prompt.Triggered:Connect(function(player)
 		if player:GetAttribute("UpgradeInProgress") == true then return end
 		local now = os.clock()
