@@ -235,6 +235,41 @@ local function shrineEffect(def)
 	return tr("+{v}% Sell Income (permanent)", { v = tostring(math.floor((def.Value or 0) * 100 + 0.5)) })
 end
 
+-- v20.94: ИКОНКА СВЯТИЛИЩА = его 3D-модель (рисовать картинку не нужно):
+-- широкой стороной к камере (у плоского святилища - верх), с обводкой.
+local ShrineIcon = {}
+function ShrineIcon.Set(holder, shrineId, def, transparency)
+	if not holder then return end
+	local ok = false
+	if holder:IsA("ImageLabel") or holder:IsA("ImageButton") or holder:IsA("Frame") then
+		local OrePreview = require(ReplicatedStorage.Shared.OrePreview)
+		local key = "Shrine|" .. tostring(shrineId)
+		local existing = holder:FindFirstChild("ModelView")
+		if existing and existing:GetAttribute("Key") == key then
+			ok = true
+		else
+			local okBuild, model = pcall(function()
+				local PlaceableCatalog = require(ReplicatedStorage.Shared.PlaceableCatalog)
+				return require(ReplicatedStorage.Shared.PlaceableFactory).BuildItem(PlaceableCatalog.ShrineId(shrineId))
+			end)
+			if okBuild and model then
+				local okMount, mounted = pcall(OrePreview.MountModel, holder, model, key)
+				ok = okMount and mounted
+			end
+		end
+	end
+	if ok then
+		if holder:IsA("ImageLabel") or holder:IsA("ImageButton") then holder.Image = "" end
+		local text = holder:FindFirstChild("Emoji")
+		if text then text.Visible = false end
+		for _, view in holder:GetChildren() do
+			if view:IsA("ViewportFrame") then view.ImageTransparency = transparency or 0 end
+		end
+	else
+		setIcon(holder, def.Icon or "🗿", def.ImageId, transparency)
+	end
+end
+
 local function renderShrineDetail()
 	local def = selectedShrine and SHRINES.Types[selectedShrine]
 	if not def then
@@ -243,7 +278,7 @@ local function renderShrineDetail()
 	end
 	detail.Visible = true
 	local info = shrineState[selectedShrine] or {}
-	setIcon(detail.Icon, def.Icon or "🗿", def.ImageId)
+	ShrineIcon.Set(detail.Icon, selectedShrine, def)
 	detail.Title.Text = tr(def.DisplayName)
 	detail.Title.TextColor3 = Color3.fromRGB(255, 220, 110)
 	detail.Level.Text = tr("SHRINE · never resets")
@@ -274,7 +309,7 @@ local function renderShrines()
 			card:SetAttribute("Generated", true)
 			card.Visible = true
 			card.LayoutOrder = index
-			setIcon(card.Icon, def.Icon or "🗿", def.ImageId)
+			ShrineIcon.Set(card.Icon, shrineId, def)
 			card.Title.Text = tr(def.DisplayName)
 			card.Status.Text = info.Owned and ("✅ " .. tr("OWNED")) or ("⭐ " .. tostring(def.Cost or 0))
 			card.Status.TextColor3 = info.Owned and COLOR_GREEN_TEXT or COLOR_GOLD_TEXT
@@ -326,6 +361,7 @@ renderDetail = function()
 	detail.Visible = true
 	local info = infoOf(perk.Id)
 	local branch = BRANCH_OF[perk.Id]
+	pcall(require(ReplicatedStorage.Shared.OrePreview).Clear, detail.Icon) -- v20.94: убрать 3D святилища
 	setIcon(detail.Icon, perk.Icon, perk.ImageId)
 	detail.Title.Text = tr(perk.Title)
 	detail.Title.TextColor3 = branch and branch.Color or Color3.new(1, 1, 1)

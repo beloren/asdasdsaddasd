@@ -370,10 +370,44 @@ local setModelPreview = OrePreview.Mount
 -- ImageLabel остаётся ПУСТЫМ — визуально предмет просто исчезает, хотя он
 -- на месте. Поэтому под картинку всегда кладём кружок цвета руды: даже без
 -- иконки ячейка остаётся читаемой, а не пустой.
+-- v20.94: СНАРЯЖЕНИЕ В 3D (тотемы, святилища, декор, реликвии, сундуки,
+-- зелья, амулеты) - модель широкой стороной к камере + обводка
+-- (OrePreview.MountModel). Нет модели - эмодзи, как раньше.
+local GearModel = {}
+function GearModel.Build(key)
+	local PlaceableFactory = require(ReplicatedStorage.Shared.PlaceableFactory)
+	local relicId = key:match("^Relic:([^:]+)")
+	if relicId then return PlaceableFactory.BuildRelic(relicId) end
+	local chest = key:match("^Chest_(.+)$")
+	if chest then return PlaceableFactory.BuildChest(chest) end
+	local potion = Config.Potions and Config.Potions.Types[key]
+	if potion then
+		if potion.Charm then return (PlaceholderFactory.CharmModel(key, potion.Color)) end
+		return (PlaceholderFactory.PotionModel(key, potion.Color))
+	end
+	if PlaceableCatalog.Info(key) then return PlaceableFactory.BuildItem(key) end
+	return nil
+end
+function GearModel.Mount(preview, key)
+	local existing = preview:FindFirstChild("ModelView")
+	if existing and existing:GetAttribute("Key") == "Gear|" .. key then return true end
+	local ok, model = pcall(GearModel.Build, key)
+	if not (ok and model) then return false end
+	local okMount, mounted = pcall(OrePreview.MountModel, preview, model, "Gear|" .. key)
+	return okMount and mounted
+end
+
 local function applyPreview(preview, stack)
 	if not preview then return end
 	-- v9: снаряжение — эмодзи-иконка на кружке своего цвета.
 	local gearIcon = preview:FindFirstChild("GearIcon")
+	if stack and stack.Gear and GearModel.Mount(preview, stack.Gear) then
+		if gearIcon then gearIcon.Visible = false end
+		local fallbackGear = preview:FindFirstChild("ColorFallback")
+		if fallbackGear then fallbackGear.Visible = false end
+		setImagePreview(preview, nil)
+		return
+	end
 	if stack and stack.Gear then
 		if not gearIcon then
 			gearIcon = Instance.new("TextLabel")
