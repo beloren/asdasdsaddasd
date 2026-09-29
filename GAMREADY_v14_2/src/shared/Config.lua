@@ -1953,6 +1953,19 @@ Config.Cart = {
 Config.CartPackage = {
 	-- Ключ предмета в data.Gear и в хотбаре (uid "gear:CartPackage").
 	GearKey = "CartPackage",
+	-- v20.98: цвета коробки-плейсхолдера по тиру тележки (чем круче - тем
+	-- богаче): Body - сама коробка, Accent - ленты/крышка, Trim - бант и рёбра.
+	TierColors = {
+		[1] = { Body = Color3.fromRGB(168, 124, 78),  Accent = Color3.fromRGB(228, 196, 130), Trim = Color3.fromRGB(200, 160, 100) }, -- картон
+		[2] = { Body = Color3.fromRGB(130, 132, 140), Accent = Color3.fromRGB(200, 200, 205), Trim = Color3.fromRGB(90, 92, 100) },   -- камень
+		[3] = { Body = Color3.fromRGB(70, 150, 75),   Accent = Color3.fromRGB(240, 235, 210), Trim = Color3.fromRGB(190, 120, 60) },  -- зелень
+		[4] = { Body = Color3.fromRGB(45, 110, 200),  Accent = Color3.fromRGB(235, 240, 255), Trim = Color3.fromRGB(200, 205, 215) }, -- синий+серебро
+		[5] = { Body = Color3.fromRGB(125, 60, 190),  Accent = Color3.fromRGB(255, 200, 80),  Trim = Color3.fromRGB(230, 225, 240) }, -- фиолет+золото
+		[6] = { Body = Color3.fromRGB(200, 40, 50),   Accent = Color3.fromRGB(255, 210, 70),  Trim = Color3.fromRGB(255, 240, 200) }, -- красный+золото
+		[7] = { Body = Color3.fromRGB(30, 190, 200),  Accent = Color3.fromRGB(255, 255, 255), Trim = Color3.fromRGB(255, 205, 60) },  -- бирюза
+		[8] = { Body = Color3.fromRGB(255, 120, 200), Accent = Color3.fromRGB(120, 230, 255), Trim = Color3.fromRGB(255, 205, 60) },  -- неон-розовый
+		[9] = { Body = Color3.fromRGB(28, 26, 34),    Accent = Color3.fromRGB(255, 205, 60),  Trim = Color3.fromRGB(170, 90, 255) },  -- обсидиан+золото
+	},
 	DisplayName = "Cart Package",
 	Icon = "📦",
 

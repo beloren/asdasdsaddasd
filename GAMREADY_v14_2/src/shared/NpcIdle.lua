@@ -16,23 +16,53 @@ local function uri(id)
 	return id:match("^rbxassetid://") and id or "rbxassetid://" .. id
 end
 
--- Детали на суставах отпускаем (иначе Animator их не сдвинет), корень держим.
+-- v20.98: ОТПУСКАЕМ ВСЁ, ЧТО ДЕРЖИТСЯ НА СУСТАВАХ. Раньше отпускались
+-- только детали на Motor6D - а ручки аксессуаров (шляпы, волосы), сохранённые
+-- заякоренными, через AccessoryWeld держали ГОЛОВУ на месте: тело шевелилось,
+-- голова нет. Теперь обходим все соединения (Motor6D, Weld, AccessoryWeld,
+-- WeldConstraint) от корня: всё, что к нему прицеплено, не заякорено и
+-- невесомо; заякорен только корень.
 local function freeJoints(model, host)
-	local root = model:FindFirstChild("HumanoidRootPart") or model.PrimaryPart
-	local jointed = {}
+	local root = model:FindFirstChild("HumanoidRootPart", true) or model.PrimaryPart
+	if not root then return end
+	local links = {}
+	local function link(a, b)
+		if not (a and b) then return end
+		links[a] = links[a] or {}
+		links[b] = links[b] or {}
+		table.insert(links[a], b)
+		table.insert(links[b], a)
+	end
 	for _, d in model:GetDescendants() do
-		if d:IsA("Motor6D") then
-			if d.Part1 then jointed[d.Part1] = true end
+		if d:IsA("JointInstance") or d:IsA("WeldConstraint") or d:IsA("RigidConstraint") then
+			if d:IsA("RigidConstraint") then
+				link(d.Attachment0 and d.Attachment0.Parent, d.Attachment1 and d.Attachment1.Parent)
+			else
+				link(d.Part0, d.Part1)
+			end
 		end
 	end
-	for part in jointed do
-		if part ~= root and part:IsDescendantOf(model) then part.Anchored = false end
+	local seen, queue = { [root] = true }, { root }
+	while #queue > 0 do
+		local part = table.remove(queue)
+		for _, other in links[part] or {} do
+			if not seen[other] and other:IsA("BasePart") and other:IsDescendantOf(model) then
+				seen[other] = true
+				table.insert(queue, other)
+			end
+		end
 	end
-	if root then root.Anchored = true end
-	local humanoid = host:IsA("Humanoid") and host or nil
-	if humanoid then
-		humanoid.WalkSpeed = 0
-		humanoid.JumpPower = 0
+	for part in seen do
+		if part ~= root then
+			part.Anchored = false
+			part.Massless = true
+			part.CanCollide = false
+		end
+	end
+	root.Anchored = true
+	if host:IsA("Humanoid") then
+		host.WalkSpeed = 0
+		host.JumpPower = 0
 	end
 end
 

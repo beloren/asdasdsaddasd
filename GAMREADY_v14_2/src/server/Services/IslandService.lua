@@ -1418,6 +1418,12 @@ function IslandService:_spawnKeeper()
 	-- IslandKeeperNPC у хижины ISLANDS) - берём его как есть, только вешаем
 	-- промпт. Удалишь с карты - встанет Assets/IslandKeeperNPC или плейсхолдер.
 	local mapNpc = workspace:FindFirstChild("IslandKeeperNPC", true)
+	-- v20.98: своя модель без PrimaryPart тоже годится (корень - HumanoidRootPart
+	-- или первая деталь); раньше без PrimaryPart ставился плейсхолдер, а твоя
+	-- модель стояла рядом без анимации.
+	if mapNpc and mapNpc:IsA("Model") and not mapNpc.PrimaryPart then
+		mapNpc.PrimaryPart = mapNpc:FindFirstChild("HumanoidRootPart", true) or mapNpc:FindFirstChildWhichIsA("BasePart", true)
+	end
 	local npc, primary
 	if mapNpc and mapNpc:IsA("Model") and mapNpc.PrimaryPart and not mapNpc:IsDescendantOf(folder) then
 		npc, primary = mapNpc, mapNpc.PrimaryPart

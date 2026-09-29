@@ -656,6 +656,9 @@ end
 
 function PlaceholderFactory.IslandKeeperNPC()
 	local asset = findAsset("IslandKeeperNPC")
+	if asset and asset:IsA("Model") and not asset.PrimaryPart then
+		asset.PrimaryPart = asset:FindFirstChild("HumanoidRootPart", true) or asset:FindFirstChildWhichIsA("BasePart", true)
+	end
 	if asset and asset:IsA("Model") and asset.PrimaryPart then
 		return asset, true
 	end
@@ -915,40 +918,47 @@ function PlaceholderFactory.CartPackage(tier)
 		return asset
 	end
 
+	-- v20.98: коробка ЦЕЛИКОМ ИЗ КУБИКОВ СО СТАДАМИ; цвета - по тиру тележки
+	-- (Config.CartPackage.TierColors: картон → камень → ... → обсидиан с
+	-- золотом). С 4 тира - рёбра-стойки, с 7 - золотые уголки сверху.
+	tier = math.clamp(math.floor(tonumber(tier) or 1), 1, 9)
+	local palette = (Config.CartPackage and Config.CartPackage.TierColors or {})[tier] or {}
+	local bodyColor = palette.Body or Color3.fromRGB(168, 124, 78)
+	local accent = palette.Accent or Color3.fromRGB(228, 196, 130)
+	local trim = palette.Trim or accent
+
 	local model = Instance.new("Model")
 	model.Name = "CartPackage"
 
-	local root = newPart({
-		Name = "Root",
-		Size = Vector3.new(2.2, 2.0, 2.2),
-		Color = Color3.fromRGB(168, 124, 78),
-		Material = Enum.Material.Wood,
-	})
-	root.CFrame = CFrame.new()
-	root.Parent = model
+	local root = studBlock(model, "Root", Vector3.new(2.2, 2.0, 2.2), CFrame.new(), bodyColor)
+	root.Anchored = true
+	root.CanCollide = true
 	model.PrimaryPart = root
 
-	-- Две «ленты» крест-накрест: коробка читается как упаковка, а не как
-	-- просто ящик, даже на маленьком размере над головой.
-	local function strap(sizeVector, offset)
-		local part = newPart({
-			Name = "Strap",
-			Size = sizeVector,
-			Color = Color3.fromRGB(228, 196, 130),
-			Material = Enum.Material.SmoothPlastic,
-			CanCollide = false,
-		})
-		part.CFrame = root.CFrame * offset
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = root
-		weld.Part1 = part
-		weld.Parent = part
-		part.Parent = model
-		return part
+	-- ленты крест-накрест и обод крышки
+	studBlock(model, "Strap", Vector3.new(0.4, 2.06, 2.26), CFrame.new(), accent)
+	studBlock(model, "Strap", Vector3.new(2.26, 2.06, 0.4), CFrame.new(), accent)
+	studBlock(model, "Lid", Vector3.new(2.3, 0.3, 2.3), CFrame.new(0, 0.85, 0), accent:Lerp(bodyColor, 0.35))
+	studBlock(model, "Bow", Vector3.new(0.7, 0.3, 0.7), CFrame.new(0, 1.15, 0), trim)
+	if tier >= 4 then
+		for _, x in { -1.05, 1.05 } do
+			for _, z in { -1.05, 1.05 } do
+				studBlock(model, "Edge", Vector3.new(0.24, 2.04, 0.24), CFrame.new(x, 0, z), trim)
+			end
+		end
 	end
-	strap(Vector3.new(0.35, 2.06, 2.26), CFrame.new())
-	strap(Vector3.new(2.26, 2.06, 0.35), CFrame.new())
-
+	if tier >= 7 then
+		for _, x in { -1.05, 1.05 } do
+			for _, z in { -1.05, 1.05 } do
+				studBlock(model, "Corner", Vector3.new(0.4, 0.4, 0.4), CFrame.new(x, 0.95, z), Color3.fromRGB(255, 205, 60))
+			end
+		end
+	end
+	if tier >= 9 then
+		studBlock(model, "Crown", Vector3.new(0.36, 0.36, 0.36), CFrame.new(0, 1.48, 0), Color3.fromRGB(255, 240, 150))
+	end
+	weldToRoot(model)
+	root.Anchored = true
 	return model
 end
 
