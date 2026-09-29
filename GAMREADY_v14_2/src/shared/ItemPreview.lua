@@ -205,6 +205,7 @@ function ItemPreview.Build(item)
 	end
 	if not model then
 		model = Instance.new("Model")
+		model:SetAttribute("Placeholder", true) -- v20.88: своей модели нет
 		part(model, "Box", nil, Vector3.one * 1.4, Config.RarityColors[item and item.Rarity or ""] or Color3.fromRGB(200, 200, 200), Enum.Material.Neon)
 	end
 	for _, d in model:GetDescendants() do

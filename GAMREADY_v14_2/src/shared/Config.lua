@@ -12,7 +12,9 @@ Config.Version = "0.1.0"
 -- DATA
 --------------------------------------------------------------------------------
 Config.Data = {
-	StoreName = "PvPExtraction_56", -- поднято под обучение v7 — новый namespace профилей, полный вайп прогресса
+	-- v20.88: ПОЛНЫЙ ВАЙП всех игроков (новый namespace профилей). Старые
+	-- профили «_56» остаются в DataStore, просто больше не читаются.
+	StoreName = "PvPExtraction_57",
 	ReceiptStoreName = "PvPExtraction_01_Receipts_v2", -- НЕ вайпать вместе с профилями: это журнал уже оплаченных покупок, и сброс namespace означал бы повторную выдачу товара по старым чекам
 	AutosaveInterval = 120, -- сек
 	SaveRetries = 3,
@@ -26,7 +28,7 @@ Config.Leaderboards = {
 	RefreshInterval = 60,
 	-- v20.85: ВАЙП ТОПОВ - новый префикс = новые пустые рейтинги (старые
 	-- «_02» остаются в DataStore, просто больше не читаются).
-	StorePrefix = "PvPExtraction_Leaderboard_03", -- текущие глобальные рейтинги
+	StorePrefix = "PvPExtraction_Leaderboard_04", -- текущие глобальные рейтинги (v20.88: вайп вместе с профилями)
 	BoardFace = Enum.NormalId.Front,
 	-- v20.82: топы (деньги / престиж / донат) - три стенда в центре города
 	-- (LeaderboardStands, строит tools/BuildIslandMap или
@@ -7209,7 +7211,7 @@ Config.Relics = {
 	GoldenWeights = { GoldenPickaxeTrophy = 70, CrownedMoleSkull = 24, DragonEggFossil = 5.2, HeartOfTheMountain = 0.8 },
 	-- Сундуки: множитель к базовым шансам реликвии по редкости сундука.
 	ChestMultiplier = { Common = 1, Rare = 2.5, Epic = 6, Legendary = 15 },
-	SerialDataStore = "RelicSerials_v1",
+	SerialDataStore = "RelicSerials_v2", -- v20.88: номера реликвий заново с #1 (вайп)
 }
 
 --------------------------------------------------------------------------------

@@ -76,9 +76,53 @@ local function statLines(skinId)
 	return lines
 end
 
+-- v20.88: 3D-ПРЕВЬЮ СКИНА вместо картинки - тот же метод, что у жеод:
+-- модель кирки (Assets/<AssetName> или простая из ProceduralSkins) самой
+-- широкой стороной к камере + чёрная обводка (OrePreview.MountModel).
+local OrePreview = require(ReplicatedStorage.Shared.OrePreview)
+local ItemPreview = require(ReplicatedStorage.Shared.ItemPreview)
+local function skinModel(skinId)
+	local definition = Config.Skins and Config.Skins.Definitions and Config.Skins.Definitions[skinId]
+	if not definition then return nil end
+	local model = ItemPreview.Build({ Kind = "Skin", SkinId = skinId })
+	-- ItemPreview отдаёт кубик-заглушку, если ассета нет - тогда простая модель
+	if model and model:GetAttribute("Placeholder") ~= true then
+		return model
+	end
+	if model then model:Destroy() end
+	local okProc, ProceduralSkins = pcall(require, ReplicatedStorage.Shared.ProceduralSkins)
+	if okProc and ProceduralSkins.Has(skinId, definition) then
+		local ok, tool = pcall(ProceduralSkins.Build, skinId, definition)
+		if ok and tool then
+			local holder = Instance.new("Model")
+			for _, child in tool:GetChildren() do child.Parent = holder end
+			tool:Destroy()
+			return holder
+		end
+	end
+	return nil
+end
+
+local function mountSkin(image, skinId)
+	local okModel, model = pcall(skinModel, skinId)
+	if not (okModel and model) then return false end
+	local ok, mounted = pcall(OrePreview.MountModel, image, model, "Skin|" .. skinId)
+	if ok and mounted then
+		image.Image = ""
+		image.BackgroundTransparency = 1
+		return true
+	end
+	return false
+end
+
 local function fillCard(card, entry)
 	local image = card:FindFirstChild("Image")
-	if image then image.Image = imageFor(entry) end
+	if image then
+		if not (entry.Id and entry.DisplayName ~= "???" and mountSkin(image, entry.Id)) then
+			OrePreview.Clear(image)
+			image.Image = imageFor(entry)
+		end
+	end
 	local name = card:FindFirstChild("Name")
 	if name then name.Text = entry.DisplayName end
 	local rarity = card:FindFirstChild("Rarity")
