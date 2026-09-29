@@ -42,12 +42,61 @@ local iconTemplate = gui:WaitForChild("Templates"):WaitForChild("IconTemplate")
 
 local shownFor = nil
 
+-- v20.100: ПЛАВНОЕ ИСЧЕЗНОВЕНИЕ. Прозрачности подсказки запоминаются один раз;
+-- при скрытии всё растворяется, потом Visible = false и значения на место.
+local Fade = { Base = {}, Tweens = {}, Token = 0 }
+for _, d in tooltip:GetDescendants() do
+	if d:IsA("TextLabel") or d:IsA("TextButton") then
+		Fade.Base[d] = { TextTransparency = d.TextTransparency, BackgroundTransparency = d.BackgroundTransparency, TextStrokeTransparency = d.TextStrokeTransparency }
+	elseif d:IsA("ImageLabel") then
+		Fade.Base[d] = { ImageTransparency = d.ImageTransparency, BackgroundTransparency = d.BackgroundTransparency }
+	elseif d:IsA("GuiObject") then
+		Fade.Base[d] = { BackgroundTransparency = d.BackgroundTransparency }
+	elseif d:IsA("UIStroke") then
+		Fade.Base[d] = { Transparency = d.Transparency }
+	end
+end
+if tooltip:IsA("GuiObject") then Fade.Base[tooltip] = { BackgroundTransparency = tooltip.BackgroundTransparency } end
+
+function Fade.Restore()
+	Fade.Token += 1
+	for _, tween in Fade.Tweens do tween:Cancel() end
+	table.clear(Fade.Tweens)
+	for inst, props in Fade.Base do
+		for key, value in props do pcall(function() inst[key] = value end) end
+	end
+end
+
 local function hideTooltip()
 	shownFor = nil
+	Fade.Restore()
 	tooltip.Visible = false
 end
 
+-- Плавно растворить (иконка пропала, мышь ушла, а MouseLeave не пришёл).
+local function fadeOutTooltip()
+	shownFor = nil
+	if not tooltip.Visible then return end
+	Fade.Restore()
+	local token = Fade.Token
+	local info = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	for inst, props in Fade.Base do
+		local goal = {}
+		for key in props do goal[key] = 1 end
+		local ok, tween = pcall(TweenService.Create, TweenService, inst, info, goal)
+		if ok then
+			table.insert(Fade.Tweens, tween)
+			tween:Play()
+		end
+	end
+	task.delay(0.36, function()
+		if Fade.Token == token then hideTooltip() end
+	end)
+end
+
 local function showTooltip(icon, title, body)
+	if not icon.Parent or icon:GetAttribute("Removing") then return end
+	Fade.Restore()
 	shownFor = icon
 	tooltipTitle.Text = title
 	tooltipBody.Text = body
@@ -76,10 +125,41 @@ local function showTooltip(icon, title, body)
 		local token = {}
 		tooltip:SetAttribute("ShownToken", tostring(token))
 		task.delay(4, function()
-			if tooltip:GetAttribute("ShownToken") == tostring(token) and shownFor == icon then hideTooltip() end
+			if tooltip:GetAttribute("ShownToken") == tostring(token) and shownFor == icon then fadeOutTooltip() end
 		end)
 	end
 end
+
+-- v20.100: СТОРОЖ ПОДСКАЗКИ. Ушёл с плота - иконка сейф-зоны пропала, а
+-- MouseLeave от исчезнувшей кнопки не приходит, и подсказка висела. Раз в
+-- 0.2 с: иконки больше нет или (с мышью) курсор уже не над ней дольше
+-- ~0.6 с - подсказка плавно исчезает сама.
+task.spawn(function()
+	local awayFor = 0
+	while true do
+		task.wait(0.2)
+		if tooltip.Visible then
+			local icon = shownFor
+			if not icon then
+				if #Fade.Tweens == 0 then fadeOutTooltip() end
+			elseif not icon.Parent or not icon.Visible or icon:GetAttribute("Removing") then
+				fadeOutTooltip()
+			elseif UserInputService.MouseEnabled then
+				local inset = (gui:IsA("ScreenGui") and gui.IgnoreGuiInset) and Vector2.zero or game:GetService("GuiService"):GetGuiInset()
+				local mouse = UserInputService:GetMouseLocation() - inset
+				local pos, size = icon.AbsolutePosition, icon.AbsoluteSize
+				local over = mouse.X >= pos.X and mouse.X <= pos.X + size.X and mouse.Y >= pos.Y and mouse.Y <= pos.Y + size.Y
+				awayFor = over and 0 or awayFor + 0.2
+				if awayFor >= 0.6 then
+					awayFor = 0
+					fadeOutTooltip()
+				end
+			end
+		else
+			awayFor = 0
+		end
+	end
+end)
 
 -- На телефоне наведения нет, поэтому подсказка открывается нажатием и
 -- закрывается повторным нажатием или тапом по другой иконке.
@@ -146,7 +226,8 @@ local function removeIcon(id)
 	local entry = icons[id]
 	if not entry then return end
 	icons[id] = nil
-	if shownFor == entry.Button then hideTooltip() end
+	entry.Button:SetAttribute("Removing", true) -- MouseEnter во время сжатия не откроет подсказку снова
+	if shownFor == entry.Button then fadeOutTooltip() end
 	local tween = TweenService:Create(entry.Button, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 		ImageTransparency = 1,
 		BackgroundTransparency = 1,
