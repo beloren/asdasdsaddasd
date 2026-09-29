@@ -236,54 +236,29 @@ local function buildPackageModel(plr, tier)
 	return model, root
 end
 
--- Колба зелья: стеклянный шар, светящаяся жидкость цвета зелья, горлышко,
--- пробка и блик. Первая деталь (стекло) — корень для позы рук.
+-- Зелье / амулет над головой - v20.84: модели из кубов со студами
+-- (PlaceholderFactory.PotionModel / CharmModel, общие с превью в инвентаре).
+-- Корень (корпус / рамка) - опора для позы рук.
 local function buildPotionModel(plr, key)
 	local info = Config.Potions.Types[key]
 	local color = info.Color or Color3.fromRGB(200, 120, 255)
-	local model = Instance.new("Model")
-	local function piece(name, shape, size, partColor, material, transparency, offset)
-		local part = Instance.new("Part")
-		part.Name = name
-		part.Shape = shape
-		part.Size = size
-		part.Color = partColor
-		part.Material = material
-		part.Transparency = transparency
-		part.Anchored = true
-		part.CanCollide = false
-		part.CanQuery = false
-		part.CanTouch = false
-		part.Massless = true
-		part.CastShadow = false
-		part.CFrame = offset
-		part.Parent = model
-		return part
-	end
-	local glassColor = Color3.fromRGB(220, 240, 255)
-	local root, liquid
+	local model, root, liquid
 	if info.Charm then
-		-- v20.81: АМУЛЕТ - квадратная рамка и камень из брусков со студами
-		-- (PlaceholderFactory.CharmModel, общий с превью в инвентаре).
-		model:Destroy()
 		model, root = PlaceholderFactory.CharmModel(key, color)
 		liquid = model:FindFirstChild("Gem") or root
-		for _, part in model:GetDescendants() do
-			if part:IsA("BasePart") then
-				part.Anchored = true
-				part.CanCollide = false
-				part.CanQuery = false
-				part.CanTouch = false
-				part.Massless = true
-				part.CastShadow = false
-			end
-		end
 	else
-		root = piece("Glass", Enum.PartType.Ball, Vector3.new(1.35, 1.35, 1.35), glassColor, Enum.Material.Glass, 0.45, CFrame.new())
-		liquid = piece("Liquid", Enum.PartType.Ball, Vector3.new(1, 1, 1), color, Enum.Material.Neon, 0.1, CFrame.new(0, -0.1, 0))
-		piece("Neck", Enum.PartType.Cylinder, Vector3.new(0.45, 0.44, 0.44), glassColor, Enum.Material.Glass, 0.4, CFrame.new(0, 0.8, 0) * CFrame.Angles(0, 0, math.rad(90)))
-		piece("Cork", Enum.PartType.Cylinder, Vector3.new(0.3, 0.48, 0.48), Color3.fromRGB(150, 95, 55), Enum.Material.Wood, 0, CFrame.new(0, 1.08, 0) * CFrame.Angles(0, 0, math.rad(90)))
-		piece("Shine", Enum.PartType.Ball, Vector3.new(0.22, 0.22, 0.22), Color3.new(1, 1, 1), Enum.Material.Neon, 0.2, CFrame.new(-0.34, 0.3, -0.44))
+		model, root = PlaceholderFactory.PotionModel(key, color)
+		liquid = root
+	end
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanQuery = false
+			part.CanTouch = false
+			part.Massless = true
+			part.CastShadow = false
+		end
 	end
 	local light = Instance.new("PointLight")
 	light.Color = color

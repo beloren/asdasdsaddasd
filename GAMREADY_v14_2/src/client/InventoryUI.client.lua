@@ -224,6 +224,29 @@ local function oreInfoFor(stack)
 	return stack and stack.Ore and Config.OreByKey[stack.Ore] or nil
 end
 
+-- v20.84: НАЗВАНИЕ В ЯЧЕЙКЕ - всегда ровно две строки, если в нём больше
+-- одного слова (перенос у середины по длине). Раньше TextScaled+TextWrapped
+-- сам решал, в одну или в две строки влезет «Mutation Magnet Charm», и
+-- название прыгало от ячейки к ячейке.
+local function cellName(label, text)
+	if not label then return end
+	label.TextWrapped = false
+	text = tostring(text or "")
+	local words = string.split(text, " ")
+	if #words < 2 then
+		label.Text = text
+		return
+	end
+	local best, bestDiff = 1, math.huge
+	for cut = 1, #words - 1 do
+		local left = table.concat(words, " ", 1, cut)
+		local right = table.concat(words, " ", cut + 1)
+		local diff = math.abs(utf8.len(left) - utf8.len(right))
+		if diff < bestDiff then best, bestDiff = cut, diff end
+	end
+	label.Text = table.concat(words, " ", 1, best) .. "\n" .. table.concat(words, " ", best + 1)
+end
+
 local function stackDisplayName(stack)
 	if stack and stack.Gear then
 		local gear = gearInfo(stack.Gear)
@@ -728,7 +751,7 @@ renderHotbar = function()
 			local count = slot:FindFirstChild("CountLabel")
 			if count then count.Text = stack and ("x" .. stack.Count) or "" end
 			local nameLabel = slot:FindFirstChild("ToolName")
-			if nameLabel then nameLabel.Text = stack and stackDisplayName(stack) or "" end
+			if nameLabel then cellName(nameLabel, stack and stackDisplayName(stack) or "") end
 			local stroke = slot:FindFirstChildWhichIsA("UIStroke")
 			if stroke then
 				-- Слот, который сейчас В РУКАХ, подсвечивается тем же
@@ -1258,7 +1281,7 @@ renderGrid = function()
 				highlight.Thickness = held and SLOT_EQUIP_THICKNESS or 1
 			end
 			local nameLabel = cell:FindFirstChild("ToolName")
-			if nameLabel then nameLabel.Text = stackDisplayName(gearStack) end
+			if nameLabel then cellName(nameLabel, stackDisplayName(gearStack)) end
 			local countText = cell:FindFirstChild("CountLabel")
 			if countText then countText.Text = "x" .. tostring(gearStack.Count) end
 			applyPreview(cell:FindFirstChild("Preview"), gearStack)
@@ -1310,7 +1333,7 @@ renderGrid = function()
 			end
 		end
 		local nameLabel = cell:FindFirstChild("ToolName")
-		if nameLabel then nameLabel.Text = stackDisplayName(stack) end
+		if nameLabel then cellName(nameLabel, stackDisplayName(stack)) end
 		local countText = cell:FindFirstChild("CountLabel")
 		if countText then countText.Text = "x" .. tostring(stack.Count) end
 		applyPreview(cell:FindFirstChild("Preview"), stack)

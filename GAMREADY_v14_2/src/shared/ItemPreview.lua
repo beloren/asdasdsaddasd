@@ -166,7 +166,9 @@ function ItemPreview.Build(item)
 		model = money(item.Index or (item.Jackpot and 3) or 1)
 	elseif kind == "Essence" then
 		local mutation = Config.Mutations[item.Mutation]
-		model = vial(mutation and mutation.Color or Color3.fromRGB(200, 120, 255))
+		-- v20.84: эссенция - та же бутылочка из кубов со студами, что и зелья
+		local okPotion, potion = pcall(PlaceholderFactory.PotionModel, "Essence_" .. tostring(item.Mutation), mutation and mutation.Color)
+		model = okPotion and potion or vial(mutation and mutation.Color or Color3.fromRGB(200, 120, 255))
 	elseif kind == "Heart" then
 		model = heart()
 	elseif kind == "Skin" then
@@ -195,9 +197,10 @@ function ItemPreview.Build(item)
 				end
 			end
 		else
+			-- v20.84: кубы со студами (как весь мусор)
 			model = Instance.new("Model")
-			part(model, "Rock", Enum.PartType.Ball, Vector3.new(1, 0.8, 0.9), Color3.fromRGB(125, 120, 115), Enum.Material.Slate)
-			part(model, "Can", Enum.PartType.Cylinder, Vector3.new(0.9, 0.5, 0.5), Color3.fromRGB(200, 30, 40), Enum.Material.Metal, CFrame.new(0.8, 0.2, 0) * CFrame.Angles(0, 0, math.rad(80)))
+			PlaceholderFactory.StudBlock(model, "Rock", Vector3.new(0.9, 0.7, 0.8), CFrame.new(), Color3.fromRGB(125, 120, 115))
+			PlaceholderFactory.StudBlock(model, "Can", Vector3.new(0.5, 0.85, 0.5), CFrame.new(0.8, 0.2, 0) * CFrame.Angles(0, 0, math.rad(15)), Color3.fromRGB(200, 30, 40))
 		end
 	end
 	if not model then

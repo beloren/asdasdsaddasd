@@ -342,50 +342,29 @@ end
 -- плейсхолдер из нескольких деталей: кость, осколки, камень, банка, утка.
 -- Формат как у руды: Model с PrimaryPart "Root", остальное приварено.
 --------------------------------------------------------------------------------
-local function junkModel(oreInfo)
-	local model = Instance.new("Model")
-	model.Name = "Crystal"
-	local function piece(name, shape, size, color, material, offset)
-		local part = newPart({
-			Name = name, Shape = shape, Size = size, Color = color,
-			Material = material or Enum.Material.SmoothPlastic, Anchored = false,
-		})
-		part.CFrame = offset or CFrame.new()
-		part.Parent = model
-		return part
-	end
-	local key = oreInfo.Key
-	local root
-	if key == "Junk_DogBone" then
-		local bone = Color3.fromRGB(240, 232, 210)
-		root = piece("Root", Enum.PartType.Cylinder, Vector3.new(1.4, 0.32, 0.32), bone)
-		for _, x in { -0.7, 0.7 } do
-			for _, z in { -0.16, 0.16 } do
-				piece("Knob", Enum.PartType.Ball, Vector3.new(0.42, 0.42, 0.42), bone, nil, CFrame.new(x, 0, z))
-			end
-		end
-	elseif key == "Junk_AncientShards" then
-		local clay = Color3.fromRGB(150, 175, 170)
-		root = piece("Root", Enum.PartType.Block, Vector3.new(0.7, 0.18, 0.55), clay, Enum.Material.Slate)
-		piece("Shard", Enum.PartType.Wedge, Vector3.new(0.18, 0.5, 0.45), clay:Lerp(Color3.new(0, 0, 0), 0.15), Enum.Material.Slate, CFrame.new(0.35, 0.2, 0.1) * CFrame.Angles(0, 0.6, 0.3))
-		piece("Shard", Enum.PartType.Wedge, Vector3.new(0.16, 0.4, 0.5), Color3.fromRGB(190, 120, 80), Enum.Material.Slate, CFrame.new(-0.3, 0.16, -0.15) * CFrame.Angles(0.3, -0.8, 0))
-	elseif key == "Junk_ColaCan" then
-		root = piece("Root", Enum.PartType.Cylinder, Vector3.new(0.95, 0.55, 0.55), Color3.fromRGB(200, 30, 40), Enum.Material.Metal, CFrame.Angles(0, 0, math.rad(90)))
-		piece("Lid", Enum.PartType.Cylinder, Vector3.new(0.06, 0.5, 0.5), Color3.fromRGB(200, 200, 205), Enum.Material.Metal, CFrame.new(0, 0.5, 0) * CFrame.Angles(0, 0, math.rad(90)))
-		piece("Stripe", Enum.PartType.Cylinder, Vector3.new(0.2, 0.56, 0.56), Color3.fromRGB(245, 245, 245), Enum.Material.SmoothPlastic, CFrame.new(0, 0.05, 0) * CFrame.Angles(0, 0, math.rad(90)))
-	elseif key == "Junk_RubberDuck" then
-		local yellow = Color3.fromRGB(255, 215, 40)
-		root = piece("Root", Enum.PartType.Ball, Vector3.new(0.9, 0.9, 0.9), yellow)
-		piece("Head", Enum.PartType.Ball, Vector3.new(0.55, 0.55, 0.55), yellow, nil, CFrame.new(0, 0.5, -0.25))
-		piece("Beak", Enum.PartType.Wedge, Vector3.new(0.3, 0.12, 0.25), Color3.fromRGB(255, 130, 30), nil, CFrame.new(0, 0.46, -0.6) * CFrame.Angles(0, math.pi, 0))
-		for _, x in { -0.14, 0.14 } do
-			piece("Eye", Enum.PartType.Ball, Vector3.new(0.09, 0.09, 0.09), Color3.fromRGB(20, 20, 20), nil, CFrame.new(x, 0.6, -0.48))
-		end
-		piece("Tail", Enum.PartType.Wedge, Vector3.new(0.3, 0.3, 0.25), yellow, nil, CFrame.new(0, 0.25, 0.45))
-	else -- Junk_Rock и всё неизвестное
-		root = piece("Root", Enum.PartType.Ball, Vector3.new(0.95, 0.75, 0.85), oreInfo.Color or Color3.fromRGB(125, 120, 115), Enum.Material.Slate)
-		piece("Chip", Enum.PartType.Block, Vector3.new(0.45, 0.35, 0.4), (oreInfo.Color or Color3.fromRGB(125, 120, 115)):Lerp(Color3.new(0, 0, 0), 0.15), Enum.Material.Slate, CFrame.new(0.3, 0.15, 0.1) * CFrame.Angles(0.4, 0.5, 0.2))
-	end
+-- v20.84: КУБИК СО СТУДАМИ - классический пластик Roblox (сверху/спереди/
+-- сзади Studs, снизу Inlet). Из таких собраны мусор, зелья и амулеты.
+local function studBlock(model, name, size, cf, color)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.CFrame = cf or CFrame.new()
+	p.Color = color
+	p.Material = Enum.Material.Plastic
+	p.TopSurface = Enum.SurfaceType.Studs
+	p.FrontSurface = Enum.SurfaceType.Studs
+	p.BackSurface = Enum.SurfaceType.Studs
+	p.LeftSurface = Enum.SurfaceType.Smooth
+	p.RightSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Inlet
+	p.Anchored = false
+	p.CanCollide = false
+	p.Parent = model
+	return p
+end
+PlaceholderFactory.StudBlock = studBlock
+
+local function weldToRoot(model, root)
 	model.PrimaryPart = root
 	for _, part in model:GetDescendants() do
 		if part:IsA("BasePart") and part ~= root then
@@ -397,7 +376,85 @@ local function junkModel(oreInfo)
 			weld.Parent = root
 		end
 	end
+end
+
+-- МУСОР (Junk_*) - v20.84: только кубы со студами, без шаров и цилиндров.
+local function junkModel(oreInfo)
+	local model = Instance.new("Model")
+	model.Name = "Crystal"
+	local function piece(name, size, color, offset)
+		return studBlock(model, name, size, offset or CFrame.new(), color)
+	end
+	local key = oreInfo.Key
+	local root
+	if key == "Junk_DogBone" then
+		local bone = Color3.fromRGB(240, 232, 210)
+		root = piece("Root", Vector3.new(1.4, 0.3, 0.3), bone)
+		for _, x in { -0.7, 0.7 } do
+			for _, z in { -0.17, 0.17 } do
+				piece("Knob", Vector3.new(0.36, 0.36, 0.36), bone, CFrame.new(x, 0, z))
+			end
+		end
+	elseif key == "Junk_AncientShards" then
+		local clay = Color3.fromRGB(150, 175, 170)
+		root = piece("Root", Vector3.new(0.7, 0.2, 0.55), clay)
+		piece("Shard", Vector3.new(0.2, 0.5, 0.4), clay:Lerp(Color3.new(0, 0, 0), 0.15), CFrame.new(0.35, 0.22, 0.1) * CFrame.Angles(0, 0.6, 0.3))
+		piece("Shard", Vector3.new(0.18, 0.4, 0.45), Color3.fromRGB(190, 120, 80), CFrame.new(-0.3, 0.18, -0.15) * CFrame.Angles(0.3, -0.8, 0))
+	elseif key == "Junk_ColaCan" then
+		-- квадратная банка: красный корпус, белая полоса, серые крышка и дно, язычок
+		root = piece("Root", Vector3.new(0.56, 0.9, 0.56), Color3.fromRGB(200, 30, 40))
+		piece("Stripe", Vector3.new(0.58, 0.2, 0.58), Color3.fromRGB(245, 245, 245), CFrame.new(0, 0.05, 0))
+		piece("Lid", Vector3.new(0.5, 0.08, 0.5), Color3.fromRGB(200, 200, 205), CFrame.new(0, 0.49, 0))
+		piece("Bottom", Vector3.new(0.5, 0.06, 0.5), Color3.fromRGB(170, 170, 175), CFrame.new(0, -0.48, 0))
+		piece("Tab", Vector3.new(0.16, 0.04, 0.22), Color3.fromRGB(215, 215, 220), CFrame.new(0, 0.55, -0.05))
+	elseif key == "Junk_RubberDuck" then
+		local yellow = Color3.fromRGB(255, 215, 40)
+		root = piece("Root", Vector3.new(0.8, 0.6, 1.0), yellow)
+		piece("Head", Vector3.new(0.5, 0.5, 0.5), yellow, CFrame.new(0, 0.5, -0.25))
+		piece("Beak", Vector3.new(0.3, 0.14, 0.24), Color3.fromRGB(255, 130, 30), CFrame.new(0, 0.44, -0.6))
+		for _, x in { -0.14, 0.14 } do
+			piece("Eye", Vector3.new(0.1, 0.1, 0.06), Color3.fromRGB(20, 20, 20), CFrame.new(x, 0.58, -0.51))
+		end
+		piece("Tail", Vector3.new(0.3, 0.26, 0.22), yellow, CFrame.new(0, 0.26, 0.55))
+		for _, x in { -0.42, 0.42 } do
+			piece("Wing", Vector3.new(0.08, 0.34, 0.6), yellow:Lerp(Color3.fromRGB(255, 170, 20), 0.3), CFrame.new(x, 0.02, 0.05))
+		end
+	else -- Junk_Rock и всё неизвестное: груда серых кубиков
+		local stone = oreInfo.Color or Color3.fromRGB(125, 120, 115)
+		root = piece("Root", Vector3.new(0.8, 0.6, 0.7), stone)
+		piece("Chip", Vector3.new(0.45, 0.35, 0.4), stone:Lerp(Color3.new(0, 0, 0), 0.15), CFrame.new(0.3, 0.2, 0.1) * CFrame.Angles(0.4, 0.5, 0.2))
+		piece("Chip", Vector3.new(0.35, 0.3, 0.35), stone:Lerp(Color3.new(1, 1, 1), 0.12), CFrame.new(-0.3, 0.15, -0.15) * CFrame.Angles(-0.3, 0.8, 0.1))
+	end
+	weldToRoot(model, root)
 	return model
+end
+
+-- ЗЕЛЬЕ (Config.Potions, не амулет) - v20.84: бутылочка из кубов со студами:
+-- корпус цвета зелья, светлый блик-полоса, горлышко, пробка, этикетка. Свой
+-- вид - модель "Potion_<Ключ>" или общая "Potion" в Assets.
+-- Возвращает model, root (root - корпус).
+function PlaceholderFactory.PotionModel(key, color)
+	local asset = (key and findAsset("Potion_" .. key)) or findAsset("Potion")
+	if asset and asset:IsA("Model") then
+		local root = asset.PrimaryPart or asset:FindFirstChildWhichIsA("BasePart", true)
+		if root then
+			asset.PrimaryPart = root
+			return asset, root
+		end
+	end
+	if asset then asset:Destroy() end
+	color = color or Color3.fromRGB(200, 120, 255)
+	local model = Instance.new("Model")
+	model.Name = "Potion"
+	local glass = Color3.fromRGB(215, 235, 250)
+	local root = studBlock(model, "Body", Vector3.new(1.0, 1.0, 1.0), CFrame.new(0, 0, 0), color)
+	studBlock(model, "Shine", Vector3.new(0.18, 0.6, 1.02), CFrame.new(-0.34, 0.08, 0), color:Lerp(Color3.new(1, 1, 1), 0.55))
+	studBlock(model, "Label", Vector3.new(0.6, 0.34, 1.04), CFrame.new(0.1, -0.12, 0), Color3.fromRGB(250, 240, 210))
+	studBlock(model, "Shoulder", Vector3.new(0.7, 0.18, 0.7), CFrame.new(0, 0.59, 0), glass)
+	studBlock(model, "Neck", Vector3.new(0.4, 0.3, 0.4), CFrame.new(0, 0.83, 0), glass)
+	studBlock(model, "Cork", Vector3.new(0.46, 0.24, 0.46), CFrame.new(0, 1.1, 0), Color3.fromRGB(150, 95, 55))
+	weldToRoot(model, root)
+	return model, root
 end
 
 function PlaceholderFactory.Junk(oreInfo)
