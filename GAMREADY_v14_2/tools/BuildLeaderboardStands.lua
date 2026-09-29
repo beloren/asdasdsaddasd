@@ -6,11 +6,12 @@
 -- PrestigeStand, DonationStand. В каждой:
 --   Board       - доска: сервер рисует топ-10 на её ПЕРЕДНЕЙ грани (Front);
 --   Plate       - табличка «#1 ник · значение» (тоже передняя грань);
---   StatueSpot  - маркер: здесь встанет серая статуя игрока с 1-го места,
+--   StatueSpot  - маркер: здесь встанет R6-риг игрока с 1-го места,
 --                 смотрит туда же, куда перёд маркера (в игре невидим);
 --   остальное   - декор (столбы, шапка, постамент) - меняй как хочешь.
 -- Сейчас на досках и табличке ПРИМЕР (LeaderboardGui / PlateGui), на
--- постаменте - серый манекен StatuePreview: в игре сервер их заменит.
+-- постаменте - R6-манекен StatuePreview: в игре сервер поставит на его
+-- место R6-риг игрока с 1-го места (с одеждой и аксессуарами).
 --
 -- Двигай/крути/перекрашивай модели как нужно. Главное - не переименовывай
 -- модели и детали Board / Plate / StatueSpot. Старые LeaderboardStands (в
@@ -121,7 +122,7 @@ local function previewPlate(plate, spec)
 	text(frame, "ValueText", spec.Sample, spec.Color, { Position = UDim2.fromScale(0, 0.58), Size = UDim2.fromScale(1, 0.42) })
 end
 
--- Серый манекен R6 на месте статуи (в игре его заменит статуя лидера).
+-- Манекен R6 на месте лидера (в игре его заменит риг игрока с 1-го места).
 local function previewStatue(stand, spot)
 	local rig
 	pcall(function()
@@ -131,7 +132,7 @@ local function previewStatue(stand, spot)
 		-- запасной кубический манекен
 		rig = Instance.new("Model")
 		local function limb(name, size, offset)
-			box(rig, name, size, CFrame.new(offset), Color3.new(), {})
+			box(rig, name, size, CFrame.new(offset), Color3.fromRGB(163, 162, 165), {})
 		end
 		limb("Left Leg", Vector3.new(1, 2, 1), Vector3.new(-0.5, 1, 0))
 		limb("Right Leg", Vector3.new(1, 2, 1), Vector3.new(0.5, 1, 0))
@@ -145,9 +146,7 @@ local function previewStatue(stand, spot)
 		if d:IsA("BasePart") then
 			d.Anchored = true
 			d.CanCollide = false
-			d.Color = Color3.fromRGB(150, 150, 155)
-			d.Material = Enum.Material.Concrete
-		elseif d:IsA("Decal") or d:IsA("Clothing") or d:IsA("BodyColors") or d:IsA("Script") or d:IsA("LocalScript") then
+		elseif d:IsA("Script") or d:IsA("LocalScript") then
 			d:Destroy()
 		end
 	end

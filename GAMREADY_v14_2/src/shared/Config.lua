@@ -24,14 +24,15 @@ Config.Data = {
 Config.Leaderboards = {
 	TopCount = 10,
 	RefreshInterval = 60,
-	StorePrefix = "PvPExtraction_Leaderboard_02", -- текущие глобальные рейтинги
+	-- v20.85: ВАЙП ТОПОВ - новый префикс = новые пустые рейтинги (старые
+	-- «_02» остаются в DataStore, просто больше не читаются).
+	StorePrefix = "PvPExtraction_Leaderboard_03", -- текущие глобальные рейтинги
 	BoardFace = Enum.NormalId.Front,
 	-- v20.82: топы (деньги / престиж / донат) - три стенда в центре города
-	-- (LeaderboardStands, строит tools/BuildIslandMap). Перед каждой доской
-	-- статуя игрока с 1-го места: R6, без одежды, целиком этого цвета.
+	-- (LeaderboardStands, строит tools/BuildIslandMap или
+	-- tools/BuildLeaderboardStands). Перед каждой доской на постаменте -
+	-- R6-риг игрока с 1-го места как есть (одежда, аксессуары).
 	PerPlotBoards = false, -- true - вернуть старые доски у каждой базы
-	StatueColor = Color3.fromRGB(150, 150, 155),
-	StatueMaterial = Enum.Material.Concrete,
 }
 
 --------------------------------------------------------------------------------

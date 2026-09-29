@@ -5,8 +5,8 @@
 -- Workspace/.../LeaderboardStands/<Spec>Stand (строит tools/BuildIslandMap):
 --   Board      - BasePart, на его передней грани рисуется топ-10;
 --   Plate      - табличка на постаменте «#1 ник · значение»;
---   StatueSpot - где стоит СТАТУЯ игрока с 1-го места (R6, серая, без
---                одежды и лица), смотрит туда же, куда деталь.
+--   StatueSpot - где стоит R6-риг игрока с 1-го места (как есть: одежда,
+--                аксессуары), смотрит туда же, куда деталь.
 -- Нет стендов на карте - строятся простые у банка. Доски у баз выключены
 -- (Config.Leaderboards.PerPlotBoards).
 --------------------------------------------------------------------------------
@@ -158,6 +158,16 @@ local function renderBoard(part, spec, entries, errorText)
 	title.Text = spec.Title
 	title.TextColor3 = Color3.fromRGB(20, 22, 26)
 	title.TextSize = 45
+	-- v20.85: шаблон текста делает фон прозрачным - тогда тёмная надпись
+	-- категории сливалась с тёмной доской. Плашка цвета категории - сплошная.
+	title.BackgroundTransparency = 0
+	title.TextScaled = true
+	local titlePad = Instance.new("UIPadding")
+	titlePad.PaddingTop = UDim.new(0, 14)
+	titlePad.PaddingBottom = UDim.new(0, 14)
+	titlePad.Parent = title
+	local titleStroke = title:FindFirstChildWhichIsA("UIStroke")
+	if titleStroke then titleStroke.Enabled = false end
 	title.Parent = background
 
 	local status = errorText or (#entries == 0 and "NO PLAYERS YET" or nil)
@@ -259,50 +269,54 @@ local function fetchEntries(spec)
 end
 
 --------------------------------------------------------------------------------
--- v20.82: СТАТУЯ ТОП-1 - аватар игрока в R6, целиком серый: одежда, лицо,
--- футболка и текстуры аксессуаров сняты, все детали одного цвета.
+-- v20.85: ТОП-1 НА ПОСТАМЕНТЕ - обычный R6-риг игрока как есть (одежда,
+-- лицо, аксессуары, цвета). Корень заякорен, остальное держится на
+-- сварках - поэтому сначала риг ставится в мир, сварки раскладывают
+-- аксессуары и конечности по местам, и только потом ноги сажаются ровно на
+-- постамент (раньше всё якорилось сразу: аксессуары оставались в центре
+-- мира, габарит «растягивался» вниз - и риг висел в воздухе).
 --------------------------------------------------------------------------------
-local function buildStatue(userId)
-	local cfg = Config.Leaderboards
+local function buildRig(userId)
 	local okDesc, description = pcall(Players.GetHumanoidDescriptionFromUserId, Players, userId)
 	if not okDesc or not description then return nil end
-	pcall(function()
-		description.Shirt = 0
-		description.Pants = 0
-		description.GraphicTShirt = 0
-		description.Face = 0
-	end)
 	local okModel, model = pcall(Players.CreateHumanoidModelFromDescription, Players, description, Enum.HumanoidRigType.R6)
 	if not okModel or not model then return nil end
-	local color = cfg.StatueColor or Color3.fromRGB(150, 150, 155)
-	local material = cfg.StatueMaterial or Enum.Material.Concrete
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if not root then
+		model:Destroy()
+		return nil
+	end
 	for _, d in model:GetDescendants() do
-		if d:IsA("Clothing") or d:IsA("ShirtGraphic") or d:IsA("BodyColors") or d:IsA("Decal")
-			or d:IsA("SurfaceAppearance") or d:IsA("Script") or d:IsA("LocalScript") or d:IsA("Sound") then
+		if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("Sound") then
 			d:Destroy()
-		elseif d:IsA("SpecialMesh") then
-			d.TextureId = ""
-			d.VertexColor = Vector3.one
 		elseif d:IsA("BasePart") then
-			d.Color = color
-			d.Material = material
-			d.Anchored = true
-			d.CanCollide = false
+			d.Anchored = d == root
 			d.CanTouch = false
-			d.CastShadow = true
-			if d:IsA("MeshPart") then pcall(function() d.TextureID = "" end) end
 		end
 	end
 	local humanoid = model:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
-		humanoid.PlatformStand = true
-		local animator = humanoid:FindFirstChildOfClass("Animator")
-		if animator then animator:Destroy() end
+		humanoid.BreakJointsOnDeath = false
 	end
-	model.Name = "Statue"
-	return model
+	model.PrimaryPart = root
+	model.Name = "TopPlayer"
+	return model, root
+end
+
+local function feetBottom(model)
+	local lowest = nil
+	for _, name in { "Left Leg", "Right Leg" } do
+		local leg = model:FindFirstChild(name)
+		if leg and leg:IsA("BasePart") then
+			local bottom = leg.Position.Y - leg.Size.Y / 2
+			lowest = lowest and math.min(lowest, bottom) or bottom
+		end
+	end
+	if lowest then return lowest end
+	local boxCF, size = model:GetBoundingBox()
+	return boxCF.Position.Y - size.Y / 2
 end
 
 local function placeStatue(stand, userId)
@@ -310,19 +324,24 @@ local function placeStatue(stand, userId)
 	if stand.Statue then stand.Statue:Destroy() end
 	stand.Statue, stand.StatueUserId = nil, userId
 	if not userId then return end
-	local statue = buildStatue(userId)
-	if not statue then
+	local rig = buildRig(userId)
+	if not rig then
 		stand.StatueUserId = nil -- попробуем в следующий раз
 		return
 	end
 	local spot = stand.Spot
 	local topY = spot.Position.Y + spot.Size.Y / 2
 	local facing = spot.CFrame.LookVector
-	statue:PivotTo(CFrame.lookAt(spot.Position, spot.Position + Vector3.new(facing.X, 0, facing.Z)))
-	local boxCF, size = statue:GetBoundingBox()
-	statue:PivotTo(statue:GetPivot() + Vector3.new(0, topY - (boxCF.Position.Y - size.Y / 2), 0))
-	statue.Parent = stand.Board.Parent
-	stand.Statue = statue
+	local flat = Vector3.new(facing.X, 0, facing.Z)
+	if flat.Magnitude < 0.01 then flat = Vector3.new(0, 0, -1) end
+	-- R6: корень на 3 стада над подошвой - ставим примерно, потом точно.
+	rig:PivotTo(CFrame.lookAt(Vector3.new(spot.Position.X, topY + 3, spot.Position.Z), Vector3.new(spot.Position.X, topY + 3, spot.Position.Z) + flat))
+	rig.Parent = stand.Board.Parent
+	-- дать сваркам разложить конечности и аксессуары
+	for _ = 1, 3 do task.wait() end
+	if not rig.Parent then return end
+	rig:PivotTo(rig:GetPivot() + Vector3.new(0, topY - feetBottom(rig), 0))
+	stand.Statue = rig
 end
 
 local function renderPlate(stand, spec, entry)
