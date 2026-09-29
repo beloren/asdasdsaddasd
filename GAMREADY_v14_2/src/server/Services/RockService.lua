@@ -1897,7 +1897,7 @@ function RockService:_strike(player, value)
 	recordQuality(state, player, score)
 	session.Zones = rollZones(player)
 	if Services.CombatService and Services.CombatService.PlaySwingVisual then
-		Services.CombatService:PlaySwingVisual(player)
+		Services.CombatService:PlaySwingVisual(player, "Boulder")
 	end
 	-- v14: ТЯЖЁЛЫЙ УДАР. Сила зависит от попадания (GradePower), серия
 	-- PERFECT копится для бонуса к луту. Урон применяется не сразу, а через

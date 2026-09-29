@@ -5200,6 +5200,11 @@ Config.Animations = {
 	-- анимаций она сохранена как looped).
 	PickaxeSwingLeft = "rbxassetid://71858763976123",  -- первый замах
 	PickaxeSwingRight = "rbxassetid://121496781019019", -- второй замах (чередуются)
+	-- v20.95: удар ПО ВАЛУНУ — каждый раз случайная из этих двух (только они).
+	-- Замах по воздуху/игрокам остаётся PickaxeSwingLeft/Right. Вставь свои ID;
+	-- пока rbxassetid://0 — по валуну играет обычный замах.
+	BoulderSwingA = "rbxassetid://0",
+	BoulderSwingB = "rbxassetid://0",
 	-- Зацикленная поза только для стоящего на месте игрока с киркой в руке.
 	-- Вставь сюда свой опубликованный Animation ID.
 	PickaxeIdle = "rbxassetid://137263452803702",

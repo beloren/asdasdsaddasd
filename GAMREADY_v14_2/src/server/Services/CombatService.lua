@@ -48,7 +48,7 @@ local function stopSwingAnimations(player, fadeTime)
 	swingPlaybackId[userId] = (swingPlaybackId[userId] or 0) + 1
 	local tracks = animTracks[userId]
 	if tracks then
-		for _, side in { "Left", "Right" } do
+		for _, side in { "Left", "Right", "BoulderA", "BoulderB" } do
 			local track = tracks[side]
 			if track and track.IsPlaying then
 				track:Stop(fadeTime or 0)
@@ -1039,7 +1039,14 @@ function CombatService:_loadSwingAnimations(player, character)
 	disconnectIdleConnections(player)
 
 	local tracks = {}
-	local specs = { Left = Config.Animations.PickaxeSwingLeft, Right = Config.Animations.PickaxeSwingRight }
+	local specs = {
+		Left = Config.Animations.PickaxeSwingLeft,
+		Right = Config.Animations.PickaxeSwingRight,
+		-- v20.95: две вариации ТОЛЬКО для ударов по валуну (PlaySwingVisual
+		-- с kind = "Boulder"). Пустые ID → удар по валуну играет обычный замах.
+		BoulderA = Config.Animations.BoulderSwingA,
+		BoulderB = Config.Animations.BoulderSwingB,
+	}
 	for side, id in specs do
 		id = animationUri(id)
 		if id then
@@ -1954,12 +1961,25 @@ end
 
 -- v8: только анимация + звук замаха (удары мини-игры валуна и броски
 -- динамита — без хитбокса и без кулдауна тула).
-function CombatService:PlaySwingVisual(player)
+-- v20.95: kind = "Boulder" — удар по валуну: случайная из двух вариаций
+-- BoulderSwingA/B (только они). Остальные взмахи — обычный Left/Right.
+function CombatService:PlaySwingVisual(player, kind)
 	local character = player.Character
-	local useLeft = swingSide[player.UserId] ~= false
-	swingSide[player.UserId] = not useLeft
 	local tracks = animTracks[player.UserId]
-	local track = tracks and (useLeft and tracks.Left or tracks.Right)
+	local track
+	if kind == "Boulder" and tracks then
+		local pool = {}
+		if tracks.BoulderA then table.insert(pool, tracks.BoulderA) end
+		if tracks.BoulderB then table.insert(pool, tracks.BoulderB) end
+		if #pool > 0 then
+			track = pool[rng:NextInteger(1, #pool)]
+		end
+	end
+	if not track then
+		local useLeft = swingSide[player.UserId] ~= false
+		swingSide[player.UserId] = not useLeft
+		track = tracks and (useLeft and tracks.Left or tracks.Right)
+	end
 	if track then
 		local playbackId = stopSwingAnimations(player, 0.05)
 		track.Looped = false
