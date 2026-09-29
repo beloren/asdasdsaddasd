@@ -1094,15 +1094,34 @@ local function playHammerSwing(fast, onImpact, speed, hitstop)
 				hammerTrack.Looped = false
 				hammerTrack.Priority = Enum.AnimationPriority.Action4
 			end
-			local connection
-			connection = hammerTrack:GetMarkerReachedSignal(CUT.ImpactMarker or "Hit"):Connect(function()
-				connection:Disconnect()
+			local track = hammerTrack
+			local connection, stepper
+			local function finish()
+				if connection and connection.Connected then connection:Disconnect() end
+				if stepper and stepper.Connected then stepper:Disconnect() end
+				-- молот освободился в момент контакта (темп - от удара, а не от клика)
+				crackTapReadyAt = math.min(crackTapReadyAt, os.clock() + 0.1)
 				impact()
-			end)
-			hammerTrack:Play(0.05, 1, speed)
-			task.delay(math.max(CUT.ImpactDelay or 0.3, (CUT.SwingSeconds or 0.8) * 0.85) / speed, function()
-				if connection.Connected then connection:Disconnect() end
-				impact()
+			end
+			connection = track:GetMarkerReachedSignal(CUT.ImpactMarker or "Hit"):Connect(finish)
+			track:Play(0.05, 1, speed)
+			track.TimePosition = 0
+			-- v20.96: ТЕМП ЗАМАХА. До контакта с жеодой (маркер ImpactMarker,
+			-- иначе доля ImpactAt от длины клипа) анимация идёт обычно, в
+			-- середине замаха ЗАМИРАЕТ почти в стоп (SlowSpeed), а прямо перед
+			-- ударом РЕЗКО разгоняется (RushSpeed). Следующий клик - после удара.
+			crackTapReadyAt = math.max(crackTapReadyAt, os.clock() + 5)
+			local startedAt = os.clock()
+			local slowFrom, slowTo = CUT.SwingSlowFrom or 0.35, CUT.SwingSlowTo or 0.75
+			stepper = RunService.Heartbeat:Connect(function()
+				if not track.IsPlaying or os.clock() - startedAt > 4 then finish(); return end
+				local length = track.Length
+				if length <= 0 then return end -- клип ещё грузится
+				local impactT = length * (CUT.ImpactAt or 0.5)
+				local t = track.TimePosition / impactT
+				if t >= 1 then finish(); return end
+				local k = t < slowFrom and 1 or t < slowTo and (CUT.SwingSlowSpeed or 0.35) or (CUT.SwingRushSpeed or 2.2)
+				track:AdjustSpeed(speed * k)
 			end)
 		end)
 		if ok then return end

@@ -112,6 +112,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(script.Parent.Config)
 local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей
+local StudTexture = require(script.Parent.StudTexture) -- v20.96: текстура стадов на предметах
 
 -- Защита от рассинхрона (см. тот же приём в BuildUIAssets.lua/CustomCartUI.client.lua) —
 -- если Config.lua ещё старой версии без Config.NpcBillboard, подставляем
@@ -360,9 +361,11 @@ local function studBlock(model, name, size, cf, color)
 	p.Anchored = false
 	p.CanCollide = false
 	p.Parent = model
+	StudTexture.ApplyPart(p)
 	return p
 end
 PlaceholderFactory.StudBlock = studBlock
+PlaceholderFactory.ApplyStudTexture = StudTexture.Apply
 
 local function weldToRoot(model, root)
 	model.PrimaryPart = root
@@ -647,6 +650,7 @@ function PlaceholderFactory.CharmModel(key, color)
 	block("LoopLeft", Vector3.new(0.12, 0.3, 0.14), CFrame.new(-0.19, 0.85, 0), gold)
 	block("LoopRight", Vector3.new(0.12, 0.3, 0.14), CFrame.new(0.19, 0.85, 0), gold)
 	model.PrimaryPart = root
+	StudTexture.Apply(model)
 	return model, root
 end
 

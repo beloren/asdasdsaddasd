@@ -31,6 +31,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local BigNum = require(ReplicatedStorage.Shared.BigNum)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
+local NpcIdle = require(ReplicatedStorage.Shared.NpcIdle) -- v20.96: стойка торговца
 local PlaceableCatalog = require(ReplicatedStorage.Shared.PlaceableCatalog)
 
 local MerchantService = {}
@@ -848,6 +849,7 @@ function MerchantService:_spawnNpc()
 	end
 	removeSlimeLeftovers(model)
 	model.Parent = workspace
+	task.defer(NpcIdle.Play, model, "BankMerchant")
 
 	local anchor = model:FindFirstChild("PromptAnchor", true) or model.PrimaryPart
 		or model:FindFirstChildWhichIsA("BasePart", true)

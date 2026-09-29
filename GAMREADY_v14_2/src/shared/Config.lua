@@ -5193,6 +5193,28 @@ Config.CameraLandBob = {
 	PitchDegrees = 1.2,   -- лёгкий кивок вниз вместе с проседанием
 }
 
+-- v20.96: ПОСТОЯННАЯ СТОЙКА НПС (см. src/shared/NpcIdle.lua). ID кладётся в
+-- модель как Animation "IdleAnimation"; играет, если в модели есть Humanoid
+-- или AnimationController (твой риг вместо плейсхолдера). 0 - без стойки.
+Config.NpcIdleAnimations = {
+	MinerNPC = "rbxassetid://135179224993807",        -- шахтёр у шахты
+	BankMerchant = "rbxassetid://99114631993170",     -- продавец потайной лавки (Ore Merchant)
+	IslandKeeperNPC = "rbxassetid://91690783976536",  -- продавец островов
+}
+
+-- v20.96: ТЕКСТУРА СТАДОВ на всех плейсхолдер-предметах (зелья, амулеты,
+-- мусор, тотемы, декор, реликвии, сундуки) - src/shared/StudTexture.lua.
+-- Вставь ID картинки стада (один стад на тайл). Пока 0 - Texture висят
+-- пустые (видны поверхности Studs). Enabled = false - не вешать совсем.
+Config.StudTexture = {
+	Enabled = true,
+	Id = "rbxassetid://0",
+	StudsPerTile = 1,      -- размер одного тайла текстуры в стадах
+	Transparency = 0,
+	Color = Color3.new(1, 1, 1),
+	Faces = { "Top", "Front", "Back", "Left", "Right" },
+}
+
 Config.Animations = {
 	-- Играются один раз за удар (track.Looped = false выставляется в
 	-- CombatService:_loadSwingAnimations принудительно — код изнутри
@@ -5203,11 +5225,11 @@ Config.Animations = {
 	-- v20.95: удар ПО ВАЛУНУ — каждый раз случайная из этих двух (только они).
 	-- Замах по воздуху/игрокам остаётся PickaxeSwingLeft/Right. Вставь свои ID;
 	-- пока rbxassetid://0 — по валуну играет обычный замах.
-	BoulderSwingA = "rbxassetid://0",
-	BoulderSwingB = "rbxassetid://0",
+	BoulderSwingA = "rbxassetid://79410872721575",
+	BoulderSwingB = "rbxassetid://78842383305802",
 	-- Зацикленная поза только для стоящего на месте игрока с киркой в руке.
 	-- Вставь сюда свой опубликованный Animation ID.
-	PickaxeIdle = "rbxassetid://137263452803702",
+	PickaxeIdle = "rbxassetid://77072500207426",
 
 	-- Пока тележка в руках — подменяют штатные Idle/Walk (Priority.Action,
 	-- перебивают дефолтную анимацию персонажа). Любой ID можно оставить
@@ -7064,8 +7086,17 @@ Config.GeodeCutscene = {
 	-- Пока ID удара 0 - игрок замахивается рукой сам (ArmSwing): рука вверх
 	-- (SwingUpAngle) -> удар (SwingDownAngle) -> стойка (HoldAngle), молот
 	-- в кисти летит вместе с рукой.
-	HammerAnimationId = 0,
+	HammerAnimationId = 74242390785908,
 	IdleAnimationId = 0,
+	-- v20.96: ТЕМП ЗАМАХА (доли пути до контакта с жеодой). Контакт - маркер
+	-- ImpactMarker в анимации, иначе ImpactAt от длины клипа. От SwingSlowFrom
+	-- до SwingSlowTo анимация идёт медленно (SwingSlowSpeed), потом рывком
+	-- (SwingRushSpeed) до удара, после удара - обычная скорость.
+	ImpactAt = 0.5,
+	SwingSlowFrom = 0.35,
+	SwingSlowTo = 0.75,
+	SwingSlowSpeed = 0.35,
+	SwingRushSpeed = 2.2,
 	ArmSwing = true,
 	SwingUpAngle = 165,
 	SwingDownAngle = 55,

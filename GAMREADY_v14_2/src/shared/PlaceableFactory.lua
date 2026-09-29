@@ -15,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(script.Parent.Config)
 local PlaceableCatalog = require(script.Parent.PlaceableCatalog)
+local StudTexture = require(script.Parent.StudTexture) -- v20.96: текстура стадов на плейсхолдерах
 
 local PlaceableFactory = {}
 
@@ -614,6 +615,7 @@ local function buildRelicPlaceholder(relicId, info)
 	for _, p in objectParts do p.Parent = model end
 	model.PrimaryPart = root
 	model.WorldPivot = CFrame.new(0, 0, 0)
+	StudTexture.Apply(model)
 	light(focus, info.Color, 2.5, 16)
 	sparkles(focus, info.Color, 8, 0.35)
 	-- Второй слой — медленный «ореол», чтобы трофей светился даже днём.
@@ -664,6 +666,7 @@ function PlaceableFactory.BuildItem(itemId)
 			local builder = DECOR_BUILDERS[info.Type]
 			model = builder and builder() or nil
 		end
+		StudTexture.Apply(model)
 	end
 	if not model then return nil end
 	model.Name = itemId
@@ -755,6 +758,7 @@ function PlaceableFactory.BuildChest(rarity)
 	lid.Material = Enum.Material.Metal
 	lid.CFrame = body.CFrame * CFrame.new(0, 1.35, 0)
 	lid.Parent = model
+	StudTexture.Apply(model)
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = body
 	weld.Part1 = lid

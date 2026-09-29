@@ -31,6 +31,7 @@ local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
+local NpcIdle = require(ReplicatedStorage.Shared.NpcIdle) -- v20.96: стойка хранителя островов
 local BigNum = require(ReplicatedStorage.Shared.BigNum)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 
@@ -1454,6 +1455,8 @@ function IslandService:_spawnKeeper()
 			end
 		end
 	end
+
+	task.defer(NpcIdle.Play, npc, "IslandKeeperNPC")
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "IslandKeeperPrompt"

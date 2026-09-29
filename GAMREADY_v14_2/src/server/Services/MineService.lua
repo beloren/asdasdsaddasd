@@ -54,6 +54,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
+local NpcIdle = require(ReplicatedStorage.Shared.NpcIdle) -- v20.96: стойка шахтёра
 local CrystalUtil = require(ReplicatedStorage.Shared.CrystalUtil)
 local Sfx = require(ReplicatedStorage.Shared.Sfx)
 local MineVeinMath = require(ReplicatedStorage.Shared.MineVeinMath)
@@ -500,7 +501,11 @@ function MineService:SetupPlot(player, plot)
 	npc.Parent = plot.Content
 	stabilizeNpc(npc, plot.MinerGroundY or (plot.Pad.Position.Y + plot.Pad.Size.Y / 2), isCustom)
 	pcall(pinNameTag, npc)
-	if isCustom then task.defer(startNpcIdle, npc) end
+	-- v20.96: стойка Config.NpcIdleAnimations.MinerNPC (своя Animation
+	-- "IdleAnimation" в модели главнее); нет её - idle из Animate, как раньше.
+	task.defer(function()
+		if not NpcIdle.Play(npc, "MinerNPC") and isCustom then startNpcIdle(npc) end
+	end)
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ObjectText = ""
