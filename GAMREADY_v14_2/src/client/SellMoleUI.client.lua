@@ -240,7 +240,11 @@ local function animate(model)
 	if not model.Parent then return end
 	local base = model:GetPivot()
 	local _, size = model:GetBoundingBox()
-	local depth = math.max(tonumber(cfg.Depth) or 12, size.Y + 0.6) -- v20.118: глубоко под землёй
+	-- v20.119: крот ВСЁ ВРЕМЯ в земле - наружу выходит только верх модели
+	-- (голова и плечи) высотой VisibleHeight; спрятан - целиком под землёй.
+	local depth = size.Y + 0.6
+	local visible = tonumber(cfg.VisibleHeight) or 11
+	local risen = -math.max(0, size.Y - visible)
 	local groundY = tonumber(model:GetAttribute("GroundY")) or base.Position.Y
 	local holeCenter = Vector3.new(base.Position.X, groundY, base.Position.Z)
 	-- v20.118: «дыхание» - растяжение по вертикали (ширина в обратную
@@ -293,7 +297,7 @@ local function animate(model)
 	end)
 	model:PivotTo(base + Vector3.new(0, -depth, 0))
 	dirtBurst(holeCenter, false)
-	local rise = TweenService:Create(offset, TweenInfo.new(cfg.RiseSeconds or 0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Value = 0 })
+	local rise = TweenService:Create(offset, TweenInfo.new(cfg.RiseSeconds or 0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Value = risen })
 	rise:Play()
 	rise.Completed:Once(function()
 		if alive then bobbing = true; t0 = os.clock() end
