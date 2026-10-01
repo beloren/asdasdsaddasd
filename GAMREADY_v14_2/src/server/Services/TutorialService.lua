@@ -108,6 +108,9 @@ function TutorialService:Init(services)
 			-- обновления прогресса.
 			self:_push(player)
 			self:_setHiddenUi(player, self:IsActive(player))
+		elseif action == "UiHintSeen" and typeof(value) == "string" then
+			-- v20.121: курсор-подсказка «куда нажать» показана ещё раз
+			self:_uiHintSeen(player, value)
 		elseif action == "UiFlag" and typeof(value) == "string" then
 			-- v20.110: клиентское событие (открыл квесты/компас) - только из списка
 			if table.find(Config.Tutorial.ClientFlags or {}, value) then
@@ -159,9 +162,29 @@ function TutorialService:Start()
 	end)
 end
 
+-- v20.121: ПОВТОРНЫЕ ПОДСКАЗКИ КУРСОРОМ (Config.Tutorial.UiHints) - первые
+-- Times раз курсор показывает, куда нажать, даже вне обучения. Счётчик в
+-- профиле (data.UiHintCounts), клиенту - атрибутом UiHint_<Id>.
+function TutorialService:_uiHintSeen(player, id)
+	local spec
+	for _, hint in Config.Tutorial.UiHints or {} do
+		if hint.Id == id then spec = hint break end
+	end
+	if not spec then return end
+	local data = Services.DataService:GetGeodeData(player)
+	if not data then return end
+	if type(data.UiHintCounts) ~= "table" then data.UiHintCounts = {} end
+	local count = math.min((tonumber(data.UiHintCounts[id]) or 0) + 1, (spec.Times or 3) + 1)
+	data.UiHintCounts[id] = count
+	player:SetAttribute("UiHint_" .. id, count)
+end
+
 function TutorialService:SetupPlayer(player)
 	local data = Services.DataService:GetGeodeData(player)
 	if not data then return end
+	for id, count in (type(data.UiHintCounts) == "table" and data.UiHintCounts) or {} do
+		if typeof(id) == "string" then player:SetAttribute("UiHint_" .. id, tonumber(count) or 0) end
+	end
 
 	-- Флаг починки шахты восходит к профилю, а не к тиру: тир шахты у
 	-- нового игрока и так 1 (MineIndex = 0), и отличить "тир 1, потому что
@@ -913,6 +936,40 @@ TutorialService.Checks = {
 	HasCrystal = function(_, player)
 		local data = Services.DataService:GetGeodeData(player)
 		return data ~= nil and type(data.GeodeCollection) == "table" and next(data.GeodeCollection) ~= nil
+	end,
+	-- v20.121: проверки для глав «новая механика»
+	CarryingCrystal = function(_, player)
+		local carrying = player:GetAttribute("CarryingCrystal")
+		return typeof(carrying) == "string" and carrying ~= ""
+	end,
+	NotCarryingCrystal = function(_, player)
+		local carrying = player:GetAttribute("CarryingCrystal")
+		return not (typeof(carrying) == "string" and carrying ~= "")
+	end,
+	HasTotemItem = function(_, player)
+		local data = Services.DataService:GetGeodeData(player)
+		for key, count in (data and data.Gear) or {} do
+			if typeof(key) == "string" and key:match("^Totem_") and (tonumber(count) or 0) > 0 then return true end
+		end
+		return false
+	end,
+	TotemPlacedAny = function(_, player)
+		local data = Services.DataService:GetGeodeData(player)
+		for _, record in (data and data.PlacedDecor) or {} do
+			if type(record) == "table" and typeof(record.Item) == "string" and record.Item:match("^Totem_") then return true end
+		end
+		return false
+	end,
+	HasDynamite = function(_, player)
+		local data = Services.DataService:GetGeodeData(player)
+		for key, count in (data and data.Gear) or {} do
+			if typeof(key) == "string" and key:match("^Dynamite") and (tonumber(count) or 0) > 0 then return true end
+		end
+		return false
+	end,
+	SafeHasMoney = function(_, player)
+		local data = Services.DataService:GetGeodeData(player)
+		return data ~= nil and (tonumber(data.GeodeSafeBalance) or 0) >= 1
 	end,
 	CrystalOnPodium = function(_, player)
 		local data = Services.DataService:GetGeodeData(player)

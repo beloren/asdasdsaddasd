@@ -144,6 +144,8 @@ remote.OnClientEvent:Connect(function(action, payload)
 	end
 	-- v16: удачный момент — предложение от SocialOfferService.
 	if action == "Offer" then
+		-- v20.121: во время обучения окно не выскакивает
+		if player:GetAttribute("NeedsTutorial") == true or player:GetAttribute("TutorialChapter") ~= nil then return end
 		if not state.Claimed then showPopup() end
 		return
 	end

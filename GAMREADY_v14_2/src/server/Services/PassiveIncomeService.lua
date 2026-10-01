@@ -474,6 +474,7 @@ function PassiveIncomeService:Collect(player)
 	-- если игрок РЕАЛЬНО собрал деньги из сейфа, это тоже засчитывает шаг
 	-- гайда, не только явный клик по кнопке.
 	player:SetAttribute("TutorialSafeCollected", true)
+	if Services.TutorialService then pcall(Services.TutorialService.Count, Services.TutorialService, player, "SafeCollected", 1) end -- v20.121: глава «сейф»
 	local display = displays[player]
 	Sfx.play("SafeCollect", display and display.Safe)
 	-- v20.23: сейф «пружинит» (client/SafeBounceFX) — счётчик, чтобы каждый

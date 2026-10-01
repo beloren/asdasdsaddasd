@@ -383,7 +383,9 @@ function BankService:Start()
 				if playerInZone and Services.CrystalService then
 					Services.CrystalService:ClearStolenGeodeVisuals(player)
 				end
-				if playerInZone and Services.RockService and Services.RockService:GetCarrying(player)
+				-- v20.121: с кротом кристалл сдаётся кнопкой у крота (SellMoleService)
+				local moleTakesCrystal = Config.SellMole and Config.SellMole.Enabled and Config.SellMole.CrystalDeposit ~= false
+				if playerInZone and not moleTakesCrystal and Services.RockService and Services.RockService:GetCarrying(player)
 					and not depositingRubbleCrystal[player.UserId]
 					and player:GetAttribute("EconomyTransactionLocked") ~= true
 				then

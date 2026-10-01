@@ -15,15 +15,21 @@
 --
 -- КОНТРАКТ ИМЁН (по ним клиент находит элементы; переименование молча
 -- сломает показ):
---   Dialog → Nameplate/Speaker, Portrait, Body, Continue, AdvanceArea
+--   Dialog → Character, Board → Nameplate/Speaker, Portrait, Body, Continue, AdvanceArea
 --   Task   → Title, Body, Skip
+--   v20.121: ВСЁ, ЧТО ВИДНО В ОБУЧЕНИИ, - ImageLabel-ы этого билдера (замени
+--   Image в StarterGui/TutorialUi - клиент возьмёт твою картинку):
+--   Pointer   - курсор-указатель (экранный и 3D над целью в мире)
+--   Ripple    - кружок-волна от «нажатия» курсора
+--   WorldArrow - стрелка над целью (если Config.Tutorial.Cursor3D = false)
+--   Task      - плашка задания (ImageLabel, своя картинка - Image)
 --------------------------------------------------------------------------------
 
 local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local TutorialUiBuilder = {}
-TutorialUiBuilder.VERSION = 22
+TutorialUiBuilder.VERSION = 23
 
 -- narrow = true для узкого экрана (телефон). Влияет только на стартовые
 -- размеры; клиент пересчитывает их сам при смене размера окна.
@@ -152,6 +158,33 @@ function TutorialUiBuilder.Build(narrow)
 	fallback.TextScaled = true
 	fallback.ZIndex = 21
 	fallback.Parent = pointer
+
+	-- v20.121: ВОЛНА ОТ НАЖАТИЯ КУРСОРА. Пустой Image - золотой круг;
+	-- своя картинка - замени Image (кольцо, звёздочка...).
+	local ripple = Instance.new("ImageLabel")
+	ripple.Name = "Ripple"
+	ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+	ripple.Size = UDim2.fromOffset(58, 58)
+	ripple.BackgroundColor3 = Theme.Accents.Gold.Main
+	ripple.BackgroundTransparency = 1
+	ripple.Image = ""
+	ripple.ScaleType = Enum.ScaleType.Fit
+	ripple.Visible = false
+	ripple.ZIndex = 19
+	ripple.Parent = gui
+	UiKit.Corner(ripple, 999)
+	UiKit.Stroke(ripple, Theme.Accents.Gold.Main, 3, 0, "Outline")
+
+	-- v20.121: СТРЕЛКА НАД ЦЕЛЬЮ В МИРЕ (когда 3D-курсор выключен). Пустой
+	-- Image - нарисованный шеврон вниз.
+	local worldArrow = Instance.new("ImageLabel")
+	worldArrow.Name = "WorldArrow"
+	worldArrow.BackgroundTransparency = 1
+	worldArrow.Size = UDim2.fromOffset(64, 64)
+	worldArrow.Image = ""
+	worldArrow.ScaleType = Enum.ScaleType.Fit
+	worldArrow.Visible = false
+	worldArrow.Parent = gui
 
 	-- СВЁРНУТАЯ ПЛАШКА-ЗАДАНИЕ
 	local task_ = UiKit.Card(gui, "Task", "Gold", {

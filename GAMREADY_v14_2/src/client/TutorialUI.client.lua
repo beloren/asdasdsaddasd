@@ -26,6 +26,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -173,7 +174,20 @@ worldArrowLabel.TextScaled = true
 worldArrowLabel.Text = ""
 worldArrowLabel.Parent = worldArrow
 -- v20.9: стрелка — фигура (символа ▼ в шрифтах Roblox нет → «квадратик»).
-require(game:GetService("ReplicatedStorage").Shared.UiKit).GlyphToShape(worldArrowLabel, "ChevronDown")
+-- v20.121: в билдере есть ImageLabel "WorldArrow" со своей картинкой - берём её.
+local worldArrowTemplate = gui:FindFirstChild("WorldArrow")
+if worldArrowTemplate and worldArrowTemplate:IsA("ImageLabel") and worldArrowTemplate.Image ~= "" then
+	local image = worldArrowTemplate:Clone()
+	image.Name = "Image"
+	image.AnchorPoint = Vector2.zero
+	image.Position = UDim2.new()
+	image.Size = UDim2.fromScale(1, 1)
+	image.Visible = true
+	image.Parent = worldArrow
+	worldArrowLabel.Visible = false
+else
+	require(game:GetService("ReplicatedStorage").Shared.UiKit).GlyphToShape(worldArrowLabel, "ChevronDown")
+end
 
 local trailGroundAnchor = Instance.new("Part")
 trailGroundAnchor.Name = "TutorialTrailGroundAnchor"
@@ -681,6 +695,12 @@ local function targetPosition(instance)
 	if instance:IsA("BasePart") then
 		return instance.Position + Vector3.new(0, instance.Size.Y * 0.5, 0)
 	elseif instance:IsA("Model") then
+		-- v20.121: остров - курсор над его поверхностью, а не над самой
+		-- высокой деталью (деревья, невидимые зоны)
+		local surface = instance:GetAttribute("IslandId") and instance:FindFirstChild("Surface")
+		if surface and surface:IsA("BasePart") then
+			return surface.Position + Vector3.new(0, surface.Size.Y * 0.5, 0)
+		end
 		local ok, cframe, size = pcall(function()
 			local c, s = instance:GetBoundingBox()
 			return c, s
@@ -800,13 +820,22 @@ cursor.Parent = cursorLayer
 local cursorScale = Instance.new("UIScale") -- свой UIScale: ResponsiveUi его не трогает
 cursorScale.Name = "Press"
 cursorScale.Parent = cursor
-local cursorImage = Instance.new("ImageLabel")
+-- v20.121: картинка курсора - КОПИЯ ImageLabel "Pointer" из билдера
+-- (StarterGui/TutorialUi): поменял там Image/цвет/обрезку - поменялся курсор.
+local cursorImage = pointer and pointer:IsA("ImageLabel") and pointer:Clone() or Instance.new("ImageLabel")
+for _, child in cursorImage:GetChildren() do
+	if child.Name == "Fallback" then child:Destroy() end
+end
 cursorImage.Name = "Image"
+cursorImage.AnchorPoint = Vector2.zero
+cursorImage.Position = UDim2.new()
+cursorImage.Rotation = 0
 cursorImage.BackgroundTransparency = 1
 cursorImage.Size = UDim2.fromScale(1, 1)
 cursorImage.ScaleType = Enum.ScaleType.Fit
+cursorImage.Visible = true
 cursorImage.ZIndex = 10001
-cursorImage.Image = (pointer and pointer.Image ~= "" and pointer.Image) or imageUri(TUT.PointerImageId) or ""
+if cursorImage.Image == "" then cursorImage.Image = imageUri(TUT.PointerImageId) or "" end
 cursorImage.Parent = cursor
 if cursorImage.Image == "" then
 	-- плейсхолдер: рука-эмодзи, остриё (палец) сверху по центру
@@ -824,20 +853,30 @@ local shadow = Instance.new("UIStroke")
 shadow.Thickness = 0
 shadow.Parent = cursorImage
 
-local ripple = Instance.new("Frame")
+-- v20.121: волна - копия ImageLabel "Ripple" из билдера (своя картинка -
+-- Image там); старая сборка без него - золотой круг.
+local rippleTemplate = gui:FindFirstChild("Ripple")
+local ripple
+if rippleTemplate and rippleTemplate:IsA("GuiObject") then
+	ripple = rippleTemplate:Clone()
+else
+	ripple = Instance.new("Frame")
+	ripple.BackgroundColor3 = TUT.SpotlightColor or Color3.fromRGB(255, 215, 60)
+	ripple.BorderSizePixel = 0
+	Instance.new("UICorner", ripple).CornerRadius = UDim.new(1, 0)
+end
 ripple.Name = "TutorialTapRipple"
 ripple.AnchorPoint = Vector2.new(0.5, 0.5)
-ripple.BackgroundColor3 = TUT.SpotlightColor or Color3.fromRGB(255, 215, 60)
 ripple.BackgroundTransparency = 1
-ripple.BorderSizePixel = 0
 ripple.ZIndex = 9999
 ripple.Visible = false
 ripple:SetAttribute("DisableGlobalHover", true)
 ripple.Parent = cursorLayer
-Instance.new("UICorner", ripple).CornerRadius = UDim.new(1, 0)
-local rippleStroke = Instance.new("UIStroke")
+local rippleHasImage = ripple:IsA("ImageLabel") and ripple.Image ~= ""
+local rippleStroke = ripple:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke")
 rippleStroke.Color = ripple.BackgroundColor3
 rippleStroke.Thickness = 3
+rippleStroke.Enabled = not rippleHasImage
 rippleStroke.Parent = ripple
 local rippleScale = Instance.new("UIScale")
 rippleScale.Parent = ripple
@@ -861,12 +900,17 @@ local function playRipple(at)
 	ripple.Size = UDim2.fromOffset(size, size)
 	ripple.Visible = true
 	-- v20.118: мягче - бледнее, дольше и плавнее расходится
-	ripple.BackgroundTransparency = 0.78
 	rippleStroke.Transparency = 0.35
 	rippleScale.Scale = 0.35
 	local info = TweenInfo.new(0.75, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 	TweenService:Create(rippleScale, info, { Scale = 1.1 }):Play()
-	TweenService:Create(ripple, info, { BackgroundTransparency = 1 }):Play()
+	if rippleHasImage then
+		ripple.ImageTransparency = 0.2
+		TweenService:Create(ripple, info, { ImageTransparency = 1 }):Play()
+	else
+		ripple.BackgroundTransparency = 0.78
+		TweenService:Create(ripple, info, { BackgroundTransparency = 1 }):Play()
+	end
 	TweenService:Create(rippleStroke, info, { Transparency = 1 }):Play()
 end
 
@@ -1009,9 +1053,46 @@ UserInputService.InputBegan:Connect(function(input)
 	end
 end)
 
+-- v20.121: ПОВТОРНЫЕ ПОДСКАЗКИ (Config.Tutorial.UiHints) - вне обучения
+-- первые Times раз курсор тапает в кнопку, пока она на экране. Кнопка
+-- пропала (окно закрыли / нажали) - показ засчитан на сервере.
+local hintTarget, hintId, hintCheckAt = nil, nil, 0
+local function uiHintStep()
+	if os.clock() >= hintCheckAt then
+		hintCheckAt = os.clock() + 0.3
+		local found, foundId = nil, nil
+		for _, hint in TUT.UiHints or {} do
+			if (tonumber(player:GetAttribute("UiHint_" .. tostring(hint.Id))) or 0) < (hint.Times or 3) then
+				local target = TutorialTarget.Find(hint.Targets)
+				if target then found, foundId = target, hint.Id break end
+			end
+		end
+		if hintId and foundId ~= hintId then
+			-- прошлая подсказка ушла с экрана - засчитываем
+			actionRemote:FireServer("UiHintSeen", hintId)
+			player:SetAttribute("UiHint_" .. hintId, (tonumber(player:GetAttribute("UiHint_" .. hintId)) or 0) + 1)
+		end
+		hintTarget, hintId = found, foundId
+	end
+	if hintTarget and hintTarget.Parent and TutorialTarget.Shown(hintTarget) then
+		local okPoint, point = pcall(uiPoint, hintTarget)
+		if okPoint and point then
+			tapAt(point, 0)
+			return true
+		end
+	end
+	return false
+end
+
 RunService.RenderStepped:Connect(function(dt)
 	local active = gui.Enabled and current ~= nil and gateOpen() and current.Phase == "Task"
 	nudgeBoost = math.max(0, nudgeBoost - dt * 0.4)
+	if not active and current == nil and gateOpen() and player:GetAttribute("NeedsTutorial") ~= true
+		and os.clock() >= pausedUntil and uiHintStep() then
+		hide3D()
+		uiPointerActive = false
+		return
+	end
 	if not active or os.clock() < pausedUntil then
 		hideCursor()
 		hide3D()
@@ -1046,7 +1127,21 @@ RunService.RenderStepped:Connect(function(dt)
 	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	local far = hrp and (hrp.Position - position).Magnitude > (tonumber(TUT.FarDistance) or 160)
 	if far then
-		local compass = TutorialTarget.Find({ "Compass" })
+		-- v20.121: окно компаса открыто - тапаем в место, ближайшее к цели
+		-- (если оно ближе к цели, чем игрок сейчас); иначе - в кнопку компаса.
+		local compass = nil
+		local best = (hrp.Position - position).Magnitude
+		for _, candidate in CollectionService:GetTagged(TutorialTarget.TAG) do
+			local where = candidate:IsA("GuiObject") and candidate:GetAttribute("WorldPos")
+			if typeof(where) == "Vector3" and TutorialTarget.Matches(candidate:GetAttribute(TutorialTarget.ATTR), "Compass:*")
+				and TutorialTarget.Shown(candidate) then
+				local distance = (where - position).Magnitude
+				if distance < best then
+					best, compass = distance, candidate
+				end
+			end
+		end
+		compass = compass or TutorialTarget.Find({ "Compass" })
 		if compass and TutorialTarget.Shown(compass) then
 			local okPoint, point = pcall(uiPoint, compass)
 			if okPoint and point then
@@ -1091,6 +1186,26 @@ RunService.RenderStepped:Connect(function(dt)
 		cursor.Position = UDim2.fromOffset(at.X, at.Y)
 		cursor.Visible = true
 		ripple.Visible = false
+	end
+end)
+
+-- v20.121: пока курсор тапает в интерфейс (окно улучшения и т.п.), плашка
+-- задания убрана - она перекрывала кнопки. Курсор ушёл - плашка вернулась.
+local taskHiddenForUi = false
+RunService.RenderStepped:Connect(function()
+	if uiPointerActive then
+		if task_.Visible then
+			task_.Visible = false
+			taskHiddenForUi = true
+		end
+	elseif taskHiddenForUi then
+		taskHiddenForUi = false
+		if task_:GetAttribute("_Shown") == true then
+			local rest = restingPosition(task_)
+			task_.Position = UDim2.new(rest.X.Scale, rest.X.Offset, 1, 90)
+			task_.Visible = true
+			TweenService:Create(task_, ANIM_IN, { Position = rest }):Play()
+		end
 	end
 end)
 

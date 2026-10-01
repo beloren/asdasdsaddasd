@@ -406,7 +406,7 @@ task.spawn(function()
     -- запуска скрипта: раньше 12 с истекали, пока шла загрузка/стриминг рига,
     -- и интро обрывалось, так и не показав катсцену.
     local loadWait = os.clock()
-    while player:GetAttribute("AssetsLoaded") ~= true and os.clock() - loadWait < 130 and not introEnded do
+    while player:GetAttribute("AssetsLoaded") ~= true and os.clock() - loadWait < 40 and not introEnded do
         task.wait(0.25)
     end
     local startedAt = os.clock()
@@ -790,7 +790,7 @@ local function playAnimation()
 
     busy = true
 
-    if not waitForSceneRig(30) then
+    if not waitForSceneRig(15) then -- v20.121: риг теперь Persistent и ждётся на загрузке
         warn("[MoonAnimationTest] Workspace.HumanoidCameraRig.Torso is not available on the client")
         failIntro()
         return
@@ -934,7 +934,7 @@ task.spawn(function()
     -- уже было отключено выше. Отсюда и брался обездвиженный игрок.
     -- По истечении таймаута просто идём дальше: интро либо отработает, либо
     -- честно свалится в failIntro, и в обоих случаях управление вернётся.
-    local ASSETS_WAIT_TIMEOUT = 130 -- v20.120: загрузочный экран грузит всё (до Config.Loading.MaxSeconds)
+    local ASSETS_WAIT_TIMEOUT = 30 -- v20.121: загрузка короткая (только катсцена)
     local waitStarted = os.clock()
     while player:GetAttribute("AssetsLoaded") ~= true
         and os.clock() - waitStarted < ASSETS_WAIT_TIMEOUT do

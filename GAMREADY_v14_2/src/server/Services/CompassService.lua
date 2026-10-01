@@ -29,15 +29,27 @@ local function partPosition(instance)
 	return nil
 end
 
-function CompassService:_centerCFrame()
+function CompassService:_centerCFrame(player)
+	local base
 	local marker = workspace:FindFirstChild(cfg().CenterMarkerName or "CompassCenterMarker", true)
-	if marker and marker:IsA("BasePart") then return marker.CFrame end
-	local zone = Services.WorldService and Services.WorldService:GetSellZone()
-	local position = partPosition(zone)
-	if position then
-		return CFrame.new(position + (cfg().CenterOffset or Vector3.new(0, 0, 18)))
+	if marker and marker:IsA("BasePart") then
+		base = marker.CFrame
+	else
+		local zone = Services.WorldService and Services.WorldService:GetSellZone()
+		local position = partPosition(zone)
+		if not position then return nil end
+		base = CFrame.new(position + (cfg().CenterOffset or Vector3.new(0, 0, 18)))
 	end
-	return nil
+	-- v20.121: не ровно в центр, а чуть в сторону своей базы (TowardBaseStuds)
+	local shift = tonumber(cfg().TowardBaseStuds) or 0
+	local raft = player and shift > 0 and self:_raftCFrame(player)
+	if raft then
+		local flat = Vector3.new(raft.Position.X - base.Position.X, 0, raft.Position.Z - base.Position.Z)
+		if flat.Magnitude > shift * 2 then
+			return base + flat.Unit * shift
+		end
+	end
+	return base
 end
 
 function CompassService:_raftCFrame(player)
@@ -63,7 +75,7 @@ end
 
 function CompassService:Destinations(player)
 	local list = {}
-	local center = self:_centerCFrame()
+	local center = self:_centerCFrame(player)
 	if center then table.insert(list, { Id = "Center", Name = "Merchants", Icon = "🏪", Position = center.Position }) end
 	local raft = self:_raftCFrame(player)
 	if raft then table.insert(list, { Id = "Raft", Name = "My Raft", Icon = "🏠", Position = raft.Position }) end
@@ -92,7 +104,7 @@ function CompassService:Teleport(player, destId)
 	if player:GetAttribute("EconomyTransactionLocked") == true then return false, "Try again" end
 	local target
 	if destId == "Center" then
-		target = self:_centerCFrame()
+		target = self:_centerCFrame(player)
 	elseif destId == "Raft" then
 		target = self:_raftCFrame(player)
 	else

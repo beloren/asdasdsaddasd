@@ -3409,6 +3409,8 @@ end
 	local gridCards = {}
 	local function showDetail(kind)
 		selectedKind = kind
+		-- v20.121: обучение показывает курсором кнопку покупки нужной ветки
+		require(ReplicatedStorage.Shared.TutorialTarget).Mark(actionButton, "UpgradeBuy:" .. tostring(kind))
 		playUiClick()
 		gridView.Visible = false
 		detailView.Visible = true
@@ -3438,6 +3440,7 @@ end
 			isMain and MAIN_CARD_W or SMALL_CARD_W,
 			isMain and MAIN_CARD_H or SMALL_CARD_H)
 		visual.Card.Name = "Card_" .. kind
+		require(ReplicatedStorage.Shared.TutorialTarget).Mark(visual.Card, "UpgradeCard:" .. kind) -- v20.121
 		visual.Card.LayoutOrder = order
 		if isMain then
 			visual.Card.AnchorPoint = Vector2.new(0, 0.5)
@@ -6524,7 +6527,7 @@ local function setupToast()
 			if spec.GeodeType then
 				model = PlaceholderFactory.Geode(spec.GeodeType)
 			elseif spec.OreId then
-				model = PlaceholderFactory.CollectionOre(spec.OreId)
+				model = PlaceholderFactory.CollectionOre(spec.OreId, true)
 			elseif spec.Tier then
 				model = PlaceholderFactory.Crystal(spec.Tier)
 			end

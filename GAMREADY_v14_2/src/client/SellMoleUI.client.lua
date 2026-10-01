@@ -127,7 +127,14 @@ local function openMenu(payload)
 		line ..= ("\n<b>%d/%d</b> ore in your backpack."):format(count, capacity)
 	end
 	typeLine(line)
-	local list = { { Kind = "Yes", Text = "💰 SELL ALL", Value = "All" } }
+	local list = {}
+	-- v20.121: кристалл в руках - первая кнопка «сдать в банк»
+	if payload.Crystal then
+		table.insert(list, { Kind = "Yes", Text = "💎 DEPOSIT CRYSTAL TO BANK", Value = "Crystal" })
+	end
+	if count > 0 then
+		table.insert(list, { Kind = payload.Crystal and "Ask" or "Yes", Text = "💰 SELL ALL", Value = "All" })
+	end
 	if (tonumber(payload.HandCount) or 0) > 0 then
 		table.insert(list, { Kind = "Ask", Text = ("✋ SELL HAND (%d)"):format(payload.HandCount), Value = "Hand" })
 	end

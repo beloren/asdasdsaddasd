@@ -879,7 +879,21 @@ function PlaceholderFactory.DropCube(item, size)
 	return cube
 end
 
-function PlaceholderFactory.CollectionOre(oreId)
+-- v20.121: кристаллы пассивного дохода в МИРЕ (подиум, в руках, на земле)
+-- уменьшены целиком - Config.Geodes.CrystalWorldScale (0.5). Превью в
+-- интерфейсе зовут CollectionOre(oreId, true) - без уменьшения.
+local function scaleCrystal(asset, unscaled)
+	local scale = unscaled and 1 or (tonumber(Config.Geodes.CrystalWorldScale) or 1)
+	if scale == 1 or scale <= 0 then return asset end
+	if asset:IsA("Model") then
+		pcall(asset.ScaleTo, asset, asset:GetScale() * scale)
+	elseif asset:IsA("BasePart") then
+		asset.Size *= scale
+	end
+	return asset
+end
+
+function PlaceholderFactory.CollectionOre(oreId, unscaled)
 	local asset = findAsset("CollectionOre_" .. oreId)
 	if asset then
 		assert(asset:IsA("BasePart") or asset:IsA("Model"), "Collection ore asset must be a BasePart or Model")
@@ -890,7 +904,7 @@ function PlaceholderFactory.CollectionOre(oreId)
 			-- including models such as CollectionOre_Eclipse with nested Root parts.
 			asset.PrimaryPart = root
 		end
-		return asset
+		return scaleCrystal(asset, unscaled)
 	end
 	local info = Config.Geodes.Ores[oreId] or Config.Geodes.Ores.Quartz
 	-- v20.114: не неоновый столбик, а кубик со стадами цвета руды.
@@ -904,7 +918,7 @@ function PlaceholderFactory.CollectionOre(oreId)
 	})
 	cube.TopSurface = Enum.SurfaceType.Studs
 	pcall(StudTexture.ApplyPart, cube)
-	return cube
+	return scaleCrystal(cube, unscaled)
 end
 
 function PlaceholderFactory.GeodeBuilding()

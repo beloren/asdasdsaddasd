@@ -1,12 +1,10 @@
 --------------------------------------------------------------------------------
 -- LoadingScreen (ReplicatedFirst) v20.120 — ЗАГРУЗОЧНЫЙ ЭКРАН ПЕРЕД КАТСЦЕНОЙ.
 --
--- Порядок входа: этот экран грузит ВСЁ (модели и эффекты Assets, все
--- анимации, картинки, декали, текстуры, частицы/VFX, звуки, мир, айди из
--- Config) с полосой прогресса → ждёт, пока появятся риг и сцена катсцены →
--- ставит атрибут AssetsLoaded → катсцена (MoonAnimationTest) стартует на
--- уже загруженном → экран гаснет, когда сцена реально пошла → после
--- катсцены игрок попадает в игру как раньше.
+-- v20.121: КОРОТКАЯ загрузка - только то, что нужно катсцене (риг камеры,
+-- сцена, логотип), до Config.Loading.CutsceneWaitSeconds; есть SKIP. Потом
+-- AssetsLoaded → катсцена, а всё остальное (Assets, анимации, картинки,
+-- декали, VFX, звуки, мир, айди из Config) грузится ПАРАЛЛЕЛЬНО с ней.
 --
 -- Отказоустойчивость: любая ошибка логируется, AssetsLoaded выставляется
 -- всё равно, общий потолок - Config.Loading.MaxSeconds (по умолчанию 60).
@@ -224,6 +222,44 @@ local function closeScreen()
 	screenGui:Destroy()
 end
 
+-- v20.121: SKIP на загрузке - сразу к катсцене (догрузится по ходу).
+local skipButton = Instance.new("TextButton")
+skipButton.Name = "Skip"
+skipButton.AnchorPoint = Vector2.new(1, 1)
+skipButton.Position = UDim2.new(1, -24, 1, -24)
+skipButton.Size = UDim2.fromOffset(120, 44)
+skipButton.BackgroundTransparency = 1
+skipButton.Font = Enum.Font.GothamBold
+skipButton.TextScaled = true
+skipButton.TextColor3 = Color3.new(1, 1, 1)
+skipButton.TextStrokeTransparency = 0
+skipButton.Text = "SKIP"
+skipButton.Visible = false
+skipButton.ZIndex = 5
+skipButton.Parent = screenGui
+local skipped = false
+skipButton.MouseButton1Click:Connect(function() skipped = true end)
+
+local function backgroundPreload(Config)
+	-- всё остальное - параллельно с катсценой, без экрана
+	task.spawn(function()
+		local list, seen, animations = {}, {}, {}
+		collect(ReplicatedStorage, list, seen)
+		collect(workspace, list, seen)
+		collect(playerGui, list, seen)
+		collect(game:GetService("StarterGui"), list, seen)
+		collect(game:GetService("SoundService"), list, seen)
+		collect(game:GetService("Lighting"), list, seen)
+		if Config then pcall(collectConfigAssetIds, Config, list, {}, nil, animations) end
+		for index = 1, #list, 60 do
+			local batch = table.move(list, index, math.min(index + 59, #list), 1, {})
+			pcall(ContentProvider.PreloadAsync, ContentProvider, batch)
+			task.wait(0.03)
+		end
+		for _, animation in animations do animation:Destroy() end
+	end)
+end
+
 task.spawn(function()
 	local ok, err = xpcall(function()
 		if not game:IsLoaded() then game.Loaded:Wait() end
@@ -232,62 +268,48 @@ task.spawn(function()
 		local okConfig, Config = false, nil
 		if configModule then okConfig, Config = pcall(require, configModule) end
 		local loading = (okConfig and typeof(Config) == "table" and Config.Loading) or {}
-		local maxSeconds = tonumber(loading.MaxSeconds) or 60
-		local startedAt = os.clock()
 		local logoId = tonumber(loading.LogoImageId) or 113042882863397
 		if logoId > 0 then logo.Image = "rbxassetid://" .. logoId end
+		task.delay(tonumber(loading.SkipAfterSeconds) or 2, function() skipButton.Visible = true end)
 
-		-- 1) мир и участок успевают прийти
-		stage = "LOADING WORLD"
-		local plotWait = os.clock()
-		while player:GetAttribute("PlotIndex") == nil and os.clock() - plotWait < 4 do task.wait(0.1) end
-		target = 0.05
-
-		-- 2) список: Assets, весь ReplicatedStorage, мир, интерфейс, звуки, айди из Config
-		stage = "LOADING ASSETS"
-		local list, seen, animations = {}, {}, {}
-		collect(ReplicatedStorage, list, seen)
-		collect(workspace, list, seen)
-		collect(playerGui, list, seen)
-		collect(game:GetService("StarterGui"), list, seen)
-		collect(game:GetService("SoundService"), list, seen)
-		collect(game:GetService("Lighting"), list, seen)
-		if okConfig then pcall(collectConfigAssetIds, Config, list, {}, nil, animations) end
-
-		-- 3) грузим пачками - честная полоса прогресса
-		local total = math.max(1, #list)
-		local done = 0
-		local BATCH = 60
-		for index = 1, #list, BATCH do
-			if os.clock() - startedAt > maxSeconds * 0.85 then
-				warn("[LoadingScreen] Предзагрузка не уложилась в лимит - остальное догрузится в игре.")
-				break
-			end
-			local batch = table.move(list, index, math.min(index + BATCH - 1, #list), 1, {})
-			pcall(ContentProvider.PreloadAsync, ContentProvider, batch)
-			done += #batch
-			target = 0.05 + 0.85 * (done / total)
-		end
-		for _, animation in animations do animation:Destroy() end
-
-		-- 4) катсцене нужны риг камеры и сцена - ждём их здесь, под экраном
-		stage = "PREPARING"
-		local rigWait = os.clock()
-		while os.clock() - rigWait < math.max(3, maxSeconds - (os.clock() - startedAt)) do
-			local rig = workspace:FindFirstChild("HumanoidCameraRig")
-			local saves = ReplicatedStorage:FindFirstChild("MoonAnimator2Saves")
+		-- 1) КОРОТКО: только то, что нужно катсцене - риг камеры и сцена
+		stage = "LOADING"
+		local waitMax = tonumber(loading.CutsceneWaitSeconds) or 8
+		local started = os.clock()
+		local rig, saves
+		while os.clock() - started < waitMax and not skipped do
+			rig = workspace:FindFirstChild("HumanoidCameraRig")
+			saves = ReplicatedStorage:FindFirstChild("MoonAnimator2Saves")
 			if rig and rig:FindFirstChild("Torso") and saves and saves:FindFirstChild("scene") then break end
+			target = math.min(0.5, (os.clock() - started) / waitMax * 0.5)
 			task.wait(0.1)
 		end
+		target = 0.55
+		if not skipped then
+			local list, seen = {}, {}
+			if rig then collect(rig, list, seen) end
+			if saves then collect(saves, list, seen) end
+			table.insert(list, logo)
+			local total, done = math.max(1, #list), 0
+			for index = 1, #list, 30 do
+				if skipped then break end
+				local batch = table.move(list, index, math.min(index + 29, #list), 1, {})
+				pcall(ContentProvider.PreloadAsync, ContentProvider, batch)
+				done += #batch
+				target = 0.55 + 0.45 * done / total
+			end
+		end
 		target = 1
-		task.wait(0.35)
+		task.wait(0.2)
 
-		-- 5) старт катсцены; экран держим, пока она реально не пошла
+		-- 2) катсцена стартует, остальное грузится параллельно
 		player:SetAttribute("AssetsLoaded", true)
+		backgroundPreload(okConfig and Config or nil)
+		skipButton.Visible = false
 		local waitStart = os.clock()
 		while player:GetAttribute("CutsceneStarted") ~= true
 			and player:GetAttribute("IntroFailed") ~= true
-			and os.clock() - waitStart < 40 do
+			and os.clock() - waitStart < 25 do
 			task.wait(0.05)
 		end
 		closeScreen()
@@ -302,9 +324,9 @@ task.spawn(function()
 end)
 
 -- Страховка: что бы ни случилось, флаг выставится и экран уйдёт.
-task.delay(120, function()
+task.delay(40, function()
 	if player:GetAttribute("AssetsLoaded") ~= true then
-		warn("[LoadingScreen] AssetsLoaded не выставлен за 120 с - выставляю принудительно.")
+		warn("[LoadingScreen] AssetsLoaded не выставлен за 40 с - выставляю принудительно.")
 		finalize()
 		pcall(function() screenGui:Destroy() end)
 	end

@@ -23,6 +23,16 @@ pcall(function()
 	cutsceneFinished.Sandboxed = true
 end)
 
+-- v20.121: риг камеры вступительной катсцены ВСЕГДА реплицируется клиенту.
+-- С StreamingEnabled он мог не прийти (далеко от игрока), катсцена ждала
+-- его до таймаута и не показывалась вовсе.
+task.spawn(function()
+	local rig = workspace:WaitForChild("HumanoidCameraRig", 30)
+	if rig and rig:IsA("Model") then
+		pcall(function() rig.ModelStreamingMode = Enum.ModelStreamingMode.Persistent end)
+	end
+end)
+
 -- УСТАРЕВШИЕ КЛИЕНТСКИЕ СКРИПТЫ СЛАЙМА. Слайм заменён торговцем банка, но
 -- Rojo не всегда удаляет из места файлы, убранные из проекта, — старые
 -- SlimeHud/BankSlimeCelebration оставались в StarterPlayerScripts и падали
@@ -195,7 +205,7 @@ end)
 -- выбран с запасом над обычной длиной интро, но заметно меньше клиентского
 -- ABSOLUTE_TIMEOUT (150с) — то есть это подстраховка "если клиент вообще не
 -- ответил", а не гонка с его собственным сторожевым таймером.
-local CUTSCENE_SERVER_TIMEOUT = 30
+local CUTSCENE_SERVER_TIMEOUT = 75 -- v20.121: короткая загрузка + катсцена укладываются с запасом
 local function forceFinishCutsceneEventually(player)
 	task.delay(CUTSCENE_SERVER_TIMEOUT, function()
 		if not player.Parent then return end

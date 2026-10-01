@@ -556,6 +556,7 @@ function GearService:_useDynamite(player, key, targetInstance, targetPosition)
 		if not consumeDynamite(self, player, key) then return end
 		startCooldown(player, key)
 		if Services.QuestService then pcall(Services.QuestService.RecordMetric, Services.QuestService, player, "DynamiteUsed", 1) end
+		if Services.TutorialService then pcall(Services.TutorialService.Count, Services.TutorialService, player, "DynamiteUsed", 1) end -- v20.121
 		Services.CombatService:PlaySwingVisual(player)
 		if dynamiteFxRemote then
 			dynamiteFxRemote:FireAllClients("Place", {
@@ -577,6 +578,7 @@ function GearService:_useDynamite(player, key, targetInstance, targetPosition)
 	if not consumeDynamite(self, player, key) then return end
 	startCooldown(player, key)
 	if Services.QuestService then pcall(Services.QuestService.RecordMetric, Services.QuestService, player, "DynamiteUsed", 1) end
+		if Services.TutorialService then pcall(Services.TutorialService.Count, Services.TutorialService, player, "DynamiteUsed", 1) end -- v20.121
 	Services.CombatService:PlaySwingVisual(player)
 	local start = hrp.Position + Vector3.new(0, 2.5, 0)
 	local distance = (targetPosition - start).Magnitude

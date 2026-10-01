@@ -760,7 +760,7 @@ local lockedWalkSpeed = 16
 local lockedJumpPower = 50
 local geodeShakeAmp, geodeShakeUntil, geodeShakeTotal = 0, 0, 0.3 -- v14: тряска кадра катсцены
 -- v20.80: состояние удара/комбо/автоудара одной таблицей (лимит 200 локальных в файле).
-local Hit = { StopUntil = 0, Combo = 0, AutoOn = true }
+local Hit = { StopUntil = 0, Combo = 0, AutoOn = false } -- v20.121: AUTO никогда не включается сам - только кнопкой
 
 -- ВАЖНО: переиспользуем lockCameraForOpening/unlockCameraForOpening (см.
 -- начало файла — тот же самый "заморозить камеру в Scriptable" механизм,
@@ -1888,6 +1888,7 @@ local function geodeImpact(hitIndex, isFinal)
 			end
 		end)
 		local growth = 1 + hitIndex * 0.1
+		Hit.StopSquash() -- сначала вернуть форму, иначе ScaleTo «запечёт» сплющивание
 		pcall(function()
 			if activeGeodeProp:IsA("Model") then
 				activeGeodeProp:ScaleTo(growth)
@@ -1895,6 +1896,7 @@ local function geodeImpact(hitIndex, isFinal)
 				activeGeodeProp.Size = geodePropBaseSize * growth
 			end
 		end)
+		Hit.Squash(activeGeodeProp, isFinal and 1.35 or 1)
 		-- Трещины: свечение изнутри растёт с каждым ударом.
 		local glow = activeGeodeProp:FindFirstChild("CrackGlow")
 		if not glow then
@@ -1911,6 +1913,87 @@ local function geodeImpact(hitIndex, isFinal)
 		local share = math.clamp(hitIndex / required, 0, 1)
 		TweenService:Create(glow, TweenInfo.new(0.1), { FillTransparency = 0.95 - 0.45 * share, OutlineTransparency = 0.7 - 0.6 * share }):Play()
 	end
+end
+
+-- v20.121: СПЛЮЩИВАНИЕ от удара - жеода на миг сжимается по высоте и
+-- раздаётся вширь, потом пружинит обратно (Config.GeodeCutscene.HitSquash).
+-- Считается от живого пивота каждый кадр, поэтому не спорит с тряской.
+Hit.SquashToken = 0
+Hit.SquashRestore = nil
+function Hit.StopSquash()
+	Hit.SquashToken += 1
+	if Hit.SquashRestore then
+		local restore = Hit.SquashRestore
+		Hit.SquashRestore = nil
+		pcall(restore)
+	end
+end
+function Hit.Squash(prop, power)
+	Hit.StopSquash()
+	if not (prop and prop.Parent) then return end
+	local cut = Config.GeodeCutscene or {}
+	local depth = math.clamp((tonumber(cut.HitSquash) or 0.32) * (power or 1), 0, 0.6)
+	local seconds = math.max(0.08, tonumber(cut.HitSquashSeconds) or 0.26)
+	if depth <= 0 then return end
+	local isModel = prop:IsA("Model")
+	local primary = isModel and prop.PrimaryPart or nil
+	local pivot = isModel and prop:GetPivot() or prop.CFrame
+	if primary then
+		prop.WorldPivot = pivot
+		prop.PrimaryPart = nil
+	end
+	local parts = {}
+	for _, part in isModel and prop:GetDescendants() or { prop } do
+		if part:IsA("BasePart") then
+			table.insert(parts, { Part = part, Rel = pivot:ToObjectSpace(part.CFrame), Size = part.Size })
+		end
+	end
+	local function apply(sx, sy)
+		local live = isModel and prop:GetPivot() or nil
+		for _, entry in parts do
+			local part, rel = entry.Part, entry.Rel
+			if part.Parent then
+				-- масштаб вдоль собственных осей детали (в осях пивота)
+				local function axisScale(v)
+					return Vector3.new(v.X * sx, v.Y * sy, v.Z * sx).Magnitude
+				end
+				part.Size = Vector3.new(entry.Size.X * axisScale(rel.RightVector), entry.Size.Y * axisScale(rel.UpVector), entry.Size.Z * axisScale(rel.LookVector))
+				if live then
+					local p = rel.Position
+					part.CFrame = live * (CFrame.new(p.X * sx, p.Y * sy, p.Z * sx) * rel.Rotation)
+				end
+			end
+		end
+	end
+	local token = Hit.SquashToken
+	Hit.SquashRestore = function()
+		apply(1, 1)
+		if primary and primary.Parent and prop.Parent then prop.PrimaryPart = primary end
+	end
+	local started = os.clock()
+	local connection
+	connection = RunService.Heartbeat:Connect(function()
+		if token ~= Hit.SquashToken or not prop.Parent then
+			connection:Disconnect()
+			return
+		end
+		local t = (os.clock() - started) / seconds
+		if t >= 1 then
+			connection:Disconnect()
+			Hit.StopSquash()
+			return
+		end
+		-- резкое сжатие (первые 20%), затем затухающая пружина
+		local k
+		if t < 0.2 then
+			k = t / 0.2
+		else
+			local u = (t - 0.2) / 0.8
+			k = math.cos(u * math.pi * 2.5) * (1 - u) ^ 2
+		end
+		local sy = 1 - depth * k
+		apply(1 + depth * 0.55 * k, sy)
+	end)
 end
 
 -- Финал: слоу-мо (наезд и удержание), вспышка, потом раскол.
@@ -2045,6 +2128,14 @@ function Hit.Square(btn, rightOffset)
 	btn.Size = UDim2.fromOffset(size, size)
 	btn.Position = UDim2.new(1, rightOffset, 1, -20)
 	btn.ZIndex = 30
+	-- v20.121: строго квадрат - старый ассет мог нести свои ограничители размера
+	for _, child in btn:GetChildren() do
+		if child:IsA("UISizeConstraint") or child:IsA("UIAspectRatioConstraint") then child:Destroy() end
+	end
+	local aspect = Instance.new("UIAspectRatioConstraint")
+	aspect.AspectRatio = 1
+	aspect.DominantAxis = Enum.DominantAxis.Height
+	aspect.Parent = btn
 	local corner = btn:FindFirstChildOfClass("UICorner") or Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 14)
 	corner.Parent = btn
@@ -2086,6 +2177,28 @@ RunService.Heartbeat:Connect(function()
 	if not (Hit.AutoOn and Hit.OwnsAuto() and crackSequenceActive and openRequestActive) then return end
 	if crackTapBusy or os.clock() < crackTapReadyAt + ((Config.GeodeCutscene or {}).AutoHitDelay or 0.08) then return end
 	onCrackHit(false)
+end)
+
+-- v20.121: пока колем жеоду, табличка AVAILABLE над наковальней спрятана
+-- (только у себя на экране; сервер её не трогает).
+task.spawn(function()
+	local hiddenGui = nil
+	while true do
+		task.wait(0.2)
+		local busy = crackSequenceActive or (opening and opening.Visible) or Hit.Finalizing == true
+		if busy and not hiddenGui then
+			local crusher = findOwnCrusher()
+			local building = crusher and crusher:FindFirstAncestor("GeodeBuilding")
+			local status = building and building:FindFirstChild("StatusGui", true)
+			if status and status:IsA("BillboardGui") and status.Enabled then
+				status.Enabled = false
+				hiddenGui = status
+			end
+		elseif not busy and hiddenGui then
+			if hiddenGui.Parent then hiddenGui.Enabled = true end
+			hiddenGui = nil
+		end
+	end
 end)
 
 -- Шарик — простой ImageLabel-билдер (по прямому запросу "сделай
@@ -2283,6 +2396,7 @@ local function openCollectionContext(oreId, entry)
 	for _, actionName in { "Install", "Extract", "Delete" } do
 		local actionButton = collectionContext:FindFirstChild(actionName)
 		if actionButton then
+			require(ReplicatedStorage.Shared.TutorialTarget).Mark(actionButton, "Podium" .. actionName) -- v20.121
 			actionButton.Activated:Connect(function()
 				if actionName == "Install" then
 					-- АНТИ-ДАБЛ-КЛИК: флаг блокирует только в пределах окна
@@ -2483,6 +2597,8 @@ renderPodium = function()
 		end
 		selectionFrame.Visible = state.InstalledOre == oreId
 		card.Parent = crystalGrid
+		-- v20.121: цель обучения - самый доходный кристалл (первый в сетке)
+		require(ReplicatedStorage.Shared.TutorialTarget).Mark(card, "PodiumCrystal:" .. index)
 		card.Activated:Connect(function() openCollectionContext(oreId, entry) end)
 	end
 	updateBankIncome()

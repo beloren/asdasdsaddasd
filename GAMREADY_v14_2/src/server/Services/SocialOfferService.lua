@@ -50,6 +50,7 @@ end
 -- Игрок сейчас в «моменте», который окно не должно перекрыть.
 local function isBusy(player)
 	return player:GetAttribute("NeedsTutorial") == true
+		or player:GetAttribute("TutorialChapter") ~= nil -- v20.121: и во время глав обучения
 		or player:GetAttribute("Ragdolled") == true
 		or player:GetAttribute("MineExpeditionActive") == true
 		or player:GetAttribute("GoblinWaveActive") == true
@@ -76,7 +77,7 @@ function SocialOfferService:OnMetric(player, metric)
 	end
 	if now - session.JoinedAt < (CFG.MinSessionSeconds or 180) then return end
 	if now - session.LastAt < (CFG.GapSeconds or 600) then return end
-	if player:GetAttribute("NeedsTutorial") == true then return end
+	if isBusy(player) then return end
 	for _, kind in CFG.Order or {} do
 		local handler = HANDLERS[kind]
 		if handler and not session.Shown[kind] then

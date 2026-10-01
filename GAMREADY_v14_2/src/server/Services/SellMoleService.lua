@@ -128,6 +128,34 @@ function SellMoleService:_hasOre(player)
 	return Services.InventoryService and Services.InventoryService:CountItems(player) > 0
 end
 
+-- v20.121: кристалл в руках - крот принимает его в банк (первая кнопка),
+-- а не «съедает» молча на входе в зону.
+function SellMoleService:_carriedCrystal(player)
+	if cfg().CrystalDeposit == false then return nil end
+	local entry = Services.RockService and Services.RockService:GetCarrying(player)
+	return entry and entry.OreId or nil
+end
+
+function SellMoleService:_hasSomething(player)
+	return self:_hasOre(player) or self:_carriedCrystal(player) ~= nil
+end
+
+function SellMoleService:_payload(player, model, line)
+	local held = player:GetAttribute("HeldOreUid")
+	local heldStack = held and Services.InventoryService:GetStackByUid(player, held)
+	local crystalId = self:_carriedCrystal(player)
+	local crystalInfo = crystalId and Config.Geodes.Ores[crystalId]
+	local capacity = Services.InventoryService:GetCapacity(player)
+	return {
+		Npc = model,
+		Line = line,
+		Count = Services.InventoryService:CountItems(player),
+		Capacity = capacity == math.huge and -1 or capacity,
+		HandCount = heldStack and heldStack.Count or 0,
+		Crystal = crystalId and (crystalInfo and crystalInfo.DisplayName or crystalId) or nil,
+	}
+end
+
 function SellMoleService:_spawn(player, zone, hrp)
 	local state = states[player]
 	local model = buildModel()
@@ -140,17 +168,11 @@ function SellMoleService:_spawn(player, zone, hrp)
 	state.Mole = model
 	state.SpawnedAt = os.clock()
 	local lines = cfg().Lines or { "Selling today?" }
-	local held = player:GetAttribute("HeldOreUid")
-	local heldStack = held and Services.InventoryService:GetStackByUid(player, held)
+	local line = self:_carriedCrystal(player) and (cfg().CrystalLine or "Ooh, a crystal! I'll keep it safe in the bank.")
+		or lines[math.random(1, #lines)]
 	task.delay(cfg().RiseSeconds or 0.55, function()
 		if state.Mole ~= model or not player.Parent then return end
-		remote:FireClient(player, "Open", {
-			Npc = model,
-			Line = lines[math.random(1, #lines)],
-			Count = Services.InventoryService:CountItems(player),
-			Capacity = Services.InventoryService:GetCapacity(player) == math.huge and -1 or Services.InventoryService:GetCapacity(player),
-			HandCount = heldStack and heldStack.Count or 0,
-		})
+		remote:FireClient(player, "Open", self:_payload(player, model, line))
 	end)
 end
 
@@ -178,6 +200,21 @@ function SellMoleService:_onChoice(player, choice)
 		state.NeedsExit = true
 		return
 	end
+	if choice == "Crystal" then
+		state.Busy = true
+		local ok, err = pcall(function()
+			if Services.RockService then Services.RockService:DepositCarrying(player) end
+		end)
+		if not ok then warn("[SellMoleService] сдача кристалла упала:", err) end
+		state.Busy = false
+		if self:_hasSomething(player) and state.Mole == model then
+			remote:FireClient(player, "Open", self:_payload(player, model, (cfg().OneMoreLines and cfg().OneMoreLines[1]) or "Anything else?"))
+		else
+			self:_burrow(player)
+			state.NeedsExit = true
+		end
+		return
+	end
 	if choice == "One" then
 		-- v20.114: продать одну руду; крот остаётся и сразу спрашивает снова.
 		state.Busy = true
@@ -185,16 +222,8 @@ function SellMoleService:_onChoice(player, choice)
 		local ok, err = pcall(Services.BankService.SellBackpackBatch, Services.BankService, player, "One", target)
 		if not ok then warn("[SellMoleService] продажа упала:", err) end
 		state.Busy = false
-		if self:_hasOre(player) and state.Mole == model then
-			local held = player:GetAttribute("HeldOreUid")
-			local heldStack = held and Services.InventoryService:GetStackByUid(player, held)
-			remote:FireClient(player, "Open", {
-				Npc = model,
-				Line = (cfg().OneMoreLines and cfg().OneMoreLines[1]) or "Anything else?",
-				Count = Services.InventoryService:CountItems(player),
-				Capacity = Services.InventoryService:GetCapacity(player) == math.huge and -1 or Services.InventoryService:GetCapacity(player),
-				HandCount = heldStack and heldStack.Count or 0,
-			})
+		if self:_hasSomething(player) and state.Mole == model then
+			remote:FireClient(player, "Open", self:_payload(player, model, (cfg().OneMoreLines and cfg().OneMoreLines[1]) or "Anything else?"))
 		else
 			self:_burrow(player)
 			state.NeedsExit = true
@@ -214,7 +243,7 @@ function SellMoleService:_onChoice(player, choice)
 		end
 		state.Busy = false
 		self:_burrow(player)
-		if choice == "Hand" and self:_hasOre(player) then
+		if (choice == "Hand" and self:_hasOre(player)) or self:_carriedCrystal(player) then
 			state.RespawnAt = os.clock() + 2 -- руда осталась - крот вернётся
 		else
 			state.NeedsExit = true
@@ -238,7 +267,7 @@ end
 function SellMoleService:Start()
 	if not (cfg().Enabled) then return end
 	remote.OnServerEvent:Connect(function(player, action, value)
-		if action == "Choice" and (value == "All" or value == "Hand" or value == "One" or value == "No") then
+		if action == "Choice" and (value == "All" or value == "Hand" or value == "One" or value == "Crystal" or value == "No") then
 			self:_onChoice(player, value)
 		elseif action == "Close" then
 			local state = states[player]
@@ -280,7 +309,7 @@ function SellMoleService:Start()
 					if state.Mole or state.Busy or state.NeedsExit then return end
 					if state.RespawnAt and os.clock() < state.RespawnAt then return end
 					if player:GetAttribute("EconomyTransactionLocked") == true then return end
-					if not self:_hasOre(player) then return end
+					if not self:_hasSomething(player) then return end
 					state.RespawnAt = nil
 					self:_spawn(player, zone, hrp)
 				end)

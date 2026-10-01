@@ -177,7 +177,7 @@ Config.Tutorial = {
 			Task = "Talk to the trader and press MINE",
 			Goal = { Kind = "Flag", Key = "MineRepaired" },
 			Target = "UpgradeShopNPC",
-			UiTargets = { "Upgrade:Mine" },
+			UiTargets = { "UpgradeBuy:Mine", "UpgradeCard:Mine", "Upgrade:Mine" },
 			Highlight = "Mine",
 			HighlightColor = Color3.fromRGB(255, 70, 70),
 			Done = { "The mine works again!" },
@@ -223,7 +223,7 @@ Config.Tutorial = {
 			Goal = { Kind = "Counter", Key = "UpgradesBought", Target = 1 },
 			GrantMoney = 150,
 			Target = "UpgradeShopNPC",
-			UiTargets = { "Upgrade:Cart" },
+			UiTargets = { "UpgradeBuy:Cart", "UpgradeCard:Cart", "Upgrade:Cart" },
 			Highlight = "Cart",
 			HighlightColor = Color3.fromRGB(255, 200, 50),
 			Done = { "That's the loop: dig, sell, upgrade! I'll show you more soon." },
@@ -320,7 +320,7 @@ Config.Tutorial = {
 					Lines = { "Geodes from the mine wait in your vault.", "Open one at the anvil to find a crystal!" },
 					Short = "OPEN A GEODE", Task = "Open a geode at the anvil",
 					Goal = { Kind = "Counter", Key = "GeodesOpened", Target = 1 },
-					Target = "Island_Anvil",
+					Target = "GeodeBuilding", -- v20.121: курсор на саму наковальню, а не на верх острова
 					Done = { "Crystals earn money on the Income Island. Remember that!" },
 				},
 			},
@@ -361,6 +361,7 @@ Config.Tutorial = {
 					Short = "PLACE A CRYSTAL", Task = "Use the podium and pick a crystal",
 					Goal = { Kind = "Check", Check = "CrystalOnPodium" },
 					Target = "GeodePodium",
+					UiTargets = { "PodiumInstall", "PodiumCrystal:1" }, -- v20.121: курсор в окне подиума
 					Done = { "Money piles up in the safe. Come back to collect it!" },
 				},
 			},
@@ -392,6 +393,63 @@ Config.Tutorial = {
 				},
 			},
 		},
+		-- v20.121: НОВЫЕ МЕХАНИКИ - глава стартует в момент, когда игрок впервые
+		-- с ней столкнулся (When), курсор показывает, куда нажать / идти.
+		{
+			Id = "CrystalBank", Title = "Crystals", RewardMoney = 100,
+			When = { Check = "CarryingCrystal" },
+			Steps = {
+				{
+					Id = "BankCrystal",
+					Lines = { "You found a crystal! Don't lose it.", "Bring it to the mole at the sell zone - he keeps it in your bank." },
+					Short = "BANK THE CRYSTAL", Task = "Go to the sell zone, press DEPOSIT CRYSTAL",
+					Goal = { Kind = "Check", Check = "NotCarryingCrystal" },
+					Target = "Bank", UiTargets = { "Mole:Crystal" },
+					Done = { "Crystals in the bank go on your Income Island podium." },
+				},
+			},
+		},
+		{
+			Id = "IncomeSafe", Title = "Income Safe", RewardMoney = 100, After = { "IncomeIsland" },
+			When = { Check = "SafeHasMoney" },
+			Steps = {
+				{
+					Id = "CollectSafe",
+					Lines = { "Your crystal made money! It waits in the safe.", "Walk to the safe to collect it." },
+					Short = "COLLECT THE SAFE", Task = "Collect the money from your safe",
+					Goal = { Kind = "Counter", Key = "SafeCollected", Target = 1 },
+					Target = "GeodeSafe",
+					Done = { "Better crystals earn more. Come back often!" },
+				},
+			},
+		},
+		{
+			Id = "Totems", Title = "Totems", RewardMoney = 100,
+			When = { Check = "HasTotemItem" }, SkipIf = { Check = "TotemPlacedAny" },
+			Steps = {
+				{
+					Id = "PlaceTotem",
+					Lines = { "You got a TOTEM! It gives your ore mutations.", "Take it from the hotbar and click on your base to place it." },
+					Short = "PLACE THE TOTEM", Task = "Take the totem from the hotbar, click on your base",
+					Goal = { Kind = "Check", Check = "TotemPlacedAny" },
+					UiTargets = { "Hotbar:gear:Totem_*" },
+					Done = { "Ore dug near the totem can get its mutation!" },
+				},
+			},
+		},
+		{
+			Id = "Dynamite", Title = "Dynamite", RewardMoney = 50,
+			When = { Check = "HasDynamite" },
+			Steps = {
+				{
+					Id = "UseDynamite",
+					Lines = { "Dynamite! It breaks boulders in one go.", "Take it from the hotbar and click on a boulder." },
+					Short = "USE DYNAMITE", Task = "Take dynamite from the hotbar, click a boulder",
+					Goal = { Kind = "Counter", Key = "DynamiteUsed", Target = 1 },
+					Target = "BaseBoulder", UiTargets = { "Hotbar:gear:Dynamite*" },
+				},
+			},
+		},
 		{
 			Id = "Prestige", Title = "Prestige",
 			When = { Check = "CanPrestige" }, SkipIf = { Check = "HasPrestiged" },
@@ -413,6 +471,17 @@ Config.Tutorial = {
 				},
 			},
 		},
+	},
+
+	-- v20.121: ПОВТОРНЫЕ ПОДСКАЗКИ КУРСОРОМ - вне глав обучения первые Times
+	-- раз курсор тапает в нужную кнопку, как только она на экране (окно
+	-- открыто). Раз засчитывается, когда кнопка пропала с экрана.
+	UiHints = {
+		{ Id = "PodiumCrystal", Targets = { "PodiumCrystal:1" }, Times = 3 },  -- окно подиума: самый доходный кристалл
+		{ Id = "PodiumInstall", Targets = { "PodiumInstall" }, Times = 3 },    -- кнопка «поставить»
+		{ Id = "MoleCrystal", Targets = { "Mole:Crystal" }, Times = 3 },       -- крот: сдать кристалл
+		{ Id = "MoleSellAll", Targets = { "Mole:All" }, Times = 2 },           -- крот: продать всё
+		{ Id = "CompassPlace", Targets = { "Compass:Raft" }, Times = 2 },     -- карта: домой
 	},
 
 	QueuedHintGapSeconds = 8,
@@ -1076,7 +1145,7 @@ Config.MineExpedition = {
 		Cards3D = 16,        -- карточек в 3D-ленте
 		Gap3D = 0.5,         -- промежуток между карточками (доля высоты карточки)
 		DrumDegrees = 38,    -- наклон карточек у краёв (эффект барабана)
-		Seconds = 3.4,       -- прокрутка
+		Seconds = 4.9,       -- прокрутка (v20.121: +1.5 с)
 		HoldSeconds = 0.8,   -- пауза на выпавшей редкости (с лучами сзади)
 		Tiles = 46,          -- плиток в ленте
 		TileWidth = 118,     -- (старая горизонтальная лента, не используется)
@@ -4084,8 +4153,23 @@ Config.Compass = {
 	ButtonImageId = 0,       -- иконка кнопки; 0 - 🧭
 	CenterMarkerName = "CompassCenterMarker", -- куда телепорт «в центр» (иначе у зоны продажи)
 	CenterOffset = Vector3.new(0, 0, 18),
+	TowardBaseStuds = 22,    -- v20.121: телепорт «в центр» смещён на столько стадов в сторону своей базы
 	MapSizePC = 440,
 	MapSizePhone = 290,
+	-- v20.121: карта = настоящий вид сверху (ViewportFrame с копией мира),
+	-- пока MapImageId = 0. Метки - точки с маленькой подписью сверху.
+	ViewportMap = true,
+	ViewportMaxParts = 2500,      -- сколько деталей мира копировать (телефоны!)
+	ViewportMinPartSize = 3,      -- мельче (по X/Z) - не копируется
+	ViewportRefreshSeconds = 120, -- пересобирать вид не чаще
+	-- Авто-метки: объект Workspace по имени → точка с подписью. Свои метки
+	-- без кода: поставь любому объекту атрибут MapLabel = "ПОДПИСЬ".
+	AutoMarkers = {
+		{ Find = "BankMerchant", Label = "ORE SHOP", Color = Color3.fromRGB(255, 200, 60) },
+		{ Find = "IslandKeeper", Label = "ISLANDS", Color = Color3.fromRGB(120, 220, 255) },
+		{ Find = "SellZone", Label = "SELL", Color = Color3.fromRGB(90, 230, 120) },
+		{ Find = "GoblinCamp", Label = "GOBLINS", Color = Color3.fromRGB(255, 90, 80) },
+	},
 }
 
 -- v20.108: КРОТ-СКУПЩИК на зоне продажи. Зашёл в зону с рудой - перед
@@ -4097,18 +4181,20 @@ Config.Compass = {
 Config.SellMole = {
 	Enabled = true,
 	ModelName = "SellMole",
-	Distance = 7,        -- насколько перед игроком вылезает
+	Distance = 10.5,     -- насколько перед игроком вылезает (v20.121: +3.5 стада)
 	EdgeMargin = 3,      -- отступ от края зоны
 	Scale = 1,           -- масштаб модели
 	RiseSeconds = 0.8,   -- v20.118: из-под земли глубже - вылезает чуть дольше
 	BurrowSeconds = 0.6,
-	VisibleHeight = 11,  -- v20.119: сколько стадов верха модели торчит из земли (голова и плечи); остальное всегда под землёй
+	VisibleHeight = 3.5, -- v20.119: сколько стадов верха модели торчит из земли (голова и плечи); остальное всегда под землёй
 	BobAmount = 0.07,    -- v20.118: «дыхание» - растягивание ВВЕРХ-ВНИЗ (доля), ширина обратно
-	BobSpeed = 3,
+	BobSpeed = 1,
 	SellDelay = 0.06,    -- сек между кусками при продаже
 	SellSeconds = 2.5,   -- вся продажа не дольше этого
 	DirtColor = Color3.fromRGB(110, 72, 40),
 	DirtCount = 10,
+	CrystalDeposit = true, -- v20.121: кристалл в руках сдаётся кроту кнопкой (а не пропадает сам на входе в зону)
+	CrystalLine = "Ooh, a crystal! I'll keep it safe in the bank.",
 	Lines = {
 		"Psst! Got ore? I'll buy it all!",
 		"Shiny rocks! I pay good coin!",
@@ -5218,11 +5304,16 @@ end
 --------------------------------------------------------------------------------
 Config.Economy.RealIncomeFactor = 0.75 -- реальный игрок ≈ 75% идеального дохода (не каждая тележка на x3)
 Config.Geodes.GeodeShares = { 0.16, 0.24, 0.34 }
+Config.Geodes.CrystalWorldScale = 0.5 -- v20.121: кристаллы дохода в мире (подиум, в руках, на земле) - 50% модели
 Config.Geodes.BoulderShare = 0.40
 Config.Geodes.BoulderOreOrder = { "Rubblegem", "Ironflake", "Coalheart", "Duskstone", "VerdantCore", "Emberite", "Frostvein", "Wyrmglass", "UmbralShard", "Titanheart" }
 
+-- v20.121: пассивка была почти незаметна - общий множитель дохода кристаллов
+-- (1 = как в v4). Влияет на $/мин всех кристаллов на подиуме и в сейфе.
+Config.Economy.PassiveIncomeBoost = 3
 local function passiveBase(cave, share)
 	local value = share * Config.IncomePerMinute(cave, Config.NaturalCartTierForCave(cave)) * Config.Economy.RealIncomeFactor
+		* (Config.Economy.PassiveIncomeBoost or 1)
 	return niceMoney(value)
 end
 for index, geodeType in Config.Geodes.Order do
@@ -6787,10 +6878,11 @@ Config.Quests = {
 -- ради этого держать игрока в черноте лишние 15 секунд смысла нет.
 --------------------------------------------------------------------------------
 Config.Loading = {
-	-- v20.120: ЗАГРУЗОЧНЫЙ ЭКРАН перед катсценой грузит всё (Assets, анимации,
-	-- картинки, декали, VFX, звуки, мир) с полосой прогресса. MaxSeconds -
-	-- потолок, после которого игра идёт дальше (остальное догрузится само).
-	MaxSeconds = 60,
+	-- v20.121: КОРОТКАЯ загрузка перед катсценой - только её риг/сцена/логотип
+	-- (не дольше CutsceneWaitSeconds), SKIP появляется через SkipAfterSeconds;
+	-- всё остальное грузится параллельно с катсценой.
+	CutsceneWaitSeconds = 8,
+	SkipAfterSeconds = 2,
 	LogoImageId = 113042882863397, -- логотип на загрузке (0 - без логотипа)
 	-- Сколько ждать перед стартом катсцены. Не «сколько грузить» — грузиться
 	-- продолжает в фоне, — а именно сколько игрок смотрит в черноту.
@@ -7631,6 +7723,8 @@ Config.GeodeCutscene = {
 	StandDistance = 3.6,          -- студов от центра наковальни до игрока
 	PlayerScale = 1.35,           -- v20.114: было 2 - персонаж «скукоживался» (голова в теле); 1 = как есть
 	ButtonSize = 104,             -- v20.106: квадратные кнопки AUTO и SKIP, пиксели
+	HitSquash = 0.32,             -- v20.121: на сколько жеода сплющивается по высоте от удара (доля; 0 - выкл)
+	HitSquashSeconds = 0.26,      -- длина сплющивания с пружинкой
 	HammerAsset = "GeodeHammer",
 	SwingSeconds = 0.8,           -- минимум между ударами (длина взмаха)
 	ImpactDelay = 0.32,           -- контакт, если в анимации нет маркера

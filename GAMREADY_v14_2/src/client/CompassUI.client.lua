@@ -247,6 +247,97 @@ local function toMap(position)
 end
 
 --------------------------------------------------------------------------------
+-- v20.121: КАРТА = ВИД СВЕРХУ ЧЕРЕЗ ViewportFrame (если MapImageId = 0).
+-- В вьюпорт копируются крупные видимые детали мира в границах карты
+-- (до Config.Compass.ViewportMaxParts), камера смотрит строго вниз почти
+-- ортографически (маленький FOV издалека), +X вправо, +Z вниз - так же,
+-- как считает toMap, поэтому метки ложатся точно на свои места.
+--------------------------------------------------------------------------------
+local viewport = nil
+local viewportBuiltAt = -math.huge
+local mapLabelled = {}
+
+local function isCharacterPart(part)
+	local model = part:FindFirstAncestorOfClass("Model")
+	return model ~= nil and model:FindFirstChildOfClass("Humanoid") ~= nil
+end
+
+local function buildViewport()
+	if cfg.ViewportMap == false or map.Image ~= "" or not bounds then return end
+	if viewport and os.clock() - viewportBuiltAt < (cfg.ViewportRefreshSeconds or 120) then return end
+	viewportBuiltAt = os.clock()
+	if viewport then viewport:Destroy() end
+	viewport = Instance.new("ViewportFrame")
+	viewport.Name = "WorldView"
+	viewport.Size = UDim2.fromScale(1, 1)
+	viewport.BackgroundTransparency = 1
+	viewport.Ambient = Color3.fromRGB(200, 200, 200)
+	viewport.LightColor = Color3.fromRGB(255, 255, 255)
+	viewport.LightDirection = Vector3.new(-0.3, -1, -0.2)
+	viewport.ZIndex = 13
+	viewport.Parent = map
+	Instance.new("UICorner", viewport).CornerRadius = UDim.new(1, 0)
+	water.Enabled = true
+
+	local camera = Instance.new("Camera")
+	local fov = 12
+	local center = Vector3.new((bounds.MinX + bounds.MaxX) / 2, 0, (bounds.MinZ + bounds.MaxZ) / 2)
+	local half = (bounds.MaxX - bounds.MinX) / 2
+	local height = half / math.tan(math.rad(fov / 2))
+	camera.FieldOfView = fov
+	camera.CFrame = CFrame.lookAt(center + Vector3.new(0, height, 0), center, Vector3.new(0, 0, -1))
+	camera.Parent = viewport
+	viewport.CurrentCamera = camera
+
+	local maxParts = cfg.ViewportMaxParts or 2500
+	local minSize = cfg.ViewportMinPartSize or 3
+	local token = viewportBuiltAt
+	task.spawn(function()
+		local count, scanned = 0, 0
+		for _, part in workspace:GetDescendants() do
+			scanned += 1
+			if scanned % 400 == 0 then
+				task.wait()
+				if token ~= viewportBuiltAt or not viewport then return end
+			end
+			if count >= maxParts then break end
+			if part:IsA("BasePart") and part.Transparency < 0.9 and not part:IsA("Terrain")
+				and math.max(part.Size.X, part.Size.Z) >= minSize
+				and part.Position.X >= bounds.MinX and part.Position.X <= bounds.MaxX
+				and part.Position.Z >= bounds.MinZ and part.Position.Z <= bounds.MaxZ
+				and not isCharacterPart(part) then
+				local ok, copy = pcall(function()
+					local wasArchivable = part.Archivable
+					part.Archivable = true
+					local c = part:Clone()
+					part.Archivable = wasArchivable
+					return c
+				end)
+				if ok and copy then
+					for _, child in copy:GetChildren() do
+						if not (child:IsA("Decal") or child:IsA("Texture") or child:IsA("SpecialMesh") or child:IsA("SurfaceAppearance")) then
+							child:Destroy()
+						end
+					end
+					copy.Anchored = true
+					copy.CFrame = part.CFrame
+					copy.Parent = viewport
+					count += 1
+				end
+			end
+		end
+	end)
+end
+
+local function scanLabelled()
+	table.clear(mapLabelled)
+	for _, instance in workspace:GetDescendants() do
+		local text = instance:GetAttribute("MapLabel")
+		if typeof(text) == "string" and text ~= "" then table.insert(mapLabelled, instance) end
+	end
+end
+
+--------------------------------------------------------------------------------
 -- МЕТКИ И КНОПКИ
 --------------------------------------------------------------------------------
 local markers = Instance.new("Folder")
@@ -267,34 +358,89 @@ if okKit and UiKit.GlyphToShape then pcall(UiKit.GlyphToShape, selfArrow, "Chevr
 
 local teleport -- forward
 
-local function marker(dest)
-	local m = Instance.new("TextButton")
-	m.Name = "Marker_" .. dest.Id
+-- v20.121: МЕТКИ - точки с маленькой подписью СВЕРХУ (без кружков-эмодзи).
+-- Подписи, налезающие на соседние, прячутся (см. declutter).
+local function dotMarker(name, position, color, text, clickable)
+	local m = Instance.new(clickable and "TextButton" or "Frame")
+	m.Name = name
 	m.AnchorPoint = Vector2.new(0.5, 0.5)
-	m.Position = toMap(dest.Position)
-	m.Size = UDim2.fromOffset(40, 40)
-	m.BackgroundColor3 = dest.Id == "Raft" and Color3.fromRGB(80, 200, 110) or (dest.Id == "Center" and Color3.fromRGB(255, 190, 60) or Color3.fromRGB(120, 170, 255))
-	m.Text = dest.Icon or "•"
-	m.TextScaled = true
+	m.Position = toMap(position)
+	m.Size = UDim2.fromOffset(clickable and 16 or 12, clickable and 16 or 12)
+	m.BackgroundColor3 = color
 	m.ZIndex = 16
+	if m:IsA("TextButton") then
+		m.Text = ""
+		m.AutoButtonColor = false
+	end
 	Instance.new("UICorner", m).CornerRadius = UDim.new(1, 0)
-	stroke(m, 3)
-	local name = Instance.new("TextLabel")
-	name.BackgroundTransparency = 1
-	name.AnchorPoint = Vector2.new(0.5, 0)
-	name.Position = UDim2.new(0.5, 0, 1, 0)
-	name.Size = UDim2.fromOffset(110, 18)
-	name.Text = dest.Name or dest.Id
-	name.TextScaled = true
-	name.TextColor3 = Color3.new(1, 1, 1)
-	name.ZIndex = 17
-	style(name)
-	stroke(name, 2)
-	name.Parent = m
+	stroke(m, 2)
+	if text and text ~= "" then
+		local label = Instance.new("TextLabel")
+		label.Name = "Label"
+		label.BackgroundTransparency = 1
+		label.AnchorPoint = Vector2.new(0.5, 1)
+		label.Position = UDim2.new(0.5, 0, 0, -2)
+		label.Size = UDim2.fromOffset(120, 14)
+		label.Text = text
+		label.TextSize = isPhone() and 11 or 13
+		label.TextScaled = false
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.ZIndex = 17
+		style(label)
+		label.TextScaled = false
+		stroke(label, 1.5)
+		label.Parent = m
+	end
 	m.Parent = markers
+	return m
+end
+
+local function marker(dest)
+	local color = dest.Id == "Raft" and Color3.fromRGB(80, 220, 110) or (dest.Id == "Center" and Color3.fromRGB(255, 200, 60) or Color3.fromRGB(120, 180, 255))
+	local m = dotMarker("Marker_" .. dest.Id, dest.Position, color, (dest.Name or dest.Id):upper(), true)
 	m.Activated:Connect(function() teleport(dest.Id) end)
 	TutorialTarget.Mark(m, "CompassMarker:" .. dest.Id)
 	return m
+end
+
+-- Подписи не налезают друг на друга: у более поздней метки подпись прячется.
+local function declutter()
+	local shown = {}
+	for _, m in markers:GetChildren() do
+		local label = m:FindFirstChild("Label")
+		if label then
+			local at = Vector2.new(m.Position.X.Scale, m.Position.Y.Scale)
+			local clash = false
+			for _, other in shown do
+				if math.abs(other.X - at.X) < 0.22 and math.abs(other.Y - at.Y) < 0.06 then clash = true break end
+			end
+			label.Visible = not clash
+			if not clash then table.insert(shown, at) end
+		end
+	end
+end
+
+-- Авто-метки мира: Config.Compass.AutoMarkers (по имени объекта) и любой
+-- объект в Workspace с атрибутом MapLabel = "ПОДПИСЬ".
+local function worldPosition(instance)
+	if instance:IsA("BasePart") then return instance.Position end
+	if instance:IsA("Model") then
+		local ok, pivot = pcall(instance.GetPivot, instance)
+		return ok and pivot.Position or nil
+	end
+	return nil
+end
+local function autoMarkers()
+	local placed = 0
+	for _, spec in cfg.AutoMarkers or {} do
+		local found = workspace:FindFirstChild(spec.Find, true)
+		local position = found and worldPosition(found)
+		if position then
+			dotMarker("Auto_" .. spec.Find, position, spec.Color or Color3.fromRGB(255, 255, 255), spec.Label, false)
+			placed += 1
+		end
+	end
+	return placed
 end
 
 local function placeButtonFor(dest)
@@ -316,6 +462,7 @@ local function placeButtonFor(dest)
 	b.Parent = list
 	b.Activated:Connect(function() teleport(dest.Id) end)
 	TutorialTarget.Mark(b, "Compass:" .. dest.Id)
+	b:SetAttribute("WorldPos", dest.Position) -- v20.121: обучение выбирает ближайшую к цели точку
 	return b
 end
 
@@ -325,6 +472,7 @@ local function rebuild()
 		if child:IsA("GuiButton") then child:Destroy() end
 	end
 	bounds = computeBounds()
+	pcall(buildViewport)
 	-- другие плоты - точки
 	local plots = workspace:FindFirstChild("Plots")
 	for _, pad in plots and plots:GetChildren() or {} do
@@ -333,10 +481,10 @@ local function rebuild()
 			local dot = Instance.new("Frame")
 			dot.AnchorPoint = Vector2.new(0.5, 0.5)
 			dot.Position = toMap(cf.Position)
-			dot.Size = UDim2.fromOffset(14, 14)
+			dot.Size = UDim2.fromOffset(9, 9)
 			dot.BackgroundColor3 = Color3.fromRGB(150, 110, 70)
 			dot.ZIndex = 14
-			Instance.new("UICorner", dot).CornerRadius = UDim.new(0, 3)
+			Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
 			stroke(dot, 2)
 			dot.Parent = markers
 		end
@@ -345,6 +493,14 @@ local function rebuild()
 		marker(dest)
 		placeButtonFor(dest)
 	end
+	autoMarkers()
+	for _, labelled in mapLabelled do
+		local position = labelled.Parent and worldPosition(labelled)
+		if position then
+			dotMarker("Tag_" .. labelled.Name, position, Color3.fromRGB(255, 255, 255), tostring(labelled:GetAttribute("MapLabel")), false)
+		end
+	end
+	declutter()
 end
 
 local function refreshInfo()
@@ -358,6 +514,7 @@ end
 
 local function setOpen(open)
 	if open then
+		pcall(scanLabelled)
 		refreshInfo()
 		layout()
 		dim.Visible = true

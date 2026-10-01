@@ -946,7 +946,7 @@ local function showCrystal(entry)
 		Config.Geodes.MaxOreLevel, NumberFormat.perSecond(maxLevelIncome)
 	)
 
-	local previewOre = PlaceholderFactory.CollectionOre(entry.OreId)
+	local previewOre = PlaceholderFactory.CollectionOre(entry.OreId, true)
 	for _, mutationId in mutations do
 		MutationVisuals.Apply(previewOre, mutationId)
 	end
@@ -1149,7 +1149,7 @@ local function renderBook()
 				addEntry(order, unlocked, imageUri(info.ImageId), CollectionKey.DisplayName(key), function()
 					showCrystal(entry)
 				end, function()
-					local ore = PlaceholderFactory.CollectionOre(entry.OreId)
+					local ore = PlaceholderFactory.CollectionOre(entry.OreId, true)
 					for _, mutationId in entry.Mutations do
 						MutationVisuals.Apply(ore, mutationId)
 					end
