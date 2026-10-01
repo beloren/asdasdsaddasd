@@ -63,13 +63,16 @@ remote.OnClientEvent:Connect(function(action, payload)
 			shakeUntil = os.clock() + (tonumber(payload.Seconds) or 1.8)
 			shakePower = (Config.MineRework and Config.MineRework.OpenShake) or 0.35
 			local okSfx, UiSfx = pcall(require, ReplicatedStorage.Shared.UiSfx)
-			if okSfx then pcall(UiSfx.play, "UiButtonClick") end
+			if okSfx then pcall(UiSfx.play, "OreBoxShake") end -- v20.129
 		end
 		return
 	end
 	if action == "Opened" then
 		local who = playerFrom(payload)
-		if who == player then shakeUntil = 0 end
+		if who == player then
+			shakeUntil = 0
+			pcall(function() require(ReplicatedStorage.Shared.UiSfx).play("OreBoxOpen") end) -- v20.129
+		end
 		-- хлопок коробки: щепки цвета дерева у всех клиентов
 		local box = who and workspace:FindFirstChild("HeldOreBoxVisual_" .. who.UserId)
 		local position = box and box:GetPivot().Position

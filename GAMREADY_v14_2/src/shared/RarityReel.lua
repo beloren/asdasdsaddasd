@@ -224,7 +224,7 @@ function RarityReel.Play(target, onDone)
 
 	-- АКЦЕНТ: остальные гаснут, победная крупнее, лучи сзади.
 	local win = tiles[targetIndex]
-	sfx("MineModifierReveal")
+	sfx(targetRank >= 5 and "OreRevealEpic" or targetRank >= 3 and "OreRevealRare" or "ReelWin") -- v20.129
 	TweenService:Create(markerStroke, TweenInfo.new(0.2), { Transparency = 1 }):Play()
 	for i, tile in tiles do
 		if i ~= targetIndex and math.abs(i - targetIndex) <= visibleCards then

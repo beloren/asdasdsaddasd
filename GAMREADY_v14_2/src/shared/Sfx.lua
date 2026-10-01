@@ -39,6 +39,12 @@ function Sfx.play(name, parent)
 	sound.SoundId = soundId
 	sound.Volume = entry.Volume or 0.5
 	sound.RollOffMaxDistance = 140
+	-- v20.129: высота тона (Pitch) и случайный разброс (PitchJitter) - один
+	-- сэмпл звучит по-разному для разных действий и не надоедает
+	local pitch = tonumber(entry.Pitch) or 1
+	local jitter = tonumber(entry.PitchJitter) or 0
+	if jitter > 0 then pitch *= 1 + (math.random() * 2 - 1) * jitter end
+	sound.PlaybackSpeed = pitch
 	sound.SoundGroup = sfxGroup
 	sound.Parent = parent
 	sound:Play()

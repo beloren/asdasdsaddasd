@@ -2336,6 +2336,8 @@ local function flyOre(crystal, fromPos, toPos, seconds, arcHeight, spitPop)
 		-- как "разбухло ещё внутри шахты") и не позже (иначе "вылетело, а
 		-- потом почему-то распухло в воздухе").
 		if spitPop then startSpitPop() end
+		-- v20.129: звук вылета куска (шахта «выплюнула»)
+		pcall(Sfx.play, spitPop and "OreEject" or "OreThrow", root)
 
 		-- (2)+(3) ПОЛЁТ: "квадратная" дуга + stretch по скорости.
 		local previousPos = fromPos
@@ -2383,6 +2385,7 @@ local function flyOre(crystal, fromPos, toPos, seconds, arcHeight, spitPop)
 		root.CanCollide = false
 		crystal:SetAttribute("Landed", true)
 		crystal:SetAttribute("SpinAxis", math.random() < 0.5 and 1 or -1)
+		pcall(Sfx.play, "OreLand", root) -- v20.129: стук о землю
 		task.delay((trail.Lifetime or 0.4) + 0.05, function()
 			if trail.Parent then trail.Enabled = false end
 		end)

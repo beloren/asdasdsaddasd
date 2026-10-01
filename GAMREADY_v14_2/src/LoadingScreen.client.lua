@@ -215,6 +215,19 @@ blur.Size = 18
 blur.Parent = Lighting
 
 local loadingCfg = {}
+local soundsCfg = {}
+-- v20.129: звук перелёта камеры (Config.Sounds.LoadingWhoosh)
+local function playWhoosh(pitch)
+	local entry = soundsCfg.LoadingWhoosh
+	if not (entry and typeof(entry.Id) == "string" and entry.Id ~= "") then return end
+	local sound = Instance.new("Sound")
+	sound.SoundId = entry.Id
+	sound.Volume = entry.Volume or 0.5
+	sound.PlaybackSpeed = (entry.Pitch or 1) * (pitch or 1)
+	sound.Parent = game:GetService("SoundService")
+	sound:Play()
+	game:GetService("Debris"):AddItem(sound, 5)
+end
 local orbitCenter = Vector3.new(0, 0, 0)
 local orbitAngle = math.random() * math.pi * 2
 local orbiting = true
@@ -419,6 +432,7 @@ local function transitionToPlayer()
 	look = Vector3.new(look.X, 0, look.Z)
 	if look.Magnitude < 0.05 then look = Vector3.new(0, 0, -1) end
 	look = look.Unit
+	playWhoosh(1)
 	-- 1) взлёт: из текущей точки вверх, взгляд вниз
 	local upPos = Vector3.new(start.Position.X, math.max(start.Position.Y, playerPos.Y) + high, start.Position.Z)
 	tweenCamera(camera, CFrame.lookAt(upPos, upPos - Vector3.new(0, 1, 0), look), 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -429,6 +443,7 @@ local function transitionToPlayer()
 	playerPos = hrp.Position
 	local midPos = playerPos + Vector3.new(0, high * 0.25, 0)
 	TweenService:Create(blur, TweenInfo.new(1.1), { Size = 0 }):Play()
+	playWhoosh(1.25)
 	tweenCamera(camera, CFrame.lookAt(midPos, playerPos, look), 0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 	local focus = head.Position
 	local eye = focus - look * 12 + Vector3.new(0, 4.5, 0)
@@ -468,6 +483,7 @@ task.spawn(function()
 		if configModule then okConfig, Config = pcall(require, configModule) end
 		if okConfig and typeof(Config) == "table" and typeof(Config.Loading) == "table" then
 			loadingCfg = Config.Loading
+			soundsCfg = typeof(Config.Sounds) == "table" and Config.Sounds or {}
 			if typeof(loadingCfg.Tips) == "table" and #loadingCfg.Tips > 0 then tips = loadingCfg.Tips end
 		end
 		local logoId = tonumber(loadingCfg.LogoImageId) or 113042882863397

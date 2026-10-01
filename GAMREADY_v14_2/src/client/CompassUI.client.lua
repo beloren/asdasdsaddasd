@@ -171,7 +171,7 @@ teleport = function(destId)
 	inTween.Completed:Wait()
 	local ok, result, extra = pcall(function() return remote:InvokeServer("Teleport", destId) end)
 	if ok and result == true then
-		sfx("UiConfirm")
+		sfx("Teleport") -- v20.129
 		cooldownUntil = os.clock() + (tonumber(extra) or cfg.Cooldown or 5)
 		setOpen(false)
 	else

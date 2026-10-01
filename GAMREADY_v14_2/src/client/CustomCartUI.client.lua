@@ -197,7 +197,10 @@ local function applyDeviceScale(gui)
 					scale.Parent = frame
 				end
 				scale.Scale = promptScale
-				frame.Position = UDim2.new(0.5, 45, 1, -20)
+				-- v20.129: подсказки действий на телефоне - справа, прямо над
+				-- кнопкой прыжка (под большим пальцем), а не по центру снизу
+				frame.AnchorPoint = Vector2.new(1, 1)
+				frame.Position = UDim2.new(1, -12, 1, -130)
 			end
 		end
 		local fillOffer = gui:FindFirstChild("FillCartOffer", true)
@@ -289,7 +292,9 @@ local function refreshMobileInteractionLayout()
 					frame.Position = UDim2.new(0.5, 0, 1, -112)
 					frame.Size = UDim2.fromOffset(150, 38)
 				else
-					frame.Position = UDim2.new(0.5, 45, 1, -20)
+					-- v20.129: справа над кнопкой прыжка (как статусы)
+					frame.AnchorPoint = Vector2.new(1, 1)
+					frame.Position = UDim2.new(1, -12, 1, -130)
 					local baseSize = frame:GetAttribute("MobileBaseSize")
 					if typeof(baseSize) == "Vector2" then
 						frame.Size = UDim2.fromOffset(baseSize.X, baseSize.Y)
@@ -6925,8 +6930,17 @@ local function setupBackgroundMusic()
 		local currentIndex = 0
 		local trackStartedAt = 0
 
+		-- v20.129: треки идут В СЛУЧАЙНОМ порядке (Config.Music.Shuffle), один и
+		-- тот же два раза подряд не играет; каждый заход - свой первый трек.
+		local rng = Random.new()
 		local function playNextTrack()
-			currentIndex = currentIndex % #tracks + 1 -- дошли до конца списка (#tracks) — % возвращает 0, +1 снова даёт трек 1
+			if Config.Music.Shuffle ~= false and #tracks > 1 then
+				local nextIndex = currentIndex
+				while nextIndex == currentIndex do nextIndex = rng:NextInteger(1, #tracks) end
+				currentIndex = nextIndex
+			else
+				currentIndex = currentIndex % #tracks + 1
+			end
 			musicSound:Stop()
 			musicSound.SoundId = tracks[currentIndex]
 			musicSound.TimePosition = 0

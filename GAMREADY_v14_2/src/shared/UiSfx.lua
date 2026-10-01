@@ -15,6 +15,12 @@ function UiSfx.play(name)
 	sound.Name = "Local_" .. soundName
 	sound.SoundId = soundId
 	sound.Volume = definition.Volume or 0.5
+	-- v20.129: высота тона (Pitch) и случайный разброс (PitchJitter) - один
+	-- сэмпл звучит по-разному для разных действий и не надоедает
+	local pitch = tonumber(definition.Pitch) or 1
+	local jitter = tonumber(definition.PitchJitter) or 0
+	if jitter > 0 then pitch *= 1 + (math.random() * 2 - 1) * jitter end
+	sound.PlaybackSpeed = pitch
 	sound.SoundGroup = group
 	sound.Parent = group or SoundService
 	sound:Play()

@@ -42,6 +42,7 @@ local LEGACY = {
 	"GamepassQuickBar", "UpgradeShopCards", "TutorialObjectiveCard", "MutationBookUi",
 	"PreviewGroupReward", "PreviewLikeReward", "OpenDropPreview", "DialogResponses", "IslandShopUi",
 	"CartPlacementHud", "PlacementGhostUi", "RubbleCrystalUI", "QuestEdgeArrow",
+	"StarterPackOffer", -- v20.129: стартовый набор удалён
 }
 for _, name in LEGACY do
 	local old = StarterGui:FindFirstChild(name)

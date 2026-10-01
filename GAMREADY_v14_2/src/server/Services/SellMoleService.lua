@@ -16,6 +16,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Sfx = require(ReplicatedStorage.Shared.Sfx) -- v20.129: звуки действий
 
 local SellMoleService = {}
 local Services = nil
@@ -166,6 +167,7 @@ function SellMoleService:_spawn(player, zone, hrp)
 	model:SetAttribute("GroundY", ground.Y)
 	model.Parent = folder
 	state.Mole = model
+	pcall(Sfx.play, "MoleRise", model)
 	state.SpawnedAt = os.clock()
 	local lines = cfg().Lines or { "Selling today?" }
 	local line = self:_carriedCrystal(player) and (cfg().CrystalLine or "Ooh, a crystal! I'll keep it safe in the bank.")
@@ -183,6 +185,7 @@ function SellMoleService:_burrow(player)
 	state.Mole = nil
 	if model.Parent then
 		model:SetAttribute("State", "Burrow")
+		pcall(Sfx.play, "MoleBurrow", model)
 		task.delay((cfg().BurrowSeconds or 0.5) + 1.6, function()
 			if model.Parent then model:Destroy() end
 		end)
@@ -203,7 +206,9 @@ function SellMoleService:_onChoice(player, choice)
 	if choice == "Crystal" then
 		state.Busy = true
 		local ok, err = pcall(function()
-			if Services.RockService then Services.RockService:DepositCarrying(player) end
+			if Services.RockService and Services.RockService:DepositCarrying(player) then
+				pcall(Sfx.play, "CrystalDeposit", model)
+			end
 		end)
 		if not ok then warn("[SellMoleService] сдача кристалла упала:", err) end
 		state.Busy = false

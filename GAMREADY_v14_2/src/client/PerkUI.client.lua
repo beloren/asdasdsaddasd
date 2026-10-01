@@ -978,7 +978,7 @@ remote.OnClientEvent:Connect(function(command, payload)
 	elseif command == "State" then
 		applyState(payload)
 	elseif command == "BuyResult" and type(payload) == "table" then
-		UiSfx.play(payload.Ok and "UiButtonClick" or "UiError")
+		UiSfx.play(payload.Ok and "PerkUnlock" or "UiError") -- v20.129
 		if payload.Ok and payload.ShrineId then
 			-- святилище легло в инвентарь (вкладка TOTEMS)
 		elseif payload.Ok then

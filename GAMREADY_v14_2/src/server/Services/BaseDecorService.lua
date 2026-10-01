@@ -34,6 +34,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local MessagingService = game:GetService("MessagingService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Sfx = require(ReplicatedStorage.Shared.Sfx) -- v20.129: звуки действий
 local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local PlaceableCatalog = require(ReplicatedStorage.Shared.PlaceableCatalog)
 local PlaceableFactory = require(ReplicatedStorage.Shared.PlaceableFactory)
@@ -956,6 +957,7 @@ function BaseDecorService:PlaceFromGear(player, key, targetCFrame)
 	Services.GearService:AddGear(player, key, -1)
 	placing[player] = nil
 	self:_recompute(player)
+	pcall(Sfx.play, "ItemPlace", model)
 	if Services.QuestService then pcall(Services.QuestService.RecordMetric, Services.QuestService, player, "ItemsPlaced", 1) end
 	return true
 end
@@ -1021,6 +1023,8 @@ function BaseDecorService:PickUp(player, uid, _cascade)
 	local model = spawned[player] and spawned[player][uid]
 	if model then
 		spawned[player][uid] = nil
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if hrp then pcall(Sfx.play, "ItemPickup", hrp) end
 		if model.Parent then model:Destroy() end
 	end
 	Services.GearService:AddGear(player, key, 1)

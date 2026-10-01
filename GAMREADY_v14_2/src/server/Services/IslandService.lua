@@ -29,6 +29,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Sfx = require(ReplicatedStorage.Shared.Sfx) -- v20.129: звуки действий
 local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local NpcNameTag = require(ReplicatedStorage.Shared.NpcNameTag) -- v20.97: подпись над НПС
@@ -1155,6 +1156,7 @@ function IslandService:_rise(player, islandId, model)
 	local state = states[player]
 	state.Rising[islandId] = true
 	local duration = ISLANDS.RiseSeconds or 3
+	pcall(Sfx.play, "IslandRise", model) -- v20.129: гул подъёма острова
 	local finalPivot = model:GetPivot()
 	local boxCFrame, boxSize = model:GetBoundingBox()
 	-- Остров обязан уйти под землю ЦЕЛИКОМ, какой бы высоты ни был макет.

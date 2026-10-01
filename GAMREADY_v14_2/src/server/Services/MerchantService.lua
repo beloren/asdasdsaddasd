@@ -29,6 +29,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Sfx = require(ReplicatedStorage.Shared.Sfx) -- v20.129: звуки действий
 local BigNum = require(ReplicatedStorage.Shared.BigNum)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20.105: табло над зоной продажи
@@ -700,6 +701,8 @@ function MerchantService:Buy(player, itemId)
 	if item.Kind == "OreUnlock" and Services.TutorialService then
 		pcall(Services.TutorialService.Count, Services.TutorialService, player, "OreBoxBought", 1) -- v20.110
 	end
+	local buyerRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if buyerRoot then pcall(Sfx.play, "Purchase", buyerRoot) end
 	self:SendState(player)
 	return true, reveal
 end

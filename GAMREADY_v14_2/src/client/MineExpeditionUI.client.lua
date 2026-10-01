@@ -898,7 +898,7 @@ local function showModifierCard(modifier)
 		ui.CardPop.Scale = 0.2
 		TweenService:Create(ui.CardPop, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 	end
-	UiSfx.play("MineModifierReveal")
+	UiSfx.play("LuckModifier") -- v20.129: выпал модификатор захода (удача и т.п.)
 	task.delay(2.4, function()
 		if cardToken ~= myToken or not ui.Card.Parent then return end
 		if ui.CardPop then
@@ -1501,7 +1501,7 @@ local function playRarityCard(data)
 			local tickIndex = math.floor(reelY / reel.Spacing + 0.5)
 			if tickIndex ~= reel.LastTick then
 				reel.LastTick = tickIndex
-				UiSfx.play("UiHover")
+				UiSfx.play("ReelTick") -- v20.129
 			end
 		elseif t < inSeconds then
 			local a = t / inSeconds
@@ -1518,7 +1518,9 @@ local function playRarityCard(data)
 			if not reachedCenter then
 				reachedCenter = true
 				burstAt = t
-				UiSfx.play("MineModifierReveal")
+				-- v20.129: звук победной карточки по редкости
+				local winRank = table.find(Config.RarityOrder, rarity) or 1
+				UiSfx.play(winRank >= 5 and "OreRevealEpic" or winRank >= 3 and "OreRevealRare" or "ReelWin")
 				local burst = emitter(anchor, {
 					Color = ColorSequence.new(color, Color3.new(1, 1, 1)),
 					Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5 * scaleK), NumberSequenceKeypoint.new(1, 0) }),
@@ -1780,7 +1782,7 @@ stateRemote.OnClientEvent:Connect(function(stage, data)
 	elseif stage == "OreReveal" and typeof(data) == "table" then
 		-- v20.111: «момент» редкой руды при вылете по редкости
 		local rank = tonumber(data.Rank) or 1
-		UiSfxLazy(rank >= 5 and "MineModifierReveal" or "UiConfirm")
+		UiSfxLazy(rank >= 5 and "OreRevealEpic" or rank >= 3 and "OreRevealRare" or "OreRevealCommon") -- v20.129: звук по редкости
 		if rank >= 4 then cameraShake(rank >= 5 and 0.35 or 0.18, rank >= 5 and 0.5 or 0.3) end
 		if rank >= 5 and typeof(data.Color) == "Color3" then screenFlash(data.Color, 0.45) end
 		if rank >= 3 then fovKick(rank >= 5 and -8 or -4, 0.3) end

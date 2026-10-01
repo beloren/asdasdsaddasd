@@ -5857,15 +5857,15 @@ Config.Sounds = {
 	ChestOpen = { Id = "rbxassetid://134325190113114", Volume = 0.85 },
 	-- v16: динамит и сундуки. Пустой Id = звук пропускается (для взрыва тогда
 	-- играет встроенный звук Explosion Roblox). Впиши свои rbxassetid://.
-	DynamiteThrow = { Id = "", Volume = 0.6 },
-	DynamiteFuse = { Id = "", Volume = 0.5 },
-	DynamiteTick = { Id = "", Volume = 0.6 },
+	DynamiteThrow = { Id = "rbxasset://sounds/swordlunge.wav", Pitch = 0.9, Volume = 0.6 },
+	DynamiteFuse = { Id = "rbxasset://sounds/Rocket whoosh.wav", Pitch = 1.6, Volume = 0.35 },
+	DynamiteTick = { Id = "rbxasset://sounds/clickfast.wav", Volume = 0.6 },
 	DynamiteBoom = { Id = "", Volume = 0.9 },
 	DynamiteBigBoom = { Id = "", Volume = 1 },
-	RagdollLand = { Id = "", Volume = 0.7 },
-	ChestCreak = { Id = "", Volume = 0.6 },
-	ChestBurst = { Id = "", Volume = 0.9 },
-	LootPop = { Id = "", Volume = 0.5 },
+	RagdollLand = { Id = "rbxasset://sounds/action_jump_land.mp3", Pitch = 0.85, Volume = 0.8 },
+	ChestCreak = { Id = "rbxassetid://134325190113114", Pitch = 0.8, Volume = 0.6 },
+	ChestBurst = { Id = "rbxassetid://85546265323346", Pitch = 0.9, Volume = 0.9 },
+	LootPop = { Id = "rbxassetid://74123659982422", Pitch = 1.3, PitchJitter = 0.1, Volume = 0.5 },
 	LootPickup = { Id = "rbxassetid://85783678067324", Volume = 0.6 },
 	RewardMoney = { Id = "rbxassetid://129867367137419", Variants = { "rbxassetid://99359825575585", "rbxassetid://91926972747239", "rbxassetid://127362954621863" }, Volume = 0.55 },
 	RewardGeode = { Id = "rbxassetid://121730389428662", Volume = 0.65 },
@@ -5885,7 +5885,7 @@ Config.Sounds = {
 	-- вариантах они строго чередуются 1-2-1-2, а не выпадают случайно
 	-- (два одинаковых замаха подряд не прозвучат).
 	PickaxeSwing = { Id = "rbxassetid://109513133322689", Volume = 0.35 },
-	PickaxeHit = { Id = "rbxassetid://83234417221359", Volume = 0.2125 },      -- ещё на 50% тише
+	PickaxeHit = { Id = "rbxassetid://83234417221359", PitchJitter = 0.08, Volume = 0.2125 },      -- ещё на 50% тише
 	PickaxeHitCart = { Id = "rbxassetid://83234417221359", Volume = 0.2125 },  -- ещё на 50% тише
 	BoulderBreak = { Id = "rbxassetid://138395954502036", Volume = 0.85 },
 	CrystalSpawn = { Id = "rbxassetid://74123659982422", Volume = 0.7 },      -- руда появилась в шахте (см. MineService)
@@ -5902,13 +5902,13 @@ Config.Sounds = {
 	CartDrop = { Id = "rbxassetid://82810688987124", Volume = 0.5 },           -- оставил тележку
 	CartRoll = { Id = "rbxassetid://97801918937383", Volume = 1.4, RollOffMinDistance = 28, RollOffMaxDistance = 120 }, -- единственный loop, без вариантов
 	Upgrade = { Id = "rbxassetid://138395954502036", Volume = 0.8 },            -- апгрейд куплен
-	MiningRhythmHit = { Id = 0, Volume = 0.75 },
+	MiningRhythmHit = { Id = "rbxassetid://83234417221359", PitchJitter = 0.08, Volume = 0.75 },
 	-- Мини-игра "рудная жила": свой звук на каждый результат удара и на
 	-- появление модификатора. ID — временные (взяты из уже используемых в
 	-- игре), замените на свои.
-	MineHitPerfect = { Id = "rbxassetid://121730389428662", Volume = 0.7 },
-	MineHitGood = { Id = "rbxassetid://83234417221359", Volume = 0.6 },
-	MineHitMiss = { Id = "rbxassetid://138395954502036", Volume = 0.35 },
+	MineHitPerfect = { Id = "rbxassetid://121730389428662", Pitch = 1.2, Volume = 0.75 },
+	MineHitGood = { Id = "rbxassetid://83234417221359", PitchJitter = 0.08, Volume = 0.7 },
+	MineHitMiss = { Id = "rbxasset://sounds/swordlunge.wav", Pitch = 0.75, Volume = 0.55 },
 	MineModifierReveal = { Id = "rbxassetid://121730389428662", Volume = 0.5 },                                -- успешный клик по ритм-кнопке во время добычи (см. MineService/Config.MiningRhythm)
 	UpgradeFail = { Id = "rbxassetid://85783678067324", Volume = 0.7 },        -- недостаточно денег / угнана
 	Rebirth = { Id = "rbxassetid://121730389428662", Volume = 0.6 },            -- ребёрт
@@ -5930,7 +5930,7 @@ Config.Sounds = {
 	DialogueTypewriter = { Id = "rbxassetid://92275904187457", Volume = 0.6 }, -- "голос" NPC — играет ОДИН РАЗ на всю реплику (в начале печати), не на каждую букву
 	CoinCollect = { Id = "rbxassetid://129867367137419", Variants = { "rbxassetid://99359825575585", "rbxassetid://91926972747239", "rbxassetid://127362954621863" }, Volume = 0.55 },
 	GeodeSpawn = { Id = "rbxassetid://121730389428662", Volume = 0.8 },
-	GeodeTap = { Id = "rbxassetid://83851198345146", Variants = { "rbxassetid://85546265323346" }, Volume = 0.55 },
+	GeodeTap = { Id = "rbxassetid://83851198345146", Variants = { "rbxassetid://85546265323346" }, PitchJitter = 0.06, Volume = 0.55 },
 	GeodeDrop = { Id = "rbxassetid://121730389428662", Volume = 0.7 },
 	CrystalInstall = { Id = "rbxassetid://77105663599809", Volume = 0.65 },
 	CrystalRemove = { Id = "rbxassetid://82810688987124", Volume = 0.55 },
@@ -5946,6 +5946,30 @@ Config.Sounds = {
 	-- в CustomCartUI.showToast.
 	Notification = { Id = "rbxassetid://115667378545343", Volume = 0.5 },
 	Sell = { Id = "rbxassetid://129867367137419", Variants = { "rbxassetid://99359825575585", "rbxassetid://91926972747239", "rbxassetid://127362954621863" }, Volume = 0.55 },              -- продажа одного кристалла
+	-- v20.129: ЗВУКИ ДЕЙСТВИЙ. Pitch - высота тона (1 = как есть),
+	-- PitchJitter - случайный разброс высоты (0.08 = ±8%). rbxasset://sounds/* -
+	-- встроенные звуки Roblox (есть в любом клиенте). Замени Id на свои.
+	ReelTick = { Id = "rbxassetid://77904255581959", Pitch = 1.5, PitchJitter = 0.05, Volume = 0.25 },   -- щелчок ленты редкостей
+	ReelWin = { Id = "rbxassetid://121730389428662", Volume = 0.6 },                                    -- лента встала (обычная редкость)
+	OreRevealCommon = { Id = "rbxassetid://74123659982422", Pitch = 1.1, Volume = 0.5 },                 -- раскрылась обычная руда
+	OreRevealRare = { Id = "rbxassetid://121730389428662", Volume = 0.8 },                                -- редкая (Rare/Epic)
+	OreRevealEpic = { Id = "rbxassetid://113027571064402", Volume = 0.9 },                                -- легендарная и выше
+	LuckModifier = { Id = "rbxassetid://113027571064402", Pitch = 1.15, Volume = 0.7 },                  -- выпал модификатор захода (удача и т.п.)
+	OreEject = { Id = "rbxassetid://74123659982422", Pitch = 0.8, PitchJitter = 0.12, Volume = 0.6 },    -- шахта выплюнула кусок руды
+	OreThrow = { Id = "rbxasset://sounds/swordlunge.wav", Pitch = 1.1, Volume = 0.45 },                                  -- игрок выбросил руду
+	OreLand = { Id = "rbxassetid://83234417221359", Pitch = 0.7, PitchJitter = 0.12, Volume = 0.45 },    -- кусок упал на землю
+	OreBoxShake = { Id = "rbxassetid://134325190113114", Pitch = 0.85, Volume = 0.55 },                  -- коробка руды трясётся над головой
+	OreBoxOpen = { Id = "rbxassetid://85546265323346", Volume = 0.9 },                                    -- коробка раскрылась
+	MoleRise = { Id = "rbxassetid://74123659982422", Pitch = 0.6, Volume = 0.6 },                        -- крот вылез
+	MoleBurrow = { Id = "rbxassetid://82810688987124", Pitch = 0.7, Volume = 0.6 },                      -- крот зарылся
+	CrystalDeposit = { Id = "rbxassetid://77105663599809", Volume = 0.7 },                                -- кристалл сдан кроту в банк
+	Teleport = { Id = "rbxassetid://113414336923621", Pitch = 0.8, Volume = 0.6 },                        -- телепорт TRAVEL
+	ItemPlace = { Id = "rbxassetid://82810688987124", Pitch = 0.9, Volume = 0.55 },                       -- поставил тотем/декор
+	ItemPickup = { Id = "rbxassetid://85783678067324", Volume = 0.5 },                                    -- убрал предмет в инвентарь
+	Purchase = { Id = "rbxassetid://129867367137419", Variants = { "rbxassetid://99359825575585", "rbxassetid://91926972747239" }, Volume = 0.55 }, -- покупка у торговца
+	IslandRise = { Id = "rbxassetid://97801918937383", Pitch = 0.5, Volume = 1 },                        -- остров поднимается из-под земли
+	PerkUnlock = { Id = "rbxassetid://121730389428662", Pitch = 1.1, Volume = 0.7 },                     -- куплен перк престижа
+	LoadingWhoosh = { Id = "rbxassetid://113414336923621", Pitch = 0.7, Volume = 0.6 },                  -- камера загрузки летит к игроку
 }
 
 --------------------------------------------------------------------------------
@@ -6153,8 +6177,10 @@ Config.UiLayout = {
 			-- v20.87: статусы (баффы, дебаффы, погода, сейв-зона) — ТОЧНО левый
 			-- нижний угол; иконки растут от угла вправо и вверх. Тап по иконке —
 			-- подсказка над ней (второй тап или через 4 с — скрыть).
-			["BuffBar/Bar"] = { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 6, 1, -6) },
-			["BuffBar/Bar/UIGridLayout"] = { StartCorner = Enum.StartCorner.BottomLeft, HorizontalAlignment = Enum.HorizontalAlignment.Left },
+			-- v20.129: статусы (погода, сейф-зона, баффы) - СПРАВА, над кнопкой
+			-- прыжка и подсказками действий (слева - джойстик); растут вверх.
+			["BuffBar/Bar"] = { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -8, 1, -215) },
+			["BuffBar/Bar/UIGridLayout"] = { StartCorner = Enum.StartCorner.BottomRight, HorizontalAlignment = Enum.HorizontalAlignment.Right },
 			-- Лента добычи — под деньгами, покороче.
 			["LootFeedUi/Feed"] = { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 96), Size = UDim2.fromOffset(300, 300) },
 			-- Предложения — над кнопкой прыжка, левее неё.
@@ -6179,7 +6205,7 @@ Config.UiLayout = {
 }
 
 --------------------------------------------------------------------------------
--- ФОНОВАЯ МУЗЫКА — плейлист треков, играются ПО ОЧЕРЕДИ (не вперемешку),
+-- ФОНОВАЯ МУЗЫКА — плейлист треков (v20.129: в СЛУЧАЙНОМ порядке, Shuffle),
 -- один за другим: трек закончился → сразу следующий → дошли до конца
 -- списка → снова первый, по кругу до бесконечности, всю игру. Чисто
 -- клиентское (см. CustomCartUI.client.lua) — у каждого игрока играет
@@ -6190,14 +6216,18 @@ Config.UiLayout = {
 --------------------------------------------------------------------------------
 Config.Music = {
 	Volume = 0.175, -- на 30% тише прежних 0.25
+	Shuffle = true, -- v20.129: каждый трек выбирается случайно (без повтора подряд)
 	Tracks = {
-		"rbxassetid://100677589656320",
-		"rbxassetid://79112966258857",
-		"rbxassetid://130124118845579",
-		"rbxassetid://107280876785828",
-		"rbxassetid://134688009218944",
-		"rbxassetid://102165501918668",
-		"rbxassetid://89569950994563",
+		"rbxassetid://1846575559",
+		"rbxassetid://137428265678876",
+		"rbxassetid://1842241530",
+		"rbxassetid://1841647742",
+		"rbxassetid://1838857104",
+		"rbxassetid://1838674668",
+		"rbxassetid://1848028342",
+		"rbxassetid://140619137413701",
+		"rbxassetid://1841647093",
+		"rbxassetid://1840684529",
 	},
 }
 
@@ -6467,7 +6497,6 @@ Config.Shop = {
 		{ Id = "MoneyPackMediumDeal", Tab = "Cash", Title = ("💰 %d Min Cash"):format(Config.DevProducts.MoneyPackMedium.Minutes), PriceRobux = Config.DevProducts.MoneyPackMedium.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackMedium.Id },
 		{ Id = "MoneyPackLargeDeal", Tab = "Cash", Title = ("🏦 %d Min Cash"):format(Config.DevProducts.MoneyPackLarge.Minutes), PriceRobux = Config.DevProducts.MoneyPackLarge.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackLarge.Id },
 		{ Id = "ShieldExtensionDeal", Tab = "Deals", Title = ("🛡 Shield +%ds"):format(Config.Protection.PaidDuration), PriceRobux = Config.Protection.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.Protection.PaidProductId },
-		{ Id = "StarterPackDeal", Tab = "Deals", Title = "🎁 Starter Pack", PriceRobux = Config.DevProducts.StarterPack.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.StarterPack.Id },
 		-- Geodes are also available from the normal donation shop. The same
 		-- ProductIds are handled by MonetizationService's durable geode branch.
 		{ Id = "StoneGeodeDeal", Tab = "Geodes", Title = "🪨 Stone Geode", PriceRobux = Config.DevProducts.GeodePacks.Stone.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Stone.Id },
@@ -6543,7 +6572,6 @@ Config.Shop.Descriptions = {
 	MoneyPackMediumDeal = "Instant cash! Popular!",
 	MoneyPackLargeDeal = "Instant cash! Best value!",
 	ShieldExtensionDeal = "Extend your shield!",
-	StarterPackDeal = "One-time bundle!",
 	StoneGeodeDeal = "+1 Stone Geode!",
 	CrystalGeodeDeal = "+1 Crystal Geode!",
 	AmberGeodeDeal = "+1 Amber Geode!",
