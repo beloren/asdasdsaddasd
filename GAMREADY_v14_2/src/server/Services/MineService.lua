@@ -1936,10 +1936,29 @@ end
 function MineService:_showRarityCard(player, expedition)
 	local card = Config.MineExpedition.RarityCard or {}
 	local rarity = Config.AverageRarityForTier(expedition.Tier, expedition.LuckBonus)
+	local reel = Config.MineExpedition.RarityReel
+	local reelSeconds = 0
+	if reel and reel.Enabled and Config.NoCarts then
+		-- v20.109: лента редкостей как в кейсах - стоп на лучшей руде пачки
+		local order = Config.RarityOrder
+		local best = 1
+		local ok = pcall(function()
+			for _, entry in self:_preRoll(player, expedition) do
+				local r = entry.Crystal:GetAttribute("CrystalRarity")
+				best = math.max(best, table.find(order, r) or 1)
+			end
+		end)
+		if ok then
+			rarity = order[best]
+			reelSeconds = (reel.Seconds or 3.4) + (reel.HoldSeconds or 0.5)
+		end
+	end
 	stateRemote:FireClient(player, "RarityCard", {
 		Rarity = rarity,
 		Color = Config.RarityColors[rarity],
+		Reel = reelSeconds > 0 or nil,
 	})
+	task.wait(reelSeconds)
 	local extra = (card.Effects and card.Effects[rarity] and card.Effects[rarity].HoldExtra) or 0
 	task.wait((card.InSeconds or 0.34) + (card.HoldSeconds or 0.42) + extra + (card.OutSeconds or 0.3) + 0.05)
 end
@@ -2601,10 +2620,10 @@ local function shakeCrystal(crystal)
 	end)
 end
 
-function MineService:_ejectOre(player, expedition)
-	if expeditions[player] ~= expedition then return end
-	local plot = expedition.Plot
-	local cart = expedition.Cart
+-- v20.109: число кусков захода считается ОДИН раз (лента редкостей
+-- заранее роллит пачку, а Mine Rush тратит заряд только однажды).
+function MineService:_yieldFor(player, expedition)
+	if expedition.YieldCount then return expedition.YieldCount end
 	local tier = expedition.Tier
 	local tierInfo = Config.MineTiers[math.clamp(tier, 1, #Config.MineTiers)]
 	local yieldCount = tierInfo.OreYield
@@ -2632,6 +2651,42 @@ function MineService:_ejectOre(player, expedition)
 	if Services.CombatService and Services.CombatService.IsRocketActive and Services.CombatService:IsRocketActive(player) then
 		yieldCount = math.max(1, math.floor(yieldCount * (Config.RocketPickaxe.MineYieldMultiplier or 0.5)))
 	end
+	expedition.YieldCount = yieldCount
+	return yieldCount
+end
+
+-- v20.109: ЗАРАНЕЕ РОЛЛИМ ПАЧКУ (для ленты редкостей после мини-игры):
+-- лента останавливается на лучшей редкости того, что реально выпадет.
+function MineService:_preRoll(player, expedition)
+	if expedition.PreRolled then return expedition.PreRolled end
+	local tier = expedition.Tier
+	local tierInfo = Config.MineTiers[math.clamp(tier, 1, #Config.MineTiers)]
+	local rolled = {}
+	for _ = 1, self:_yieldFor(player, expedition) do
+		local wentToGeode = false
+		if Config.NoCarts and Services.GeodeService then
+			local ok, spawned = pcall(function()
+				return Services.GeodeService:TrySpawnForMine(player, nil, tier, nil, false)
+			end)
+			wentToGeode = ok and spawned == true
+		end
+		if not wentToGeode then
+			local crystal = Services.CrystalService:Create(tier, player, expedition.LuckBonus)
+			local oreInfo = Config.OreByKey[crystal:GetAttribute("CrystalOre")] or tierInfo
+			table.insert(rolled, { Crystal = crystal, OreInfo = oreInfo })
+		end
+	end
+	expedition.PreRolled = rolled
+	return rolled
+end
+
+function MineService:_ejectOre(player, expedition)
+	if expeditions[player] ~= expedition then return end
+	local plot = expedition.Plot
+	local cart = expedition.Cart
+	local tier = expedition.Tier
+	local tierInfo = Config.MineTiers[math.clamp(tier, 1, #Config.MineTiers)]
+	local yieldCount = self:_yieldFor(player, expedition)
 	local cfg = Config.MineExpedition
 
 	-- РУДА ВЫЛЕТАЕТ ИЗ ENTRY (по прямому запросу). plot.MineEntryCFrame
@@ -2752,6 +2807,10 @@ function MineService:_ejectOre(player, expedition)
 	-- прежнему летят СРАЗУ в тележку, это отдельная, не переделываемая
 	-- сейчас механика), иначе — руда через Config.RollOreForTier.
 	local rolled = {} -- { {Crystal=, OreInfo=}, ... }
+	if expedition.PreRolled then
+		rolled = expedition.PreRolled -- v20.109: пачка уже выпала до ленты редкостей
+		yieldCount = 0
+	end
 	for _ = 1, yieldCount do
 		local wentToGeode = false
 		if (cart or Config.NoCarts) and Services.GeodeService then

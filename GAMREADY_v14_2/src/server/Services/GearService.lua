@@ -292,6 +292,11 @@ function GearService:Equip(player, key)
 		Services.NotifyService:Show(player, "Put your cart down first!", { Icon = "Cart" })
 		return
 	end
+	-- v20.109: КОРОБКА С РУДОЙ (торговец, вкладка ORE) - взял = открыл.
+	if key:match("^OreBox_") then
+		if Services.OreUnlockService then Services.OreUnlockService:OpenBox(player, key) end
+		return
+	end
 
 	--------------------------------------------------------------------------
 	-- v12: УПАКОВКА ТЕЛЕЖКИ — единственный предмет снаряжения, который НЕ

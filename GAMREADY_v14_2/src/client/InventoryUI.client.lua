@@ -95,6 +95,11 @@ local function gearInfo(key)
 	if typeof(key) ~= "string" then return nil end
 	local known = GEAR_INFO[key]
 	if known then return known end
+	local boxOre = key:match("^OreBox_(.+)$") -- v20.109: коробка руды
+	local boxInfo = boxOre and Config.OreByKey[boxOre]
+	if boxInfo then
+		return { Name = boxInfo.DisplayName .. " Box", Icon = "📦", Color = boxInfo.Color }
+	end
 	local placeable = PlaceableCatalog.Info(key)
 	if placeable then
 		return { Name = placeable.DisplayName, Icon = placeable.Icon, Color = placeable.TierColor or placeable.Color }
@@ -123,6 +128,8 @@ end
 -- v20.46: редкость снаряжения — для крутящихся полосок за ячейкой.
 local function gearRarity(key)
 	if typeof(key) ~= "string" then return nil end
+	local boxOre = key:match("^OreBox_(.+)$")
+	if boxOre then return Config.OreBaseRarity(boxOre) end
 	local chest = key:match("^Chest_(%a+)$")
 	if chest then return chest end
 	local placeable = PlaceableCatalog.Info(key)
@@ -378,6 +385,8 @@ function GearModel.Build(key)
 	local PlaceableFactory = require(ReplicatedStorage.Shared.PlaceableFactory)
 	local relicId = key:match("^Relic:([^:]+)")
 	if relicId then return PlaceableFactory.BuildRelic(relicId) end
+	local boxOre = key:match("^OreBox_(.+)$")
+	if boxOre then return require(ReplicatedStorage.Shared.OreBoxModel).Build(boxOre) end
 	local chest = key:match("^Chest_(.+)$")
 	if chest then return PlaceableFactory.BuildChest(chest) end
 	local potion = Config.Potions and Config.Potions.Types[key]

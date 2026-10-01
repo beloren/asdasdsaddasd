@@ -164,6 +164,8 @@ local DEFAULT_DATA = {
 	-- без счётчика повторов.
 	MutationsFound = {},
 	BadgeStats = {}, -- v20.106: счётчики для бейджей (BadgeTrackerService)
+	UnlockedOres = {}, -- v20.109: купленные руды шахты (OreUnlockService)
+	MineReworkVersion = 0, -- v20.109: версия вайпа шахты (Config.MineRework.WipeVersion)
 	MobsFound = {},
 	OwnedSkins = {},
 	EquippedSkins = { Pickaxe = "", Cart = "", Ore = "" },
@@ -629,6 +631,17 @@ function DataService:LoadProfile(player)
 		end
 	end
 	player:SetAttribute("MineRepaired", data.MineRepaired == true)
+	-- v20.109: ВАЙП ПРОГРЕССА ШАХТЫ под переделку (Config.MineRework): уровень
+	-- пещеры - 1, купленные руды - заново. Один раз на WipeVersion.
+	local rework = Config.MineRework
+	if rework and rework.Enabled and (tonumber(data.MineReworkVersion) or 0) < (rework.WipeVersion or 1) then
+		local hadProgress = (tonumber(data.MineIndex) or 0) > 0 or next(data.UnlockedOres or {}) ~= nil
+		data.MineReworkVersion = rework.WipeVersion or 1
+		data.MineIndex = 0
+		data.UnlockedOres = {}
+		data.OreGuarantee = nil
+		if hadProgress then player:SetAttribute("MineReworkWiped", true) end
+	end
 	if player:GetAttribute("NeedsTutorial") and Services.CombatService then
 		-- Новичок ещё не прошёл гайд — временная защита на время его
 		-- прохождения и первых апгрейдов (см. Config.Protection.NewbieDuration).

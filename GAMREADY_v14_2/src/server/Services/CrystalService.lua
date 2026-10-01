@@ -543,7 +543,19 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 		if okLuck then paidOreLuck, paidMutation = oreBoost or 0, mutationBoost or 1 end
 	end
 	if paidOreLuck > 0 then luckBonus = math.max(0, (luckBonus or 0) + paidOreLuck) end
-	local oreInfo, oreChance, _oreSlot, oreRarity = Config.RollOreForTier(tier, luckBonus)
+	local oreInfo, oreChance, _oreSlot, oreRarity
+	local rework = Config.MineRework
+	if rework and rework.Enabled and miner and Services.OreUnlockService
+		and (source == nil or (source == "Boulder" and rework.ApplyToBoulders)) then
+		-- v20.109: руда из КУПЛЕННЫХ (OreUnlockService), пещера даёт удачу;
+		-- первые куски после открытия коробки - гарантированно новая руда.
+		local forced = source == nil and Services.OreUnlockService:TakeGuarantee(miner) or nil
+		local caveLuck = (rework.LuckPerCave or 0) * math.max(0, (tonumber(tier) or 1) - 1)
+		oreInfo, oreChance, _oreSlot, oreRarity = Config.RollOreUnlocked(
+			Services.OreUnlockService:GetUnlocked(miner), (luckBonus or 0) + caveLuck, forced)
+	else
+		oreInfo, oreChance, _oreSlot, oreRarity = Config.RollOreForTier(tier, luckBonus)
+	end
 	-- ВАРИАЦИЯ (1/2/3, см. Config.OreVariants) — роллится отдельно поверх
 	-- уже выпавшей руды и домножает цену. Шанс перемножается с шансом
 	-- самой руды, чтобы надпись "1/N" над камнем оставалась честной.

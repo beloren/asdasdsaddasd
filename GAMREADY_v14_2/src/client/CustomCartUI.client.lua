@@ -3030,6 +3030,10 @@ end
 		if status.Repair then
 			return tr("Reopen the mine and start digging")
 		end
+		if kind == "Mine" and Config.MineRework and Config.MineRework.Enabled then
+			local nextCave = Config.MineTiers[nextTier]
+			return tr("More luck, {n} ore per dig", { n = nextCave and nextCave.OreYield or "?" })
+		end
 		if kind == "Mine" then
 			local nextCave = Config.MineTiers[nextTier]
 			local newOre = nextCave and nextCave.Ores[#nextCave.Ores]
@@ -3166,6 +3170,15 @@ end
 		local mineTier = tonumber(player:GetAttribute("MineTier")) or 1
 		if kind == "Mine" then
 			local cur, nxt = Config.MineTiers[tier], nextTier and Config.MineTiers[nextTier]
+			if Config.MineRework and Config.MineRework.Enabled then
+				-- v20.109: шахта даёт только удачу и число кусков
+				local per = Config.MineRework.LuckPerCave or 0
+				local function luck(t) return t and ("+" .. math.floor(per * (t - 1) * 100 + 0.5) .. "%") or nil end
+				add(tr("Mine level"), tier, nextTier)
+				add(tr("Ore per dig"), cur and cur.OreYield, nxt and nxt.OreYield)
+				add(tr("Rare ore luck"), luck(tier), nextTier and luck(nextTier))
+				return rows
+			end
 			add(tr("Cave"), tier, nextTier)
 			add(tr("Ore per dig"), cur and cur.OreYield, nxt and nxt.OreYield)
 			add(tr("Avg ore price"), cur and money(cur.ExpectedValue), nxt and money(nxt.ExpectedValue))

@@ -1618,7 +1618,17 @@ stateRemote.OnClientEvent:Connect(function(stage, data)
 
 	elseif stage == "RarityCard" then
 		stopArcVisual()
-		playRarityCard(data)
+		if data.Reel then
+			-- v20.109: сначала лента редкостей, потом карточка как раньше
+			task.spawn(function()
+				local ok = pcall(require(ReplicatedStorage.Shared.RarityReel).Play, data.Rarity, function()
+					playRarityCard(data)
+				end)
+				if not ok then playRarityCard(data) end
+			end)
+		else
+			playRarityCard(data)
+		end
 
 	elseif stage == "Eject" then
 		stopArcVisual()

@@ -184,6 +184,24 @@ local function rollOffers(rng)
 			end
 		end
 	end
+	-- v20.109: ВКЛАДКА ORE - коробки руды для шахты (Config.MineRework).
+	-- Шанс появления и сток - по редкости руды, цена растёт с тиром.
+	local rework = Config.MineRework
+	if rework and rework.Enabled then
+		local shop = Config.OreShop
+		for _, ore in Config.OreChain do
+			if not Config.IsStarterOre(ore.Key) then
+				local rarity = ore.BaseRarity or ore.Rarity or "Common"
+				table.insert(offers, {
+					Id = "Ore_" .. ore.Key, Kind = "OreUnlock", OreKey = ore.Key, Tab = "Ore",
+					Rarity = rarity, DisplayName = ore.DisplayName, Icon = shop.BoxIcon or "📦",
+					Price = Config.OreShopPrice(ore.Key),
+					Chance = (shop.ChanceByRarity or {})[rarity] or 0.5,
+					Stock = (shop.StockByRarity or {})[rarity] or { 1, 1 },
+				})
+			end
+		end
+	end
 	-- v20.29: СУНДУК ЦИКЛА — верхняя выделенная карточка SHOP.
 	local featured = CFG.FeaturedChest
 	if featured and featured.Enabled and Config.Chests and Config.Chests.Types then
@@ -349,6 +367,11 @@ end
 
 -- Почему товар сейчас нельзя купить (кроме денег/стока) — или nil.
 local function lockReason(player, item)
+	if item.Kind == "OreUnlock" and Services.OreUnlockService then
+		if Services.OreUnlockService:IsUnlocked(player, item.OreKey) then return "OWNED" end
+		if Services.OreUnlockService:HasBox(player, item.OreKey) then return "IN BAG" end
+		return nil
+	end
 	if item.Kind == "Skin" then
 		if Services.SkinService:OwnsSkin(player, item.SkinId) then return "OWNED" end
 		if Services.SkinService.IsSkinAvailable and not Services.SkinService:IsSkinAvailable(item.SkinId) then
@@ -397,6 +420,10 @@ local function describe(item, player)
 		return name, icon or "🪨", image, effect
 	elseif item.Kind == "Mystery" then
 		return "???", "❓", nil, "A random surprise: potion, geode, furniture, cash… or a rare pickaxe!"
+	elseif item.Kind == "OreUnlock" then
+		local ore = Config.OreByKey[item.OreKey]
+		return (ore and ore.DisplayName or item.OreKey) .. " Ore", icon or "📦", nil,
+			("Unlocks %s in your mine. Worth $%s each!"):format(ore and ore.DisplayName or "it", ore and tostring(ore.CrystalValue) or "?")
 	elseif item.Kind == "Chest" then
 		local info = Config.Chests.Types[item.ChestRarity]
 		return name, icon, image, ("Place it on your base - %d rewards inside!"):format(info and info.Rolls or 2)
@@ -476,6 +503,7 @@ function MerchantService:BuildState(player)
 			Potion = item.Potion,
 			PlaceableId = item.PlaceableId,
 			GeodeType = item.Kind == "Geode" and geodeTypeFor(player, item.GeodeOffset) or nil,
+			OreKey = item.OreKey, -- v20.109
 		})
 	end
 	for _, offer in cycleOffers do
@@ -548,6 +576,9 @@ local function grant(player, item)
 		return geodeType ~= nil and Services.GeodeService:AddGeodeDirectly(player, geodeType) == true
 	elseif item.Kind == "Mystery" then
 		return MerchantService._openMystery(player)
+	elseif item.Kind == "OreUnlock" then
+		-- v20.109: коробка ложится в снаряжение; открывается кликом
+		return Services.GearService:AddGear(player, "OreBox_" .. item.OreKey, 1) > 0
 	end
 	return false
 end
@@ -726,6 +757,15 @@ function MerchantService:_announceRareStock()
 			local color = CFG.RarityColors[offer.Rarity] or Color3.new(1, 1, 1)
 			pcall(function()
 				Services.AnnounceService:Broadcast(("⏳ LIMITED %s is at the Ore Merchant - only this restock!"):format(offer.DisplayName), color)
+			end)
+		end
+	end
+	-- v20.109: редкая руда в стоке
+	for _, offer in cycleOffers do
+		if offer.Kind == "OreUnlock" and CFG.AnnounceRarities[offer.Rarity] and (globalStock[offer.Id] or 0) > 0 then
+			local color = CFG.RarityColors[offer.Rarity] or Color3.new(1, 1, 1)
+			pcall(function()
+				Services.AnnounceService:Broadcast(("⛏ %s ore %s is in the Ore Merchant's stock!"):format(offer.Rarity:upper(), offer.DisplayName), color)
 			end)
 		end
 	end

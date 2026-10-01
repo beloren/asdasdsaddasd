@@ -870,6 +870,19 @@ Config.MineExpedition = {
 	-- вверх экрана с микро-паузой в центре, потом начинается вылет руды.
 	-- Свои модели: ReplicatedStorage.Assets.MineRarityCards.<Редкость>
 	-- (Common, Uncommon, Rare, Epic, Legendary, Mythic) — см. CHANGELOG.
+	-- v20.109: ЛЕНТА РЕДКОСТЕЙ (как в кейсах) перед карточкой редкости:
+	-- крутится, дразнит соседней редкостью повыше и встаёт на лучшую руду
+	-- этой пачки. Только без тележек (руда роллится заранее).
+	RarityReel = {
+		Enabled = true,
+		Seconds = 3.4,       -- прокрутка
+		HoldSeconds = 0.5,   -- пауза на выпавшей редкости
+		Tiles = 46,          -- плиток в ленте
+		TileWidth = 118,
+		TileGap = 8,
+		TeaseChance = 0.75,  -- шанс, что следующая плитка - редкость повыше
+		Weights = { Common = 50, Uncommon = 26, Rare = 13, Epic = 7, Legendary = 3, Mythic = 1 },
+	},
 	RarityCard = {
 		Distance = 10,       -- стадов перед камерой (карточка — 3D-объект в мире)
 		ScreenWidth = 0.29,  -- ширина карточки, доля экрана (v20.67: 0.18 → 0.29, +60%)
@@ -1362,6 +1375,7 @@ function Config.OreNumberScale(index)
 end
 for index, info in ipairs(Config.OreChain) do
 	info.Index = index
+	info.BaseRarity = info.Rarity -- v20.109: «природная» редкость (переделка шахты)
 	info.BaseMultiplier = info.Multiplier
 	info.Multiplier = niceNumber(info.Multiplier * Config.OreNumberScale(index))
 	info.CrystalValue = Config.Crystal_BaseValue * info.Multiplier
@@ -1576,6 +1590,9 @@ end
 function Config.OreRarityFor(oreKey, mineTier)
 	local ore = Config.OreByKey[oreKey]
 	if not ore or ore.Junk then return "Common" end
+	if Config.MineRework and Config.MineRework.Enabled and ore.BaseRarity then
+		return ore.BaseRarity -- v20.109: редкость руды не зависит от пещеры
+	end
 	local tier = tonumber(mineTier)
 	if not tier then
 		return ore.Rarity or "Common"
@@ -1599,6 +1616,113 @@ for _, info in Config.OreChain do
 		end
 	end
 	info.Rarity = Config.OreRarityFor(info.Key, firstTier)
+end
+
+--------------------------------------------------------------------------------
+-- v20.109: ПЕРЕДЕЛКА ШАХТЫ (7B). Руда больше НЕ привязана к пещере:
+--   • сначала копаются только StarterOres (Coal, Copper - 2 руды x 4
+--     вариации = 8 видов);
+--   • новую руду покупают у торговца (вкладка ORE). Покупка - коробка в
+--     инвентаре с превью руды; открыл - «New ore appeared in the mine!»,
+--     руда добавлена в пул шахты (с повышенным шансом UnlockBoost), а
+--     следующий заход в шахту гарантированно даёт её GuaranteedCount раз;
+--   • улучшение шахты даёт только УДАЧУ (LuckPerCave за уровень) и больше
+--     руды за заход (Config.Mine.OreYieldByCave);
+--   • шанс руды = вес её природной редкости (Common 60 … Legendary 0.5),
+--     внутри редкости новее - чуть реже (SameRarityDecay).
+-- Enabled = false - старая система пещер. WipeVersion - поднять, чтобы
+-- снова обнулить прогресс шахты у всех (уровень пещеры и купленные руды).
+--------------------------------------------------------------------------------
+Config.MineRework = {
+	Enabled = true,
+	WipeVersion = 1,
+	StarterOres = { "Coal", "Copper" },
+	RarityWeights = { Common = 60, Uncommon = 28, Rare = 9, Epic = 2.5, Legendary = 0.5, Mythic = 0.2 },
+	SameRarityDecay = 0.85,
+	UnlockBoost = 2,       -- купленная руда выпадает в 2 раза чаще своей редкости
+	LuckPerCave = 0.15,    -- удача за уровень шахты: вес редкости × (1+удача)^(ступень редкости-1)
+	MineCostScale = 0.35,  -- цены улучшения шахты × это (шахта больше не открывает руду)
+	GuaranteedCount = 3,   -- столько кусков следующего захода - новая руда
+	ApplyToBoulders = true, -- валуны роняют руду из того же пула
+}
+Config.OreShop = {
+	PriceBase = 250,       -- цена третьей руды (первой покупной)
+	PriceGrowth = 1.7,     -- каждая следующая дороже в 1.7 раза
+	ChanceByRarity = { Common = 0.95, Uncommon = 0.7, Rare = 0.4, Epic = 0.2, Legendary = 0.07, Mythic = 0.04 },
+	StockByRarity = { Common = { 1, 2 } }, -- остальным - 1 штука
+	BoxIcon = "📦",
+}
+
+if Config.MineRework.Enabled then
+	for _, info in Config.OreChain do info.Rarity = info.BaseRarity or info.Rarity end
+end
+
+function Config.OreBaseRarity(oreKey)
+	local ore = Config.OreByKey and Config.OreByKey[oreKey]
+	return ore and (ore.BaseRarity or ore.Rarity) or "Common"
+end
+
+function Config.OreShopPrice(oreKey)
+	local ore = Config.OreByKey and Config.OreByKey[oreKey]
+	if not ore then return math.huge end
+	local shop = Config.OreShop
+	return niceNumber(shop.PriceBase * shop.PriceGrowth ^ math.max(0, (ore.Index or 3) - 3))
+end
+
+function Config.IsStarterOre(oreKey)
+	return table.find(Config.MineRework.StarterOres, oreKey) ~= nil
+end
+
+-- Вес руды в пуле (без удачи).
+function Config.OreDropWeight(oreKey)
+	local ore = Config.OreByKey and Config.OreByKey[oreKey]
+	if not ore then return 0 end
+	local rework = Config.MineRework
+	local rarity = ore.BaseRarity or ore.Rarity or "Common"
+	-- позиция внутри своей редкости
+	local position = 0
+	for _, other in Config.OreChain do
+		if other == ore then break end
+		if (other.BaseRarity or other.Rarity) == rarity then position += 1 end
+	end
+	local weight = (rework.RarityWeights[rarity] or 1) * (rework.SameRarityDecay ^ position)
+	if not Config.IsStarterOre(oreKey) then weight *= rework.UnlockBoost or 1 end
+	return weight
+end
+
+-- Ролл руды из открытых. unlocked - { [oreKey] = true }. Возвращает то же,
+-- что RollOreForTier: (oreInfo, честный шанс без удачи, slot, rarity).
+function Config.RollOreUnlocked(unlocked, luckBonus, forcedKey)
+	local list = {}
+	for _, ore in Config.OreChain do
+		if unlocked[ore.Key] or Config.IsStarterOre(ore.Key) then table.insert(list, ore) end
+	end
+	local baseTotal, total = 0, 0
+	local weights = {}
+	luckBonus = math.clamp(tonumber(luckBonus) or 0, 0, 10)
+	for index, ore in list do
+		local w = Config.OreDropWeight(ore.Key)
+		baseTotal += w
+		local rarityIndex = table.find(Config.RarityOrder or {}, ore.BaseRarity or ore.Rarity) or 1
+		local tilted = w * (1 + luckBonus) ^ (rarityIndex - 1) -- удача растит редкие ступенчато
+		weights[index] = tilted
+		total += tilted
+	end
+	local function result(index)
+		local ore = list[index]
+		return ore, Config.OreDropWeight(ore.Key) / math.max(1e-9, baseTotal), index, ore.BaseRarity or ore.Rarity
+	end
+	if forcedKey then
+		for index, ore in list do
+			if ore.Key == forcedKey then return result(index) end
+		end
+	end
+	local roll = math.random() * total
+	for index, w in weights do
+		roll -= w
+		if roll <= 0 then return result(index) end
+	end
+	return result(#list)
 end
 
 --------------------------------------------------------------------------------
@@ -2188,6 +2312,11 @@ Config.CartChain = {
 	{ Tier = 8, Cost = 110000 },
 	{ Tier = 9, Cost = 240000 },
 }
+if Config.MineRework and Config.MineRework.Enabled then
+	for _, step in Config.MineChain do
+		step.Cost = Config.NiceNumber(step.Cost * (Config.MineRework.MineCostScale or 1))
+	end
+end
 Config.PickaxeChain = {
 	{ Tier = 2, Cost = 200 },
 	{ Tier = 3, Cost = 640 },
@@ -5763,7 +5892,7 @@ Config.UpgradeShop = {
 		-- зелёный — денежная ценность.
 		-- v9: коротко — детали видны в строках «было → станет».
 		Descriptions = {
-			Mine = "Richer <font color=\"#8CFFA0\">ORE</font>, more per dig.",
+			Mine = "More <font color=\"#8CFFA0\">LUCK</font>, more ore per dig.", -- v20.109: руду покупают у торговца
 			Cart = "Bigger <font color=\"#6FE3FF\">BACKPACK</font>, no slowdown.", -- v20.108: ветка Cart = рюкзак
 			Pickaxe = "More <font color=\"#FF7A7A\">DAMAGE</font>, more ore knocked.",
 		},
@@ -7390,6 +7519,7 @@ Config.GoldenBoulder = {
 -- v20.104: 3 вкладки - общий магазин, тотемы, декор (купленное падает в
 -- обычный инвентарь).
 Config.Merchant.Tabs = {
+	{ Id = "Ore", Label = "ORE" }, -- v20.109: главная вкладка - руда для шахты
 	{ Id = "Shop", Label = "SHOP" },
 	{ Id = "Totems", Label = "TOTEMS" },
 	{ Id = "Decor", Label = "DECOR" },

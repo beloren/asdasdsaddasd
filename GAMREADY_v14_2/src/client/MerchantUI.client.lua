@@ -136,7 +136,8 @@ if not tabsBar then
 	body.Size = UDim2.new(1, -24, 1, -202)
 end
 
-local currentTab = "Shop"
+local DEFAULT_TAB = (CFG.Tabs and CFG.Tabs[1] and CFG.Tabs[1].Id) or "Shop" -- v20.109: ORE
+local currentTab = DEFAULT_TAB
 local tabButtons = {}
 local lastState = nil
 local rows = {} -- [itemId] = { Frame, Data }
@@ -506,6 +507,8 @@ function Preview3D.Build(data)
 		return (Preview3D.Factory.PotionModel(data.Potion, info and info.Color))
 	elseif kind == "Placeable" and data.PlaceableId then
 		return require(ReplicatedStorage.Shared.PlaceableFactory).BuildItem(data.PlaceableId)
+	elseif kind == "OreUnlock" and data.OreKey then
+		return require(ReplicatedStorage.Shared.OreBoxModel).Build(data.OreKey)
 	elseif kind == "Chest" and data.ChestRarity then
 		return require(ReplicatedStorage.Shared.PlaceableFactory).BuildChest(data.ChestRarity)
 	end
@@ -730,7 +733,7 @@ local function close()
 	sfx("UiMenuClose")
 	gui.Enabled = false
 	setExpanded(nil)
-	currentTab = "Shop"
+	currentTab = DEFAULT_TAB
 end
 
 stateRemote.OnClientEvent:Connect(function(command, state)
