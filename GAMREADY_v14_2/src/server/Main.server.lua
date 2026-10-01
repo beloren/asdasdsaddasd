@@ -98,6 +98,7 @@ local ORDER = {
 	"RockService",
 	"BankService",
 	"BadgeTrackerService", -- v20.106: бейджи (Config.Badges)
+	"SellMoleService", -- v20.108: крот-скупщик на зоне продажи (Config.SellMole)
 	-- Торговец банка и биржа руды (см. Config.Merchant) — ПОСЛЕ WorldService
 	-- (ставится в зону банка в Start) и BankService (тот спрашивает у него
 	-- курс на каждой продаже, но только в рантайме).

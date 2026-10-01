@@ -208,7 +208,10 @@ function GeodeService:SpawnGuaranteedTutorialGeode(player, cart, dropPosition)
 end
 
 function GeodeService:TrySpawnForMine(player, cart, tier, dropPosition, forceTutorialGeode)
-	if Services.CartService:GetGeodeCount(cart) >= Config.Geodes.MaxPerCart then
+	-- v20.108: без тележки жеода сразу ложится в хранилище (AddGeodeDirectly)
+	local noCart = cart == nil
+	if noCart and not Config.NoCarts then return false end
+	if not noCart and Services.CartService:GetGeodeCount(cart) >= Config.Geodes.MaxPerCart then
 		return false
 	end
 	local data = Services.DataService:GetGeodeData(player)
@@ -222,7 +225,7 @@ function GeodeService:TrySpawnForMine(player, cart, tier, dropPosition, forceTut
 	local geodeTier = Config.GeodeTypeIndexForCave and Config.GeodeTypeIndexForCave(tier) or math.min(tier, #Config.Geodes.Order)
 	local spawnInfo = Config.Geodes.SpawnByMineTier[geodeTier]
 	local tutorialActive = Services.DataService:IsTutorialRequired(player)
-	local geodeCount = Services.CartService:GetGeodeCount(cart)
+	local geodeCount = noCart and 0 or Services.CartService:GetGeodeCount(cart)
 	if tutorialActive and (geodeCount > 0
 		or player:GetAttribute("TutorialGeodeStored") == true
 		or player:GetAttribute("TutorialGeodeOpened") == true) then
@@ -247,6 +250,27 @@ function GeodeService:TrySpawnForMine(player, cart, tier, dropPosition, forceTut
 		local currentType = order[geodeTier]
 		local nextType = order[math.min(geodeTier + 1, #order)]
 		geodeType = (nextType ~= currentType and math.random() < spawnInfo.NextWeight) and nextType or currentType
+	end
+	if noCart then
+		local granted = false
+		local ok = pcall(function() granted = self:AddGeodeDirectly(player, geodeType) end)
+		if not (ok and granted) then return false end
+		data.GeodeSpawnPity = 0
+		if tutorialGuaranteed then player:SetAttribute("TutorialGeodeSpawned", true) end
+		local geodeInfo = Config.Geodes.Types[geodeType]
+		if Services.AnnounceService and not tutorialGuaranteed then
+			Services.AnnounceService:Broadcast(nil, nil, {
+				{ Text = ("%s found a "):format(player.DisplayName), Color = Color3.new(1, 1, 1) },
+				{ Text = geodeInfo.DisplayName, Color = geodeInfo.Color },
+				{ Text = "!", Color = Color3.new(1, 1, 1) },
+			})
+		end
+		if Services.NotifyService then
+			Services.NotifyService:Show(player, ("GEODE FOUND: <font color=\"#%s\">%s</font> - it's in your vault!"):format(
+				colorHex(geodeInfo.Color), geodeInfo.DisplayName
+			), { Icon = "Geode", Duration = 3.5, RichText = true, Viewport = { GeodeType = geodeType } })
+		end
+		return true
 	end
 	local geode = self:CreateGeode(geodeType)
 	if Services.CartService:AddGeode(cart, geode, false, dropPosition) then

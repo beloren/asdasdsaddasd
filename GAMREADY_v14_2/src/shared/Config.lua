@@ -192,43 +192,19 @@ Config.Tutorial = {
 			KeepEarlyProgress = true,
 			CompleteWhenBagFull = true, -- рюкзак уже полон — подобрать нечем, шаг засчитан
 			Target = nil,
-			Done = { "Your bag is small. You need a cart." },
+			Done = { "Nice! Now let's sell it." },
 		},
+		-- v20.108: тележек больше нет - руда в рюкзаке, продаётся кроту
+		-- на зоне продажи (SellMoleService).
 		{
-			Id = "GetCart",
-			Lines = { "Your first cart is free. Get it at the trader." },
-			Short = "GET A CART",
-			Task = "Get the free cart at the trader",
-			Goal = { Kind = "Flag", Key = "CartUnlocked" },
-			Target = "UpgradeShopNPC",
-		},
-		{
-			Id = "PlaceCart",
-			Lines = { "Take the box from your hotbar. Click where the cart should stand." },
-			Short = "PLACE THE CART",
-			Task = "Place the cart from your hotbar",
-			Goal = { Kind = "Flag", Key = "CartDeployed" },
-			Target = nil,
-			ResetCounters = { "OreDepositedToCart" },
-		},
-		{
-			Id = "LoadCart",
-			Lines = { "Walk up to the cart. Your ore goes in by itself." },
-			Short = "LOAD THE CART",
-			Task = "Walk up to the cart",
-			Goal = { Kind = "Counter", Key = "OreDepositedToCart", Target = 1 },
-			KeepEarlyProgress = true,
-			CompleteWhenBagEmpty = true, -- руды в рюкзаке нет (продал раньше) — шаг засчитан
-			Target = "Cart",
-		},
-		{
-			Id = "SellCart",
-			Lines = { "Take the cart to the bank." },
-			Short = "DELIVER THE CART",
-			Task = "Take the cart to the bank",
+			Id = "SellOre",
+			Lines = { "Take your ore to the sell zone. The mole will buy it." },
+			Short = "SELL THE ORE",
+			Task = "Sell ore to the mole",
 			Goal = { Kind = "Counter", Keys = { "CartSold", "OreSoldFromBag" }, Target = 1 },
+			CompleteWhenBagEmpty = true,
 			Target = "Bank",
-			Done = { "Fuller cart, bigger payout. Let's spend it." },
+			Done = { "Bigger backpack, bigger payout. Let's spend it." },
 		},
 		{
 			Id = "FirstUpgrade",
@@ -3699,6 +3675,33 @@ Config.Sprint = {
 	ApplyWhileHoldingCart = false,
 }
 
+-- v20.108: КРОТ-СКУПЩИК на зоне продажи. Зашёл в зону с рудой - перед
+-- тобой из земли (в пределах зоны) вылезает крот и спрашивает:
+-- SELL ALL (весь рюкзак, комбо за заполнение до x3) / SELL HAND (стопка в
+-- руке) / NOT NOW. После ответа он зарывается обратно - комья земли
+-- разлетаются и залетают в ямку. Модель: ReplicatedStorage/Assets/SellMole
+-- (у неё должна быть деталь "Head" - над ней висит меню); нет - заглушка.
+Config.SellMole = {
+	Enabled = true,
+	ModelName = "SellMole",
+	Distance = 7,        -- насколько перед игроком вылезает
+	EdgeMargin = 3,      -- отступ от края зоны
+	Scale = 1,           -- масштаб модели
+	RiseSeconds = 0.55,
+	BurrowSeconds = 0.5,
+	BobAmount = 0.06,    -- «дыхание» масштабом (доля)
+	BobSpeed = 3,
+	SellDelay = 0.06,    -- сек между кусками при продаже
+	SellSeconds = 2.5,   -- вся продажа не дольше этого
+	DirtColor = Color3.fromRGB(110, 72, 40),
+	DirtCount = 10,
+	Lines = {
+		"Psst! Got ore? I'll buy it all!",
+		"Shiny rocks! I pay good coin!",
+		"Selling today, friend?",
+	},
+}
+
 Config.Bank = {
 	-- v17: при сдаче руды торговцу (банку) крупное «+$…» пиксельным шрифтом
 	-- на ЭКРАНЕ больше не показывается — доход и так считает счётчик над
@@ -4386,6 +4389,26 @@ Config.Geodes = {
 --     висит её редкость. Зажать ЛКМ на другом игроке с рудой в руках —
 --     подарить (см. GiftHoldSeconds).
 --------------------------------------------------------------------------------
+-- v20.108: ТЕЛЕЖЕК БОЛЬШЕ НЕТ. Вся руда - в рюкзаке; ветка улучшений
+-- «Cart» у торговца теперь «Backpack» и растит вместимость рюкзака
+-- (сколько кусков руды влезает всего). Замедления от рюкзака нет.
+-- false - вернуть тележки как было.
+Config.NoCarts = true
+Config.Backpack = {
+	-- вместимость по тиру ветки = вместимость тележки того же тира, чтобы
+	-- экономика (Config.CartValue) не поехала. «SELL ALL» у крота даёт то же
+	-- комбо за заполнение, что тележка (до x3 на полном рюкзаке).
+	Capacity = { 12, 20, 30, 45, 60, 80, 105, 140, 180 },
+	MinCapacity = 12, -- не меньше этого даже на тире 1
+	TutorialCapacity = 30, -- пока идёт обучение
+	ExtraPouchBonus = 20,  -- геймпасс Extra Pouch
+	Icon = "🎒",
+}
+function Config.BackpackCapacity(tier)
+	local list = Config.Backpack.Capacity
+	return list[math.clamp(math.floor(tonumber(tier) or 1), 1, #list)]
+end
+
 Config.Inventory = {
 	-- v20.63: руда в инвентаре/хотбаре - 3D-модель (вариация + мутации),
 	-- а не нарисованная иконка. PreviewOutline - обводка силуэта:
@@ -5741,7 +5764,7 @@ Config.UpgradeShop = {
 		-- v9: коротко — детали видны в строках «было → станет».
 		Descriptions = {
 			Mine = "Richer <font color=\"#8CFFA0\">ORE</font>, more per dig.",
-			Cart = "More <font color=\"#6FE3FF\">SPACE</font> and <font color=\"#FF7A7A\">HEALTH</font>.",
+			Cart = "Bigger <font color=\"#6FE3FF\">BACKPACK</font>, no slowdown.", -- v20.108: ветка Cart = рюкзак
 			Pickaxe = "More <font color=\"#FF7A7A\">DAMAGE</font>, more ore knocked.",
 		},
 	},
@@ -5967,7 +5990,7 @@ Config.Shop.Descriptions = {
 	DoubleCashPass = "x2 money from every sale!",
 	DoubleLuckPass = "x2 mutation luck, rarer ore!",
 	OreMagnetPass = "Ore flies to you on its own!",
-	ExtraPouchPass = "+12 backpack slots!",
+	ExtraPouchPass = "+20 backpack space!",
 	GeodeMasterPass = "Open 3/5 geodes at once!",
 	DemolitionExpertPass = "Faster dynamite + 1 free daily!",
 	CartGuardPass = "Longer cart shield!",
@@ -6131,13 +6154,13 @@ Config.Quests = {
 	--          { Kind = "Placeable", Id }, { Kind = "PrestigePoints", Count }.
 	Starter = {
 		-- v20.53: цепочка по прогрессии — каждый квест учит одной механике.
-		{ Id = "FirstSale", Metric = "CartSales", Title = "FIRST DELIVERY", Description = "Fill your cart and sell it at the bank", Short = "Sell a cart", Target = 1, Nav = "Bank",
+		{ Id = "FirstSale", Metric = "CartSales", Title = "FIRST DELIVERY", Description = "Sell your backpack to the mole", Short = "Sell to the mole", Target = 1, Nav = "Bank",
 			Why = "Ore only turns into money at the bank.", Reward = { TripValue = 1, MinMoney = 60, Items = { { Kind = "Gear", Key = "Dynamite", Count = 2 } } } },
 		{ Id = "GrabOre", Metric = "OrePickedUp", Title = "GRAB THE ORE", Description = "Walk over ore from the mine to pick it up (10 pieces)", Short = "Pick up 10 ore", Target = 10, Nav = "Mine", SkipWhenMaxTierAtLeast = 3,
 			Why = "Ore in your bag goes to the cart or straight to the bank.", Reward = { TripValue = 0.5, MinMoney = 40 } },
 		{ Id = "UpgradeMine", Metric = "MineTier", Title = "DIG DEEPER", Description = "Upgrade the Cave to 3", Short = "Cave to 3", Target = 3, Nav = "UpgradeShopNPC",
 			Why = "Deeper caves have pricier ore.", Reward = { TripValue = 1.5, MinMoney = 100 } },
-		{ Id = "UpgradeCart", Metric = "CartTier", Title = "BIGGER CART", Description = "Upgrade the Cart to 2", Short = "Cart to 2", Target = 2, Nav = "UpgradeShopNPC",
+		{ Id = "UpgradeCart", Metric = "CartTier", Title = "BIGGER BACKPACK", Description = "Upgrade the Backpack to 2", Short = "Backpack to 2", Target = 2, Nav = "UpgradeShopNPC",
 			Why = "A bigger cart carries more ore per trip.", Reward = { TripValue = 1.5, MinMoney = 100, Items = { { Kind = "Gear", Key = "Potion_Speed", Count = 1 } } } },
 		{ Id = "FirstBoulder", Metric = "BouldersBroken", Title = "CRACK A BOULDER", Description = "Break a glowing boulder with your pickaxe", Short = "Break a boulder", Target = 1, Nav = "Boulder",
 			Why = "Boulders drop ore, geodes and chests.", Reward = { TripValue = 1, MinMoney = 80, Items = { { Kind = "Chest", Rarity = "Common" } } } },
@@ -6157,7 +6180,7 @@ Config.Quests = {
 			Why = "Totems on your base boost luck, income and more.", Reward = { TripValue = 2 } },
 		{ Id = "FirstIsland", Metric = "IslandsOwned", Title = "UNLOCK AN ISLAND", Description = "Buy an island from the Island Keeper in town", Short = "Buy an island", Target = 1, Nav = "IslandKeeper",
 			Why = "Islands unlock the anvil, the income podium and the smelter.", Reward = { TripValue = 2, MinMoney = 200 } },
-		{ Id = "HeavyCargo", Metric = "Cart70Sales", Title = "HEAVY CARGO", Description = "Sell 3 carts filled to 70%+", Short = "Sell 3 loaded carts", Target = 3, Nav = "Bank",
+		{ Id = "HeavyCargo", Metric = "Cart70Sales", Title = "HEAVY CARGO", Description = "Sell 3 backpacks filled to 70%+", Short = "Sell 3 full bags", Target = 3, Nav = "Bank",
 			Why = "Fuller carts sell with a combo - up to x3!", Reward = { TripValue = 2, MinMoney = 200, Items = { { Kind = "Gear", Key = "Potion_Money", Count = 1 } } } },
 		{ Id = "GiftCrystal", Metric = "CrystalsGifted", Title = "SHARE THE WEALTH", Description = "Gift a crystal to another player", Short = "Gift a crystal", Target = 1, Nav = "NearestPlayer", RequiresPlayers = 2,
 			Why = "Friends on the server boost everyone's income.", Reward = { TripValue = 1.5, MinMoney = 150 } },
@@ -6167,13 +6190,13 @@ Config.Quests = {
 			Why = "The crystal on the podium fills the safe - even offline.", Reward = { TripValue = 2 } },
 		{ Id = "HotMetal", Metric = "OresSmelted", Title = "HOT METAL", Description = "Hold an ore and put it into the Smelter on your island", Short = "Smelt an ore", Target = 1, Nav = "Smelter",
 			Why = "Smelted ingots sell for much more than raw ore.", Reward = { TripValue = 2 } },
-		{ Id = "CartTier4", Metric = "CartTier", Title = "HEAVY HAULER", Description = "Upgrade the Cart to 4", Short = "Cart to 4", Target = 4, Nav = "UpgradeShopNPC",
+		{ Id = "CartTier4", Metric = "CartTier", Title = "HEAVY HAULER", Description = "Upgrade the Backpack to 4", Short = "Backpack to 4", Target = 4, Nav = "UpgradeShopNPC",
 			Why = "Every cart tier fits more ore.", Reward = { TripValue = 2.5 } },
 		{ Id = "RareFind", Metric = "RareOres", Title = "RARE FIND", Description = "Collect 3 Rare+ crystals", Short = "Find 3 Rare crystals", Target = 3, Nav = "Mine",
 			Why = "Rare ore sells for much more - luck helps!", Reward = { TripValue = 2.5, Items = { { Kind = "Gear", Key = "Potion_Luck", Count = 1 } } } },
 		{ Id = "CampCrusher", Metric = "GoblinsKilled", Title = "CAMP CRUSHER", Description = "Defeat 25 goblins at the Goblin Camp", Short = "Defeat 25 goblins", Target = 25, Nav = "GoblinCamp",
 			Why = "Deal the most damage in a raid for the best chest.", Reward = { TripValue = 2.5, Items = { { Kind = "Chest", Rarity = "Rare" } } } },
-		{ Id = "ComboMaster", Metric = "X4Sales", Title = "COMBO MASTER", Description = "Sell 2 full carts at x3 combo", Short = "2 sales at x3", Target = 2, Nav = "Bank",
+		{ Id = "ComboMaster", Metric = "X4Sales", Title = "COMBO MASTER", Description = "Sell 2 full backpacks at x3 combo", Short = "2 sales at x3", Target = 2, Nav = "Bank",
 			Why = "A full cart triples its price.", Reward = { TripValue = 3 } },
 		{ Id = "MineTier8", Metric = "MineTier", Title = "THE DEEP", Description = "Upgrade the Cave to 8", Short = "Cave to 8", Target = 8, Nav = "UpgradeShopNPC",
 			Why = "Cave 8 unlocks PRESTIGE.", Reward = { TripValue = 3, Items = { { Kind = "Chest", Rarity = "Rare" } } } },
@@ -6187,11 +6210,11 @@ Config.Quests = {
 			Why = "Better crystals mean a richer safe.", Reward = { TripValue = 3, Items = { { Kind = "Geode", Offset = 1 } } } },
 		{ Id = "MineTier12", Metric = "MineTier", Title = "ABYSS WALKER", Description = "Upgrade the Cave to 12", Short = "Cave to 12", Target = 12, Nav = "UpgradeShopNPC",
 			Why = "Legendary ores wait at the bottom.", Reward = { TripValue = 4, Items = { { Kind = "Gear", Key = "Potion_MoneyX3", Count = 1 } } } },
-		{ Id = "CargoKing", Metric = "CartSales", Title = "CARGO KING", Description = "Sell 50 carts at the bank", Short = "Sell 50 carts", Target = 50, Nav = "Bank",
+		{ Id = "CargoKing", Metric = "CartSales", Title = "CARGO KING", Description = "Sell 50 backpacks to the mole", Short = "Sell 50 bags", Target = 50, Nav = "Bank",
 			Why = "Every trip counts.", Reward = { TripValue = 4, Items = { { Kind = "Chest", Rarity = "Epic" } } } },
 		{ Id = "TierMaster", Metric = "MineTier", Title = "BOTTOM OF THE WORLD", Description = "Reach the deepest cave (15)", Short = "Cave to 15", Target = 15, Nav = "UpgradeShopNPC",
 			Why = "The final cave has the richest ore weights.", Reward = { TripValue = 6, Items = { { Kind = "Chest", Rarity = "Legendary" } } } },
-		{ Id = "FullUpgrade", Metric = "FullUpgrade", Title = "FULLY UPGRADED", Description = "Max out the Cave, Cart and Pickaxe", Short = "Max all three", Target = 1, Nav = "UpgradeShopNPC",
+		{ Id = "FullUpgrade", Metric = "FullUpgrade", Title = "FULLY UPGRADED", Description = "Max out the Cave, Backpack and Pickaxe", Short = "Max all three", Target = 1, Nav = "UpgradeShopNPC",
 			Why = "Then prestige for even more points!", Reward = { TripValue = 8, Items = { { Kind = "PrestigePoints", Count = 2 } } } },
 		{ Id = "MasterMiner", Metric = "OreSold", Title = "MASTER MINER", Description = "Sell 2,000 ore at the bank", Short = "Sell 2,000 ore", Target = 2000, Nav = "Bank",
 			Why = "A true miner never stops.", Reward = { TripValue = 8, Items = { { Kind = "Chest", Rarity = "Legendary" } } } },
@@ -6203,18 +6226,18 @@ Config.Quests = {
 	Daily = {
 		Simple = {
 			{ Id = "Play5MinutesDaily", Metric = "PlayTime", Title = "PLAY FOR 5 MINUTES", Description = "Play for 5 minutes", Short = "Play 5 minutes", Target = 300, Reward = { TripValue = 1.5, MinMoney = 150 }, WeeklyPoints = 1 },
-			{ Id = "Sell3Carts", Metric = "CartSales", Title = "SELL 3 CARTS", Description = "Sell 3 carts at the bank", Short = "Sell 3 carts", Target = 3, Reward = { TripValue = 1.2, MinMoney = 100, Items = { { Kind = "Gear", Key = "Dynamite", Count = 1 } } }, WeeklyPoints = 1 },
+			{ Id = "Sell3Carts", Metric = "CartSales", Title = "SELL 3 BACKPACKS", Description = "Sell 3 backpacks to the mole", Short = "Sell 3 bags", Target = 3, Reward = { TripValue = 1.2, MinMoney = 100, Items = { { Kind = "Gear", Key = "Dynamite", Count = 1 } } }, WeeklyPoints = 1 },
 			{ Id = "Sell20Ore", Metric = "OreSold", Title = "SELL 20 ORE", Description = "Sell 20 ore at the bank", Short = "Sell 20 ore", Target = 20, Reward = { TripValue = 1, MinMoney = 80 }, WeeklyPoints = 1 },
 			{ Id = "Break3Boulders", Metric = "BouldersBroken", Title = "BREAK 3 BOULDERS", Description = "Break 3 boulders", Short = "Break 3 boulders", Target = 3, Reward = { TripValue = 1.2, MinMoney = 100 }, WeeklyPoints = 1 },
 			{ Id = "Open2Geodes", Metric = "GeodesOpened", Title = "OPEN 2 GEODES", Description = "Open 2 geodes", Short = "Open 2 geodes", Target = 2, Reward = { TripValue = 1.2, MinMoney = 100 }, WeeklyPoints = 1 },
 			{ Id = "Collect10Crystals", Metric = "OresCollected", Title = "COLLECT 10 CRYSTALS", Description = "Collect 10 crystals", Short = "Collect 10 crystals", Target = 10, Reward = { TripValue = 1.2, MinMoney = 100 }, WeeklyPoints = 1 },
-			{ Id = "LoadedCart", Metric = "Cart70Sales", Title = "SELL A LOADED CART", Description = "Sell a cart with 70%+ capacity", Short = "Sell a loaded cart", Target = 1, Reward = { TripValue = 1.2, MinMoney = 100, Items = { { Kind = "Gear", Key = "Potion_Speed", Count = 1 } } }, WeeklyPoints = 1 },
+			{ Id = "LoadedCart", Metric = "Cart70Sales", Title = "SELL A FULL BAG", Description = "Sell a backpack 70%+ full", Short = "Sell a full bag", Target = 1, Reward = { TripValue = 1.2, MinMoney = 100, Items = { { Kind = "Gear", Key = "Potion_Speed", Count = 1 } } }, WeeklyPoints = 1 },
 			{ Id = "Jump100", Metric = "Jumps", Title = "JUMP 100 TIMES", Description = "Jump 100 times", Short = "Jump 100 times", Target = 100, Reward = { TripValue = 1, MinMoney = 100 }, WeeklyPoints = 1 },
 		},
 		Medium = {
 			{ Id = "Play15MinutesDaily", Metric = "PlayTime", Title = "PLAY FOR 15 MINUTES", Description = "Play for 15 minutes", Short = "Play 15 minutes", Target = 900, Reward = { TripValue = 3, MinMoney = 350, Items = { { Kind = "Gear", Key = "Potion_Money", Count = 1 } } }, WeeklyPoints = 2 },
 			{ Id = "Sell60Ore", Metric = "OreSold", Title = "SELL 60 ORE", Description = "Sell 60 ore at the bank", Short = "Sell 60 ore", Target = 60, Reward = { TripValue = 2.5, MinMoney = 250 }, WeeklyPoints = 2 },
-			{ Id = "TwoX3Sales", Metric = "X4Sales", Title = "SELL AT X3 TWICE", Description = "Sell 2 full carts at x3 combo", Short = "2 sales at x3", Target = 2, Reward = { TripValue = 3, MinMoney = 300 }, WeeklyPoints = 2 },
+			{ Id = "TwoX3Sales", Metric = "X4Sales", Title = "SELL AT X3 TWICE", Description = "Sell 2 full backpacks at x3 combo", Short = "2 sales at x3", Target = 2, Reward = { TripValue = 3, MinMoney = 300 }, WeeklyPoints = 2 },
 			{ Id = "Buy2Upgrades", Metric = "Upgrades", Title = "BUY 2 UPGRADES", Description = "Buy 2 upgrades from the Experienced Miner", Short = "Buy 2 upgrades", Target = 2, Reward = { TripValue = 2.5, MinMoney = 250 }, WeeklyPoints = 2 },
 			{ Id = "OpenChestDaily", Metric = "ChestsOpened", Title = "OPEN A CHEST", Description = "Open a chest on your base", Short = "Open a chest", Target = 1, Reward = { TripValue = 2, MinMoney = 250, Items = { { Kind = "Gear", Key = "Dynamite", Count = 2 } } }, WeeklyPoints = 2 },
 			{ Id = "Break8Boulders", Metric = "BouldersBroken", Title = "BREAK 8 BOULDERS", Description = "Break 8 boulders", Short = "Break 8 boulders", Target = 8, Reward = { TripValue = 2.5, MinMoney = 250 }, WeeklyPoints = 2 },
@@ -6223,11 +6246,11 @@ Config.Quests = {
 			{ Id = "MerchantDaily", Metric = "MerchantBuys", Title = "SHOP AT THE MERCHANT", Description = "Buy something from the Ore Merchant", Short = "Buy from the merchant", Target = 1, Reward = { TripValue = 2, MinMoney = 200 }, WeeklyPoints = 2 },
 		},
 		PvP = {
-			{ Id = "Knock5Ore", Metric = "OreStolen", Title = "STEAL 5 ORE", Description = "Knock 5 ore from enemies or carts", Short = "Steal 5 ore", Target = 5, Reward = { TripValue = 2.5, MinMoney = 200 }, WeeklyPoints = 2, RequiresPlayers = 2 },
+			{ Id = "Knock5Ore", Metric = "OreStolen", Title = "STEAL 5 ORE", Description = "Knock 5 ore from enemies", Short = "Steal 5 ore", Target = 5, Reward = { TripValue = 2.5, MinMoney = 200 }, WeeklyPoints = 2, RequiresPlayers = 2 },
 			{ Id = "Deal100Damage", Metric = "Damage", Title = "DEAL 100 DAMAGE", Description = "Deal 100 damage to players", Short = "Deal 100 damage", Target = 100, Reward = { TripValue = 2.5, MinMoney = 200 }, WeeklyPoints = 2, RequiresPlayers = 2 },
 			{ Id = "Deal250Damage", Metric = "Damage", Title = "DEAL 250 DAMAGE", Description = "Deal 250 damage to players", Short = "Deal 250 damage", Target = 250, Reward = { TripValue = 3.5, MinMoney = 350, Items = { { Kind = "Gear", Key = "Dynamite_Medium", Count = 1 } } }, WeeklyPoints = 3, RequiresPlayers = 2 },
-			{ Id = "Land15Hits", Metric = "CombatHits", Title = "HIT PLAYERS 15 TIMES", Description = "Hit players or carts 15 times", Short = "Land 15 hits", Target = 15, Reward = { TripValue = 3, MinMoney = 250 }, WeeklyPoints = 2, RequiresPlayers = 2 },
-			{ Id = "Steal12Ore", Metric = "OreStolen", Title = "STEAL 12 ORE", Description = "Knock 12 ore from enemy carts", Short = "Steal 12 ore", Target = 12, Reward = { TripValue = 3.5, MinMoney = 350 }, WeeklyPoints = 3, RequiresPlayers = 2 },
+			{ Id = "Land15Hits", Metric = "CombatHits", Title = "HIT PLAYERS 15 TIMES", Description = "Hit players 15 times", Short = "Land 15 hits", Target = 15, Reward = { TripValue = 3, MinMoney = 250 }, WeeklyPoints = 2, RequiresPlayers = 2 },
+			{ Id = "Steal12Ore", Metric = "OreStolen", Title = "STEAL 12 ORE", Description = "Knock 12 ore from enemies", Short = "Steal 12 ore", Target = 12, Reward = { TripValue = 3.5, MinMoney = 350 }, WeeklyPoints = 3, RequiresPlayers = 2 },
 			{ Id = "Dynamite3", Metric = "DynamiteUsed", Title = "DEMOLITION DAY", Description = "Throw or place 3 dynamite", Short = "Use 3 dynamite", Target = 3, Reward = { TripValue = 2.5, MinMoney = 250, Items = { { Kind = "Gear", Key = "Dynamite", Count = 3 } } }, WeeklyPoints = 2 },
 		},
 	},
@@ -6921,7 +6944,7 @@ Config.Prestige = {
 		{ Id = "Money",     Icon = "💰", Title = "Money",        Text = "+{v}% ore sell price",       PerLevel = 0.04, MaxLevel = 25, CostBase = 1, CostGrowth = 0.5, Percent = true },
 		{ Id = "Luck",      Icon = "🍀", Title = "Luck",         Text = "+{v}% rare ore luck",        PerLevel = 0.03, MaxLevel = 20, CostBase = 1, CostGrowth = 0.5, Percent = true },
 		{ Id = "Mutation",  Icon = "🧬", Title = "Mutations",    Text = "+{v}% mutation chance",      PerLevel = 0.05, MaxLevel = 20, CostBase = 1, CostGrowth = 0.5, Percent = true },
-		{ Id = "CartSpace", Icon = "🛒", Title = "Cart Space",   Text = "+{v} cart slots",            PerLevel = 1,    MaxLevel = 15, CostBase = 1, CostGrowth = 0.6 },
+		{ Id = "CartSpace", Icon = "🎒", Title = "Backpack Space", Text = "+{v} backpack space",            PerLevel = 1,    MaxLevel = 15, CostBase = 1, CostGrowth = 0.6 },
 		{ Id = "Speed",     Icon = "👟", Title = "Swift Feet",   Text = "+{v}% walk speed",           PerLevel = 0.02, MaxLevel = 10, CostBase = 1, CostGrowth = 0.7, Percent = true },
 		{ Id = "Passive",   Icon = "🏦", Title = "Safe Income",  Text = "+{v}% passive income",       PerLevel = 0.06, MaxLevel = 20, CostBase = 1, CostGrowth = 0.5, Percent = true },
 		{ Id = "GeodeLuck", Icon = "🪨", Title = "Geode Finder", Text = "+{v}% geode find chance",    PerLevel = 0.05, MaxLevel = 15, CostBase = 1, CostGrowth = 0.6, Percent = true },

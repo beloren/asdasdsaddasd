@@ -520,6 +520,7 @@ gui.Enabled = false
 local inventoryFrame = gui:WaitForChild("InventoryFrame")
 local header = inventoryFrame:WaitForChild("Header")
 local countLabel = header:WaitForChild("CountLabel")
+local countLabelColor = countLabel.TextColor3
 local searchFrame = header:WaitForChild("SearchFrame")
 local searchBox = searchFrame:WaitForChild("SearchBox")
 local searchClear = searchFrame:WaitForChild("SearchClear")
@@ -1449,6 +1450,15 @@ renderGrid = function()
 
 	updateCanvasSize()
 
+	if state.Capacity ~= nil then
+		-- v20.108: рюкзак без тележки - считаем куски руды
+		local pieces = 0
+		for _, stack in state.Backpack do pieces += tonumber(stack.Count) or 0 end
+		local cap = state.Capacity == -1 and "∞" or tostring(state.Capacity)
+		countLabel.Text = ("%d/%s"):format(pieces, cap)
+		countLabel.TextColor3 = (state.Capacity ~= -1 and pieces >= state.Capacity) and Color3.fromRGB(255, 110, 100) or countLabelColor
+		return
+	end
 	local slots = state.Slots == -1 and "∞" or tostring(state.Slots)
 	countLabel.Text = ("%d/%s"):format(backpackCount(), slots)
 end

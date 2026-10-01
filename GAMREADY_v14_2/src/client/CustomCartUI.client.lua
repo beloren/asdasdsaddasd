@@ -1543,7 +1543,7 @@ end)
 -- собранный builder'ом.
 --------------------------------------------------------------------------------
 
-local KIND_LABELS = { Mine = "MINE", Cart = "CART", Pickaxe = "PICKAXE" }
+local KIND_LABELS = { Mine = "MINE", Cart = Config.NoCarts and "BACKPACK" or "CART", Pickaxe = "PICKAXE" }
 -- Порядок карточек — синхронизирован с tools/BuildAllUI.lua
 -- ("шахта по середине, тележка справа, кирка слева" по прямому запросу).
 -- Индексы 1/2/3 (клавиши-шорткаты и KIND_ORDER[index] ниже) теперь тоже
@@ -2892,7 +2892,8 @@ end
 	}
 	local KIND_VIEW = {
 		Mine = { Title = "CAVE", Icon = "⛰", Color = Color3.fromRGB(120, 170, 255) },
-		Cart = { Title = "CART", Icon = "🛒", Color = Color3.fromRGB(95, 215, 130) },
+		Cart = Config.NoCarts and { Title = "BACKPACK", Icon = "🎒", Color = Color3.fromRGB(95, 215, 130) }
+			or { Title = "CART", Icon = "🛒", Color = Color3.fromRGB(95, 215, 130) },
 		Pickaxe = { Title = "PICKAXE", Icon = "⛏", Color = Color3.fromRGB(255, 150, 70) },
 		Supplies = { Title = "DYNAMITE", Icon = "🧨", Color = Color3.fromRGB(225, 70, 40) },
 		Soon1 = { Title = "COMING SOON", Icon = "", Color = Color3.fromRGB(26, 28, 36) },
@@ -3033,6 +3034,8 @@ end
 			local nextCave = Config.MineTiers[nextTier]
 			local newOre = nextCave and nextCave.Ores[#nextCave.Ores]
 			return newOre and tr("New ore: {name}", { name = newOre.DisplayName }) or ""
+		elseif kind == "Cart" and Config.NoCarts then
+			return tr("Space {a} → {b}", { a = Config.BackpackCapacity(status.Tier), b = Config.BackpackCapacity(nextTier) })
 		elseif kind == "Cart" then
 			local cur, nxt = Config.CartTiers[status.Tier], Config.CartTiers[nextTier]
 			return (cur and nxt) and tr("Space {a} → {b}", { a = cur.Capacity, b = nxt.Capacity }) or ""
@@ -3166,11 +3169,15 @@ end
 			add(tr("Cave"), tier, nextTier)
 			add(tr("Ore per dig"), cur and cur.OreYield, nxt and nxt.OreYield)
 			add(tr("Avg ore price"), cur and money(cur.ExpectedValue), nxt and money(nxt.ExpectedValue))
-			add(tr("Full cart"), money(Config.CartValue(tier, cartTier)), nxt and money(Config.CartValue(nextTier, cartTier)))
+			add(tr(Config.NoCarts and "Full backpack" or "Full cart"), money(Config.CartValue(tier, cartTier)), nxt and money(Config.CartValue(nextTier, cartTier)))
 			if nxt then
 				local newOre = nxt.Ores[#nxt.Ores]
 				add(tr("New ore"), nil, newOre and newOre.DisplayName)
 			end
+		elseif kind == "Cart" and Config.NoCarts then
+			add(tr("Backpack space"), Config.BackpackCapacity(tier), nextTier and Config.BackpackCapacity(nextTier))
+			add(tr("Full backpack"), money(Config.CartValue(mineTier, tier)), nextTier and money(Config.CartValue(mineTier, nextTier)))
+			add(tr("Slowdown"), tr("None"), nil)
 		elseif kind == "Cart" then
 			local cur, nxt = Config.CartTiers[tier], nextTier and Config.CartTiers[nextTier]
 			add(tr("Cargo space"), cur and cur.Capacity, nxt and nxt.Capacity)

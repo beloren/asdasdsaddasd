@@ -2754,7 +2754,7 @@ function MineService:_ejectOre(player, expedition)
 	local rolled = {} -- { {Crystal=, OreInfo=}, ... }
 	for _ = 1, yieldCount do
 		local wentToGeode = false
-		if cart and Services.GeodeService then
+		if (cart or Config.NoCarts) and Services.GeodeService then
 			local ok, spawned = pcall(function()
 				return Services.GeodeService:TrySpawnForMine(player, cart, tier, dropCenter, false)
 			end)

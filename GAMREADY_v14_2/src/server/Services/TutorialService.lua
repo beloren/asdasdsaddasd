@@ -160,6 +160,17 @@ function TutorialService:SetupPlayer(player)
 	-- как "следующий шаг" уже в момент выполнения текущего (см.
 	-- _finishStep). Игрок, вышедший на прощальной реплике последнего шага,
 	-- приходит с #steps() + 1 — обучение у него просто завершается.
+	-- v20.108: шаги тележки (6-9) слились в один «SellOre» - переносим
+	-- номер шага у тех, кто был посреди обучения.
+	if Config.NoCarts and data.TutorialNoCartsLayout ~= true then
+		data.TutorialNoCartsLayout = true
+		local old = tonumber(data.TutorialStep) or 1
+		if old >= 10 then
+			data.TutorialStep = old - 3
+		elseif old >= 6 then
+			data.TutorialStep = 6
+		end
+	end
 	local saved = math.clamp(tonumber(data.TutorialStep) or 1, 1, #steps() + 1)
 	states[player] = {
 		Step = saved,

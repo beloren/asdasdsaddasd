@@ -197,6 +197,111 @@ function BankService:_sellBackpack(player, zone)
 	end
 end
 
+-- v20.108: ПРОДАЖА КРОТУ (SellMoleService). mode = "All" - весь рюкзак с
+-- комбо за заполнение (как у тележки, до x3); "Hand" - стопка в руке.
+-- Возвращает число проданных кусков и сумму.
+function BankService.IsInZone(_, zone, position)
+	return isInZone(zone, position)
+end
+
+function BankService:SellBackpackBatch(player, mode, targetPosition)
+	local inventory = Services.InventoryService
+	if not (inventory and player.Parent) then return 0, 0 end
+	if sellingBackpack[player.UserId] then return 0, 0 end
+	if player:GetAttribute("EconomyTransactionLocked") == true then return 0, 0 end
+	if Services.MonetizationService and not Services.MonetizationService:IsEntitlementsReady(player) then
+		Services.NotifyService:Show(player, "Purchase bonuses are still loading. Try selling again shortly.", { Icon = "Pending" })
+		return 0, 0
+	end
+	sellingBackpack[player.UserId] = true
+	local soldCount, total = 0, 0
+	local combo, fill = 1, 0
+	local ok, err = pcall(function()
+		local market = marketAtStart()
+		local queue = {} -- { Uid, Count }
+		if mode == "Hand" then
+			local uid = player:GetAttribute("HeldOreUid")
+			local stack = uid and inventory:GetStackByUid(player, uid)
+			if stack then table.insert(queue, { Uid = uid, Count = stack.Count }) end
+		else
+			local data = Services.DataService:GetGeodeData(player)
+			local pieces = 0
+			for _, stack in (data and data.Backpack) or {} do
+				if typeof(stack) == "table" and stack.Uid and (stack.Count or 0) > 0 then
+					table.insert(queue, { Uid = stack.Uid, Count = stack.Count })
+					pieces += stack.Count
+				end
+			end
+			local capacity = inventory:GetCapacity(player)
+			if capacity ~= math.huge and capacity > 0 then
+				fill = pieces / capacity
+				for _, step in Config.Cart.ComboThresholds do
+					if fill >= step.Fill then combo = step.Multiplier else break end
+				end
+			end
+		end
+		local pieces = 0
+		for _, entry in queue do pieces += entry.Count end
+		if pieces <= 0 then return end
+		local delayEach = math.min(Config.SellMole.SellDelay or 0.06, (Config.SellMole.SellSeconds or 2.5) / pieces)
+		for _, entry in queue do
+			for _ = 1, entry.Count do
+				if not player.Parent then return end
+				local index = inventory:IndexOfUid(player, entry.Uid)
+				if not index then break end
+				local removed = inventory:RemoveAt(player, index, 1, true)
+				if not removed then break end
+				local character = player.Character
+				local hrp = character and character:FindFirstChild("HumanoidRootPart")
+				local payout = math.floor((tonumber(removed.Value) or 0) * market * combo * (1 + legacyBonus(player)) + 0.5)
+				fireSellFx({
+					Kind = "Ore", Holder = player.UserId,
+					From = hrp and (hrp.Position + Vector3.new(0, 1.2, 0)) or targetPosition, To = targetPosition,
+					Ore = removed.Ore, Variant = removed.Variant, Smelted = removed.Smelted,
+					Payout = payout, Market = market, Index = soldCount,
+				})
+				if payout > 0 then
+					if Services.MonetizationService then
+						payout = math.floor(payout
+							* Services.MonetizationService:GetCashMultiplier(player)
+							* Services.MonetizationService:GetReferralMultiplier(player) + 0.5)
+					end
+					payout = math.min(payout, Config.Economy.MaxCurrency)
+					Services.DataService:AddMoney(player, payout, targetPosition)
+					Services.QuestService:RecordMetric(player, "MoneyEarned", payout)
+					queueMoneyFx(player, payout)
+					total += payout
+				end
+				Services.QuestService:RecordMetric(player, "OreSold", 1)
+				soldCount += 1
+				if soldCount % 3 == 1 and hrp then Sfx.play("Sell", hrp) end
+				if soldCount % 10 == 0 then inventory:Sync(player) end
+				task.wait(delayEach)
+			end
+		end
+	end)
+	sellingBackpack[player.UserId] = nil
+	if not ok then warn("[BankService] SellBackpackBatch упал:", err) end
+	if soldCount > 0 then
+		local heldUid = player:GetAttribute("HeldOreUid")
+		if heldUid and not inventory:GetStackByUid(player, heldUid) then
+			pcall(inventory.SetHeldOre, inventory, player, nil)
+		end
+		inventory:Sync(player)
+		if mode ~= "Hand" then
+			local quests = Services.QuestService
+			pcall(quests.RecordMetric, quests, player, "CartSales", 1)
+			if combo >= (Config.Cart.QuestHighComboMultiplier or 3) then pcall(quests.RecordMetric, quests, player, "X4Sales", 1) end
+			if fill >= 0.7 then pcall(quests.RecordMetric, quests, player, "Cart70Sales", 1) end
+			if fill >= 1 then pcall(quests.RecordMetric, quests, player, "FullCartNoLoss", 1) end
+		end
+		if Services.TutorialService then
+			pcall(function() Services.TutorialService:Count(player, "OreSoldFromBag", 1) end)
+		end
+	end
+	return soldCount, total
+end
+
 function BankService:Init(services)
 	Services = services
 	local shared = ReplicatedStorage.Shared
@@ -289,6 +394,7 @@ function BankService:Start()
 				-- начисляется никогда, поэтому тележка остаётся строго
 				-- выгоднее и после того, как станет доступна.
 				if Config.Bank.InventorySellEnabled == true
+					and not (Config.SellMole and Config.SellMole.Enabled) -- v20.108: продаёт крот
 					and playerInZone
 					and not sellingBackpack[player.UserId]
 					and player:GetAttribute("EconomyTransactionLocked") ~= true

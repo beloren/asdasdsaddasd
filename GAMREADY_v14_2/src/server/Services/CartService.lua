@@ -1222,6 +1222,7 @@ local function profileOf(player)
 end
 
 function CartService:IsCartUnlocked(player)
+	if Config.NoCarts then return true end -- v20.108: тележек нет, ветка = рюкзак
 	local data = profileOf(player)
 	return data ~= nil and data.CartUnlocked == true
 end
@@ -1249,6 +1250,7 @@ end
 -- Выдать упаковку (если её ещё нет). Возвращает true, если предмет реально
 -- появился. Счёт всегда 0 или 1 — вторая тележка игроку не положена.
 function CartService:GrantPackage(player, reason)
+	if Config.NoCarts then return false end
 	if not self:IsCartUnlocked(player) then
 		return false
 	end
@@ -1357,6 +1359,20 @@ end
 function CartService:SetupPlayer(player)
 	local data = profileOf(player)
 	if not data then return end
+	if Config.NoCarts then
+		-- v20.108: тележек нет - убираем упаковку из снаряжения
+		data.CartUnlocked = true
+		local packages = self:GetPackageCount(player)
+		if packages > 0 then
+			if Services.GearService then
+				Services.GearService:AddGear(player, packageKey(), -packages)
+			elseif data.Gear then
+				data.Gear[packageKey()] = 0
+			end
+		end
+		self:_refreshCartAttributes(player)
+		return
+	end
 	-- Игрок ВНУТРИ обучения v7 мигрировать не должен: он получает
 	-- тележку на шаге GetCart. Раньше условие PlayTimeSeconds > 120 молча
 	-- выдавало упаковку новичку, перезашедшему посреди пролога, — и шаг
@@ -1521,6 +1537,7 @@ end
 -- Главная точка входа постановки. position — куда целился игрок (пришла с
 -- клиента, ей самой по себе НЕ доверяем: всё пересчитывается заново).
 function CartService:PlaceCartFromPackage(player, position)
+	if Config.NoCarts then return false, "No carts" end
 	if not self:IsCartUnlocked(player) then
 		return false, "No cart yet"
 	end
@@ -1609,6 +1626,7 @@ end
 -- Без options тележка встаёт на парковку участка, как раньше (этим путём
 -- пользуются апгрейд и ребёрт, которым место уже известно).
 function CartService:SpawnCartFor(player, options)
+	if Config.NoCarts then return nil end
 	local existing = ownerIndex[player.UserId]
 	if existing then
 		return existing
@@ -1623,6 +1641,7 @@ end
 -- "текущей" (ownerIndex переуказывается на новую) и рано или поздно сама
 -- сгорит по таймеру простоя (см. Start), когда вор её бросит и не тронет.
 function CartService:ForceNewCart(player, options)
+	if Config.NoCarts then return nil end
 	local existing = ownerIndex[player.UserId]
 	if existing and (existing.PaidFillPendingSave or existing.GeodeSavePending) then
 		return existing -- оплаченный груз ещё фиксируется в DataStore; не даём уничтожить его
@@ -2907,6 +2926,9 @@ end
 -- в руках/микро-стан изменились без участия тележки — работает и без неё.
 -- v8: перк Cart Space купили — расширяем тележку игрока сразу.
 function CartService:RefreshCapacity(player)
+	if Config.NoCarts and Services.InventoryService then
+		Services.InventoryService:Sync(player) -- перк Backpack Space
+	end
 	local data = ownerIndex[player.UserId]
 	if not data then return end
 	local bonus = Services.PrestigeService and math.floor(Services.PrestigeService:PerkBonus(player, "CartSpace")) or 0
@@ -3107,6 +3129,18 @@ end
 -- что-то лежит, а ребёрт обязан обнулять и груз тоже, иначе можно нарочно
 -- забить тележку перед ребёртом и тут же отбить якобы "обнулённые" деньги.
 function CartService:UpgradeOwnedCart(player, wipeCargo)
+	if Config.NoCarts then
+		-- v20.108: ветка «Cart» = рюкзак; тир уже поднят UpgradeService'ом
+		if Services.InventoryService then
+			Services.InventoryService:Sync(player)
+			if not wipeCargo and Services.NotifyService then
+				local capacity = Services.InventoryService:GetCapacity(player)
+				Services.NotifyService:Show(player, ("🎒 Backpack upgraded! Space: %s"):format(capacity == math.huge and "∞" or tostring(capacity)), { Icon = "Cart" })
+			end
+		end
+		self:_refreshCartAttributes(player)
+		return true
+	end
 	local data = ownerIndex[player.UserId]
 	if not data then
 		-- v12: ТЕЛЕЖКА НЕ СТОИТ В МИРЕ (лежит упаковкой в рюкзаке ЛИБО

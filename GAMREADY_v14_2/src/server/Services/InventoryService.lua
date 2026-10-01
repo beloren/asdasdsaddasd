@@ -41,9 +41,39 @@ function InventoryService:HasInfinitePouch(player)
 	return Services.MonetizationService and Services.MonetizationService:HasPass(player, "InfinitePouch") or false
 end
 
+-- v20.108: БЕЗ ТЕЛЕЖЕК рюкзак меряется КУСКАМИ руды, а не ячейками:
+-- вместимость = Config.BackpackCapacity(тир ветки Cart) + перк престижа
+-- Backpack Space + Extra Pouch. Infinite Pouch - без лимита.
+function InventoryService:GetCapacity(player)
+	if not Config.NoCarts then return math.huge end
+	if self:HasInfinitePouch(player) then return math.huge end
+	local tier = Services.DataService:GetTiers(player).Cart or 1
+	local capacity = math.max(Config.BackpackCapacity(tier), Config.Backpack.MinCapacity or 0)
+	if Services.PrestigeService then
+		capacity += math.floor(Services.PrestigeService:PerkBonus(player, "CartSpace") or 0)
+	end
+	if Services.MonetizationService and Services.MonetizationService:HasPass(player, "ExtraPouch") then
+		capacity += Config.Backpack.ExtraPouchBonus or 0
+	end
+	if Services.TutorialService and Services.TutorialService:IsActive(player) then
+		capacity = math.max(capacity, Config.Backpack.TutorialCapacity or 0)
+	end
+	return capacity
+end
+
+function InventoryService:FreeSpace(player)
+	local capacity = self:GetCapacity(player)
+	if capacity == math.huge then return math.huge end
+	return math.max(0, capacity - self:CountItems(player))
+end
+
 function InventoryService:GetSlotCount(player)
 	if self:HasInfinitePouch(player) then
 		return math.huge
+	end
+	if Config.NoCarts then
+		-- ячеек хватает всегда: лимит - вместимость в кусках
+		return math.max(Config.Inventory.BaseSlots, self:GetCapacity(player))
 	end
 	-- СТАРТОВЫЙ РЮКЗАК (см. Config.Inventory.StarterSlots). Пока первая
 	-- тележка не куплена, руду можно продавать прямо из рюкзака (см.
@@ -284,6 +314,7 @@ function InventoryService:HasAnyRoom(player)
 	if self:HasInfinitePouch(player) then return true end
 	local backpack = backpackOf(player)
 	if not backpack then return false end
+	if self:FreeSpace(player) <= 0 then return false end
 	if #backpack < self:GetSlotCount(player) then return true end
 	for _, stack in backpack do
 		if stack.Count < Config.Inventory.StackSize then return true end
@@ -310,6 +341,7 @@ end
 function InventoryService:CanAddOre(player, oreKey, variant, mutations, smelted, gigantic)
 	local backpack = backpackOf(player)
 	if not backpack then return false end
+	if self:FreeSpace(player) <= 0 then return false end
 	if #backpack < self:GetSlotCount(player) then return true end
 	for _, stack in backpack do
 		if sameStack(stack, oreKey, variant, mutations, smelted, gigantic) and stack.Count < Config.Inventory.StackSize then
@@ -330,6 +362,8 @@ function InventoryService:AddOre(player, oreKey, variant, mutations, value, coun
 	count = count or 1
 	local stackSize = Config.Inventory.StackSize
 	local slotCount = self:GetSlotCount(player)
+	-- v20.108: рюкзак полон по кускам - не влезает ничего
+	if count > self:FreeSpace(player) then return false end
 
 	-- ПРИОРИТЕТ — ХОТБАР (по прямому запросу). Сначала досыпаем в
 	-- подходящие стопки, которые УЖЕ стоят в хотбаре, и только потом — в
@@ -831,7 +865,9 @@ function InventoryService:GiftFromSlot(player, targetPlayer, stackIndex)
 	local targetBackpack = backpackOf(targetPlayer)
 	if not targetBackpack then return false end
 	local canFit = #targetBackpack < targetSlots
-	if not canFit then
+	if self:FreeSpace(targetPlayer) <= 0 then
+		canFit = false
+	elseif not canFit then
 		for _, targetStack in targetBackpack do
 			if sameStack(targetStack, stack.Ore, stack.Variant, stack.Mutations, stack.Smelted, stack.Gigantic)
 				and targetStack.Count < Config.Inventory.StackSize then
@@ -1085,7 +1121,7 @@ function InventoryService:RoomFor(player, stack)
 			room += math.max(0, stackSize - other.Count)
 		end
 	end
-	return room
+	return math.min(room, self:FreeSpace(player)) -- v20.108: лимит в кусках
 end
 
 -- v9: GearService зовёт при изменении снаряжения. Новое — сразу в
@@ -1114,6 +1150,7 @@ function InventoryService:Sync(player)
 		Hotbar = hotbarOf(data), -- ПЛОТНЫЙ массив строк-Uid; "" = пустой слот
 		Gear = gearStacks(data), -- v9: снаряжение, слоты не тратит
 		Slots = slots == math.huge and -1 or slots, -- -1 = безлимит (RemoteEvent не умеет math.huge)
+		Capacity = Config.NoCarts and (self:GetCapacity(player) == math.huge and -1 or self:GetCapacity(player)) or nil, -- v20.108
 		PickaxeTier = self:GetEquippedPickaxeTier(player),
 		PickaxeMaxTier = self:GetMaxPickaxeTier(player),
 		PickaxeSkin = data.EquippedPickaxeSkin or "Default",

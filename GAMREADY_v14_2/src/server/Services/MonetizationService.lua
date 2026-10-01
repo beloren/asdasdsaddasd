@@ -125,6 +125,7 @@ local function applyEntitlement(player, key)
 		if Services.CartService then Services.CartService:RefreshShieldVisual(player) end
 	elseif key == "ExtraPouch" and Services.HandCarryService then
 		Services.HandCarryService:RefreshCapacity(player)
+		if Services.InventoryService then Services.InventoryService:Sync(player) end -- v20.108: рюкзак
 	end
 end
 
