@@ -17,6 +17,20 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 local hudGui = playerGui:WaitForChild("Hud", 10)
+
+-- v20.112: HUD одной картинкой - ImageId берём из Config на лету, чтобы
+-- новая картинка появилась без пересборки UI (заглушка-рамки прячется).
+do
+	local okConfig, Config = pcall(require, game:GetService("ReplicatedStorage").Shared.Config)
+	local cfg = okConfig and Config.UI and Config.UI.HudImage
+	local imageId = cfg and tonumber(cfg.ImageId) or 0
+	local background = hudGui and hudGui:FindFirstChild("Background", true)
+	if imageId > 0 and background and background:IsA("ImageLabel") then
+		background.Image = "rbxassetid://" .. imageId
+		local holder = hudGui:FindFirstChild("Placeholder", true)
+		if holder then holder.Visible = false end
+	end
+end
 local portrait = hudGui and hudGui:FindFirstChild("Portrait", true)
 if not (portrait and portrait:IsA("ViewportFrame")) then
 	warn("[PlayerPortraitHud] StarterGui/Hud без ViewportFrame 'Portrait' - портрет показываться не будет, остальной HUD/игра не пострадают. Запусти tools/BuildAllUI.lua заново.")

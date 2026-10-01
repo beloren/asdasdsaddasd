@@ -786,6 +786,9 @@ function InventoryService:GetEquippedPickaxeTier(player)
 	local data = Services.DataService:GetGeodeData(player)
 	local maxTier = self:GetMaxPickaxeTier(player)
 	local chosen = data and data.EquippedPickaxeTier or 0
+	-- v20.112: в инвентаре только одна кирка - последняя открытая, и надета
+	-- всегда она (Config.Inventory.OnlyBestPickaxe ~= false).
+	if Config.Inventory.OnlyBestPickaxe ~= false then return maxTier end
 	if chosen == 0 or chosen > maxTier then
 		return maxTier -- 0 = "всегда лучшая", и страховка, если тир понизился после ребёрта
 	end
@@ -798,7 +801,7 @@ function InventoryService:EquipPickaxe(player, tier, skinName)
 	local maxTier = self:GetMaxPickaxeTier(player)
 	if tier and tier ~= 0 then
 		if tier < 1 or tier > maxTier then return false end -- нельзя надеть неоткрытый тир
-		data.EquippedPickaxeTier = tier
+		data.EquippedPickaxeTier = Config.Inventory.OnlyBestPickaxe ~= false and 0 or tier
 	end
 	if skinName then
 		-- Скин должен быть реально разблокирован (см. SkinService) — иначе

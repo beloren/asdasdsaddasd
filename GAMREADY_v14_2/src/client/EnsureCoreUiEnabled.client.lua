@@ -58,6 +58,13 @@ local ALWAYS_ON_GUIS = {
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- v20.112: ScreenFocus прячет HUD/квесты/хотбар под большими окнами и
+-- помечает их атрибутом FocusHidden. Такие НЕ включаем обратно - иначе
+-- сторож и ScreenFocus спорили, и трекер квестов вылезал поверх окна.
+local function mayEnable(gui)
+	return player:GetAttribute("IntroActive") ~= true and gui:GetAttribute("FocusHidden") ~= true
+end
+
 local function forceEnable(name)
 	-- WaitForChild с таймаутом: часть этих ScreenGui клонируется из
 	-- StarterGui почти мгновенно, часть достраивается фолбэком в других
@@ -68,7 +75,7 @@ local function forceEnable(name)
 	if not gui then
 		return
 	end
-	if player:GetAttribute("IntroActive") ~= true and not gui.Enabled then
+	if mayEnable(gui) and not gui.Enabled then
 		gui.Enabled = true
 		warn(("[EnsureCoreUiEnabled] %s был выключен (Enabled=false) - включил обратно."):format(name))
 	end
@@ -76,12 +83,12 @@ local function forceEnable(name)
 	-- где-то по ошибке True) выключит его позже — держим один короткий
 	-- сторож на изменение свойства, а не бесконечный цикл.
 	gui:GetPropertyChangedSignal("Enabled"):Connect(function()
-		if player:GetAttribute("IntroActive") ~= true and not gui.Enabled then
+		if mayEnable(gui) and not gui.Enabled then
 			gui.Enabled = true
 		end
 	end)
 	player:GetAttributeChangedSignal("IntroActive"):Connect(function()
-		if player:GetAttribute("IntroActive") ~= true then
+		if mayEnable(gui) then
 			gui.Enabled = true
 		end
 	end)

@@ -77,12 +77,15 @@ function HudService:SetupPlayer(player)
 		-- его больше не перезаписывает, правки в Studio сохраняются.
 
 		local function refreshMoney()
-			parts.MoneyLabel.Text = "$" .. money.Value
+			parts.MoneyLabel.Text = "$" .. money.Value -- уже сокращено (DataService: "1.23Qa")
 		end
 		local function refreshRebirths()
 			-- "PRESTIGE: " — префикс из референса (картинка баланса/
 			-- престижа), раньше показывали голое число.
-			parts.RebirthLabel.Text = "PRESTIGE: " .. NumberFormat.abbreviate(rebirths.Value)
+			-- v20.112: у HUD-картинки свой префикс (атрибут Prefix у RebirthPill, обычно пусто).
+			local prefix = parts.RebirthPill:GetAttribute("Prefix")
+			if typeof(prefix) ~= "string" then prefix = "PRESTIGE: " end
+			parts.RebirthLabel.Text = prefix .. NumberFormat.abbreviate(rebirths.Value)
 		end
 		refreshMoney()
 		refreshRebirths()

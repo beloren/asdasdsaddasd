@@ -2800,38 +2800,38 @@ Config.GamePasses = {
 		Id = 1966130783, Multiplier = 2, PriceRobux = 99,
 	},
 	DoubleLuck = {   -- 🍀 2x Luck: ×2 шанс мутаций + наклон к редкой руде
-		Id = 0, PriceRobux = 129, OreLuck = 0.2, MutationMultiplier = 2,
+		Id = 1967851320, PriceRobux = 129, OreLuck = 0.2, MutationMultiplier = 2,
 	},
 	OreMagnet = {    -- 🧲 руда сама летит к тебе, большой радиус подбора
-		Id = 0, PriceRobux = 69, PickupRadius = 22,
+		Id = 2003174297, PriceRobux = 69, PickupRadius = 22,
 	},
 	ExtraPouch = {   -- 🎒 Mega Backpack: +12 слотов, больше стак
 		Id = 1966154793, BonusCapacity = 2, BonusSlots = 12, PriceRobux = 49,
 	},
 	GeodeMaster = {  -- 🪨 открытие по 3/5 + автовскрытие (без тапанья)
-		Id = 0, PriceRobux = 59,
+		Id = 1966202799, PriceRobux = 59,
 	},
 	DemolitionExpert = { -- 🧨 откат динамита ×0.5 + 1 бесплатный динамит своего уровня в день
-		Id = 0, PriceRobux = 79, CooldownMultiplier = 0.5, DailyFreeSeconds = 20 * 3600,
+		Id = 1998819611, PriceRobux = 79, CooldownMultiplier = 0.5, DailyFreeSeconds = 20 * 3600,
 	},
 	CartGuard = {    -- 🛡 щит тележки дольше, откат щита короче, золотая обводка
-		Id = 0, PriceRobux = 59, Duration = 60, Cooldown = 90,
+		Id = 1966819564, PriceRobux = 59, Duration = 60, Cooldown = 90,
 		OutlineColor = Color3.fromRGB(255, 215, 60),
 	},
 	FastSmelter = {  -- ⚡ печь ×2 быстрее, +1 слот
-		Id = 0, PriceRobux = 49, SpeedMultiplier = 0.5, BonusSlots = 1,
+		Id = 1970684830, PriceRobux = 49, SpeedMultiplier = 0.5, BonusSlots = 1,
 	},
 	RocketPickaxe = { -- 🚀 см. Config.RocketPickaxe
-		Id = 0, PriceRobux = 149,
+		Id = 1999701550, PriceRobux = 149,
 	},
 	DoubleDrops = {  -- 2x награды из жеод (оставлен, подешевел)
 		Id = 1968449069, RewardCount = 2, PriceRobux = 39,
 	},
 	AutoHammer = {   -- v20.80: 🔨 автоудар при раскалывании жеод (кнопка AUTO в сцене)
-		Id = 0, PriceRobux = 49,
+		Id = 1999329630, PriceRobux = 49,
 	},
 	DoubleSafe = {   -- v4: 🏦 2x Safe Income — пассивка кристалла на подиуме ×2 (OreIncome.PerMinuteForPlayer)
-		Id = 0, Multiplier = 2, PriceRobux = 79,
+		Id = 2003618262, Multiplier = 2, PriceRobux = 79,
 	},
 
 	----------------------------------------------------------------------------
@@ -2840,15 +2840,13 @@ Config.GamePasses = {
 	-- пока в игре есть их владельцы.
 	----------------------------------------------------------------------------
 	QuadCash = { Id = 1968313301, Legacy = true, GrantsTo = { "DoubleCash", "DoubleLuck" } },
-	SextupleCash = { Id = 1967851320, Legacy = true, GrantsTo = { "DoubleCash", "DoubleLuck" } },
 	OctupleCash = { Id = 1969483065, Legacy = true, GrantsTo = { "DoubleCash", "DoubleLuck" } },
 	GoldenShield = { Id = 1968217308, Legacy = true, GrantsTo = { "CartGuard" } },
 	SpeedBoost = { Id = 1968685101, Legacy = true, GrantsTo = { "CartGuard" } },
 	DoubleDamage = { Id = 1966268777, Legacy = true, GrantsTo = { "CartGuard" } },
-	DoubleHealth = { Id = 1966819564, Legacy = true, GrantsTo = { "CartGuard" } },
-	FastMining = { Id = 1970684830, Legacy = true, GrantsTo = { "OreMagnet" } },
 	TripleGeodeOpen = { Id = 1969119088, Legacy = true, GrantsTo = { "GeodeMaster" } },
-	FiveGeodeOpen = { Id = 1966202799, Legacy = true, GrantsTo = { "GeodeMaster" } },
+	-- v20.112: SextupleCash / DoubleHealth / FastMining / FiveGeodeOpen убраны -
+	-- их Id теперь у новых пассов DoubleLuck / CartGuard / FastSmelter / GeodeMaster.
 }
 
 Config.CashPasses = { "DoubleCash" }
@@ -2909,12 +2907,12 @@ Config.Offers = {
 Config.Donations = {
 	AnnounceFrom = 100, -- от скольки R$ объявлять всему серверу
 	Items = {
-		{ Key = "Donate10",   Id = 0, PriceRobux = 10,   Title = "🍬 Candy",        Description = "A tiny thank-you!" },
-		{ Key = "Donate50",   Id = 0, PriceRobux = 50,   Title = "☕ Coffee",       Description = "Keeps the devs awake!" },
-		{ Key = "Donate100",  Id = 0, PriceRobux = 100,  Title = "🍕 Pizza",        Description = "Fuel for a new update!" },
-		{ Key = "Donate500",  Id = 0, PriceRobux = 500,  Title = "💎 Diamond Fan",  Description = "You're amazing! Top Donation board!" },
-		{ Key = "Donate1000", Id = 0, PriceRobux = 1000, Title = "👑 Legend",       Description = "A true legend of the mine!" },
-		{ Key = "Donate5000", Id = 0, PriceRobux = 5000, Title = "🌟 Mega Patron",  Description = "Your statue deserves the plaza!" },
+		{ Key = "Donate10",   Id = 3715529117, PriceRobux = 10,   Title = "🍬 Candy",        Description = "A tiny thank-you!" },
+		{ Key = "Donate50",   Id = 3715529154, PriceRobux = 50,   Title = "☕ Coffee",       Description = "Keeps the devs awake!" },
+		{ Key = "Donate100",  Id = 3715529201, PriceRobux = 100,  Title = "🍕 Pizza",        Description = "Fuel for a new update!" },
+		{ Key = "Donate500",  Id = 3715529250, PriceRobux = 500,  Title = "💎 Diamond Fan",  Description = "You're amazing! Top Donation board!" },
+		{ Key = "Donate1000", Id = 3715529301, PriceRobux = 1000, Title = "👑 Legend",       Description = "A true legend of the mine!" },
+		{ Key = "Donate5000", Id = 3715529332, PriceRobux = 5000, Title = "🌟 Mega Patron",  Description = "Your statue deserves the plaza!" },
 	},
 }
 
@@ -2981,25 +2979,25 @@ Config.DevProducts = {
 	-- (ветка Micro). Id = 0 — ещё не создан в Creator Hub.
 	----------------------------------------------------------------------------
 	Micro = {
-		GetUp          = { Id = 0, PriceRobux = 5,  Title = "Get Up Now", Icon = "🧍" },
-		Revenge        = { Id = 0, PriceRobux = 19, Title = "Get Back 50%", Icon = "💢" },
-		DynamiteSmall  = { Id = 0, PriceRobux = 9,  Title = "5 Small Dynamite", Icon = "🧨", Gear = "Dynamite", Count = 5 },
-		DynamiteMedium = { Id = 0, PriceRobux = 19, Title = "5 Dynamite Bundles", Icon = "🧨", Gear = "Dynamite_Medium", Count = 5 },
-		DynamiteMega   = { Id = 0, PriceRobux = 29, Title = "3 Mega TNT", Icon = "💣", Gear = "Dynamite_Mega", Count = 3 },
-		MineRush       = { Id = 0, PriceRobux = 15, Title = "Mine Rush x2 (3 digs)", Icon = "⛏", Charges = 3 },
-		PerfectStrike  = { Id = 0, PriceRobux = 9,  Title = "Perfect Boulder", Icon = "🎯", Charges = 1 },
-		LuckPotion     = { Id = 0, PriceRobux = 19, Title = "Luck x2 · 15 min", Icon = "🍀", Seconds = 15 * 60, OreLuck = 0.15, MutationMultiplier = 2 },
-		ServerLuck2    = { Id = 0, PriceRobux = 49, Title = "SERVER Luck x2 · 15 min", Icon = "🌐", Seconds = 15 * 60, OreLuck = 0.12, MutationMultiplier = 2 },
-		ServerLuck3    = { Id = 0, PriceRobux = 99, Title = "SERVER Luck x3 · 30 min", Icon = "🌐", Seconds = 30 * 60, OreLuck = 0.2, MutationMultiplier = 3 },
-		MoneyRush      = { Id = 0, PriceRobux = 15, Title = "Money x2 · 5 min", Icon = "💵", Seconds = 5 * 60 },
-		SmeltNow       = { Id = 0, PriceRobux = 5,  Title = "Finish Smelting", Icon = "🔥" },
+		GetUp          = { Id = 3715529524, PriceRobux = 5,  Title = "Get Up Now", Icon = "🧍" },
+		Revenge        = { Id = 3715529596, PriceRobux = 19, Title = "Get Back 50%", Icon = "💢" },
+		DynamiteSmall  = { Id = 3715529650, PriceRobux = 9,  Title = "5 Small Dynamite", Icon = "🧨", Gear = "Dynamite", Count = 5 },
+		DynamiteMedium = { Id = 3715529713, PriceRobux = 19, Title = "5 Dynamite Bundles", Icon = "🧨", Gear = "Dynamite_Medium", Count = 5 },
+		DynamiteMega   = { Id = 3715529763, PriceRobux = 29, Title = "3 Mega TNT", Icon = "💣", Gear = "Dynamite_Mega", Count = 3 },
+		MineRush       = { Id = 3715529830, PriceRobux = 15, Title = "Mine Rush x2 (3 digs)", Icon = "⛏", Charges = 3 },
+		PerfectStrike  = { Id = 3715529899, PriceRobux = 9,  Title = "Perfect Boulder", Icon = "🎯", Charges = 1 },
+		LuckPotion     = { Id = 3715530010, PriceRobux = 19, Title = "Luck x2 · 15 min", Icon = "🍀", Seconds = 15 * 60, OreLuck = 0.15, MutationMultiplier = 2 },
+		ServerLuck2    = { Id = 3715530063, PriceRobux = 49, Title = "SERVER Luck x2 · 15 min", Icon = "🌐", Seconds = 15 * 60, OreLuck = 0.12, MutationMultiplier = 2 },
+		ServerLuck3    = { Id = 3715530116, PriceRobux = 99, Title = "SERVER Luck x3 · 30 min", Icon = "🌐", Seconds = 30 * 60, OreLuck = 0.2, MutationMultiplier = 3 },
+		MoneyRush      = { Id = 3715530172, PriceRobux = 15, Title = "Money x2 · 5 min", Icon = "💵", Seconds = 5 * 60 },
+		SmeltNow       = { Id = 3715530244, PriceRobux = 5,  Title = "Finish Smelting", Icon = "🔥" },
 		-- Личный перезаброс стока торговца (кнопка RESTOCK в его окне). Id
 		-- создать в Creator Dashboard; при 0 кнопка сообщает, что покупка
 		-- не настроена.
-		MerchantRestock = { Id = 0, PriceRobux = 19, Title = "Merchant Restock", Icon = "🔄" },
+		MerchantRestock = { Id = 3715530311, PriceRobux = 19, Title = "Merchant Restock", Icon = "🔄" },
 		-- v4: сейф сразу заполняется до потолка (3 ч дохода текущего кристалла).
 		-- Без кристалла на подиуме — FallbackMinutes твоего активного дохода.
-		FillSafe = { Id = 0, PriceRobux = 29, Title = "Fill the Safe", Icon = "🏦", FallbackMinutes = 30 },
+		FillSafe = { Id = 3715530363, PriceRobux = 29, Title = "Fill the Safe", Icon = "🏦", FallbackMinutes = 30 },
 	},
 
 	-- v4: СКИП ПРОКАЧКИ — отдельный Developer Product на КАЖДЫЙ тир каждой
@@ -4758,6 +4756,9 @@ function Config.BackpackCapacity(tier)
 end
 
 Config.Inventory = {
+	-- v20.112: в инвентаре только последняя открытая кирка, надета всегда она.
+	-- false - старое поведение (карточка на каждый открытый тир).
+	OnlyBestPickaxe = true,
 	-- v20.63: руда в инвентаре/хотбаре - 3D-модель (вариация + мутации),
 	-- а не нарисованная иконка. PreviewOutline - обводка силуэта:
 	-- цвет (чёрный читается на любом фоне), толщина - доля размера ячейки.
@@ -5326,7 +5327,7 @@ Config.Skins = {
 		-- механика "тир кирки под видом другого оружия", что и у DevSword
 		-- выше (сама механика пикания/добычи не меняется — это чисто
 		-- скин на инструмент).
-		VoidPickaxe = { Kind = "Pickaxe", DisplayName = "Void Pickaxe", Rarity = "Legendary", AssetName = "Skin_Pickaxe_VoidFixed", ImageId = 0, NpcExclusive = true },
+		VoidPickaxe = { Kind = "Pickaxe", DisplayName = "Void Pickaxe", Rarity = "Legendary", AssetName = "Skin_Pickaxe_VoidFixed", ImageId = 109352130871100, NpcExclusive = true },
 		-- Награда за лайк+вступление в группу (см. Config.GroupReward/
 		-- GroupRewardService) — тоже НЕ выпадает из жеод, только прямым
 		-- GrantNpcSkin.
@@ -5924,6 +5925,33 @@ Config.UI = {
 	SkinsMenuIconId = 0,
 	SettingsMenuIconId = 0,
 	MutationsMenuIconId = 0,
+}
+
+--------------------------------------------------------------------------------
+-- v20.112: HUD СЛЕВА СНИЗУ ОДНОЙ КАРТИНКОЙ (рамка + окно портрета + 2 полоски
+-- с монеткой и звездой). Загружаешь ОДНУ картинку → вписываешь ImageId.
+-- Поверх неё игра кладёт только живой портрет и два числа. Положение окон
+-- задаётся ДОЛЯМИ КАРТИНКИ { X, Y, Ширина, Высота } (0..1 от левого верхнего
+-- угла), поэтому при любом размере HUD всё остаётся на месте.
+-- Как подогнать: открой картинку в редакторе, посмотри пиксели окна
+-- (например, портрет с x=12 до x=104 при ширине 360) и подели на размер
+-- картинки (12/360 = 0.033, 92/360 = 0.256).
+-- ImageId = 0 - рисуется похожая заглушка из рамок (чтобы было видно, где что).
+--------------------------------------------------------------------------------
+Config.UI.HudImage = {
+	Enabled = true,          -- false - старый HUD из пилюль
+	ImageId = 0,             -- ← сюда Id картинки HUD целиком
+	Size = Vector2.new(330, 110), -- размер HUD на ПК в пикселях (держи пропорции картинки)
+	Portrait = { 0.03, 0.09, 0.255, 0.82 }, -- окно портрета (квадратное)
+	Money = { 0.445, 0.14, 0.51, 0.3 },     -- куда пишется $ (правее монетки)
+	Prestige = { 0.445, 0.56, 0.51, 0.3 },  -- куда пишется престиж (правее звезды)
+	-- Невидимые точки иконок (по ним подпрыгивание при получении денег/престижа).
+	MoneyIcon = { 0.31, 0.08, 0.13, 0.42 },
+	PrestigeIcon = { 0.31, 0.5, 0.13, 0.42 },
+	MoneyColor = Color3.fromRGB(255, 226, 90),
+	PrestigeColor = Color3.fromRGB(255, 150, 215),
+	TextStrokeColor = Color3.fromRGB(40, 20, 10),
+	PrestigePrefix = "",     -- например "PRESTIGE " - иначе только число
 }
 
 --------------------------------------------------------------------------------

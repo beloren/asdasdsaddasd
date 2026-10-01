@@ -43,6 +43,11 @@ local function moneyPill()
 	local playerGui = Players.LocalPlayer:FindFirstChild("PlayerGui")
 	local hud = playerGui and playerGui:FindFirstChild("Hud")
 	local pill = hud and hud:FindFirstChild("MoneyPill", true)
+	-- v20.112: HUD-картинка - пилюля на весь HUD, летим в точку монетки.
+	if pill and hud:GetAttribute("HudStyle") == "Image" then
+		local icon = pill:FindFirstChild("Icon")
+		if icon and icon:IsA("GuiObject") and icon.AbsoluteSize.X > 0 then return icon end
+	end
 	if pill and pill:IsA("GuiObject") and pill.AbsoluteSize.X > 0 then return pill end
 	return nil
 end
@@ -188,7 +193,7 @@ function CoinShower.Play(amount, fromScreenPosition)
 			end
 			coin:Destroy()
 			arrived += 1
-			if pill then bump(pill) end
+			if pill then bump(pill.Name == "Icon" and pill.Parent:FindFirstChild("Value") or pill) end -- v20.112: у HUD-картинки подпрыгивает число
 			if arrived == 1 then
 				pcall(function() require(ReplicatedStorage.Shared.UiSfx).play("RewardMoney") end)
 			end

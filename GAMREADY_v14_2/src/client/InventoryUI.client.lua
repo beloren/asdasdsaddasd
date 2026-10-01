@@ -395,6 +395,14 @@ function GearModel.Build(key)
 		return (PlaceholderFactory.PotionModel(key, potion.Color))
 	end
 	if PlaceableCatalog.Info(key) then return PlaceableFactory.BuildItem(key) end
+	-- v20.112: динамит и эссенции мутаций - тоже 3D с обводкой.
+	local dynamite = Config.Dynamite and Config.Dynamite.Types and Config.Dynamite.Types[key]
+	if dynamite then return (PlaceholderFactory.DynamiteModel(key, dynamite)) end
+	local mutationId = require(ReplicatedStorage.Shared.DropTables).EssenceMutation(key)
+	if mutationId then
+		local mutation = Config.Mutations[mutationId]
+		return (PlaceholderFactory.EssenceModel(key, mutation and mutation.Color))
+	end
 	return nil
 end
 function GearModel.Mount(preview, key)
@@ -1318,7 +1326,9 @@ renderGrid = function()
 	local function noteSort(cell, rarity, value, name, amount)
 		table.insert(sortEntries, { Cell = cell, Rarity = RARITY_RANK[rarity] or 0, Value = tonumber(value) or 0, Name = tostring(name or ""):lower(), Amount = tonumber(amount) or 0, Order = cell.LayoutOrder })
 	end
-	for tier = state.PickaxeMaxTier or 1, 1, -1 do
+	-- v20.112: только последняя открытая кирка (она же всегда надета).
+	local lowestShownTier = Config.Inventory.OnlyBestPickaxe ~= false and (state.PickaxeMaxTier or 1) or 1
+	for tier = state.PickaxeMaxTier or 1, lowestShownTier, -1 do
 		local tierConfig = Config.PickaxeTiers[tier]
 		local title = ("pickaxe t" .. tier .. " " .. tostring(tierConfig and tierConfig.DisplayName or "")):lower()
 		if showTools and tierConfig and (query == "" or title:find(query, 1, true)) then

@@ -460,6 +460,83 @@ function PlaceholderFactory.PotionModel(key, color)
 	return model, root
 end
 
+-- v20.112: ДИНАМИТ ДЛЯ ПРЕВЬЮ (инвентарь/хотбар). Своя модель - Assets/<key>
+-- (Dynamite / Dynamite_Medium / Dynamite_Mega) или общая Assets/Dynamite;
+-- иначе блочная заглушка по Visual: Stick - одна шашка, Bundle - связка из
+-- трёх, Barrel - бочка TNT. В мире (бросок) модель строит GearService/DynamiteFX.
+function PlaceholderFactory.DynamiteModel(key, info)
+	key = key or "Dynamite"
+	local asset = findAsset(key) or findAsset("Dynamite")
+	if asset and asset:IsA("Model") then
+		local root = asset.PrimaryPart or asset:FindFirstChildWhichIsA("BasePart", true)
+		if root then
+			asset.PrimaryPart = root
+			return asset, root
+		end
+	elseif asset and asset:IsA("BasePart") then
+		local model = Instance.new("Model")
+		model.Name = key
+		asset.Parent = model
+		model.PrimaryPart = asset
+		return model, asset
+	end
+	if asset then asset:Destroy() end
+	info = info or {}
+	local color = info.Color or Color3.fromRGB(220, 50, 40)
+	local band = Color3.fromRGB(70, 45, 30)
+	local fuseColor = Color3.fromRGB(60, 60, 60)
+	local model = Instance.new("Model")
+	model.Name = key
+	local root
+	if info.Visual == "Barrel" then
+		root = studBlock(model, "Body", Vector3.new(1.4, 1.6, 1.4), CFrame.new(0, 0, 0), color)
+		studBlock(model, "HoopTop", Vector3.new(1.48, 0.16, 1.48), CFrame.new(0, 0.5, 0), band)
+		studBlock(model, "HoopBottom", Vector3.new(1.48, 0.16, 1.48), CFrame.new(0, -0.5, 0), band)
+		studBlock(model, "Label", Vector3.new(0.9, 0.4, 1.5), CFrame.new(0, 0, 0), Color3.fromRGB(250, 240, 210))
+		studBlock(model, "Fuse", Vector3.new(0.14, 0.5, 0.14), CFrame.new(0, 1.05, 0), fuseColor)
+		studBlock(model, "Spark", Vector3.new(0.22, 0.22, 0.22), CFrame.new(0, 1.36, 0), Color3.fromRGB(255, 210, 80))
+	elseif info.Visual == "Bundle" then
+		root = studBlock(model, "Stick2", Vector3.new(0.4, 1.4, 0.4), CFrame.new(0, 0, 0), color)
+		studBlock(model, "Stick1", Vector3.new(0.4, 1.4, 0.4), CFrame.new(-0.42, 0, 0), color)
+		studBlock(model, "Stick3", Vector3.new(0.4, 1.4, 0.4), CFrame.new(0.42, 0, 0), color)
+		studBlock(model, "Tape", Vector3.new(1.3, 0.2, 0.46), CFrame.new(0, 0.1, 0), band)
+		studBlock(model, "Fuse", Vector3.new(0.12, 0.5, 0.12), CFrame.new(0, 0.95, 0), fuseColor)
+		studBlock(model, "Spark", Vector3.new(0.2, 0.2, 0.2), CFrame.new(0, 1.24, 0), Color3.fromRGB(255, 210, 80))
+	else
+		root = studBlock(model, "Stick", Vector3.new(0.45, 1.4, 0.45), CFrame.new(0, 0, 0), color)
+		studBlock(model, "CapTop", Vector3.new(0.5, 0.14, 0.5), CFrame.new(0, 0.66, 0), band)
+		studBlock(model, "CapBottom", Vector3.new(0.5, 0.14, 0.5), CFrame.new(0, -0.66, 0), band)
+		studBlock(model, "Fuse", Vector3.new(0.12, 0.45, 0.12), CFrame.new(0, 0.95, 0), fuseColor)
+		studBlock(model, "Spark", Vector3.new(0.2, 0.2, 0.2), CFrame.new(0, 1.22, 0), Color3.fromRGB(255, 210, 80))
+	end
+	weldToRoot(model, root)
+	model.PrimaryPart = root
+	return model, root
+end
+
+-- v20.112: ЭССЕНЦИЯ МУТАЦИИ ДЛЯ ПРЕВЬЮ. Своя модель - Assets/Essence_<Id> или
+-- общая Assets/Essence (перекрашивается в цвет мутации); иначе колба-зелье.
+function PlaceholderFactory.EssenceModel(key, color)
+	local own = findAsset(key)
+	local asset = own or findAsset("Essence")
+	if asset and asset:IsA("Model") then
+		local root = asset.PrimaryPart or asset:FindFirstChildWhichIsA("BasePart", true)
+		if root then
+			asset.PrimaryPart = root
+			if not own and color then
+				for _, part in asset:GetDescendants() do
+					if part:IsA("BasePart") and part:GetAttribute("Tint") ~= false and part.Name ~= "Cork" then part.Color = color end
+				end
+			end
+			return asset, root
+		end
+	end
+	if asset then asset:Destroy() end
+	local model, root = PlaceholderFactory.PotionModel(nil, color)
+	model.Name = key or "Essence"
+	return model, root
+end
+
 function PlaceholderFactory.Junk(oreInfo)
 	local asset = findAsset(oreInfo.Key)
 	if asset then

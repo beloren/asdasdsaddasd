@@ -198,6 +198,18 @@ for _, tab in CFG.Tabs or { { Id = "Shop", Label = "SHOP" } } do makeTabButton(t
 for _, child in tabsBar:GetChildren() do
 	if child:IsA("GuiButton") and not tabButtons[child.Name] then child.Visible = false end
 end
+-- v20.112: видимые вкладки делят ширину поровну (старая сборка окна могла
+-- иметь фиксированные 130px - на телефоне 4 вкладки вылезали за край).
+do
+	local count = 0
+	for _ in tabButtons do count += 1 end
+	for _, button in tabButtons do
+		button.Size = UDim2.new(1 / math.max(1, count), -6, 1, 0)
+	end
+	local layout = tabsBar:FindFirstChildOfClass("UIListLayout")
+	if layout then layout.Padding = UDim.new(0, 6) end
+	tabsBar.ClipsDescendants = true
+end
 
 local function setExpanded(itemId)
 	expandedId = itemId
@@ -560,6 +572,21 @@ local function buildRow(data)
 	Preview3D.Mount(main.IconBox, data)
 	main.Rarity.BackgroundColor3 = rarityColor(data.Rarity)
 	main.Rarity.Label.Text = tr(data.Rarity or "")
+	-- v20.112: плашка редкости - справа во 2-й строке (рядом со стоком), цена -
+	-- на всю ширину 3-й строки. Раньше плашка стояла в правом нижнем углу и на
+	-- узкой карточке (телефон) закрывала цену. Применяем и к старым сборкам UI.
+	main.Rarity.AnchorPoint = Vector2.new(1, 0)
+	main.Rarity.Position = UDim2.new(1, -12, 0, 48)
+	main.Rarity.Size = UDim2.new(0.3, 0, 0, 28)
+	if not main.Rarity:FindFirstChildOfClass("UISizeConstraint") then
+		local limit = Instance.new("UISizeConstraint")
+		limit.MaxSize = Vector2.new(150, 28)
+		limit.Parent = main.Rarity
+	end
+	local stockLabel = main:FindFirstChild("Stock")
+	if stockLabel then stockLabel.Size = UDim2.new(0.62, -122, 0, 24) end
+	local priceLabel = main:FindFirstChild("Price")
+	if priceLabel then priceLabel.Size = UDim2.new(1, -134, 0, 32) end
 	frame.BuyRow.Position = UDim2.fromOffset(10, 150)
 	local effect = frame:FindFirstChild("Effect")
 	if not effect then

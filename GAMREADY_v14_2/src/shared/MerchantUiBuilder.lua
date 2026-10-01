@@ -19,7 +19,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local MerchantUiBuilder = {}
-MerchantUiBuilder.VERSION = 21 -- v20.104: 3 вкладки (SHOP / TOTEMS / DECOR)
+MerchantUiBuilder.VERSION = 22 -- v20.112: редкость во 2-й строке (не закрывает цену на телефоне), RESTOCK по ширине
 
 local ACCENT = "Green"
 
@@ -59,7 +59,7 @@ function MerchantUiBuilder.Build()
 	UiKit.Ribbon(header, accent)
 	UiKit.TitleText(header, "Timer", "New stock in 5m 00s", accent, {
 		Position = UDim2.fromOffset(56, 8),
-		Size = UDim2.new(1, -250, 0, 42),
+		Size = UDim2.new(0.72, -120, 0, 42),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 3,
 		_MaxTextSize = 34,
@@ -67,7 +67,7 @@ function MerchantUiBuilder.Build()
 	button(header, "Restock", "RESTOCK", "Blue", {
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -60, 0.5, 0),
-		Size = UDim2.fromOffset(130, 38),
+		Size = UDim2.new(0.28, 0, 0, 38),
 		ZIndex = 3,
 	})
 	local close = UiKit.CloseButton(header, { ZIndex = 4 })
@@ -214,7 +214,7 @@ function MerchantUiBuilder.Build()
 	UiKit.Text(main, "Stock", "X0 Stock", {
 		_Style = "Heading",
 		Position = UDim2.fromOffset(122, 50),
-		Size = UDim2.new(0.4, 0, 0, 24),
+		Size = UDim2.new(0.62, -122, 0, 24),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextColor3 = Theme.Colors.SubText,
 		ZIndex = 4,
@@ -222,20 +222,23 @@ function MerchantUiBuilder.Build()
 	UiKit.Text(main, "Price", "$0", {
 		_Style = "Number",
 		Position = UDim2.fromOffset(122, 76),
-		Size = UDim2.new(0.4, 0, 0, 32),
+		Size = UDim2.new(1, -134, 0, 32),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextColor3 = Theme.Colors.Positive,
 		ZIndex = 4,
 	})
 	local rarity = UiKit.Plate(main, "Rarity", "Pill", {
 		_Accent = Theme.Accents.Grey,
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -12, 1, -12),
-		Size = UDim2.fromOffset(150, 38),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 48),
+		Size = UDim2.new(0.3, 0, 0, 28),
 		BackgroundColor3 = Color3.fromRGB(170, 170, 170),
 		BackgroundTransparency = 0,
 		ZIndex = 4,
 	})
+	local rarityLimit = Instance.new("UISizeConstraint")
+	rarityLimit.MaxSize = Vector2.new(150, 28)
+	rarityLimit.Parent = rarity
 	UiKit.Gradient(rarity, Color3.new(1, 1, 1), Color3.fromRGB(180, 180, 180), 90, "Shade")
 	UiKit.Text(rarity, "Label", "Common", {
 		_Style = "Heading",

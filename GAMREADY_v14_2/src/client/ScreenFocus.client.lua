@@ -85,6 +85,7 @@ end
 local function release()
 	focusedBy = nil
 	for gui in wanted do
+		gui:SetAttribute("FocusHidden", nil)
 		if gui.Parent then gui.Enabled = true end
 	end
 	table.clear(wanted)
@@ -108,6 +109,7 @@ while true do
 		for _, gui in playerGui:GetChildren() do
 			if gui ~= opener and HIDE[gui.Name] and gui:IsA("ScreenGui") and gui.Enabled then
 				wanted[gui] = true
+				gui:SetAttribute("FocusHidden", true) -- v20.112: сторожа (EnsureCoreUiEnabled) не включают обратно
 				gui.Enabled = false
 			end
 		end

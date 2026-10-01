@@ -33,6 +33,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local PhysicsService = game:GetService("PhysicsService")
+-- v20.112: объявлено здесь, а не у окна тележки ниже - Start() (PlayerRemoving)
+-- ссылается на неё раньше по тексту и раньше получал nil-глобал (ошибка при выходе).
+local inventoryLast = {}
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
@@ -3264,7 +3267,7 @@ end
 -- положить в тележку. Забранная руда 10 с не переливается обратно
 -- автоматически (Config.Cart.InventoryNoAutoDepositSeconds).
 --------------------------------------------------------------------------------
-local inventoryLast = {}
+-- inventoryLast (антиспам кликов) объявлен в начале файла.
 
 local function crystalKey(crystal)
 	return table.concat({

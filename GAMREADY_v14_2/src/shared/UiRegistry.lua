@@ -27,7 +27,7 @@ local UiRegistry = {}
 
 UiRegistry.Entries = {
 	-- HUD
-	{ Name = "Hud", Module = "UiBuilders.HudUi", MinVersion = 20, What = "портрет, деньги, престиж" },
+	{ Name = "Hud", Module = "UiBuilders.HudUi", MinVersion = 23, What = "портрет, деньги, престиж" },
 	{ Name = "TopbarDock", Module = "UiBuilders.HudUi", Fn = "BuildTopbar", MinVersion = 21, What = "ряд кнопок в топбаре" },
 	{ Name = "CartInteractionUi", Module = "UiBuilders.CartInteractionUi", MinVersion = 20, What = "экранные подсказки промптов" },
 	{ Name = "HotbarUi", Module = "UiBuilders.InventoryUi", Fn = "BuildHotbar", MinVersion = 27, What = "хотбар" },
@@ -52,8 +52,8 @@ UiRegistry.Entries = {
 	{ Name = "SkinUi", Module = "SkinUiBuilder", MinVersion = 21, What = "скины" },
 	{ Name = "PerkUi", Module = "PerkUiBuilder", MinVersion = 24, What = "перки престижа" },
 	{ Name = "RebirthDialogButtons", Module = "PrestigeUiBuilder", MinVersion = 22, What = "окно престижа у NPC" },
-	{ Name = "MerchantUi", Module = "MerchantUiBuilder", MinVersion = 20, What = "торговец" },
-	{ Name = "MarketTicker", Module = "MerchantUiBuilder", Fn = "BuildMarketTicker", MinVersion = 21, What = "табло курса руды" },
+	{ Name = "MerchantUi", Module = "MerchantUiBuilder", MinVersion = 22, What = "торговец" },
+	{ Name = "MarketTicker", Module = "MerchantUiBuilder", Fn = "BuildMarketTicker", MinVersion = 22, What = "табло курса руды" },
 	{ Name = "GeodeUi", Module = "GeodeUiBuilder", MinVersion = 23, What = "жеоды" },
 	{ Name = "DropPreviewUi", Module = "UiBuilders.DropPreviewUi", MinVersion = 21, What = "окно шансов" },
 	{ Name = "DecorStorageUi", Module = "UiBuilders.DecorStorageUi", MinVersion = 22, What = "сундук-хранилище на базе" },
