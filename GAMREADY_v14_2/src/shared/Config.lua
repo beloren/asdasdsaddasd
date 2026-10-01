@@ -326,12 +326,12 @@ Config.Tutorial = {
 			},
 		},
 		{
-			Id = "Compass", Title = "Compass", RewardMoney = 50, After = { "AnvilIsland" },
+			Id = "Compass", Title = "Travel", RewardMoney = 50, After = { "AnvilIsland" },
 			Steps = {
 				{
 					Id = "UseCompass",
-					Lines = { "Tired of walking? Use the COMPASS on the left to teleport!" },
-					Short = "COMPASS", Task = "Open the compass and teleport",
+					Lines = { "Tired of walking? Press TRAVEL on the left.", "Pick a place - the Ore Merchant, your raft or an island - and you're there!" },
+					Short = "TRAVEL", Task = "Press TRAVEL, then pick a place",
 					Goal = { Kind = "Counter", Key = "Teleported", Target = 1 },
 					UiTargets = { "Compass:*", "Compass" },
 				},

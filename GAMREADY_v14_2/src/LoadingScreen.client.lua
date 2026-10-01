@@ -178,9 +178,15 @@ local function restoreGuis()
 		if gui.Parent and gui:GetAttribute("FocusHidden") ~= true then gui.Enabled = true end
 	end
 	table.clear(hiddenGuis)
+	-- v20.127: рюкзак и список игроков Roblox НЕ возвращаем - их отключает сама
+	-- игра (CustomCartUI: свой хотбар со слотом кирки). Раньше загрузка
+	-- включала стандартный рюкзак обратно, и кирка стала обычным слотом.
 	for kind, enabled in coreWas do
-		if enabled then pcall(StarterGui.SetCoreGuiEnabled, StarterGui, kind, true) end
+		if enabled and kind ~= Enum.CoreGuiType.Backpack and kind ~= Enum.CoreGuiType.PlayerList then
+			pcall(StarterGui.SetCoreGuiEnabled, StarterGui, kind, true)
+		end
 	end
+	pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.Backpack, false)
 end
 
 --------------------------------------------------------------------------------
@@ -258,7 +264,7 @@ local uiConnection = RunService.RenderStepped:Connect(function(dt)
 	shown += (target - shown) * math.min(1, dt * 5)
 	barFill.Size = UDim2.fromScale(math.clamp(shown, 0, 1), 1)
 	status.Text = ("%s... %d%%"):format(stage, math.floor(math.clamp(shown, 0, 1) * 100 + 0.5))
-	logoScale.Scale = 1 + math.sin(os.clock() * 2) * 0.025
+	if orbiting then logoScale.Scale = 1 + math.sin(os.clock() * 2) * 0.025 end
 	if os.clock() >= tipAt then
 		tipAt = os.clock() + (tonumber(loadingCfg.TipSeconds) or 4)
 		tipIndex = tipIndex % #tips + 1
@@ -365,8 +371,27 @@ local function transitionToPlayer()
 	stage = "Loading player data"
 	local character, hrp, head = waitForCharacter(tonumber(loadingCfg.CharacterWaitSeconds) or 30)
 	orbiting = false
-	-- интерфейс загрузки уезжает
-	TweenService:Create(root, TweenInfo.new(0.45), { GroupTransparency = 1 }):Play()
+	-- v20.127: АНИМАЦИЯ УХОДА: SKIP и подсказка гаснут, полоса уезжает вниз,
+	-- логотип «вспухает» и растворяется, затем гаснет весь слой
+	skipButton.Visible = false
+	local quick = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	TweenService:Create(tip, quick, { TextTransparency = 1 }):Play()
+	TweenService:Create(status, quick, { TextTransparency = 1 }):Play()
+	for _, item in { tip, status } do
+		local textStroke = item:FindFirstChildOfClass("UIStroke")
+		if textStroke then TweenService:Create(textStroke, quick, { Transparency = 1 }):Play() end
+	end
+	TweenService:Create(barBack, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+		Position = UDim2.fromScale(0.5, 1.2),
+	}):Play()
+	TweenService:Create(logoScale, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1.12 }):Play()
+	task.delay(0.18, function()
+		TweenService:Create(logoScale, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0.2 }):Play()
+		TweenService:Create(logo, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { ImageTransparency = 1, Rotation = -8 }):Play()
+	end)
+	task.delay(0.55, function()
+		TweenService:Create(root, TweenInfo.new(0.35), { GroupTransparency = 1 }):Play()
+	end)
 	if not (camera and character) then return end
 	-- игрок мог ещё стоять не на месте - подождём, пока сервер поставит его на участок
 	task.wait(0.3)

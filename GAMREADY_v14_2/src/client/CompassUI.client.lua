@@ -104,10 +104,16 @@ local function card(dest, order)
 	if name then name.Text = (dest.Name or dest.Id):upper() end
 	local sub = c:FindFirstChild("Subtitle")
 	if sub then sub.Text = SUBTITLES[dest.Id] or "Your island" end
-	local go = c:FindFirstChild("Go")
-	if go then go.Active = false end -- нажатие ловит вся карточка
 	c.Parent = body
 	c.Activated:Connect(function() teleport(dest.Id) end)
+	-- v20.127: кнопка GO лежит поверх карточки и забирает нажатие себе -
+	-- она тоже телепортирует (раньше по GO ничего не происходило)
+	for _, inner in c:GetDescendants() do
+		if inner:IsA("GuiButton") then
+			inner.Active = true
+			inner.Activated:Connect(function() teleport(dest.Id) end)
+		end
+	end
 	TutorialTarget.Mark(c, "Compass:" .. dest.Id)
 	c:SetAttribute("WorldPos", dest.Position) -- обучение выбирает место ближе к цели
 	return c
