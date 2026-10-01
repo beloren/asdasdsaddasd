@@ -56,9 +56,14 @@ local function stroke(parent, thickness, color)
 	local s = Instance.new("UIStroke")
 	s.Thickness = thickness
 	s.Color = color or Color3.fromRGB(20, 14, 10)
+	s.LineJoinMode = Enum.LineJoinMode.Round
 	s.Parent = parent
 	return s
 end
+-- v20.125: шрифты как в HUD (UiTheme: SourceSansPro, жирный курсив)
+local HUD_FAMILY = "rbxasset://fonts/families/SourceSansPro.json"
+local FONT_HEADING = Font.new(HUD_FAMILY, Enum.FontWeight.Heavy, Enum.FontStyle.Italic)
+local FONT_BODY = Font.new(HUD_FAMILY, Enum.FontWeight.Bold, Enum.FontStyle.Italic)
 
 local logo = Instance.new("ImageLabel")
 logo.Name = "Logo"
@@ -101,7 +106,7 @@ tip.AnchorPoint = Vector2.new(0.5, 0.5)
 tip.Position = UDim2.fromScale(0.5, 0.9)
 tip.Size = UDim2.fromScale(0.7, 0.045)
 tip.BackgroundTransparency = 1
-tip.FontFace = Font.new("rbxasset://fonts/families/FredokaOne.json", Enum.FontWeight.Regular, Enum.FontStyle.Italic)
+tip.FontFace = FONT_BODY
 tip.TextScaled = true
 tip.TextColor3 = Color3.new(1, 1, 1)
 tip.Text = ""
@@ -114,7 +119,7 @@ status.AnchorPoint = Vector2.new(0, 1)
 status.Position = UDim2.new(0, 14, 1, -10)
 status.Size = UDim2.fromScale(0.32, 0.042)
 status.BackgroundTransparency = 1
-status.FontFace = Font.new("rbxasset://fonts/families/FredokaOne.json", Enum.FontWeight.Regular, Enum.FontStyle.Italic)
+status.FontFace = FONT_HEADING
 status.TextScaled = true
 status.TextXAlignment = Enum.TextXAlignment.Left
 status.TextColor3 = Color3.new(1, 1, 1)
@@ -128,7 +133,7 @@ skipButton.AnchorPoint = Vector2.new(1, 1)
 skipButton.Position = UDim2.new(1, -18, 1, -14)
 skipButton.Size = UDim2.fromOffset(150, 52)
 skipButton.BackgroundColor3 = Color3.fromRGB(235, 160, 40)
-skipButton.FontFace = Font.new("rbxasset://fonts/families/FredokaOne.json")
+skipButton.FontFace = FONT_HEADING
 skipButton.TextScaled = true
 skipButton.TextColor3 = Color3.new(1, 1, 1)
 skipButton.Text = "SKIP >"
@@ -148,21 +153,34 @@ skipButton.Activated:Connect(function() skipped = true end)
 --------------------------------------------------------------------------------
 local hiddenGuis = {}
 local function suppress(gui)
-	if gui ~= screenGui and gui:IsA("ScreenGui") and gui.Enabled and gui.Name ~= "TouchGui" then
+	if gui ~= screenGui and gui:IsA("LayerCollector") and gui:IsA("ScreenGui") and gui.Enabled then
 		hiddenGuis[gui] = true
 		gui.Enabled = false
 	end
 end
-for _, gui in playerGui:GetChildren() do suppress(gui) end
-local suppressConnection = playerGui.ChildAdded:Connect(function(gui)
-	task.defer(suppress, gui)
+-- v20.125: прячем ВСЁ, кроме загрузки: любой экран, который включится
+-- позже (HUD, хотбар, кнопки телефона...), гасится каждый кадр.
+local suppressConnection = RunService.RenderStepped:Connect(function()
+	for _, gui in playerGui:GetChildren() do suppress(gui) end
 end)
+-- и интерфейс Roblox (чат, список игроков, рюкзак, эмоции, здоровье)
+local StarterGui = game:GetService("StarterGui")
+local CORE_TYPES = { Enum.CoreGuiType.Chat, Enum.CoreGuiType.PlayerList, Enum.CoreGuiType.Backpack, Enum.CoreGuiType.EmotesMenu, Enum.CoreGuiType.Health }
+local coreWas = {}
+for _, kind in CORE_TYPES do
+	local ok, enabled = pcall(StarterGui.GetCoreGuiEnabled, StarterGui, kind)
+	coreWas[kind] = ok and enabled
+	pcall(StarterGui.SetCoreGuiEnabled, StarterGui, kind, false)
+end
 local function restoreGuis()
 	suppressConnection:Disconnect()
 	for gui in hiddenGuis do
 		if gui.Parent and gui:GetAttribute("FocusHidden") ~= true then gui.Enabled = true end
 	end
 	table.clear(hiddenGuis)
+	for kind, enabled in coreWas do
+		if enabled then pcall(StarterGui.SetCoreGuiEnabled, StarterGui, kind, true) end
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -178,15 +196,37 @@ local orbitCenter = Vector3.new(0, 0, 0)
 local orbitAngle = math.random() * math.pi * 2
 local orbiting = true
 
+-- v20.125: центр мира = ГОРОД С МАГАЗИНАМИ - середина между торговцем
+-- руды (BankMerchant) и хранителем островов (IslandKeeper); нет их -
+-- маркер CompassCenterMarker / зона продажи / точка спавна.
+local function positionOf(instance)
+	if not instance then return nil end
+	if instance:IsA("BasePart") then return instance.Position end
+	if instance:IsA("Model") then
+		local ok, pivot = pcall(instance.GetPivot, instance)
+		return ok and pivot.Position or nil
+	end
+	if instance:IsA("Folder") then
+		local inner = instance:FindFirstChildWhichIsA("Model") or instance:FindFirstChildWhichIsA("BasePart")
+		return positionOf(inner)
+	end
+	return nil
+end
+
 local function findCenter()
-	local names = { "CompassCenterMarker", "SellZone", "BankZone", "Bank" }
-	for _, name in names do
-		local found = workspace:FindFirstChild(name, true)
-		if found and found:IsA("BasePart") then return found.Position end
-		if found and found:IsA("Model") then
-			local ok, pivot = pcall(found.GetPivot, found)
-			if ok then return pivot.Position end
-		end
+	local shops = {}
+	for _, name in { "BankMerchant", "IslandKeeper" } do
+		local position = positionOf(workspace:FindFirstChild(name, true))
+		if position then table.insert(shops, position) end
+	end
+	if #shops > 0 then
+		local sum = Vector3.zero
+		for _, position in shops do sum += position end
+		return sum / #shops
+	end
+	for _, name in { "CompassCenterMarker", "SellZone", "Bank" } do
+		local position = positionOf(workspace:FindFirstChild(name, true))
+		if position then return position end
 	end
 	local spawn = workspace:FindFirstChildWhichIsA("SpawnLocation", true)
 	return spawn and spawn.Position or Vector3.new(0, 0, 0)
@@ -392,6 +432,9 @@ task.spawn(function()
 		if logoId > 0 then logo.Image = "rbxassetid://" .. logoId end
 
 		-- камера над центром мира; мир вокруг центра просим подгрузить
+		-- торговцы ставятся сервером - чуть подождём их (не дольше 3 с)
+		local centerWait = os.clock()
+		while not workspace:FindFirstChild("BankMerchant", true) and os.clock() - centerWait < 3 do task.wait(0.1) end
 		orbitCenter = findCenter()
 		pcall(function() player:RequestStreamAroundAsync(orbitCenter, 10) end)
 		TweenService:Create(root, TweenInfo.new(0.6), { BackgroundTransparency = 1 }):Play()

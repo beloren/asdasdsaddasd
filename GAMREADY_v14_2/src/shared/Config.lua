@@ -4139,37 +4139,16 @@ Config.Sprint = {
 	ApplyWhileHoldingCart = false,
 }
 
--- v20.110: КОМПАС - кнопка слева под MENU. Открывает мини-карту (вид
--- сверху) и телепортирует в центр (торговцы), на свой плот или на свои
--- острова. Карта: MapImageId - твоя картинка вида сверху; чтобы метки
--- совпали с картинкой, поставь в workspace две невидимые детали
--- CompassMapMin (левый верхний угол картинки = минимальные X/Z) и
--- CompassMapMax (правый нижний = максимальные X/Z). Нет их - границы
--- считаются по плотам и центру.
+-- v20.110: КОМПАС - кнопка слева под MENU (TRAVEL), открывает окно телепорта.
 Config.Compass = {
+	-- v20.125: окно-меню с карточками мест (без карты): Ore Merchant (в городе,
+	-- перед торговцем руды), свой плот, свои острова.
 	Enabled = true,
 	Cooldown = 5,            -- сек между телепортами
-	MapImageId = 0,          -- картинка карты (вид сверху); 0 - схема
 	ButtonImageId = 0,       -- иконка кнопки; 0 - 🧭
-	CenterMarkerName = "CompassCenterMarker", -- куда телепорт «в центр» (иначе у зоны продажи)
+	MerchantDistance = 9,    -- на сколько стадов перед торговцем руды встаёт игрок
+	CenterMarkerName = "CompassCenterMarker", -- запасной вариант, если торговца нет
 	CenterOffset = Vector3.new(0, 0, 18),
-	TowardBaseStuds = 22,    -- v20.121: телепорт «в центр» смещён на столько стадов в сторону своей базы
-	MapSizePC = 440,
-	MapSizePhone = 290,
-	-- v20.121: карта = настоящий вид сверху (ViewportFrame с копией мира),
-	-- пока MapImageId = 0. Метки - точки с маленькой подписью сверху.
-	ViewportMap = true,
-	ViewportMaxParts = 2500,      -- сколько деталей мира копировать (телефоны!)
-	ViewportMinPartSize = 3,      -- мельче (по X/Z) - не копируется
-	ViewportRefreshSeconds = 120, -- пересобирать вид не чаще
-	-- Авто-метки: объект Workspace по имени → точка с подписью. Свои метки
-	-- без кода: поставь любому объекту атрибут MapLabel = "ПОДПИСЬ".
-	AutoMarkers = {
-		{ Find = "BankMerchant", Label = "ORE SHOP", Color = Color3.fromRGB(255, 200, 60) },
-		{ Find = "IslandKeeper", Label = "ISLANDS", Color = Color3.fromRGB(120, 220, 255) },
-		{ Find = "SellZone", Label = "SELL", Color = Color3.fromRGB(90, 230, 120) },
-		{ Find = "GoblinCamp", Label = "GOBLINS", Color = Color3.fromRGB(255, 90, 80) },
-	},
 }
 
 -- v20.108: КРОТ-СКУПЩИК на зоне продажи. Зашёл в зону с рудой - перед

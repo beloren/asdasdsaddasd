@@ -29,27 +29,24 @@ local function partPosition(instance)
 	return nil
 end
 
-function CompassService:_centerCFrame(player)
-	local base
+-- v20.125: «в город» = ПЕРЕД ТОРГОВЦЕМ РУДЫ (workspace.BankMerchant), лицом
+-- к нему, на Config.Compass.MerchantDistance стадов. Нет торговца - маркер
+-- CompassCenterMarker или зона продажи, как раньше.
+function CompassService:_centerCFrame()
+	local merchant = workspace:FindFirstChild("BankMerchant")
+	if merchant and merchant:IsA("Model") then
+		local pivot = merchant:GetPivot()
+		local forward = Vector3.new(pivot.LookVector.X, 0, pivot.LookVector.Z)
+		if forward.Magnitude < 0.05 then forward = Vector3.new(0, 0, -1) end
+		local spot = pivot.Position + forward.Unit * (tonumber(cfg().MerchantDistance) or 9)
+		return CFrame.lookAt(spot, Vector3.new(pivot.Position.X, spot.Y, pivot.Position.Z))
+	end
 	local marker = workspace:FindFirstChild(cfg().CenterMarkerName or "CompassCenterMarker", true)
-	if marker and marker:IsA("BasePart") then
-		base = marker.CFrame
-	else
-		local zone = Services.WorldService and Services.WorldService:GetSellZone()
-		local position = partPosition(zone)
-		if not position then return nil end
-		base = CFrame.new(position + (cfg().CenterOffset or Vector3.new(0, 0, 18)))
-	end
-	-- v20.121: не ровно в центр, а чуть в сторону своей базы (TowardBaseStuds)
-	local shift = tonumber(cfg().TowardBaseStuds) or 0
-	local raft = player and shift > 0 and self:_raftCFrame(player)
-	if raft then
-		local flat = Vector3.new(raft.Position.X - base.Position.X, 0, raft.Position.Z - base.Position.Z)
-		if flat.Magnitude > shift * 2 then
-			return base + flat.Unit * shift
-		end
-	end
-	return base
+	if marker and marker:IsA("BasePart") then return marker.CFrame end
+	local zone = Services.WorldService and Services.WorldService:GetSellZone()
+	local position = partPosition(zone)
+	if not position then return nil end
+	return CFrame.new(position + (cfg().CenterOffset or Vector3.new(0, 0, 18)))
 end
 
 function CompassService:_raftCFrame(player)
@@ -75,8 +72,8 @@ end
 
 function CompassService:Destinations(player)
 	local list = {}
-	local center = self:_centerCFrame(player)
-	if center then table.insert(list, { Id = "Center", Name = "Merchants", Icon = "🏪", Position = center.Position }) end
+	local center = self:_centerCFrame()
+	if center then table.insert(list, { Id = "Center", Name = "Ore Merchant", Icon = "🏪", Position = center.Position }) end
 	local raft = self:_raftCFrame(player)
 	if raft then table.insert(list, { Id = "Raft", Name = "My Raft", Icon = "🏠", Position = raft.Position }) end
 	for _, islandId in (Config.Islands and Config.Islands.Order) or {} do
@@ -104,7 +101,7 @@ function CompassService:Teleport(player, destId)
 	if player:GetAttribute("EconomyTransactionLocked") == true then return false, "Try again" end
 	local target
 	if destId == "Center" then
-		target = self:_centerCFrame(player)
+		target = self:_centerCFrame()
 	elseif destId == "Raft" then
 		target = self:_raftCFrame(player)
 	else
@@ -113,7 +110,8 @@ function CompassService:Teleport(player, destId)
 	end
 	if not target then return false, "Can't go there" end
 	lastTeleport[player] = now
-	local look = hrp.CFrame.LookVector
+	-- в город - лицом к торговцу; остальное - туда же, куда смотрел игрок
+	local look = destId == "Center" and target.LookVector or hrp.CFrame.LookVector
 	local position = target.Position + Vector3.new(0, 3.5, 0)
 	character:PivotTo(CFrame.lookAt(position, position + Vector3.new(look.X, 0, look.Z)))
 	hrp.AssemblyLinearVelocity = Vector3.zero
