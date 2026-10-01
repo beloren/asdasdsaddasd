@@ -151,18 +151,33 @@ skipButton.Activated:Connect(function() skipped = true end)
 --------------------------------------------------------------------------------
 -- ПРЯЧЕМ ОСТАЛЬНОЙ ИНТЕРФЕЙС, ПОКА ГРУЗИМ (вернём в конце)
 --------------------------------------------------------------------------------
-local hiddenGuis = {}
+-- v20.128: ПОМНИМ НАМЕРЕНИЯ СКРИПТОВ. Экран, который скрипт включил во
+-- время загрузки, вернётся; экран, который был включён с самого начала,
+-- вернётся, если это не окно, которое его скрипт сам выключает при старте
+-- (иначе такое окно открылось бы само после загрузки). Управление на
+-- телефоне (TouchGui/ControlGui) не трогаем никогда.
+local KEEP_DISABLED = {
+	TutorialUi = true, PerkUi = true, MerchantUi = true, IslandUi = true, GeodeUi = true,
+	DropPreviewUi = true, DecorStorageUi = true, CartInventoryUi = true, SatchelInventory = true,
+	SettingsMenu = true, ShopEntry = true, SkinEntry = true, RebirthDialogButtons = true,
+	MinerDialogUi = true, MineArcUi = true, UpgradeShopUi = true, InventoryUi = true,
+}
+local CONTROL_GUIS = { TouchGui = true, ControlGui = true }
+local tracked = {} -- [gui] = { Initial = bool, Wanted = bool, Connection }
 local function suppress(gui)
-	if gui ~= screenGui and gui:IsA("LayerCollector") and gui:IsA("ScreenGui") and gui.Enabled then
-		hiddenGuis[gui] = true
-		gui.Enabled = false
-	end
+	if gui == screenGui or not gui:IsA("ScreenGui") or CONTROL_GUIS[gui.Name] or tracked[gui] then return end
+	local entry = { Initial = gui.Enabled, Wanted = false }
+	tracked[gui] = entry
+	entry.Connection = gui:GetPropertyChangedSignal("Enabled"):Connect(function()
+		if gui.Enabled then
+			entry.Wanted = true -- скрипт включил экран во время загрузки
+			gui.Enabled = false
+		end
+	end)
+	gui.Enabled = false
 end
--- v20.125: прячем ВСЁ, кроме загрузки: любой экран, который включится
--- позже (HUD, хотбар, кнопки телефона...), гасится каждый кадр.
-local suppressConnection = RunService.RenderStepped:Connect(function()
-	for _, gui in playerGui:GetChildren() do suppress(gui) end
-end)
+for _, gui in playerGui:GetChildren() do suppress(gui) end
+local suppressConnection = playerGui.ChildAdded:Connect(suppress)
 -- и интерфейс Roblox (чат, список игроков, рюкзак, эмоции, здоровье)
 local StarterGui = game:GetService("StarterGui")
 local CORE_TYPES = { Enum.CoreGuiType.Chat, Enum.CoreGuiType.PlayerList, Enum.CoreGuiType.Backpack, Enum.CoreGuiType.EmotesMenu, Enum.CoreGuiType.Health }
@@ -174,10 +189,12 @@ for _, kind in CORE_TYPES do
 end
 local function restoreGuis()
 	suppressConnection:Disconnect()
-	for gui in hiddenGuis do
-		if gui.Parent and gui:GetAttribute("FocusHidden") ~= true then gui.Enabled = true end
+	for gui, entry in tracked do
+		entry.Connection:Disconnect()
+		local restore = entry.Wanted or (entry.Initial and not KEEP_DISABLED[gui.Name])
+		if restore and gui.Parent and gui:GetAttribute("FocusHidden") ~= true then gui.Enabled = true end
 	end
-	table.clear(hiddenGuis)
+	table.clear(tracked)
 	-- v20.127: рюкзак и список игроков Roblox НЕ возвращаем - их отключает сама
 	-- игра (CustomCartUI: свой хотбар со слотом кирки). Раньше загрузка
 	-- включала стандартный рюкзак обратно, и кирка стала обычным слотом.

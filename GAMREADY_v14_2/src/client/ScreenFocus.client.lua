@@ -91,6 +91,7 @@ end
 local SLIDE = TweenInfo.new(UI.FocusSlideSeconds or 0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 local SLIDE_BACK = TweenInfo.new(UI.FocusSlideSeconds or 0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 local homes = {}  -- [GuiObject] = исходная позиция
+local expectFalse -- см. guard ниже
 local token = 0
 
 local function offscreen(element)
@@ -108,17 +109,50 @@ local function offscreen(element)
 	return current + UDim2.fromOffset(0, size.Y + 40)
 end
 
+-- v20.128: НАМЕРЕНИЯ СКРИПТОВ, пока экран спрятан под окном. Скрипт сам
+-- закрыл экран (всплывашка, предложение) - после окна его НЕ включаем.
+-- Скрипт включил его снова - прячем дальше, но после окна вернём.
+expectFalse = {}
+local closedByScript = {}
+local guards = {}
+local function guard(gui)
+	if guards[gui] then return end
+	guards[gui] = gui:GetPropertyChangedSignal("Enabled"):Connect(function()
+		if not wanted[gui] then return end
+		if gui.Enabled then
+			closedByScript[gui] = nil
+			if gui:GetAttribute("FocusHidden") == true and focusedBy then
+				expectFalse[gui] = true
+				gui.Enabled = false
+			end
+		elseif expectFalse[gui] then
+			expectFalse[gui] = nil
+		else
+			closedByScript[gui] = true
+		end
+	end)
+end
+
 local function slideOut(gui)
 	local myToken = token
 	for _, child in gui:GetChildren() do
 		if child:IsA("GuiObject") and child.Visible then
-			if homes[child] == nil then homes[child] = child.Position end
+			if homes[child] == nil then
+				-- v20.128: элемент мог уже уехать по диалогу обучения (CinematicHud) -
+				-- его настоящий дом лежит в атрибуте CinematicHome
+				local cinematicHome = child:GetAttribute("CinematicHome")
+				homes[child] = typeof(cinematicHome) == "UDim2" and cinematicHome or child.Position
+				child:SetAttribute("FocusHome", homes[child])
+			end
 			TweenService:Create(child, SLIDE, { Position = offscreen(child) }):Play()
 		end
 	end
 	task.delay(SLIDE.Time, function()
 		-- окно уже закрыли, пока ехали - экран не выключаем
-		if myToken == token and wanted[gui] and gui.Parent then gui.Enabled = false end
+		if myToken == token and wanted[gui] and gui.Parent and gui.Enabled then
+			expectFalse[gui] = true
+			gui.Enabled = false
+		end
 	end)
 end
 
@@ -128,8 +162,12 @@ local function slideIn(gui)
 		local home = homes[child]
 		if home then
 			homes[child] = nil
-			local layoutPosition = child:GetAttribute("LayoutPosition")
-			TweenService:Create(child, SLIDE_BACK, { Position = typeof(layoutPosition) == "UDim2" and layoutPosition or home }):Play()
+			child:SetAttribute("FocusHome", nil)
+			-- диалог обучения ещё держит HUD у краёв - вернёт его сам CinematicHud
+			if typeof(child:GetAttribute("CinematicHome")) ~= "UDim2" then
+				local layoutPosition = child:GetAttribute("LayoutPosition")
+				TweenService:Create(child, SLIDE_BACK, { Position = typeof(layoutPosition) == "UDim2" and layoutPosition or home }):Play()
+			end
 		end
 	end
 end
@@ -139,9 +177,24 @@ local function release()
 	token += 1
 	for gui in wanted do
 		gui:SetAttribute("FocusHidden", nil)
-		if gui.Parent then slideIn(gui) end
+		if guards[gui] then guards[gui]:Disconnect() guards[gui] = nil end
+		if gui.Parent and closedByScript[gui] then
+			-- скрипт сам закрыл экран: остаётся выключенным, но элементы на местах
+			for _, child in gui:GetChildren() do
+				local home = homes[child]
+				if home then
+					homes[child] = nil
+					child:SetAttribute("FocusHome", nil)
+					child.Position = home
+				end
+			end
+		elseif gui.Parent then
+			slideIn(gui)
+		end
 	end
 	table.clear(wanted)
+	table.clear(closedByScript)
+	table.clear(expectFalse)
 	for element in homes do
 		if not element.Parent then homes[element] = nil end
 	end
@@ -165,6 +218,7 @@ while true do
 		for _, gui in playerGui:GetChildren() do
 			if gui ~= opener and HIDE[gui.Name] and gui:IsA("ScreenGui") and gui.Enabled and not wanted[gui] then
 				wanted[gui] = true
+				guard(gui)
 				gui:SetAttribute("FocusHidden", true) -- v20.112: сторожа (EnsureCoreUiEnabled) не включают обратно
 				slideOut(gui)
 			end

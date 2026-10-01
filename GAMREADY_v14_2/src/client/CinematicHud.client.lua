@@ -133,7 +133,11 @@ local function hideHud()
 			-- Запоминаем ДО первого сдвига. Если катсцена наложится на
 			-- катсцену, второй заход не должен запомнить уже уехавшую
 			-- позицию как "исходную" — иначе HUD никогда не вернётся.
-			hiddenElements[element] = element.Position
+			-- v20.128: элемент мог быть посреди уезжания под окном (ScreenFocus) -
+			-- настоящий дом в атрибуте FocusHome
+			local focusHome = element:GetAttribute("FocusHome")
+			hiddenElements[element] = typeof(focusHome) == "UDim2" and focusHome or element.Position
+			element:SetAttribute("CinematicHome", hiddenElements[element])
 			TweenService:Create(element, EASING_OUT, {
 				Position = offscreenPositionFor(element),
 			}):Play()
@@ -143,7 +147,11 @@ end
 
 local function showHud()
 	for element, originalPosition in hiddenElements do
-		if element.Parent then
+		element:SetAttribute("CinematicHome", nil)
+		-- под открытым окном (ScreenFocus) экран выключен - домой вернёт ScreenFocus
+		if element.Parent and typeof(element:GetAttribute("FocusHome")) == "UDim2" then
+			-- ничего: ScreenFocus сам привезёт элемент домой при закрытии окна
+		elseif element.Parent then
 			-- Телефонная раскладка (UiLayout) могла сменить позицию, пока HUD
 			-- был спрятан, — возвращаем туда.
 			local layoutPosition = element:GetAttribute("LayoutPosition")
