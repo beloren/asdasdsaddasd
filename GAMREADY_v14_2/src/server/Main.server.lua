@@ -27,6 +27,7 @@ end)
 -- С StreamingEnabled он мог не прийти (далеко от игрока), катсцена ждала
 -- его до таймаута и не показывалась вовсе.
 task.spawn(function()
+	if not (Config.Loading and Config.Loading.Cutscene == true) then return end
 	local rig = workspace:WaitForChild("HumanoidCameraRig", 30)
 	if rig and rig:IsA("Model") then
 		pcall(function() rig.ModelStreamingMode = Enum.ModelStreamingMode.Persistent end)
@@ -251,7 +252,13 @@ local function onPlayerAdded(player)
 	-- в игре — независимо от того, как пройдёт остальная настройка ниже
 	-- (плот/тележка/катсцена). Если клиент за CUTSCENE_SERVER_TIMEOUT секунд
 	-- так и не отчитается — сервер сам поставит игрока на участок.
-	forceFinishCutsceneEventually(player)
+	-- v20.124: катсцены нет (Config.Loading.Cutscene = false) - игрок сразу
+	-- спавнится на своём участке, камера загрузки сама прилетает к нему.
+	if not (Config.Loading and Config.Loading.Cutscene == true) then
+		player:SetAttribute("CutsceneFinished", true)
+	else
+		forceFinishCutsceneEventually(player)
+	end
 	-- Раньше все пятнадцать вызовов ниже стояли в ОДНОМ xpcall, и любая
 	-- ошибка в любом из них: (а) обрывала все оставшиеся шаги, (б) выгружала
 	-- профиль, (в) кикала игрока с "Player setup failed safely".

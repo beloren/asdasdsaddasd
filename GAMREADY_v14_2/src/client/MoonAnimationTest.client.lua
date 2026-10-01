@@ -17,6 +17,15 @@ if shared.MoonAnimationTestLoaded then
 end
 shared.MoonAnimationTestLoaded = true
 
+-- v20.124: КАТСЦЕНА УБРАНА - вместо неё облёт мира на загрузке
+-- (ReplicatedFirst/LoadingScreen). Config.Loading.Cutscene = true вернёт её.
+do
+    local okConfig, Config = pcall(require, ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+    if not (okConfig and Config.Loading and Config.Loading.Cutscene == true) then
+        return
+    end
+end
+
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local cutsceneFinished = ReplicatedStorage.Shared:WaitForChild("CutsceneFinished")
