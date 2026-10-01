@@ -590,7 +590,7 @@ Config.PromoCodes = {
 	-- v16: код с табло лайков (Config.LikeGoals). RequiresLikes — код
 	-- работает только когда Config.LikeGoals.CurrentLikes ≥ этого числа.
 	-- Chest — вместо/вместе с деньгами выдаёт сундук этой редкости.
-	LIKES50 = { Money = 0, Chest = "Rare", RequiresLikes = 50, Enabled = true, ExpiresAt = nil },
+	LIKES100 = { Money = 0, Chest = "Rare", RequiresLikes = 100, Enabled = true, ExpiresAt = nil }, -- v20.122: было LIKES50
 	OLDLAUNCH = { Money = 150, Enabled = false, ExpiresAt = nil },
 }
 
@@ -5527,13 +5527,13 @@ Config.Skins = {
 --                    или nil — пока не выключишь.
 Config.LikeGoals = {
 	Enabled = true,
-	CurrentLikes = 0,
+	CurrentLikes = 6, -- v20.122: пример (6 из 100); впиши реальное число и опубликуй
 	Title = "👍 LIKE GOALS",
 	Subtitle = "Like the game to unlock rewards for EVERYONE!",
 	Goals = {
-		{ Likes = 50,  Kind = "Code",  Code = "LIKES50", Text = "Secret code: free Rare Chest" },
-		{ Likes = 100, Kind = "Event", Event = "Money", Multiplier = 2, Text = "x2 MONEY event", EndsAt = nil },
-		{ Likes = 350, Kind = "Event", Event = "Luck", Multiplier = 2, Text = "x2 LUCK event", EndsAt = nil },
+		{ Likes = 100, Kind = "Code",  Code = "LIKES100", Text = "Secret code: free Rare Chest" },
+		{ Likes = 250, Kind = "Event", Event = "Money", Multiplier = 2, Text = "x2 MONEY event", EndsAt = nil },
+		{ Likes = 500, Kind = "Event", Event = "Luck", Multiplier = 2, Text = "x2 LUCK event", EndsAt = nil },
 		{ Likes = 1000, Kind = "Text", Text = "New cave update!" },
 	},
 }
@@ -7487,7 +7487,8 @@ Config.Prestige = {
 	FullScreen = true,
 	TreeCanvas = Vector2.new(1500, 1000),
 	FullNodeSize = 96,
-	DetailHideSeconds = 5,   -- v20.120: карточка перка (по клику/наведению) прячется через N с
+	DetailScale = 0.72,      -- v20.122: размер карточки перка (доля)
+	DetailHideSeconds = 3,   -- v20.120: карточка перка (по клику/наведению) прячется через N с
 	HideDeepLocked = true,   -- v20.120: за первым закрытым узлом ветки остальные не показываются
 	PointIconId = 0, -- иконка очков престижа у чисел; 0 - нарисованный ромб
 	StartText = "Your journey begins here.",

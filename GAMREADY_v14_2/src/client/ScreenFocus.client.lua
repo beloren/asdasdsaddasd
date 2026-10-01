@@ -24,6 +24,7 @@ for _, name in UI.FocusGuis or {
 	"ShopUi", "UpgradeShopUi", "SettingsMenu", "DailyRewardUi", "CollectionMenu", "SkinUi", "PerkUi",
 	"MerchantUi", "GeodeUi", "DropPreviewUi", "DecorStorageUi", "CartInventoryUi", "IslandUi", "GearUi",
 	"OfferUi", "ReturnScreenUi", "StarterPackOffer", "GroupRewardUi", "LikeRewardUi", "SatchelInventory",
+	"CompassUi", -- v20.122: карта мира тоже прячет весь остальной интерфейс
 } do FULLSCREEN[name] = true end
 
 local HIDE = {}
@@ -32,6 +33,7 @@ for _, name in UI.FocusHide or {
 	"MobileShiftLockButton", "OrePreviewHud", "RubbleCrystalHotbar", "MarketTicker", "CartInteractionUi",
 	"PlacementUi", "CombatUi", "StarterPackOffer",
 	"CollectionMenu", "CompassUi", -- v20.120: книга-меню и компас тоже прячутся
+	"OfferUi", "Toast", "RebirthDialogButtons", -- v20.122: донат-подсказки справа и всплывашки тоже
 } do HIDE[name] = true end
 
 -- Дочерние рамки, которые окном НЕ считаются (оверлей раскола - мини-игра).
@@ -83,13 +85,66 @@ local function setBlur(on)
 	end
 end
 
+-- v20.122: ПРЯЧЕМ НЕ МГНОВЕННО - верхние элементы экрана уезжают к
+-- ближайшему краю, и только потом экран выключается; при закрытии окна
+-- экран включается и элементы приезжают обратно.
+local SLIDE = TweenInfo.new(UI.FocusSlideSeconds or 0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local SLIDE_BACK = TweenInfo.new(UI.FocusSlideSeconds or 0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local homes = {}  -- [GuiObject] = исходная позиция
+local token = 0
+
+local function offscreen(element)
+	local camera = workspace.CurrentCamera
+	local view = camera and camera.ViewportSize or Vector2.new(1280, 720)
+	local size, centre = element.AbsoluteSize, element.AbsolutePosition + element.AbsoluteSize / 2
+	local best, edge = math.huge, "Bottom"
+	for name, value in { Left = centre.X, Right = view.X - centre.X, Top = centre.Y, Bottom = view.Y - centre.Y } do
+		if value < best then best, edge = value, name end
+	end
+	local current = element.Position
+	if edge == "Left" then return current - UDim2.fromOffset(size.X + 40, 0) end
+	if edge == "Right" then return current + UDim2.fromOffset(size.X + 40, 0) end
+	if edge == "Top" then return current - UDim2.fromOffset(0, size.Y + 40) end
+	return current + UDim2.fromOffset(0, size.Y + 40)
+end
+
+local function slideOut(gui)
+	local myToken = token
+	for _, child in gui:GetChildren() do
+		if child:IsA("GuiObject") and child.Visible then
+			if homes[child] == nil then homes[child] = child.Position end
+			TweenService:Create(child, SLIDE, { Position = offscreen(child) }):Play()
+		end
+	end
+	task.delay(SLIDE.Time, function()
+		-- окно уже закрыли, пока ехали - экран не выключаем
+		if myToken == token and wanted[gui] and gui.Parent then gui.Enabled = false end
+	end)
+end
+
+local function slideIn(gui)
+	gui.Enabled = true
+	for _, child in gui:GetChildren() do
+		local home = homes[child]
+		if home then
+			homes[child] = nil
+			local layoutPosition = child:GetAttribute("LayoutPosition")
+			TweenService:Create(child, SLIDE_BACK, { Position = typeof(layoutPosition) == "UDim2" and layoutPosition or home }):Play()
+		end
+	end
+end
+
 local function release()
 	focusedBy = nil
+	token += 1
 	for gui in wanted do
 		gui:SetAttribute("FocusHidden", nil)
-		if gui.Parent then gui.Enabled = true end
+		if gui.Parent then slideIn(gui) end
 	end
 	table.clear(wanted)
+	for element in homes do
+		if not element.Parent then homes[element] = nil end
+	end
 	setBlur(false)
 end
 
@@ -108,10 +163,10 @@ while true do
 		if not focusedBy then setBlur(true) end
 		focusedBy = opener
 		for _, gui in playerGui:GetChildren() do
-			if gui ~= opener and HIDE[gui.Name] and gui:IsA("ScreenGui") and gui.Enabled then
+			if gui ~= opener and HIDE[gui.Name] and gui:IsA("ScreenGui") and gui.Enabled and not wanted[gui] then
 				wanted[gui] = true
 				gui:SetAttribute("FocusHidden", true) -- v20.112: сторожа (EnsureCoreUiEnabled) не включают обратно
-				gui.Enabled = false
+				slideOut(gui)
 			end
 		end
 	elseif focusedBy then

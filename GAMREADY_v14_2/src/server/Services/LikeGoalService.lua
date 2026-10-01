@@ -13,8 +13,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
-local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
-local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
+local LikeBoardGui = require(ReplicatedStorage.Shared.LikeBoardGui)
 
 local LikeGoalService = {}
 local CFG = Config.LikeGoals or { Goals = {} }
@@ -59,6 +58,8 @@ end
 local function findBoardPart()
 	local part = workspace:FindFirstChild("LikeGoalBoard", true)
 	if part and part:IsA("BasePart") then return part end
+	local board = part and part:IsA("Model") and part:FindFirstChild("Board", true)
+	if board and board:IsA("BasePart") then return board end
 	local spawn = workspace:FindFirstChildWhichIsA("SpawnLocation", true)
 	local base = spawn and spawn.CFrame or CFrame.new(0, 0, 0)
 	part = Instance.new("Part")
@@ -74,90 +75,13 @@ local function findBoardPart()
 	return part
 end
 
-local function label(parent, props)
-	local l = WorldUi.Text(nil, "Text", "Heading")
-	l.BackgroundTransparency = 1
-	l.TextScaled = true
-	l.TextColor3 = Color3.new(1, 1, 1)
-	for key, value in props do l[key] = value end
-	l.Parent = parent
-	return l
-end
-
+-- v20.122: табло рисует общий билдер Shared.LikeBoardGui (дерево, как топы) -
+-- tools/BuildLikeBoard.lua показывает в Studio ровно то же.
 function LikeGoalService:_buildBoard()
 	local part = findBoardPart()
-	local old = part:FindFirstChild("LikeGoalGui")
-	if old then old:Destroy() end
-	local gui = Instance.new("SurfaceGui")
-	gui.Name = "LikeGoalGui"
-	gui.Face = Enum.NormalId.Front
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 50
-	gui.LightInfluence = 0
-	gui.Parent = part
-	local root = Instance.new("Frame")
-	root.Size = UDim2.fromScale(1, 1)
-	root.BackgroundColor3 = Color3.fromRGB(30, 24, 52)
-	root.Parent = gui
-	local pad = Instance.new("UIPadding")
-	pad.PaddingTop = UDim.new(0.04, 0)
-	pad.PaddingLeft = UDim.new(0.05, 0)
-	pad.PaddingRight = UDim.new(0.05, 0)
-	pad.Parent = root
-	label(root, { Text = CFG.Title or "LIKE GOALS", Size = UDim2.fromScale(1, 0.13), TextColor3 = Color3.fromRGB(255, 215, 80) })
-	label(root, { Text = CFG.Subtitle or "", Size = UDim2.fromScale(1, 0.07), Position = UDim2.fromScale(0, 0.13) })
-
-	-- Прогресс до следующей цели.
-	local nextGoal = nil
-	for _, goal in CFG.Goals or {} do
-		if not reached(goal) then nextGoal = goal break end
-	end
-	local barBack = Instance.new("Frame")
-	barBack.Position = UDim2.fromScale(0, 0.23)
-	barBack.Size = UDim2.fromScale(1, 0.1)
-	barBack.BackgroundColor3 = Color3.fromRGB(15, 12, 25)
-	barBack.Parent = root
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0.5, 0)
-	corner.Parent = barBack
-	local fill = Instance.new("Frame")
-	local target = nextGoal and nextGoal.Likes or math.max(1, likes())
-	fill.Size = UDim2.fromScale(math.clamp(likes() / target, 0.02, 1), 1)
-	fill.BackgroundColor3 = Color3.fromRGB(90, 220, 110)
-	fill.Parent = barBack
-	corner:Clone().Parent = fill
-	label(barBack, {
-		Text = nextGoal and ("👍 %s / %s"):format(NumberFormat.abbreviate(likes()), NumberFormat.abbreviate(nextGoal.Likes))
-			or ("👍 %s - ALL GOALS REACHED!"):format(NumberFormat.abbreviate(likes())),
-		Size = UDim2.fromScale(1, 1), ZIndex = 3,
-	})
-
-	-- Список целей.
-	local list = Instance.new("Frame")
-	list.BackgroundTransparency = 1
-	list.Position = UDim2.fromScale(0, 0.37)
-	list.Size = UDim2.fromScale(1, 0.6)
-	list.Parent = root
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0.03, 0)
-	layout.Parent = list
-	local count = math.max(1, #(CFG.Goals or {}))
-	for index, goal in CFG.Goals or {} do
-		local done = reached(goal)
-		local text
-		if done and goal.Kind == "Code" then
-			text = ("✅ %s  -  CODE: %s"):format(NumberFormat.abbreviate(goal.Likes), tostring(goal.Code))
-		elseif done and goal.Kind == "Event" then
-			text = ("✅ %s  -  %s %s"):format(NumberFormat.abbreviate(goal.Likes), goal.Text or "", eventActive(goal) and "(ACTIVE!)" or "(ended)")
-		else
-			text = ("%s %s  -  %s"):format(done and "✅" or "🔒", NumberFormat.abbreviate(goal.Likes), goal.Text or "")
-		end
-		label(list, {
-			Text = text, LayoutOrder = index, Size = UDim2.fromScale(1, 1 / count - 0.03),
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextColor3 = done and Color3.fromRGB(120, 255, 150) or Color3.fromRGB(200, 200, 215),
-		})
-	end
+	-- своя модель-стенд из tools/BuildLikeBoard: доска - деталь "Board" внутри
+	if part:IsA("Model") then part = part:FindFirstChild("Board", true) or part end
+	LikeBoardGui.Draw(part, CFG, likes(), { EventActive = eventActive })
 end
 
 function LikeGoalService:Init(_services) end

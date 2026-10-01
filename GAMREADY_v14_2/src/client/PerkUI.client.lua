@@ -302,6 +302,28 @@ if FULL then
 	detail.AnchorPoint = Vector2.zero
 	detail.Size = UDim2.fromOffset(300, 380)
 	detail.ZIndex = 20
+	-- v20.122: карточка меньше (UIScale - вёрстка внутри не ломается) и с крестиком
+	local detailScale = detail:FindFirstChild("DetailScale") or Instance.new("UIScale")
+	detailScale.Name = "DetailScale"
+	detailScale.Scale = tonumber(cfg.DetailScale) or 0.72
+	detailScale.Parent = detail
+	local detailClose = Instance.new("TextButton")
+	detailClose.Name = "DetailClose"
+	detailClose.AnchorPoint = Vector2.new(1, 0)
+	detailClose.Position = UDim2.new(1, 8, 0, -8)
+	detailClose.Size = UDim2.fromOffset(40, 40)
+	detailClose.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+	detailClose.Text = "X"
+	detailClose.TextScaled = true
+	detailClose.TextColor3 = Color3.new(1, 1, 1)
+	detailClose.ZIndex = 40
+	pcall(UiKit.StyleText, detailClose, "Heading")
+	Instance.new("UICorner", detailClose).CornerRadius = UDim.new(1, 0)
+	local detailCloseStroke = Instance.new("UIStroke")
+	detailCloseStroke.Thickness = 3
+	detailCloseStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	detailCloseStroke.Parent = detailClose
+	detailClose.Parent = detail
 	-- большая кнопка CLOSE внизу
 	fullClose = UiKit.Button(panel, "BigClose", "CLOSE", "Red", {
 		AnchorPoint = Vector2.new(0.5, 1),
@@ -329,6 +351,13 @@ local function hideDetail()
 	detail.Visible = false
 end
 if FULL then
+	local detailClose = detail:FindFirstChild("DetailClose")
+	if detailClose then
+		detailClose.Activated:Connect(function()
+			hoveringDetail = false
+			hideDetail()
+		end)
+	end
 	detail.MouseEnter:Connect(function() hoveringDetail = true end)
 	detail.MouseLeave:Connect(function()
 		hoveringDetail = false

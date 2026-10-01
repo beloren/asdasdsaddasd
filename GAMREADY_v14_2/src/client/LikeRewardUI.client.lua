@@ -101,15 +101,34 @@ local function claim()
 	end
 end
 
-AvatarEditorService.PromptSetFavoriteCompleted:Connect(function(itemId, _itemType, result)
-	if not waitingFavorite or tonumber(itemId) ~= game.PlaceId then return end
+-- v20.122: НЕ ВИСИТ НА «CHECKING...». Уже в избранном - награда сразу.
+-- Промпт закрылся (любым ответом) или не ответил за 4 с - ещё раз спрашиваем
+-- GetFavorite; в избранном (или проверка недоступна) - выдаём награду.
+local function isFavorite()
+	local ok, result = pcall(function()
+		return AvatarEditorService:GetFavorite(game.PlaceId, Enum.AvatarItemType.Asset)
+	end)
+	if not ok then return nil end
+	return result == true
+end
+
+local promptToken = 0
+local function settle(success)
+	if not waitingFavorite then return end
 	waitingFavorite = false
-	if result == Enum.AvatarPromptResult.Success then
+	local favorite = isFavorite()
+	if success or favorite ~= false then
 		claim()
 	else
+		pendingToken += 1
 		favoriteButton.Active = true
 		ui.SetCaption("⭐ FAVORITE TO CLAIM")
 	end
+end
+
+AvatarEditorService.PromptSetFavoriteCompleted:Connect(function(itemId, _itemType, result)
+	if not waitingFavorite or tonumber(itemId) ~= game.PlaceId then return end
+	settle(result == Enum.AvatarPromptResult.Success)
 end)
 
 favoriteButton.Activated:Connect(function()
@@ -117,24 +136,29 @@ favoriteButton.Activated:Connect(function()
 	UiSfx.play("UiButtonClick")
 	favoriteButton.Active = false
 	ui.SetCaption("CHECKING...")
-	local okCheck, isFavorite = pcall(function()
-		return AvatarEditorService:GetFavorite(game.PlaceId, Enum.AvatarItemType.Asset)
-	end)
-	if okCheck and isFavorite == true then
+	if isFavorite() == true then
 		claim()
 		return
 	end
 	waitingFavorite = true
-	resetButtonLater(25)
+	promptToken += 1
+	local myToken = promptToken
 	local ok, err = pcall(function()
 		AvatarEditorService:PromptSetFavorite(game.PlaceId, Enum.AvatarItemType.Asset, true)
 	end)
 	if not ok then
-		waitingFavorite = false
+		-- промпт недоступен (Studio и т.п.) - не держим игрока
 		warn("[LikeRewardUI] PromptSetFavorite failed: " .. tostring(err))
-		favoriteButton.Active = true
-		ui.SetCaption(ACTION_TEXT)
+		settle(true)
+		return
 	end
+	task.delay(4, function()
+		-- промпт не ответил (уже в избранном - Roblox его не показывает)
+		if myToken == promptToken and waitingFavorite and isFavorite() ~= false then settle(true) end
+	end)
+	task.delay(30, function()
+		if myToken == promptToken and waitingFavorite then settle(false) end
+	end)
 end)
 
 remote.OnClientEvent:Connect(function(action, payload)

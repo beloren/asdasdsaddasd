@@ -1191,9 +1191,61 @@ end)
 
 -- v20.121: пока курсор тапает в интерфейс (окно улучшения и т.п.), плашка
 -- задания убрана - она перекрывала кнопки. Курсор ушёл - плашка вернулась.
+-- v20.122: плашка уходит и когда открыто большое окно (ScreenFocus прячет
+-- HUD) или под её местом оказалась чужая кнопка (меню крота, подсказки
+-- установки, мобильные кнопки) - ничего не перекрывает.
 local taskHiddenForUi = false
+local plateRect = nil -- { Pos, Size } плашки в покое
+local blockedByButton, blockCheckAt = false, 0
+local OWN_GUIS = { TutorialUi = true, TutorialCursor = true, HotbarUi = true }
+
+local function fullscreenOpen()
+	for _, other in playerGui:GetChildren() do
+		if other:IsA("ScreenGui") and other:GetAttribute("FocusHidden") == true then return true end
+	end
+	return false
+end
+
+local function buttonUnderPlate()
+	if not plateRect then return false end
+	local camera = workspace.CurrentCamera
+	local view = camera and camera.ViewportSize or Vector2.new(1280, 720)
+	local a1, a2 = plateRect.Pos, plateRect.Pos + plateRect.Size
+	for _, other in playerGui:GetChildren() do
+		if other:IsA("ScreenGui") and other.Enabled and not OWN_GUIS[other.Name] then
+			for _, button in other:GetDescendants() do
+				if button:IsA("GuiButton") and button.Visible and button.Active then
+					local size = button.AbsoluteSize
+					if size.X > 4 and size.Y > 4 and size.X * size.Y < view.X * view.Y * 0.4 then
+						local b1 = button.AbsolutePosition
+						local b2 = b1 + size
+						local w = math.min(a2.X, b2.X) - math.max(a1.X, b1.X)
+						local h = math.min(a2.Y, b2.Y) - math.max(a1.Y, b1.Y)
+						if w > 0 and h > 0 and w * h > size.X * size.Y * 0.15 and TutorialTarget.Shown(button) then
+							return true
+						end
+					end
+				end
+			end
+		end
+	end
+	return false
+end
+
 RunService.RenderStepped:Connect(function()
-	if uiPointerActive then
+	if os.clock() >= blockCheckAt and task_:GetAttribute("_Shown") == true then
+		blockCheckAt = os.clock() + 0.3
+		local okBlock, blocked = pcall(buttonUnderPlate)
+		blockedByButton = okBlock and blocked == true
+		if not blockedByButton and fullscreenOpen() then blockedByButton = true end
+	end
+	if task_.Visible and not taskHiddenForUi and task_:GetAttribute("_Shown") == true then
+		local rest = restingPosition(task_)
+		if math.abs(task_.Position.Y.Offset - rest.Y.Offset) < 2 then
+			plateRect = { Pos = task_.AbsolutePosition, Size = task_.AbsoluteSize }
+		end
+	end
+	if uiPointerActive or blockedByButton then
 		if task_.Visible then
 			task_.Visible = false
 			taskHiddenForUi = true

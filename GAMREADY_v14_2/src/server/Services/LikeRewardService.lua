@@ -133,8 +133,10 @@ function LikeRewardService:Claim(player)
 		if skinGranted or reason ~= "Busy" then break end
 		task.wait(0.5)
 	end
-	if not skinGranted and reason == "MissingAsset" and Config.Skins.Definitions[skinId] then
-		data.OwnedSkins[skinId] = true
+	if not skinGranted and reason ~= "Busy" then
+		-- v20.122: скин уже есть / нет ассета / нет описания - награда всё
+		-- равно засчитывается (жеоды выдаются), игрок не застревает.
+		if Config.Skins.Definitions[skinId] and type(data.OwnedSkins) == "table" then data.OwnedSkins[skinId] = true end
 		skinGranted = true
 	end
 	if not skinGranted then

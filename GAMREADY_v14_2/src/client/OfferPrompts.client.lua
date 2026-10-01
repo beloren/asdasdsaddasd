@@ -117,7 +117,7 @@ local function showOffer(key, labelText)
 			hideOffer(key)
 		end)
 	end
-	button.Label.Text = labelText or offer.Text
+	button.Label.Text = string.upper(labelText or offer.Text) -- v20.122: подсказки доната капсом
 end
 
 local function setOffer(key, wanted, labelText)
