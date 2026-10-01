@@ -235,7 +235,12 @@ Config.Tutorial = {
 	ClientFlags = { "QuestsOpened", "CompassOpened" },
 	CharacterImageId = 0,    -- персонаж слева в диалоге (0 - PortraitImageId)
 	BoardImageId = 0,        -- подложка-табличка справа (0 - тёмная панель)
-	PointerImageId = 0,      -- курсор-указатель (острие в левом верхнем углу)
+	PointerImageId = 0,      -- курсор-указатель; 0 = рука 👆 (плейсхолдер)
+	-- v20.115: курсор «тапает» в нужную кнопку, пока игрок не нажмёт.
+	PointerTip = Vector2.new(0.5, 0.06), -- где на картинке остриё (доли: 0,0 - левый верх; для стрелки-курсора мыши поставь 0,0)
+	PointerSize = 0,                     -- размер в пикселях; 0 = 64 на ПК / 52 на телефоне
+	PointerTapSeconds = 1.15,            -- один цикл «подлёт - нажатие - отход»
+	PointerFromDir = Vector2.new(0.45, 1), -- откуда подлетает курсор (вниз-вправо от цели)
 	SpotlightColor = Color3.fromRGB(255, 215, 60),
 	Chapters = {
 		{

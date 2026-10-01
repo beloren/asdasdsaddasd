@@ -100,10 +100,28 @@ if continueArrow:IsA("TextLabel") and continueArrow.Text ~= "" then -- стар�
 end
 local advanceButton = dialog:WaitForChild("AdvanceArea")
 
+
 local task_ = gui:WaitForChild("Task")
 local taskTitle = task_:WaitForChild("Title")
 local taskBody = task_:WaitForChild("Body")
 local skipButton = task_:WaitForChild("Skip")
+
+-- v20.115: ПОРЯДОК СЛОЁВ окна (и для старых сборок): плашка-задание внизу,
+-- диалог над ней; в диалоге табличка под персонажем, имя и текст - на
+-- табличке, зона «тап - дальше» поверх всего.
+task_.ZIndex = 2
+dialog.ZIndex = 3
+if boardImage then boardImage.ZIndex = 2 end
+if characterImage then characterImage.ZIndex = 4 end
+advanceButton.ZIndex = 8
+-- Текст реплики всегда влезает в табличку (и на маленьком телефоне):
+-- TextScaled с потолком размера; печать по буквам размер не меняет.
+local bodySize = body:FindFirstChildOfClass("UITextSizeConstraint") or Instance.new("UITextSizeConstraint")
+bodySize.MinTextSize = 9
+bodySize.MaxTextSize = isNarrow() and 17 or 20
+bodySize.Parent = body
+body.TextScaled = true
+body.TextWrapped = true
 skipButton.Text = tr("SKIP TUTORIAL")
 
 -- ПРОПУСК В ДВА ТАПА. Кнопка маленькая и стоит у нижнего края — на
@@ -308,9 +326,11 @@ local function aboveHotbarOffset()
 	if not (bar and bar:IsA("GuiObject") and hotbarGui.Enabled and bar.Visible and camera) or bar.AbsoluteSize.Y < 2 then
 		return -28
 	end
-	local inset = hotbarGui.IgnoreGuiInset and 0 or game:GetService("GuiService"):GetGuiInset().Y
-	local barTop = bar.AbsolutePosition.Y + inset
-	return -math.max(28, math.floor(camera.ViewportSize.Y - barTop + 8))
+	-- v20.115: AbsolutePosition всех экранов в одном пространстве - считаем
+	-- верх хотбара от начала СВОЕГО экрана (раньше не учитывался топбар, и на
+	-- телефоне окно наезжало на хотбар или висело слишком высоко).
+	local barTop = bar.AbsolutePosition.Y - gui.AbsolutePosition.Y
+	return -math.max(28, math.floor(gui.AbsoluteSize.Y - barTop + 8))
 end
 
 local function restingPosition(frame)
@@ -664,6 +684,7 @@ local camera = workspace.CurrentCamera
 if camera then
 	camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
 		local narrow = isNarrow()
+		bodySize.MaxTextSize = narrow and 17 or 20
 		dialog.Size = narrow and UDim2.new(0.96, 0, 0, 150) or UDim2.new(0, 760, 0, 170)
 		task_.Size = narrow and UDim2.new(0.88, 0, 0, 52) or UDim2.new(0.30, 0, 0, 52)
 		if characterImage then characterImage.Size = narrow and UDim2.new(0, 120, 1, 40) or UDim2.new(0, 190, 1, 70) end
@@ -672,95 +693,179 @@ if camera then
 end
 
 --------------------------------------------------------------------------------
--- v20.110: ЗАТЕМНЕНИЕ + УКАЗАТЕЛЬ + НАПОМИНАНИЯ.
---   • Шаг может назвать цели интерфейса (payload.UiTargets, см.
---     Shared.TutorialTarget). Если такая кнопка сейчас на экране - всё
---     вокруг неё темнеет (клики мимо не проходят), вокруг пульсирует рамка,
---     указатель «тапает» в неё.
---   • Иначе указатель показывает на цель в мире (payload.Target), а если
---     она за краем экрана - стоит у края и смотрит в её сторону.
---   • Игрок долго ничего не делает - задание мигает, указатель растёт,
---     звучит подсказка (Config.Tutorial.NudgeSeconds).
+-- v20.115: КУРСОР-УКАЗАТЕЛЬ (без затемнения экрана).
+--   • Цель интерфейса (payload.UiTargets, Shared.TutorialTarget) на экране -
+--     курсор бесконечно «тапает» в неё: подлетает, нажимает (кружок-волна),
+--     отходит - пока игрок сам не нажмёт. Координаты считаются от начала
+--     своего слоя (AbsolutePosition), поэтому совпадают при любом
+--     IgnoreGuiInset/ScreenInsets (телефоны с вырезом, топбар Roblox).
+--     Раньше рамка-подсветка не учитывала топбар и уезжала вверх.
+--   • Иначе - курсор над целью в мире (payload.Target), а если она за краем
+--     экрана - у края, остриём в её сторону.
+--   • Игрок долго ничего не делает - задание мигает, курсор крупнее.
+-- Свой курсор: Config.Tutorial.PointerImageId (+ PointerTip - где на
+-- картинке остриё, доли 0..1) или Image у StarterGui/TutorialUi/Pointer.
 --------------------------------------------------------------------------------
-local GuiService = game:GetService("GuiService")
 local TutorialTarget = require(ReplicatedStorage.Shared.TutorialTarget)
 
-local spot = Instance.new("ScreenGui")
-spot.Name = "TutorialSpotlight"
-spot.IgnoreGuiInset = true
-spot.ResetOnSpawn = false
-spot.DisplayOrder = 1150
-spot.Enabled = false
-spot.Parent = playerGui
-local shades = {}
-for _, name in { "Top", "Bottom", "Left", "Right" } do
-	local frame = Instance.new("TextButton") -- кнопка = клики мимо цели не проходят
-	frame.Name = name
-	frame.Text = ""
-	frame.AutoButtonColor = false
-	frame.BackgroundColor3 = Color3.new(0, 0, 0)
-	frame.BackgroundTransparency = 0.45
-	frame.BorderSizePixel = 0
-	frame.Parent = spot
-	shades[name] = frame
-end
-local ring = Instance.new("Frame")
-ring.Name = "Ring"
-ring.BackgroundTransparency = 1
-ring.Parent = spot
-local ringStroke = Instance.new("UIStroke")
-ringStroke.Thickness = 4
-ringStroke.Color = Config.Tutorial.SpotlightColor or Color3.fromRGB(255, 215, 60)
-ringStroke.Parent = ring
-Instance.new("UICorner", ring).CornerRadius = UDim.new(0, 12)
+local oldSpot = playerGui:FindFirstChild("TutorialSpotlight")
+if oldSpot then oldSpot:Destroy() end
+if pointer then pointer.Visible = false end -- старый указатель из сборки - только источник картинки
 
-local SPOT_PAD = 8
-local function placeSpot(target)
-	local inset = GuiService:GetGuiInset()
-	local layer = target:FindFirstAncestorWhichIsA("LayerCollector")
-	local offset = (layer and layer:IsA("ScreenGui") and not layer.IgnoreGuiInset) and inset or Vector2.zero
-	local pos = target.AbsolutePosition + offset - Vector2.new(SPOT_PAD, SPOT_PAD)
-	local size = target.AbsoluteSize + Vector2.new(SPOT_PAD * 2, SPOT_PAD * 2)
-	local view = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
-	shades.Top.Position = UDim2.fromOffset(0, 0)
-	shades.Top.Size = UDim2.fromOffset(view.X, math.max(0, pos.Y))
-	shades.Bottom.Position = UDim2.fromOffset(0, pos.Y + size.Y)
-	shades.Bottom.Size = UDim2.fromOffset(view.X, math.max(0, view.Y - pos.Y - size.Y))
-	shades.Left.Position = UDim2.fromOffset(0, pos.Y)
-	shades.Left.Size = UDim2.fromOffset(math.max(0, pos.X), size.Y)
-	shades.Right.Position = UDim2.fromOffset(pos.X + size.X, pos.Y)
-	shades.Right.Size = UDim2.fromOffset(math.max(0, view.X - pos.X - size.X), size.Y)
-	ring.Position = UDim2.fromOffset(pos.X, pos.Y)
-	ring.Size = UDim2.fromOffset(size.X, size.Y)
-	ringStroke.Transparency = 0.15 + (math.sin(os.clock() * 6) + 1) * 0.25
-	return pos + size * 0.5, size
+local TUT = Config.Tutorial or {}
+local TIP = typeof(TUT.PointerTip) == "Vector2" and TUT.PointerTip or Vector2.new(0.5, 0.06)
+local TAP_SECONDS = tonumber(TUT.PointerTapSeconds) or 1.15
+local FROM_DIR = (typeof(TUT.PointerFromDir) == "Vector2" and TUT.PointerFromDir or Vector2.new(0.45, 1)).Unit
+
+-- Слой для курсора над миром / у края экрана (координаты = экран целиком).
+local cursorLayer = Instance.new("ScreenGui")
+cursorLayer.Name = "TutorialCursor"
+cursorLayer.IgnoreGuiInset = true
+pcall(function() cursorLayer.ScreenInsets = Enum.ScreenInsets.None end)
+cursorLayer.ResetOnSpawn = false
+cursorLayer.DisplayOrder = 1300
+cursorLayer.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+cursorLayer:SetAttribute("CinematicKeep", true)
+cursorLayer.Parent = playerGui
+
+local cursor = Instance.new("Frame")
+cursor.Name = "TutorialCursor"
+cursor.BackgroundTransparency = 1
+cursor.AnchorPoint = TIP
+cursor.ZIndex = 10000
+cursor.Visible = false
+cursor:SetAttribute("DisableGlobalHover", true)
+cursor.Parent = cursorLayer
+local cursorScale = Instance.new("UIScale") -- свой UIScale: ResponsiveUi его не трогает
+cursorScale.Name = "Press"
+cursorScale.Parent = cursor
+local cursorImage = Instance.new("ImageLabel")
+cursorImage.Name = "Image"
+cursorImage.BackgroundTransparency = 1
+cursorImage.Size = UDim2.fromScale(1, 1)
+cursorImage.ScaleType = Enum.ScaleType.Fit
+cursorImage.ZIndex = 10001
+cursorImage.Image = (pointer and pointer.Image ~= "" and pointer.Image) or imageUri(TUT.PointerImageId) or ""
+cursorImage.Parent = cursor
+if cursorImage.Image == "" then
+	-- плейсхолдер: рука-эмодзи, остриё (палец) сверху по центру
+	local hand = Instance.new("TextLabel")
+	hand.Name = "Fallback"
+	hand.BackgroundTransparency = 1
+	hand.Size = UDim2.fromScale(1, 1)
+	hand.Text = "👆"
+	hand.TextScaled = true
+	hand.ZIndex = 10001
+	hand.Parent = cursorImage
 end
+-- тень под курсором, чтобы читался на любом фоне
+local shadow = Instance.new("UIStroke")
+shadow.Thickness = 0
+shadow.Parent = cursorImage
+
+local ripple = Instance.new("Frame")
+ripple.Name = "TutorialTapRipple"
+ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+ripple.BackgroundColor3 = TUT.SpotlightColor or Color3.fromRGB(255, 215, 60)
+ripple.BackgroundTransparency = 1
+ripple.BorderSizePixel = 0
+ripple.ZIndex = 9999
+ripple.Visible = false
+ripple:SetAttribute("DisableGlobalHover", true)
+ripple.Parent = cursorLayer
+Instance.new("UICorner", ripple).CornerRadius = UDim.new(1, 0)
+local rippleStroke = Instance.new("UIStroke")
+rippleStroke.Color = ripple.BackgroundColor3
+rippleStroke.Thickness = 3
+rippleStroke.Parent = ripple
+local rippleScale = Instance.new("UIScale")
+rippleScale.Parent = ripple
 
 local lastChangeAt = os.clock()
 local lastSignature = nil
 local nudgeBoost = 0
 local uiTarget, uiCheckAt = nil, 0
+local pausedUntil = 0
+local lastCycle = -1
 
-local function pointerAt(screenPos, angle, tap)
-	if not pointer then return end
-	-- острие картинки - левый верхний угол: ставим его в точку
-	local bob = math.abs(math.sin(os.clock() * (tap and 5 or 3))) * (tap and 14 or 10)
-	local scale = 1 + nudgeBoost * 0.35
-	pointer.Size = UDim2.fromOffset(64 * scale, 64 * scale)
-	pointer.Rotation = angle or 0
-	local dir = Vector2.new(math.cos(math.rad((angle or 0) + 45)), math.sin(math.rad((angle or 0) + 45)))
-	local p = screenPos + dir * (6 + bob)
-	local insetY = gui.IgnoreGuiInset and 0 or GuiService:GetGuiInset().Y
-	pointer.Position = UDim2.fromOffset(p.X, p.Y - insetY)
-	pointer.Visible = true
+local function cursorSize()
+	local base = tonumber(TUT.PointerSize) or 0
+	if base <= 0 then base = isNarrow() and 52 or 64 end
+	return base * (1 + nudgeBoost * 0.35)
 end
 
+local function playRipple(at)
+	ripple.Position = UDim2.fromOffset(at.X, at.Y)
+	local size = cursorSize() * 0.9
+	ripple.Size = UDim2.fromOffset(size, size)
+	ripple.Visible = true
+	ripple.BackgroundTransparency = 0.55
+	rippleStroke.Transparency = 0
+	rippleScale.Scale = 0.2
+	local info = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	TweenService:Create(rippleScale, info, { Scale = 1.3 }):Play()
+	TweenService:Create(ripple, info, { BackgroundTransparency = 1 }):Play()
+	TweenService:Create(rippleStroke, info, { Transparency = 1 }):Play()
+end
+
+-- Анимация «тап»: подлёт → нажатие (волна) → отход. tip - точка в
+-- координатах текущего слоя курсора.
+local function tapAt(tip, rotation)
+	local size = cursorSize()
+	cursor.Size = UDim2.fromOffset(size, size)
+	cursor.Rotation = rotation or 0
+	local t = os.clock() / TAP_SECONDS
+	local cycle = math.floor(t)
+	local p = t - cycle
+	local distance, press
+	if p < 0.45 then
+		local a = p / 0.45
+		distance = (1 - a * a * (3 - 2 * a)) * size * 0.55
+		press = 1
+	elseif p < 0.62 then
+		distance = 0
+		local a = (p - 0.45) / 0.17
+		press = 1 - math.sin(a * math.pi) * 0.18
+		if cycle ~= lastCycle and a >= 0.35 then
+			lastCycle = cycle
+			playRipple(tip)
+		end
+	else
+		local a = (p - 0.62) / 0.38
+		distance = a * a * (3 - 2 * a) * size * 0.55
+		press = 1
+	end
+	cursorScale.Scale = press
+	local dir = rotation and rotation ~= 0 and Vector2.new(math.cos(math.rad(rotation + 90)), math.sin(math.rad(rotation + 90))) or FROM_DIR
+	local at = tip + dir * distance
+	cursor.Position = UDim2.fromOffset(at.X, at.Y)
+	cursor.Visible = true
+end
+
+local function hideCursor()
+	cursor.Visible = false
+	ripple.Visible = false
+end
+
+-- Игрок нажал в цель - курсор на миг прячется (дальше решает сервер: шаг
+-- засчитан - курсор переедет к следующей цели).
+UserInputService.InputBegan:Connect(function(input)
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+	local target = uiTarget
+	if not (target and target.Parent) then return end
+	local pos = Vector2.new(input.Position.X, input.Position.Y)
+	local a, size = target.AbsolutePosition, target.AbsoluteSize
+	if pos.X >= a.X and pos.Y >= a.Y and pos.X <= a.X + size.X and pos.Y <= a.Y + size.Y then
+		pausedUntil = os.clock() + 1.5
+		hideCursor()
+	end
+end)
+
 RunService.RenderStepped:Connect(function(dt)
-	local active = gui.Enabled and current ~= nil and gateOpen() and current.Phase ~= "Hint"
+	local active = gui.Enabled and current ~= nil and gateOpen() and current.Phase == "Task"
 	nudgeBoost = math.max(0, nudgeBoost - dt * 0.4)
-	if not active then
-		spot.Enabled = false
-		if pointer then pointer.Visible = false end
+	if not active or os.clock() < pausedUntil then
+		hideCursor()
 		return
 	end
 	-- цель интерфейса (переискиваем 4 раза в секунду)
@@ -769,37 +874,49 @@ RunService.RenderStepped:Connect(function(dt)
 		uiTarget = current.UiTargets and TutorialTarget.Find(current.UiTargets) or nil
 	end
 	if uiTarget and uiTarget.Parent and TutorialTarget.Shown(uiTarget) then
-		spot.Enabled = current.Phase == "Task" or current.Phase == "Lines"
-		local center, size = placeSpot(uiTarget)
-		pointerAt(center + Vector2.new(size.X * 0.15, size.Y * 0.15), 0, true)
+		-- AbsolutePosition у всех ScreenGui в одном пространстве (от низа
+		-- топбара Roblox); вычитаем начало своего слоя - и точка совпадает при
+		-- любых IgnoreGuiInset/ScreenInsets (вырез на телефоне, топбар).
+		-- Точка тапа - чуть правее и ниже центра кнопки (подпись не закрываем).
+		local target = uiTarget.AbsolutePosition + uiTarget.AbsoluteSize * Vector2.new(0.55, 0.6) - cursorLayer.AbsolutePosition
+		tapAt(target, 0)
 		return
 	end
-	spot.Enabled = false
 	-- цель в мире
 	local position = targetPosition(currentTarget)
 	local camera = workspace.CurrentCamera
-	if not (position and camera) or current.Phase ~= "Task" then
-		if pointer then pointer.Visible = false end
+	if not (position and camera) then
+		hideCursor()
 		return
 	end
-	local screen, onScreen = camera:WorldToViewportPoint(position + Vector3.new(0, 3.5, 0))
+	local screen = camera:WorldToViewportPoint(position + Vector3.new(0, 3.5, 0))
 	local view = camera.ViewportSize
-	if onScreen and screen.Z > 0 then
-		pointerAt(Vector2.new(screen.X, screen.Y), 0, false)
+	local margin = 70
+	local inside = screen.Z > 0 and screen.X > margin * 0.5 and screen.X < view.X - margin * 0.5
+		and screen.Y > margin * 0.5 and screen.Y < view.Y - margin * 0.5
+	if inside then
+		tapAt(Vector2.new(screen.X, screen.Y), 0)
 	else
-		-- за краем: стрелка у края, острие в сторону цели
+		-- за краем: курсор у края, палец в сторону цели
 		local center = view / 2
 		local dir = Vector2.new(screen.X, screen.Y) - center
 		if screen.Z < 0 then dir = -dir end
 		if dir.Magnitude < 1 then dir = Vector2.new(0, -1) end
 		dir = dir.Unit
-		local margin = 70
 		local scaleX = (view.X / 2 - margin) / math.max(0.001, math.abs(dir.X))
 		local scaleY = (view.Y / 2 - margin) / math.max(0.001, math.abs(dir.Y))
 		local edge = center + dir * math.min(scaleX, scaleY)
-		-- картинка острием в левый верх (-135°), поворачиваем на цель
-		local angle = math.deg(math.atan2(dir.Y, dir.X)) + 135
-		pointerAt(edge, angle, false)
+		-- палец смотрит вверх (0°) - поворачиваем к цели
+		local angle = math.deg(math.atan2(dir.Y, dir.X)) + 90
+		local size = cursorSize()
+		local bob = math.abs(math.sin(os.clock() * 4)) * 10
+		cursor.Size = UDim2.fromOffset(size, size)
+		cursor.Rotation = angle
+		cursorScale.Scale = 1
+		local at = edge - dir * bob
+		cursor.Position = UDim2.fromOffset(at.X, at.Y)
+		cursor.Visible = true
+		ripple.Visible = false
 	end
 end)
 

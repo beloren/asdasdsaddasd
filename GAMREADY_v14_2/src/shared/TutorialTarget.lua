@@ -42,7 +42,21 @@ local function shown(gui)
 		node = node.Parent
 	end
 	local size = gui.AbsoluteSize
-	return size.X > 4 and size.Y > 4
+	if not (size.X > 4 and size.Y > 4) then return false end
+	-- v20.115: центр элемента не обрезан родителями (прокрутка списка,
+	-- ClipsDescendants) - иначе курсор показывал бы в пустоту.
+	local center = gui.AbsolutePosition + size / 2
+	local parent = gui.Parent
+	while parent and not parent:IsA("LayerCollector") do
+		if parent:IsA("GuiObject") and (parent.ClipsDescendants or parent:IsA("ScrollingFrame")) then
+			local a, s = parent.AbsolutePosition, parent.AbsoluteSize
+			if center.X < a.X or center.Y < a.Y or center.X > a.X + s.X or center.Y > a.Y + s.Y then
+				return false
+			end
+		end
+		parent = parent.Parent
+	end
+	return true
 end
 TutorialTarget.Shown = shown
 

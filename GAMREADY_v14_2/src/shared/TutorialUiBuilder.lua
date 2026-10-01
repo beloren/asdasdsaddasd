@@ -131,8 +131,9 @@ function TutorialUiBuilder.Build(narrow)
 	advance.ZIndex = 8
 	advance.Parent = dialog
 
-	-- v20.110: УКАЗАТЕЛЬ. Замени картинку своим курсором (Image); острие
-	-- картинки - в ЛЕВОМ ВЕРХНЕМ углу (как у курсора мыши).
+	-- v20.110: УКАЗАТЕЛЬ. Замени картинку своим курсором (Image) - клиент
+	-- берёт её для курсора, который «тапает» в нужную кнопку (v20.115).
+	-- Где на картинке остриё - Config.Tutorial.PointerTip.
 	local pointer = Instance.new("ImageLabel")
 	pointer.Name = "Pointer"
 	pointer.BackgroundTransparency = 1
