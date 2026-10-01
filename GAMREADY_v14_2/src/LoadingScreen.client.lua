@@ -285,18 +285,28 @@ task.spawn(function()
 			task.wait(0.1)
 		end
 		target = 0.55
+		-- v20.123: ПРЕДЗАГРУЗКА НИКОГДА НЕ БЛОКИРУЕТ СТАРТ. PreloadAsync может
+		-- висеть очень долго на ассете, который не грузится (приватный звук/
+		-- анимация, удалённый id) - из-за этого загрузка была «бесконечной»,
+		-- а катсцена проигрывалась под экраном. Теперь грузим в фоне и ждём
+		-- не дольше Config.Loading.CriticalWaitSeconds (по умолчанию 3 с).
 		if not skipped then
 			local list, seen = {}, {}
 			if rig then collect(rig, list, seen) end
 			if saves then collect(saves, list, seen) end
 			table.insert(list, logo)
-			local total, done = math.max(1, #list), 0
-			for index = 1, #list, 30 do
-				if skipped then break end
-				local batch = table.move(list, index, math.min(index + 29, #list), 1, {})
-				pcall(ContentProvider.PreloadAsync, ContentProvider, batch)
-				done += #batch
-				target = 0.55 + 0.45 * done / total
+			local total, done, finished = math.max(1, #list), 0, false
+			task.spawn(function()
+				pcall(ContentProvider.PreloadAsync, ContentProvider, list, function()
+					done += 1
+				end)
+				finished = true
+			end)
+			local cap = math.clamp(tonumber(loading.CriticalWaitSeconds) or 3, 0, 6)
+			local preloadStarted = os.clock()
+			while not finished and not skipped and os.clock() - preloadStarted < cap do
+				target = 0.55 + 0.45 * math.min(1, done / total, (os.clock() - preloadStarted) / math.max(0.1, cap))
+				task.wait(0.05)
 			end
 		end
 		target = 1
@@ -309,7 +319,8 @@ task.spawn(function()
 		local waitStart = os.clock()
 		while player:GetAttribute("CutsceneStarted") ~= true
 			and player:GetAttribute("IntroFailed") ~= true
-			and os.clock() - waitStart < 25 do
+			and player:GetAttribute("IntroActive") ~= false
+			and os.clock() - waitStart < 20 do
 			task.wait(0.05)
 		end
 		closeScreen()
@@ -324,9 +335,9 @@ task.spawn(function()
 end)
 
 -- Страховка: что бы ни случилось, флаг выставится и экран уйдёт.
-task.delay(40, function()
+task.delay(20, function()
 	if player:GetAttribute("AssetsLoaded") ~= true then
-		warn("[LoadingScreen] AssetsLoaded не выставлен за 40 с - выставляю принудительно.")
+		warn("[LoadingScreen] AssetsLoaded не выставлен за 20 с - выставляю принудительно.")
 		finalize()
 		pcall(function() screenGui:Destroy() end)
 	end

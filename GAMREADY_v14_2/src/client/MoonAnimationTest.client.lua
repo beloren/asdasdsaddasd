@@ -406,7 +406,7 @@ task.spawn(function()
     -- запуска скрипта: раньше 12 с истекали, пока шла загрузка/стриминг рига,
     -- и интро обрывалось, так и не показав катсцену.
     local loadWait = os.clock()
-    while player:GetAttribute("AssetsLoaded") ~= true and os.clock() - loadWait < 40 and not introEnded do
+    while player:GetAttribute("AssetsLoaded") ~= true and os.clock() - loadWait < 25 and not introEnded do
         task.wait(0.25)
     end
     local startedAt = os.clock()
@@ -873,9 +873,19 @@ local function playAnimation()
     logoSound.Name = "IntroLogoSound"
     logoSound.SoundId = LOGO_SOUND_ID
     logoSound.Parent = SoundService
-    pcall(function()
-        ContentProvider:PreloadAsync({activeSound, logoSound, logo})
+    -- v20.123: не блокируем старт сцены - PreloadAsync мог висеть вечно на
+    -- недоступном звуке, и катсцена так и не начиналась. Ждём максимум 2 с.
+    local preloaded = false
+    task.spawn(function()
+        pcall(function()
+            ContentProvider:PreloadAsync({activeSound, logoSound, logo})
+        end)
+        preloaded = true
     end)
+    local preloadStarted = os.clock()
+    while not preloaded and os.clock() - preloadStarted < 2 do
+        task.wait(0.05)
+    end
 
     activePlayer.Ended:Connect(function()
         task.spawn(function()
@@ -934,7 +944,7 @@ task.spawn(function()
     -- уже было отключено выше. Отсюда и брался обездвиженный игрок.
     -- По истечении таймаута просто идём дальше: интро либо отработает, либо
     -- честно свалится в failIntro, и в обоих случаях управление вернётся.
-    local ASSETS_WAIT_TIMEOUT = 30 -- v20.121: загрузка короткая (только катсцена)
+    local ASSETS_WAIT_TIMEOUT = 22 -- v20.123: загрузка не дольше ~20 с (страховка LoadingScreen)
     local waitStarted = os.clock()
     while player:GetAttribute("AssetsLoaded") ~= true
         and os.clock() - waitStarted < ASSETS_WAIT_TIMEOUT do
