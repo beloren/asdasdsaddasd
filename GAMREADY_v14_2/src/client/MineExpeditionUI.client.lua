@@ -1617,6 +1617,13 @@ stateRemote.OnClientEvent:Connect(function(stage, data)
 			task.delay(0.75, stopArcVisual)
 		end
 
+	elseif stage == "OreReveal" and typeof(data) == "table" then
+		-- v20.111: «момент» редкой руды при вылете по редкости
+		local rank = tonumber(data.Rank) or 1
+		UiSfxLazy(rank >= 5 and "MineModifierReveal" or "UiConfirm")
+		if rank >= 4 then cameraShake(rank >= 5 and 0.35 or 0.18, rank >= 5 and 0.5 or 0.3) end
+		if rank >= 5 and typeof(data.Color) == "Color3" then screenFlash(data.Color, 0.45) end
+		if rank >= 3 then fovKick(rank >= 5 and -8 or -4, 0.3) end
 	elseif stage == "RarityCard" then
 		stopArcVisual()
 		if data.Reel then

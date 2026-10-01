@@ -2126,6 +2126,47 @@ end
 -- передаёт: "шахта выплёвывает руду" — это буквально шахта, у брошенного
 -- рукой куска источник совсем другой, натягивать на него ту же метафору
 -- было бы уместно только совпадением, а не по смыслу запроса.
+-- v20.111: КОМЬЯ ЗЕМЛИ ИЗ СТАДОВ И КАМЕШКИ на приземлении куска.
+local function landingDebris(position, unit)
+	local cfg = Config.MineExpedition
+	local dirtColor = cfg.LandingDirtColor or Color3.fromRGB(120, 85, 55)
+	local count = (cfg.LandingDirtCubes or 6) + (cfg.LandingPebbles or 4)
+	for i = 1, count do
+		local pebble = i > (cfg.LandingDirtCubes or 6)
+		local size = (pebble and 0.25 or 0.4) * math.clamp(unit, 1, 4) * (0.6 + math.random() * 0.6)
+		local cube = Instance.new("Part")
+		cube.Name = pebble and "LandingPebble" or "LandingDirt"
+		cube.Size = Vector3.new(size, size, size)
+		cube.Color = pebble and Color3.fromRGB(125, 125, 130):Lerp(Color3.new(0, 0, 0), math.random() * 0.3)
+			or dirtColor:Lerp(Color3.new(0, 0, 0), math.random() * 0.25)
+		cube.Material = pebble and Enum.Material.Slate or Enum.Material.SmoothPlastic
+		cube.TopSurface = pebble and Enum.SurfaceType.Smooth or Enum.SurfaceType.Studs
+		cube.Anchored = true
+		cube.CanCollide = false
+		cube.CanQuery = false
+		cube.CanTouch = false
+		cube.CastShadow = false
+		local start = position + Vector3.new(0, size / 2, 0)
+		cube.CFrame = CFrame.new(start) * CFrame.Angles(math.random() * 6, math.random() * 6, math.random() * 6)
+		cube.Parent = workspace
+		local angle = math.random() * math.pi * 2
+		local distance = (pebble and 2.5 or 1.6) * math.clamp(unit, 1, 4) * (0.6 + math.random() * 0.8)
+		local landing = position + Vector3.new(math.cos(angle) * distance, size / 2, math.sin(angle) * distance)
+		local apex = (start + landing) / 2 + Vector3.new(0, (pebble and 1.8 or 1.1) * math.clamp(unit, 1, 4), 0)
+		task.spawn(function()
+			local up = TweenService:Create(cube, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = apex })
+			up:Play()
+			up.Completed:Wait()
+			local down = TweenService:Create(cube, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Position = landing })
+			down:Play()
+			down.Completed:Wait()
+			task.wait(0.35 + math.random() * 0.3)
+			TweenService:Create(cube, TweenInfo.new(0.35), { Transparency = 1, Size = cube.Size * 0.3 }):Play()
+		end)
+		Debris:AddItem(cube, 1.6)
+	end
+end
+
 local function flyOre(crystal, fromPos, toPos, seconds, arcHeight, spitPop)
 	local root = CrystalUtil.GetRoot(crystal)
 	if not root then return end
@@ -2343,16 +2384,25 @@ local function flyOre(crystal, fromPos, toPos, seconds, arcHeight, spitPop)
 		dust:Emit(14)
 		Debris:AddItem(dustAttachment, 1.2)
 
-		local impactSeconds = cfg.LandingSquashSeconds or 0.26
+		local impactSeconds = cfg.LandingSquashSeconds or 0.26 -- v20.111: ниже растёт на отскоки
 		-- ЧЕТЫРЕ фазы вместо трёх: добавлен затухающий ВТОРОЙ отскок.
 		-- Один отскок читается как "пружина", два затухающих — как
 		-- предмет с массой, который наконец улёгся.
+		-- v20.111: отскоки выше (Config.MineExpedition.LandingHops - доли
+		-- размера куска) + облачко земли из стадов и камешки.
+		local hops = cfg.LandingHops or { 0.9, 0.35 }
+		local unit = math.max(baseSize.X, baseSize.Y, baseSize.Z)
+		local hop1 = (hops[1] or 0.45) * unit
+		local hop2 = (hops[2] or 0.12) * unit
+		if hop1 > 0.6 then impactSeconds = impactSeconds + 0.35 end
 		local phases = {
-			{ Factor = 0.62, Portion = 0.24, Hop = 0.0 },  -- сплющился об землю
-			{ Factor = 1.14, Portion = 0.28, Hop = 0.45 }, -- отскочил вытянувшись
-			{ Factor = 0.88, Portion = 0.24, Hop = 0.12 }, -- второй, слабый отскок
-			{ Factor = 1.0,  Portion = 0.24, Hop = 0.0 },  -- улёгся
+			{ Factor = 0.62, Portion = 0.16, Hop = 0.0 },  -- сплющился об землю
+			{ Factor = 1.14, Portion = 0.30, Hop = hop1 }, -- отскочил вытянувшись
+			{ Factor = 0.80, Portion = 0.16, Hop = 0.0 },  -- снова об землю
+			{ Factor = 1.06, Portion = 0.22, Hop = hop2 }, -- второй, слабый отскок
+			{ Factor = 1.0,  Portion = 0.16, Hop = 0.0 },  -- улёгся
 		}
+		pcall(landingDebris, toPos, unit)
 		local fromFactor = 1.2
 		local fromHop = 0
 		for _, phase in phases do
@@ -2678,6 +2728,65 @@ function MineService:_preRoll(player, expedition)
 	end
 	expedition.PreRolled = rolled
 	return rolled
+end
+
+-- v20.111: «МОМЕНТ» РЕДКОЙ РУДЫ при вылете по редкости: столб света и
+-- искры цветом редкости, надпись редкости над куском (Legendary+), клиенту -
+-- тряска камеры/вспышка экрана/звук (MineExpeditionUI → "OreReveal").
+function MineService:_dramaReveal(player, crystal)
+	if not (crystal and crystal.Parent) then return end
+	local cfg = Config.MineExpedition
+	local rarity = crystal:GetAttribute("CrystalRarity") or "Common"
+	local order = Config.RarityOrder
+	local rank = table.find(order, rarity) or 1
+	local color = Config.RarityColors[rarity] or Color3.new(1, 1, 1)
+	local root = CrystalUtil.GetRoot(crystal)
+	if not root then return end
+	-- свет
+	local light = Instance.new("PointLight")
+	light.Name = "DramaLight"
+	light.Color = color
+	light.Brightness = 2 + rank
+	light.Range = 10 + rank * 3
+	light.Parent = root
+	TweenService:Create(light, TweenInfo.new(2.2), { Brightness = 0 }):Play()
+	Debris:AddItem(light, 2.4)
+	-- искры / лучи из Assets/VFX
+	local okVfx, AssetVfx = pcall(require, ReplicatedStorage.Shared.AssetVfx)
+	if okVfx and AssetVfx then
+		pcall(AssetVfx.PlayAt, rank >= 5 and "OpenVFX" or "Sparkles", root.Position, { Color = color, Duration = 2.2, Fallback = "Sparkles" })
+	end
+	-- надпись редкости
+	local labelRank = table.find(order, cfg.DramaLabelRarity or "Legendary") or 5
+	if rank >= labelRank then
+		local gui = Instance.new("BillboardGui")
+		gui.Name = "DramaRarity"
+		gui.Size = UDim2.new(8, 0, 2, 0)
+		gui.StudsOffset = Vector3.new(0, 8, 0)
+		gui.AlwaysOnTop = true
+		gui.LightInfluence = 0
+		gui.MaxDistance = 200
+		gui.Adornee = root
+		gui.Parent = root
+		local label = WorldUi.Text(nil, "Text", "Heading")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.TextScaled = true
+		label.Text = rarity:upper() .. "!"
+		label.TextColor3 = color
+		label.Parent = gui
+		local scale = Instance.new("UIScale")
+		scale.Scale = 0.2
+		scale.Parent = label
+		TweenService:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		task.delay(2.4, function()
+			if label.Parent then TweenService:Create(label, TweenInfo.new(0.4), { TextTransparency = 1 }):Play() end
+		end)
+		Debris:AddItem(gui, 3)
+	end
+	if stateRemote then
+		stateRemote:FireClient(player, "OreReveal", { Rarity = rarity, Rank = rank, Color = color, Position = root.Position })
+	end
 end
 
 function MineService:_ejectOre(player, expedition)
@@ -3016,6 +3125,69 @@ function MineService:_ejectOre(player, expedition)
 	-- параллельных task.delay с накопленными смещениями — по прямому
 	-- запросу таймингов ("по таймингам беда") тут нужна предсказуемая,
 	-- ЛИНЕЙНАЯ очередь, а не куча независимо тикающих таймеров.
+	-- v20.111: ВЫЛЕТ ПО РЕДКОСТИ (Config.MineExpedition.RarityOrderEject).
+	-- Обычные - быстрой пачкой и сразу раскрываются; редкие - последними,
+	-- по одной, от менее редкой к самой редкой, каждая со своим «моментом».
+	if cfg.RarityOrderEject ~= false then
+		local order = Config.RarityOrder
+		local function rank(entry)
+			return table.find(order, entry.Crystal:GetAttribute("CrystalRarity") or "Common") or 1
+		end
+		local dramaRank = table.find(order, cfg.DramaRarity or "Rare") or 3
+		local quick, drama = {}, {}
+		for i, entry in rolled do
+			if rank(entry) >= dramaRank or (i == 1 and cfg.DramaAlwaysLast ~= false) then
+				table.insert(drama, entry)
+			else
+				table.insert(quick, entry)
+			end
+		end
+		-- от менее редкой к самой редкой (rolled отсортирован по убыванию)
+		table.sort(drama, function(x, y)
+			local rx, ry = rank(x), rank(y)
+			if rx ~= ry then return rx < ry end
+			return x.OreInfo.Index < y.OreInfo.Index
+		end)
+		task.spawn(function()
+			task.wait((cfg.MineBurstSeconds or 0.45) + 0.1)
+			local released = {}
+			for _, entry in quick do
+				if expeditions[player] ~= expedition then
+					if entry.Crystal and entry.Crystal.Parent then entry.Crystal:Destroy() end
+					continue
+				end
+				local piece = ejectPiece(entry)
+				if piece then table.insert(released, piece) end
+				task.wait(cfg.QuickStaggerSeconds or 0.12)
+			end
+			if #released > 0 then
+				task.wait(cfg.EjectFlightSeconds + 0.25)
+				for _, piece in released do
+					revealPiece(piece)
+					task.wait(0.04)
+				end
+			end
+			for _, entry in drama do
+				if expeditions[player] ~= expedition then
+					if entry.Crystal and entry.Crystal.Parent then entry.Crystal:Destroy() end
+					continue
+				end
+				task.wait(cfg.DramaPauseSeconds or 0.9)
+				local piece = ejectPiece(entry)
+				task.wait(cfg.EjectFlightSeconds + 0.35)
+				if piece then
+					revealPiece(piece)
+					pcall(self._dramaReveal, self, player, piece.Crystal)
+				end
+			end
+			task.wait(cfg.RevealTweenSeconds + 0.9)
+			if expeditions[player] == expedition then
+				self:_finishExpedition(player, expedition)
+			end
+		end)
+		return
+	end
+
 	local batches = { { rolled[1] } }
 	local index = 2
 	local pair = {}

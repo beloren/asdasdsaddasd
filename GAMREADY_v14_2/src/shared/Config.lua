@@ -1163,6 +1163,24 @@ Config.MineExpedition = {
 	CameraDiveSeconds = 0.9,
 	BatchGapSeconds = 2,
 	WaveSize = 3,
+	-- v20.111: ВЫЛЕТ ПО РЕДКОСТИ (Б). Обычная руда высыпается быстро одной
+	-- пачкой (шаг QuickStaggerSeconds) и раскрывается сразу; руда редкости
+	-- DramaRarity и выше вылетает ПОСЛЕДНЕЙ, по одной, от менее редкой к
+	-- самой редкой: пауза DramaPauseSeconds, вылет, приземление, вспышка
+	-- цветом редкости, звук; Epic+ - тряска камеры, Legendary+ - лучи и
+	-- надпись редкости над куском, вспышка экрана. false - старый порядок.
+	RarityOrderEject = true,
+	DramaRarity = "Rare",
+	DramaAlwaysLast = true,     -- самая редкая руда пачки - всегда финал, даже Common
+	QuickStaggerSeconds = 0.12,
+	DramaPauseSeconds = 0.9,
+	DramaLabelRarity = "Legendary",
+	-- v20.111: ПРИЗЕМЛЕНИЕ (В): 1-2 настоящих отскока (высота в долях
+	-- размера куска), облачко земли из стадов и мелкие камешки.
+	LandingHops = { 0.9, 0.35 },
+	LandingDirtCubes = 6,
+	LandingPebbles = 4,
+	LandingDirtColor = Color3.fromRGB(120, 85, 55),
 	-- ПО ПРЯМОМУ ЗАПРОСУ ("сильнее раскидывались", "появлялись сто
 	-- процентов на земле", "крутились на месте когда выпали", "будто мячи
 	-- волейбольные с трейлом") — дуга выше и дальше, разброс намного шире,
