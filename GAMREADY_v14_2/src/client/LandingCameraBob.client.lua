@@ -1,5 +1,6 @@
 --------------------------------------------------------------------------------
 -- LandingCameraBob (LocalScript) v17 — камера «пружинит» при приземлении.
+-- v20.113: и при прыжке; без наклона вперёд (только вертикаль).
 --
 -- После прыжка или падения камера коротко проседает вниз и мягко
 -- возвращается, с одним небольшим перелётом вверх. Амплитуда маленькая и
@@ -28,7 +29,9 @@ local MIN_FALL = CFG.MinFallSpeed or 14
 local FULL_FALL = CFG.FullFallSpeed or 55
 local KICK = CFG.KickVelocity or 6.5
 local MAX_SCALE = CFG.MaxScale or 1.7
-local PITCH = math.rad(CFG.PitchDegrees or 1.2)
+local PITCH = math.rad(CFG.PitchDegrees or 0)
+local JUMP_KICK = CFG.JumpKickVelocity or 0
+local MAX_OFFSET = CFG.MaxOffset or 1.6
 
 local offset, velocity = 0, 0 -- студы по вертикали (минус — вниз)
 local peakFallSpeed = 0
@@ -56,6 +59,8 @@ local function watchCharacter(character)
 			velocity = math.min(velocity, -KICK * scale)
 		elseif new == Enum.HumanoidStateType.Jumping then
 			peakFallSpeed = 0
+			-- v20.113: отскок при прыжке - камера отстаёт вниз и догоняет.
+			if JUMP_KICK > 0 then velocity = math.min(velocity, -JUMP_KICK) end
 		end
 	end)
 	character.AncestryChanged:Connect(function(_, parent)
@@ -78,6 +83,10 @@ RunService:BindToRenderStep("LandingCameraBob", Enum.RenderPriority.Camera.Value
 	local accel = -STIFFNESS * offset - DAMPING * velocity
 	velocity += accel * dt
 	offset += velocity * dt
+	if math.abs(offset) > MAX_OFFSET then
+		offset = math.clamp(offset, -MAX_OFFSET, MAX_OFFSET)
+		velocity = 0
+	end
 	if math.abs(offset) < 1e-4 and math.abs(velocity) < 1e-3 then
 		offset, velocity = 0, 0
 	end
@@ -95,8 +104,10 @@ RunService:BindToRenderStep("LandingCameraBob", Enum.RenderPriority.Camera.Value
 
 	-- Вниз по мировой вертикали + лёгкий кивок камеры.
 	local worldShift = CFrame.new(0, offset, 0)
-	local pitch = CFrame.Angles(math.clamp(offset, -1, 1) * PITCH / 0.3, 0, 0)
-	local target = (worldShift * base) * pitch
+	local target = worldShift * base
+	if PITCH ~= 0 then
+		target *= CFrame.Angles(math.clamp(offset, -1, 1) * PITCH / 0.3, 0, 0)
+	end
 	writtenOffset = base:Inverse() * target
 	camera.CFrame = target
 	written = target
