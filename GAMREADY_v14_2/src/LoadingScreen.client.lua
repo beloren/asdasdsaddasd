@@ -1,45 +1,34 @@
+--------------------------------------------------------------------------------
+-- LoadingScreen (ReplicatedFirst) v20.120 — ЗАГРУЗОЧНЫЙ ЭКРАН ПЕРЕД КАТСЦЕНОЙ.
+--
+-- Порядок входа: этот экран грузит ВСЁ (модели и эффекты Assets, все
+-- анимации, картинки, декали, текстуры, частицы/VFX, звуки, мир, айди из
+-- Config) с полосой прогресса → ждёт, пока появятся риг и сцена катсцены →
+-- ставит атрибут AssetsLoaded → катсцена (MoonAnimationTest) стартует на
+-- уже загруженном → экран гаснет, когда сцена реально пошла → после
+-- катсцены игрок попадает в игру как раньше.
+--
+-- Отказоустойчивость: любая ошибка логируется, AssetsLoaded выставляется
+-- всё равно, общий потолок - Config.Loading.MaxSeconds (по умолчанию 60).
+--------------------------------------------------------------------------------
 local ContentProvider = game:GetService("ContentProvider")
 local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-
--- ЗАГРУЗОЧНЫЙ ЭКРАН УБРАН ПО ЗАПРОСУ ("убери загрузку в самом начале с
--- зелёной полосой, катсцена будет самая первая при заходе в игру").
---
--- Что именно убрано: логотип по центру, полоса прогресса с зелёным
--- градиентом и вся её анимация. Что ОСТАЛОСЬ и почему это нельзя было
--- удалить вместе с картинкой:
---
---  1) Предзагрузка ассетов (ContentProvider:PreloadAsync ниже). Без неё
---     катсцена стартует на непрогруженных текстурах и звуках.
---  2) Атрибут AssetsLoaded. По нему катсцена и ЗАПУСКАЕТСЯ
---     (см. MoonAnimationTest.client.lua) — снеси этот скрипт целиком, и
---     катсцены не будет вообще.
---  3) Чёрная заливка на весь экран. Чёрный слой самой катсцены создаётся
---     ПРОЗРАЧНЫМ (BlackLayer.BackgroundTransparency = 1), так что без этой
---     заливки игрок несколько секунд смотрел бы на игровой мир ДО начала
---     катсцены — ровно то, чего просили избежать.
---
--- Итог для игрока: заходит → чернота → сразу катсцена. Никакой "загрузки"
--- с полосой он больше не видит.
--- MAX_PRELOAD_TIME убран: предзагрузка больше не блокирует запуск и ждать
--- её завершения не нужно (см. Config.Loading и комментарий у PreloadAsync
--- ниже). Оставлять константу, которая больше ни на что не влияет, вреднее,
--- чем удалить: следующий читатель решит, что лимит всё ещё работает.
+local RunService = game:GetService("RunService")
 
 ReplicatedFirst:RemoveDefaultLoadingScreen()
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
--- ReplicatedFirst is the only owner of the loading UI. Remove stale loading
--- screens left in StarterGui by older versions before drawing this one.
 for _, child in playerGui:GetChildren() do
-	if child.Name == "PreloadScreen" or child.Name == "LoadingScreen" then
-		child:Destroy()
-	end
+	if child.Name == "PreloadScreen" or child.Name == "LoadingScreen" then child:Destroy() end
 end
 
+--------------------------------------------------------------------------------
+-- ЭКРАН
+--------------------------------------------------------------------------------
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "LoadingScreen"
 screenGui.ResetOnSpawn = false
@@ -51,189 +40,271 @@ screenGui.SafeAreaCompatibility = Enum.SafeAreaCompatibility.FullscreenExtension
 screenGui.Parent = playerGui
 
 local staleScreenConnection = playerGui.ChildAdded:Connect(function(child)
-	if child ~= screenGui and (child.Name == "PreloadScreen" or child.Name == "LoadingScreen") then
-		child:Destroy()
-	end
+	if child ~= screenGui and (child.Name == "PreloadScreen" or child.Name == "LoadingScreen") then child:Destroy() end
 end)
 
 local background = Instance.new("CanvasGroup")
 background.Name = "Background"
 background.AnchorPoint = Vector2.new(0.5, 0.5)
 background.Position = UDim2.fromScale(0.5, 0.5)
-background.Size = UDim2.fromScale(1, 1)
-background.BackgroundColor3 = Color3.new(0, 0, 0)
+background.Size = UDim2.new(1, 400, 1, 400)
+background.BackgroundColor3 = Color3.fromRGB(10, 8, 18)
 background.BorderSizePixel = 0
 background.Parent = screenGui
 
-local blackOverscan = Instance.new("Frame")
-blackOverscan.Name = "BlackOverscan"
-blackOverscan.AnchorPoint = Vector2.new(0.5, 0.5)
-blackOverscan.Position = UDim2.fromScale(0.5, 0.5)
-blackOverscan.Size = UDim2.new(1, 400, 1, 400)
-blackOverscan.BackgroundColor3 = Color3.new(0, 0, 0)
-blackOverscan.BorderSizePixel = 0
-blackOverscan.Parent = background
+local gradient = Instance.new("UIGradient")
+gradient.Rotation = 90
+gradient.Color = ColorSequence.new(Color3.fromRGB(30, 22, 52), Color3.fromRGB(6, 5, 12))
+gradient.Parent = background
 
--- Ключи, суффикс которых однозначно указывает на "голое число = айди ассета"
--- (см. Config.lua: CloseButtonImageId, HintImageId, OwnedImageId, TrailTextureId и т.п.)
-local RAW_ID_KEY_SUFFIXES = {
-	"ImageId",
-	"IconId",
-	"TextureId",
-	"MeshId",
-	"SoundId",
-	"AnimationId",
+local center = Instance.new("Frame")
+center.Name = "Center"
+center.AnchorPoint = Vector2.new(0.5, 0.5)
+center.Position = UDim2.fromScale(0.5, 0.5)
+center.Size = UDim2.fromOffset(460, 220)
+center.BackgroundTransparency = 1
+center.Parent = background
+local centerLimit = Instance.new("UISizeConstraint")
+centerLimit.MaxSize = Vector2.new(460, 220)
+centerLimit.Parent = center
+local centerScale = Instance.new("UIScale")
+centerScale.Parent = center
+
+local logo = Instance.new("ImageLabel")
+logo.Name = "Logo"
+logo.AnchorPoint = Vector2.new(0.5, 0)
+logo.Position = UDim2.fromScale(0.5, 0)
+logo.Size = UDim2.fromOffset(110, 110)
+logo.BackgroundTransparency = 1
+logo.ScaleType = Enum.ScaleType.Fit
+logo.Parent = center
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.AnchorPoint = Vector2.new(0.5, 0)
+title.Position = UDim2.new(0.5, 0, 0, 116)
+title.Size = UDim2.new(1, 0, 0, 34)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.FredokaOne
+title.TextScaled = true
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Text = "LOADING..."
+title.Parent = center
+local titleStroke = Instance.new("UIStroke")
+titleStroke.Thickness = 3
+titleStroke.Color = Color3.fromRGB(20, 10, 30)
+titleStroke.Parent = title
+
+local barBack = Instance.new("Frame")
+barBack.Name = "Bar"
+barBack.AnchorPoint = Vector2.new(0.5, 0)
+barBack.Position = UDim2.new(0.5, 0, 0, 160)
+barBack.Size = UDim2.new(1, -20, 0, 26)
+barBack.BackgroundColor3 = Color3.fromRGB(30, 26, 44)
+barBack.BorderSizePixel = 0
+barBack.Parent = center
+Instance.new("UICorner", barBack).CornerRadius = UDim.new(1, 0)
+local barStroke = Instance.new("UIStroke")
+barStroke.Thickness = 3
+barStroke.Color = Color3.fromRGB(10, 8, 18)
+barStroke.Parent = barBack
+local barFill = Instance.new("Frame")
+barFill.Name = "Fill"
+barFill.Size = UDim2.fromScale(0, 1)
+barFill.BackgroundColor3 = Color3.fromRGB(255, 205, 70)
+barFill.BorderSizePixel = 0
+barFill.Parent = barBack
+Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
+local fillGradient = Instance.new("UIGradient")
+fillGradient.Rotation = 90
+fillGradient.Color = ColorSequence.new(Color3.fromRGB(255, 235, 140), Color3.fromRGB(255, 160, 40))
+fillGradient.Parent = barFill
+
+local percent = Instance.new("TextLabel")
+percent.Name = "Percent"
+percent.AnchorPoint = Vector2.new(0.5, 0)
+percent.Position = UDim2.new(0.5, 0, 0, 192)
+percent.Size = UDim2.new(1, 0, 0, 24)
+percent.BackgroundTransparency = 1
+percent.Font = Enum.Font.GothamBold
+percent.TextScaled = true
+percent.TextColor3 = Color3.fromRGB(200, 190, 230)
+percent.Text = "0%"
+percent.Parent = center
+
+local function fitScale()
+	local camera = workspace.CurrentCamera
+	local view = camera and camera.ViewportSize or Vector2.new(1280, 720)
+	centerScale.Scale = math.clamp(math.min(view.X / 520, view.Y / 320), 0.55, 1.2)
+end
+fitScale()
+
+local shown, target = 0, 0
+local stage = "LOADING..."
+local renderConnection = RunService.RenderStepped:Connect(function(dt)
+	shown += (target - shown) * math.min(1, dt * 6)
+	barFill.Size = UDim2.fromScale(math.clamp(shown, 0, 1), 1)
+	percent.Text = ("%d%%"):format(math.floor(math.clamp(shown, 0, 1) * 100 + 0.5))
+	local dots = string.rep(".", math.floor(os.clock() * 2) % 4)
+	title.Text = stage .. dots
+	logo.Rotation = math.sin(os.clock() * 2) * 4
+	fitScale()
+end)
+
+--------------------------------------------------------------------------------
+-- ЧТО ГРУЗИМ
+--------------------------------------------------------------------------------
+local CONTENT_CLASSES = {
+	Decal = true, Texture = true, MeshPart = true, SpecialMesh = true, Sound = true, Animation = true,
+	ImageLabel = true, ImageButton = true, ParticleEmitter = true, Beam = true, Trail = true,
+	SurfaceAppearance = true, Sky = true, ShirtGraphic = true, Shirt = true, Pants = true,
+	FileMesh = true, CharacterMesh = true, VideoFrame = true,
 }
 
--- Таблицы, ВСЕ числовые поля которых — голые айди картинок, независимо от
--- имени поля (см. Config.Icons = { Pickaxe = 0, FlyingCoin = 93607959812195, ... }
--- и Config.Cards.CoverIcons = { Mine = 0, Cart = 0, ... } — поля называются по
--- названию ветки, а не заканчиваются на "Id").
-local RAW_ID_PARENT_TABLES = {
-	Icons = true,
-	CoverIcons = true,
-}
+local RAW_ID_KEY_SUFFIXES = { "ImageId", "IconId", "TextureId", "MeshId", "SoundId", "AnimationId", "Image", "Icon" }
+local RAW_ID_PARENT_TABLES = { Icons = true, CoverIcons = true, Images = true, NpcIdleAnimations = true }
 
 local function isRawAssetIdKey(key, parentKey)
-	if typeof(key) ~= "string" then
-		return false
-	end
-	if parentKey and RAW_ID_PARENT_TABLES[parentKey] then
-		return true
-	end
+	if parentKey and RAW_ID_PARENT_TABLES[parentKey] then return true end
+	if typeof(key) ~= "string" then return false end
 	for _, suffix in RAW_ID_KEY_SUFFIXES do
-		if key:sub(-#suffix) == suffix then
-			return true
-		end
+		if key:sub(-#suffix) == suffix then return true end
 	end
 	return false
 end
 
-local function collectConfigAssetIds(source, results, seen, parentKey)
-	if typeof(source) ~= "table" or seen[source] then
-		return
-	end
+local function collectConfigAssetIds(source, results, seen, parentKey, animations)
+	if typeof(source) ~= "table" or seen[source] then return end
 	seen[source] = true
 	for key, value in source do
+		local keyName = typeof(key) == "string" and key or nil
+		local isAnim = (keyName and keyName:find("Animation")) or parentKey == "NpcIdleAnimations"
+		local id = nil
 		if typeof(value) == "string" and value:match("^rbxassetid://%d+$") and value ~= "rbxassetid://0" then
-			table.insert(results, value)
-		elseif typeof(value) == "number" and value ~= 0 and isRawAssetIdKey(key, parentKey) then
-			table.insert(results, "rbxassetid://" .. tostring(value))
+			id = value
+		elseif typeof(value) == "number" and value > 0 and value == math.floor(value) and isRawAssetIdKey(key, parentKey) then
+			id = "rbxassetid://" .. tostring(value)
 		elseif typeof(value) == "table" then
-			collectConfigAssetIds(value, results, seen, typeof(key) == "string" and key or parentKey)
+			collectConfigAssetIds(value, results, seen, keyName or parentKey, animations)
+		end
+		if id then
+			if isAnim then
+				-- анимации грузим как Animation (иначе ключевые кадры не подтянутся)
+				local animation = Instance.new("Animation")
+				animation.AnimationId = id
+				table.insert(animations, animation)
+				table.insert(results, animation)
+			else
+				table.insert(results, id)
+			end
 		end
 	end
 end
 
--- ОТКАЗОУСТОЙЧИВОСТЬ. Тело этого потока раньше не было обёрнуто ни во что:
--- ошибка на ЛЮБОЙ строке до `player:SetAttribute("AssetsLoaded", true)`
--- убивала поток молча, атрибут не выставлялся никогда, и катсцена
--- (MoonAnimationTest) ждала его вечно — уже отключив управление. Игрок
--- оставался стоять на месте без кнопок управления на телефоне, пока не
--- сделает ресет. Теперь любая ошибка логируется, а флаги выставляются в
--- любом случае, чтобы никто вниз по цепочке не завис.
+local function collect(root, list, seen)
+	if not root then return end
+	for _, d in root:GetDescendants() do
+		if CONTENT_CLASSES[d.ClassName] and not seen[d] then
+			seen[d] = true
+			table.insert(list, d)
+		end
+	end
+end
+
 local function finalize()
 	pcall(function() player:SetAttribute("AssetsLoaded", true) end)
 end
 
-task.spawn(function()
-	local ok, err = xpcall(function()
-	if not game:IsLoaded() then
-		game.Loaded:Wait()
-	end
-	local plotWaitStarted = os.clock()
-	-- Было 5 секунд. Участок нужен не катсцене, а игре ПОСЛЕ неё — а она
-	-- начнётся секунд на десять позже, к тому моменту атрибут давно придёт.
-	-- Держать ради него чёрный экран нет причин.
-	while player:GetAttribute("PlotIndex") == nil and os.clock() - plotWaitStarted < 1.5 do
-		task.wait(0.05)
-	end
-	-- BillboardGui участка создаются сервером по очереди. Ждём, пока их число
-	-- перестанет меняться, и только потом делаем снимок game:GetDescendants(),
-	-- который ContentProvider загрузит вместе с картинками и шрифтами внутри.
-	local billboardWaitStarted = os.clock()
-	local stableSince = os.clock()
-	local lastBillboardCount = -1
-	repeat
-		local billboardCount = 0
-		for _, descendant in game:GetDescendants() do
-			if descendant:IsA("BillboardGui") then billboardCount += 1 end
-		end
-		if billboardCount ~= lastBillboardCount then
-			lastBillboardCount = billboardCount
-			stableSince = os.clock()
-		end
-		task.wait(0.05)
-	until os.clock() - stableSince >= 0.35 or os.clock() - billboardWaitStarted >= 1
-
-	local assets = game:GetDescendants()
-	local configModule = ReplicatedStorage:FindFirstChild("Shared")
-	configModule = configModule and configModule:FindFirstChild("Config")
-	if configModule then
-		local ok, config = pcall(require, configModule)
-		if ok then
-			collectConfigAssetIds(config, assets, {})
-		end
-	end
-
-	-- ПРЕДЗАГРУЗКА БОЛЬШЕ НЕ БЛОКИРУЕТ СТАРТ (см. Config.Loading).
-	--
-	-- Раньше здесь стоял цикл ожидания до MAX_PRELOAD_TIME (15 секунд), и
-	-- всё это время игрок смотрел в чёрный экран, ничего не делая. Теперь
-	-- PreloadAsync уходит в фоновый поток и спокойно доигрывает уже ВО ВРЕМЯ
-	-- катсцены — то есть ровно тогда, когда игроку и так есть на что
-	-- смотреть. Ждём только короткое окно CriticalWaitSeconds.
-	--
-	-- Почему это безопасно: ContentProvider не является обязательным
-	-- условием отрисовки. Не успевший загрузиться ассет Roblox дорисует сам,
-	-- как только тот придёт; худшее, что может случиться — первые кадры
-	-- сцены с ещё не подгруженной текстурой. Это несопоставимо дешевле, чем
-	-- 15 секунд черноты, которые игрок видит ГАРАНТИРОВАННО.
-	task.spawn(function()
-		local ok = pcall(function()
-			ContentProvider:PreloadAsync(assets)
-		end)
-		if not ok then
-			warn("[LoadingScreen] Some assets could not be preloaded; continuing startup.")
-		end
-	end)
-
-	local criticalWait = 1.5
-	local loadingConfig = configModule and select(2, pcall(require, configModule))
-	if typeof(loadingConfig) == "table" and typeof(loadingConfig.Loading) == "table" then
-		criticalWait = tonumber(loadingConfig.Loading.CriticalWaitSeconds) or criticalWait
-	end
-	task.wait(math.max(0, criticalWait))
-
-	player:SetAttribute("AssetsLoaded", true)
-
-	while player:GetAttribute("CutsceneStarted") ~= true
-		and player:GetAttribute("IntroFailed") ~= true do
-		task.wait(0.05)
-	end
-
+local function closeScreen()
 	local fade = TweenService:Create(background, TweenInfo.new(0.6), { GroupTransparency = 1 })
 	fade:Play()
 	fade.Completed:Wait()
-	staleScreenConnection:Disconnect()
+	pcall(function() renderConnection:Disconnect() end)
+	pcall(function() staleScreenConnection:Disconnect() end)
 	screenGui:Destroy()
+end
+
+task.spawn(function()
+	local ok, err = xpcall(function()
+		if not game:IsLoaded() then game.Loaded:Wait() end
+		local configModule = ReplicatedStorage:WaitForChild("Shared", 20)
+		configModule = configModule and configModule:WaitForChild("Config", 20)
+		local okConfig, Config = false, nil
+		if configModule then okConfig, Config = pcall(require, configModule) end
+		local loading = (okConfig and typeof(Config) == "table" and Config.Loading) or {}
+		local maxSeconds = tonumber(loading.MaxSeconds) or 60
+		local startedAt = os.clock()
+		local logoId = tonumber(loading.LogoImageId) or 113042882863397
+		if logoId > 0 then logo.Image = "rbxassetid://" .. logoId end
+
+		-- 1) мир и участок успевают прийти
+		stage = "LOADING WORLD"
+		local plotWait = os.clock()
+		while player:GetAttribute("PlotIndex") == nil and os.clock() - plotWait < 4 do task.wait(0.1) end
+		target = 0.05
+
+		-- 2) список: Assets, весь ReplicatedStorage, мир, интерфейс, звуки, айди из Config
+		stage = "LOADING ASSETS"
+		local list, seen, animations = {}, {}, {}
+		collect(ReplicatedStorage, list, seen)
+		collect(workspace, list, seen)
+		collect(playerGui, list, seen)
+		collect(game:GetService("StarterGui"), list, seen)
+		collect(game:GetService("SoundService"), list, seen)
+		collect(game:GetService("Lighting"), list, seen)
+		if okConfig then pcall(collectConfigAssetIds, Config, list, {}, nil, animations) end
+
+		-- 3) грузим пачками - честная полоса прогресса
+		local total = math.max(1, #list)
+		local done = 0
+		local BATCH = 60
+		for index = 1, #list, BATCH do
+			if os.clock() - startedAt > maxSeconds * 0.85 then
+				warn("[LoadingScreen] Предзагрузка не уложилась в лимит - остальное догрузится в игре.")
+				break
+			end
+			local batch = table.move(list, index, math.min(index + BATCH - 1, #list), 1, {})
+			pcall(ContentProvider.PreloadAsync, ContentProvider, batch)
+			done += #batch
+			target = 0.05 + 0.85 * (done / total)
+		end
+		for _, animation in animations do animation:Destroy() end
+
+		-- 4) катсцене нужны риг камеры и сцена - ждём их здесь, под экраном
+		stage = "PREPARING"
+		local rigWait = os.clock()
+		while os.clock() - rigWait < math.max(3, maxSeconds - (os.clock() - startedAt)) do
+			local rig = workspace:FindFirstChild("HumanoidCameraRig")
+			local saves = ReplicatedStorage:FindFirstChild("MoonAnimator2Saves")
+			if rig and rig:FindFirstChild("Torso") and saves and saves:FindFirstChild("scene") then break end
+			task.wait(0.1)
+		end
+		target = 1
+		task.wait(0.35)
+
+		-- 5) старт катсцены; экран держим, пока она реально не пошла
+		player:SetAttribute("AssetsLoaded", true)
+		local waitStart = os.clock()
+		while player:GetAttribute("CutsceneStarted") ~= true
+			and player:GetAttribute("IntroFailed") ~= true
+			and os.clock() - waitStart < 40 do
+			task.wait(0.05)
+		end
+		closeScreen()
 	end, debug.traceback)
 	if not ok then
 		warn("[LoadingScreen] Загрузочный экран упал; продолжаю запуск игры:\n" .. tostring(err))
-		-- Обязательно снимаем экран и выставляем флаг, иначе игрок останется
-		-- смотреть на застывшую заставку без управления.
 		finalize()
+		pcall(function() renderConnection:Disconnect() end)
 		pcall(function() staleScreenConnection:Disconnect() end)
 		pcall(function() screenGui:Destroy() end)
 	end
 end)
 
--- Страховка по времени, независимая от кода выше: даже если поток
--- где-то залип на WaitForChild/Wait (а не упал), флаг всё равно будет
--- выставлен, и катсцена с управлением не останутся заблокированными.
-task.delay(30, function()
+-- Страховка: что бы ни случилось, флаг выставится и экран уйдёт.
+task.delay(120, function()
 	if player:GetAttribute("AssetsLoaded") ~= true then
-		warn("[LoadingScreen] AssetsLoaded не выставлен за 30 с - выставляю принудительно.")
+		warn("[LoadingScreen] AssetsLoaded не выставлен за 120 с - выставляю принудительно.")
 		finalize()
 		pcall(function() screenGui:Destroy() end)
 	end

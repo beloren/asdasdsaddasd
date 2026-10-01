@@ -313,10 +313,41 @@ if FULL then
 	closeButton.Visible = false
 end
 
+-- v20.120: КАРТОЧКА ТОЛЬКО ПО КЛИКУ/НАВЕДЕНИЮ и сама прячется через
+-- Config.Prestige.DetailHideSeconds (5 с), если на ней нет курсора.
+local detailShown = not FULL
+local detailHideAt = 0
+local hoveringDetail = false
+local function showDetail()
+	if not FULL then return end
+	detailShown = true
+	detailHideAt = os.clock() + (tonumber(cfg.DetailHideSeconds) or 5)
+end
+local function hideDetail()
+	if not FULL then return end
+	detailShown = false
+	detail.Visible = false
+end
+if FULL then
+	detail.MouseEnter:Connect(function() hoveringDetail = true end)
+	detail.MouseLeave:Connect(function()
+		hoveringDetail = false
+		detailHideAt = math.max(detailHideAt, os.clock() + 2)
+	end)
+end
+
 -- где рисовать карточку: справа от узла (или слева, если не влезает);
 -- на телефоне - внизу по центру над CLOSE.
 local function placeDetail()
-	if not (FULL and detail.Visible) then return end
+	if not FULL then return end
+	if detailShown and not hoveringDetail and os.clock() >= detailHideAt then
+		hideDetail()
+	end
+	if not detailShown then
+		detail.Visible = false
+		return
+	end
+	if not detail.Visible then return end
 	local area = panel.AbsoluteSize
 	-- на маленьком экране карточка меньше (влезает над CLOSE)
 	local fit = detail:FindFirstChild("FitScale") or Instance.new("UIScale")
@@ -424,18 +455,27 @@ function Free.Render()
 		if dragMoved then return end
 		UiSfx.play("UiButtonClick")
 		selected = "__Start"
+		showDetail()
 		renderTree()
+		renderDetail()
+	end)
+	start.MouseEnter:Connect(function()
+		if dragging or not FULL then return end
+		selected = "__Start"
+		showDetail()
 		renderDetail()
 	end)
 	start.Parent = holder
 	for _, branch in cfg.Branches or {} do
 		local prev = startPos
+		local hideRest = false -- v20.120: за первым закрытым узлом ветки ничего не видно
 		for _, perkId in branch.Perks do
 			local perk = PERK_BY_ID[perkId]
 			local pos = layout[perkId]
-			if perk and pos then
+			if perk and pos and not hideRest then
 				local info = infoOf(perkId)
 				local locked = info.Locked == true
+				if locked and cfg.HideDeepLocked ~= false then hideRest = true end
 				local maxed = info.Level >= perk.MaxLevel
 				Free.Link(holder, size, prev, pos, locked and COLOR_LOCKED or branch.Color)
 				prev = pos
@@ -471,7 +511,17 @@ function Free.Render()
 					if dragMoved then return end
 					UiSfx.play("UiButtonClick")
 					selected = perkId
+					showDetail()
 					renderTree()
+					renderDetail()
+				end)
+				node.MouseEnter:Connect(function()
+					if dragging or not FULL then return end
+					if selected ~= perkId then
+						selected = perkId
+						renderDetail()
+					end
+					showDetail()
 					renderDetail()
 				end)
 				node.Parent = holder
@@ -607,7 +657,7 @@ local function renderShrineDetail()
 		detail.Visible = false
 		return
 	end
-	detail.Visible = true
+	detail.Visible = detailShown
 	local info = shrineState[selectedShrine] or {}
 	ShrineIcon.Set(detail.Icon, selectedShrine, def)
 	detail.Title.Text = tr(def.DisplayName)
@@ -649,6 +699,7 @@ local function renderShrines()
 			press(card)
 			card.Activated:Connect(function()
 				UiSfx.play("UiButtonClick")
+				showDetail()
 				selectedShrine = shrineId
 				renderShrines()
 				renderShrineDetail()
@@ -685,7 +736,7 @@ renderDetail = function()
 		return
 	end
 	if selected == "__Start" then
-		detail.Visible = true
+		detail.Visible = detailShown
 		pcall(require(ReplicatedStorage.Shared.OrePreview).Clear, detail.Icon)
 		setIcon(detail.Icon, "✦", nil)
 		detail.Title.Text = tr("Start")
@@ -704,7 +755,7 @@ renderDetail = function()
 		detail.Visible = false
 		return
 	end
-	detail.Visible = true
+	detail.Visible = detailShown
 	local info = infoOf(perk.Id)
 	local branch = BRANCH_OF[perk.Id]
 	pcall(require(ReplicatedStorage.Shared.OrePreview).Clear, detail.Icon) -- v20.94: убрать 3D святилища
@@ -755,8 +806,30 @@ local function applyState(payload)
 	renderDetail()
 end
 
+-- v20.120: пока открыто окно престижа - камера мира стоит (колесо и
+-- перетаскивание двигают только карту прокачек).
+local savedCameraType = nil
+local function freezeCamera(on)
+	local camera = workspace.CurrentCamera
+	if not (camera and FULL) then return end
+	if on then
+		if savedCameraType == nil then
+			savedCameraType = camera.CameraType
+			camera.CameraType = Enum.CameraType.Scriptable
+		end
+	elseif savedCameraType ~= nil then
+		camera.CameraType = savedCameraType
+		savedCameraType = nil
+	end
+end
+
 local function open()
 	isOpen = true
+	freezeCamera(true)
+	if FULL then
+		detailShown = false
+		detail.Visible = false
+	end
 	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	openedAt = hrp and hrp.Position or nil
 	gui.Enabled = true
@@ -773,6 +846,8 @@ end
 local function close()
 	if not isOpen then return end
 	isOpen = false
+	freezeCamera(false)
+	hideDetail()
 	UiSfx.play("UiMenuClose")
 	gui.Enabled = false
 end
@@ -831,6 +906,7 @@ RunService.RenderStepped:Connect(function()
 	if isOpen and FULL then placeDetail() end
 end)
 upgradeButton.Activated:Connect(function()
+	showDetail() -- v20.120: после покупки карточка не пропадает сразу
 	if mode == "Shrines" then
 		if selectedShrine and not (shrineState[selectedShrine] and shrineState[selectedShrine].Owned) then
 			remote:FireServer("BuyShrine", selectedShrine)
@@ -895,4 +971,9 @@ task.spawn(function()
 			if not hrp or (hrp.Position - openedAt).Magnitude > 16 then close() end
 		end
 	end
+end)
+
+-- v20.120: перерождение с открытым окном - закрываем (и возвращаем камеру).
+player.CharacterAdded:Connect(function()
+	if isOpen then close() end
 end)

@@ -31,6 +31,7 @@ for _, name in UI.FocusHide or {
 	"Hud", "TopbarDock", "HotbarUi", "BuffBar", "LootFeedUi", "QuestUi", "SocialHud", "QuestMarkerUi",
 	"MobileShiftLockButton", "OrePreviewHud", "RubbleCrystalHotbar", "MarketTicker", "CartInteractionUi",
 	"PlacementUi", "CombatUi", "StarterPackOffer",
+	"CollectionMenu", "CompassUi", -- v20.120: книга-меню и компас тоже прячутся
 } do HIDE[name] = true end
 
 -- Дочерние рамки, которые окном НЕ считаются (оверлей раскола - мини-игра).

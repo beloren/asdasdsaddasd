@@ -399,9 +399,16 @@ end
 -- причину бага убрали (управление больше не отключается), но короткий
 -- порог остался — он куда быстрее возвращает остальной интерфейс и позицию
 -- на участке, чем прежние 45с.
-local NOT_STARTED_TIMEOUT = 12
+local NOT_STARTED_TIMEOUT = 20 -- v20.120: после конца загрузки (см. ниже)
 local ABSOLUTE_TIMEOUT = 150
 task.spawn(function()
+    -- v20.120: отсчёт - с конца загрузочного экрана (AssetsLoaded), а не с
+    -- запуска скрипта: раньше 12 с истекали, пока шла загрузка/стриминг рига,
+    -- и интро обрывалось, так и не показав катсцену.
+    local loadWait = os.clock()
+    while player:GetAttribute("AssetsLoaded") ~= true and os.clock() - loadWait < 130 and not introEnded do
+        task.wait(0.25)
+    end
     local startedAt = os.clock()
     while not introEnded do
         task.wait(2)
@@ -462,8 +469,13 @@ end)
 -- UserInputType.Touch намеренно НЕ слушаем: на телефоне любое касание
 -- экрана (в том числе по кнопке «пропустить» или просто по воздуху)
 -- считалось бы попыткой идти.
-local MOVE_ESCAPE_GRACE = 3
+local MOVE_ESCAPE_GRACE = 6
 local moveEscapeStartedAt = os.clock()
+-- v20.120: пока идёт загрузочный экран, нажатия не считаются - отсчёт
+-- начинается с конца загрузки (AssetsLoaded).
+player:GetAttributeChangedSignal("AssetsLoaded"):Connect(function()
+    if player:GetAttribute("AssetsLoaded") == true then moveEscapeStartedAt = os.clock() end
+end)
 local MOVEMENT_KEYS = {
     [Enum.KeyCode.W] = true, [Enum.KeyCode.A] = true,
     [Enum.KeyCode.S] = true, [Enum.KeyCode.D] = true,
@@ -475,6 +487,7 @@ local MOVEMENT_KEYS = {
 UserInputService.InputBegan:Connect(function(input, processed)
     if processed or introEnded then return end
     if not MOVEMENT_KEYS[input.KeyCode] then return end
+    if player:GetAttribute("AssetsLoaded") ~= true then return end
     if os.clock() - moveEscapeStartedAt < MOVE_ESCAPE_GRACE then return end
     if player:GetAttribute("CutsceneStarted") == true then return end
     warn("[MoonAnimationTest] Игрок пытается идти, а интро так и не стартовало - возвращаю управление немедленно.")
@@ -921,7 +934,7 @@ task.spawn(function()
     -- уже было отключено выше. Отсюда и брался обездвиженный игрок.
     -- По истечении таймаута просто идём дальше: интро либо отработает, либо
     -- честно свалится в failIntro, и в обоих случаях управление вернётся.
-    local ASSETS_WAIT_TIMEOUT = 20
+    local ASSETS_WAIT_TIMEOUT = 130 -- v20.120: загрузочный экран грузит всё (до Config.Loading.MaxSeconds)
     local waitStarted = os.clock()
     while player:GetAttribute("AssetsLoaded") ~= true
         and os.clock() - waitStarted < ASSETS_WAIT_TIMEOUT do
