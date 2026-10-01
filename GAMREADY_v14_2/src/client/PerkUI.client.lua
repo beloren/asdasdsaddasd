@@ -135,6 +135,60 @@ local function setIcon(holder, emoji, imageId, transparency)
 	end
 end
 
+-- v20.106: ИКОНКА ОЧКОВ ПРЕСТИЖА вместо «⭐» у чисел (Config.Prestige.PointIconId;
+-- пока 0 - нарисованный фиолетовый ромб). Иконка - ImageLabel "PointIcon"
+-- слева внутри надписи, текст сдвигается вправо.
+local Points = {}
+function Points.Icon(label)
+	if not (label and label:IsA("TextLabel")) then return end
+	local icon = label:FindFirstChild("PointIcon")
+	if not icon then
+		icon = Instance.new("ImageLabel")
+		icon.Name = "PointIcon"
+		icon.BackgroundTransparency = 1
+		icon.AnchorPoint = Vector2.new(0, 0.5)
+		icon.Position = UDim2.new(0, 0, 0.5, 0)
+		icon.Size = UDim2.fromScale(1, 0.9)
+		icon.ZIndex = label.ZIndex + 1
+		local ratio = Instance.new("UIAspectRatioConstraint")
+		ratio.AspectRatio = 1
+		ratio.Parent = icon
+		local id = tonumber(cfg.PointIconId) or 0
+		if id > 0 then
+			icon.Image = "rbxassetid://" .. id
+		else
+			local diamond = Instance.new("Frame")
+			diamond.Name = "Diamond"
+			diamond.AnchorPoint = Vector2.new(0.5, 0.5)
+			diamond.Position = UDim2.fromScale(0.5, 0.5)
+			diamond.Size = UDim2.fromScale(0.62, 0.62)
+			diamond.Rotation = 45
+			diamond.BackgroundColor3 = Color3.fromRGB(190, 120, 255)
+			diamond.BorderSizePixel = 0
+			diamond.ZIndex = icon.ZIndex
+			local stroke = Instance.new("UIStroke")
+			stroke.Thickness = 2
+			stroke.Color = Color3.fromRGB(40, 15, 70)
+			stroke.Parent = diamond
+			diamond.Parent = icon
+		end
+		icon.Parent = label
+		local pad = label:FindFirstChildOfClass("UIPadding") or Instance.new("UIPadding")
+		pad.PaddingLeft = UDim.new(0.22, 0)
+		pad.Parent = label
+	end
+end
+function Points.Set(label, value)
+	if not label then return end
+	label.Text = tostring(value)
+	Points.Icon(label)
+	label.PointIcon.Visible = true
+end
+function Points.Hide(label)
+	local icon = label and label:FindFirstChild("PointIcon")
+	if icon then icon.Visible = false end
+end
+
 local NODE_SIZE = 60
 local NODE_GAP = 34
 local CHIP_OVERHANG = 13 -- плашка уровня «3/10» свисает ниже узла
@@ -157,10 +211,133 @@ end
 
 local renderDetail
 
-local function renderTree()
-	pointsLabel.Text = "⭐ " .. tostring(state.Points)
+-- v20.107: СВОБОДНОЕ ДЕРЕВО (Config.Prestige.TreeLayout) как на референсе:
+-- стартовый узел в центре, ветки расходятся линиями, закрытые узлы - «?».
+local Free = {}
+local renderTree
+function Free.Link(parent, size, a, b, color)
+	local ax, ay = a[1] * size.X, a[2] * size.Y
+	local bx, by = b[1] * size.X, b[2] * size.Y
+	local dx, dy = bx - ax, by - ay
+	local line = linkTemplate:Clone()
+	line.Name = "Link"
+	line.Visible = true
+	line.AnchorPoint = Vector2.new(0.5, 0.5)
+	-- позиция и длина в долях: не зависят от UIScale окна
+	line.Position = UDim2.fromScale((a[1] + b[1]) / 2, (a[2] + b[2]) / 2)
+	line.Size = UDim2.new(math.sqrt(dx * dx + dy * dy) / math.max(1, size.X), 0, 0, 6)
+	line.Rotation = math.deg(math.atan2(dy, dx))
+	line.BackgroundColor3 = color
+	line.ZIndex = 2
+	line.Parent = parent
+end
+function Free.Shape(node)
+	local id = tonumber(cfg.NodeImageId) or 0
+	if id <= 0 then return end
+	node.Image = "rbxassetid://" .. id
+	node.ImageColor3 = node.BackgroundColor3
+	node.BackgroundTransparency = 1
+	local corner = node:FindFirstChildOfClass("UICorner")
+	if corner then corner:Destroy() end
+	local outline = node:FindFirstChild("Outline")
+	if outline then outline.Enabled = false end
+end
+function Free.Render()
+	local layout = cfg.TreeLayout
+	local holder = Instance.new("Frame")
+	holder.Name = "FreeTree"
+	holder:SetAttribute("Generated", true)
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.fromScale(1, 1)
+	holder.ClipsDescendants = true
+	holder.Parent = tree
+	local size = holder.AbsoluteSize
+	if size.X < 10 then size = tree.AbsoluteSize end
+	local startPos = layout.Start or { 0.5, 0.5 }
+	-- стартовый узел
+	local start = nodeTemplate:Clone()
+	start.Name = "StartNode"
+	start.Visible = true
+	start.AnchorPoint = Vector2.new(0.5, 0.5)
+	start.Position = UDim2.fromScale(startPos[1], startPos[2])
+	start.Size = UDim2.fromOffset(NODE_SIZE + 12, NODE_SIZE + 12)
+	start.ZIndex = 3
+	start.BackgroundColor3 = Color3.fromRGB(150, 90, 230)
+	setIcon(start.Icon, "✦", nil, 0)
+	start.LevelChip.Level.Text = tr("START")
+	start.Lock.Visible = false
+	if start:FindFirstChild("CanBuy") then start.CanBuy.Visible = false end
+	Free.Shape(start)
+	press(start)
+	start.Activated:Connect(function()
+		UiSfx.play("UiButtonClick")
+		selected = "__Start"
+		renderTree()
+		renderDetail()
+	end)
+	start.Parent = holder
+	for _, branch in cfg.Branches or {} do
+		local prev = startPos
+		for _, perkId in branch.Perks do
+			local perk = PERK_BY_ID[perkId]
+			local pos = layout[perkId]
+			if perk and pos then
+				local info = infoOf(perkId)
+				local locked = info.Locked == true
+				local maxed = info.Level >= perk.MaxLevel
+				Free.Link(holder, size, prev, pos, locked and COLOR_LOCKED or branch.Color)
+				prev = pos
+				local node = nodeTemplate:Clone()
+				node.Name = "Node_" .. perkId
+				node.Visible = true
+				node.AnchorPoint = Vector2.new(0.5, 0.5)
+				node.Position = UDim2.fromScale(pos[1], pos[2])
+				node.Size = UDim2.fromOffset(NODE_SIZE, NODE_SIZE)
+				node.ZIndex = 3
+				node.BackgroundColor3 = locked and COLOR_LOCKED or (maxed and branch.Color:Lerp(COLOR_INK, 0.15) or branch.Color:Lerp(COLOR_STAR, 0.55))
+				setIcon(node.Icon, perk.Icon, perk.ImageId, 0)
+				node.Icon.Visible = not locked
+				local unknown = node:FindFirstChild("Unknown")
+				if unknown then unknown.Visible = locked end
+				node.LevelChip.Visible = not locked
+				node.LevelChip.Level.Text = maxed and "MAX" or ("%d/%d"):format(info.Level, perk.MaxLevel)
+				node.LevelChip.Level.TextColor3 = maxed and COLOR_GREEN_TEXT or COLOR_GOLD_TEXT
+				node.Lock.Visible = false
+				local outline = node:FindFirstChild("Outline")
+				if outline then
+					outline.Color = (selected == perkId) and Color3.new(1, 1, 1) or COLOR_INK
+					outline.Thickness = (selected == perkId) and 5 or 4
+				end
+				local canBuy = node:FindFirstChild("CanBuy")
+				if canBuy then
+					canBuy.Visible = not locked and not maxed and state.Points >= (info.Cost or math.huge)
+				end
+				Free.Shape(node)
+				press(node)
+				node.Activated:Connect(function()
+					UiSfx.play("UiButtonClick")
+					selected = perkId
+					renderTree()
+					renderDetail()
+				end)
+				node.Parent = holder
+			end
+		end
+	end
+end
+function Free.Find(perkId)
+	local holder = tree:FindFirstChild("FreeTree")
+	return holder and holder:FindFirstChild("Node_" .. perkId)
+end
+
+renderTree = function()
+	Points.Set(pointsLabel, state.Points)
 	for _, child in tree:GetChildren() do
 		if child:GetAttribute("Generated") then child:Destroy() end
+	end
+	if cfg.TreeLayout then
+		Free.Render()
+		return
 	end
 	for branchIndex, branch in cfg.Branches or {} do
 		local column = branchTemplate:Clone()
@@ -290,13 +467,13 @@ local function renderShrineDetail()
 		upgradeButton.BackgroundColor3 = COLOR_GREY
 	else
 		local affordable = state.Points >= (def.Cost or math.huge)
-		upgradeText.Text = "⭐ " .. tostring(def.Cost or 0)
+		Points.Set(upgradeText, def.Cost or 0)
 		upgradeButton.BackgroundColor3 = affordable and COLOR_GREEN or COLOR_ORANGE
 	end
 end
 
 local function renderShrines()
-	pointsLabel.Text = "⭐ " .. tostring(state.Points)
+	Points.Set(pointsLabel, state.Points)
 	for _, child in shrinesList:GetChildren() do
 		if child:GetAttribute("Generated") then child:Destroy() end
 	end
@@ -311,7 +488,7 @@ local function renderShrines()
 			card.LayoutOrder = index
 			ShrineIcon.Set(card.Icon, shrineId, def)
 			card.Title.Text = tr(def.DisplayName)
-			card.Status.Text = info.Owned and ("✅ " .. tr("OWNED")) or ("⭐ " .. tostring(def.Cost or 0))
+			if info.Owned then card.Status.Text = "✅ " .. tr("OWNED"); Points.Hide(card.Status) else Points.Set(card.Status, def.Cost or 0) end
 			card.Status.TextColor3 = info.Owned and COLOR_GREEN_TEXT or COLOR_GOLD_TEXT
 			card.BackgroundColor3 = (selectedShrine == shrineId) and COLOR_STAR:Lerp(Color3.new(1, 1, 1), 0.25)
 				or (info.Owned and COLOR_GREEN:Lerp(COLOR_INK, 0.35) or COLOR_STAR)
@@ -353,6 +530,21 @@ renderDetail = function()
 		renderShrineDetail()
 		return
 	end
+	if selected == "__Start" then
+		detail.Visible = true
+		pcall(require(ReplicatedStorage.Shared.OrePreview).Clear, detail.Icon)
+		setIcon(detail.Icon, "✦", nil)
+		detail.Title.Text = tr("Start")
+		detail.Title.TextColor3 = Color3.fromRGB(200, 150, 255)
+		detail.Level.Text = ""
+		detail.Now.Text = tr(cfg.StartText or "Your journey begins here.")
+		detail.Next.Text = ""
+		detail.Hint.Visible = false
+		upgradeText.Text = "✦"
+		Points.Hide(upgradeText)
+		upgradeButton.BackgroundColor3 = COLOR_GREY
+		return
+	end
 	local perk = selected and PERK_BY_ID[selected]
 	if not perk then
 		detail.Visible = false
@@ -372,6 +564,7 @@ renderDetail = function()
 	if info.Level >= perk.MaxLevel then
 		detail.Next.Text = "✅ MAX"
 		upgradeText.Text = "MAX"
+		if upgradeText:FindFirstChild("PointIcon") then upgradeText.PointIcon.Visible = false end
 		upgradeButton.BackgroundColor3 = COLOR_GREY
 	elseif info.Locked then
 		local required = info.Requires and PERK_BY_ID[info.Requires]
@@ -379,11 +572,12 @@ renderDetail = function()
 		hint.Visible = true
 		hint.Text = "🔒 " .. tr("Needs {p}", { p = required and tr(required.Title) or "?" })
 		upgradeText.Text = "🔒"
+		Points.Hide(upgradeText)
 		upgradeButton.BackgroundColor3 = COLOR_GREY
 	else
 		detail.Next.Text = "> " .. effectText(perk, info.Level + 1)
 		local affordable = state.Points >= (info.Cost or math.huge)
-		upgradeText.Text = "⭐ " .. tostring(info.Cost or 0)
+		Points.Set(upgradeText, info.Cost or 0)
 		upgradeButton.BackgroundColor3 = affordable and COLOR_GREEN or COLOR_ORANGE
 	end
 end
@@ -397,7 +591,7 @@ local function applyState(payload)
 	for _, entry in payload.Shrines or {} do shrineState[entry.Id] = entry end
 	if not selected then
 		local first = cfg.Branches and cfg.Branches[1] and cfg.Branches[1].Perks[1]
-		selected = first
+		selected = cfg.TreeLayout and "__Start" or first
 	end
 	if mode == "Shrines" then
 		renderShrines()
@@ -437,7 +631,7 @@ upgradeButton.Activated:Connect(function()
 		end
 		return
 	end
-	if not selected then return end
+	if not selected or not PERK_BY_ID[selected] then return end
 	remote:FireServer("Buy", selected)
 end)
 perksTab.Activated:Connect(function()
@@ -454,13 +648,17 @@ end)
 
 local function bounceNode(perkId)
 	local column = BRANCH_OF[perkId] and tree:FindFirstChild("Branch_" .. BRANCH_OF[perkId].Id)
-	local node = column and column.Nodes:FindFirstChild("Node_" .. perkId)
+	local node = Free.Find(perkId) or (column and column.Nodes:FindFirstChild("Node_" .. perkId))
 	local scale = node and node:FindFirstChild("PressScale")
 	if scale then
 		scale.Scale = 1.25
 		TweenService:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 	end
 end
+
+tree:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+	if isOpen and mode ~= "Shrines" and cfg.TreeLayout then renderTree() end
+end)
 
 remote.OnClientEvent:Connect(function(command, payload)
 	if command == "Open" then

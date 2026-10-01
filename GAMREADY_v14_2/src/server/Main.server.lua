@@ -97,6 +97,7 @@ local ORDER = {
 	"GoblinCampService", -- v20.44: лагерь гоблинов (волны, ИИ, табличка); модели делает GoblinService
 	"RockService",
 	"BankService",
+	"BadgeTrackerService", -- v20.106: бейджи (Config.Badges)
 	-- Торговец банка и биржа руды (см. Config.Merchant) — ПОСЛЕ WorldService
 	-- (ставится в зону банка в Start) и BankService (тот спрашивает у него
 	-- курс на каждой продаже, но только в рантайме).

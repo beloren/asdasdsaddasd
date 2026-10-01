@@ -257,11 +257,39 @@ function PrestigeService:SetupPlot(player, plot)
 	local anchor = npc and npc:GetPivot() or plot.RebirthCFrame
 	if not anchor then return end
 	local model = findCaseAsset()
-	local floorY = plot.Pad.Position.Y + plot.Pad.Size.Y / 2
-	local target = anchor * Config.Prestige.CaseOffset
-	local _, size = model:GetBoundingBox()
-	model:PivotTo(CFrame.new(target.Position.X, floorY + size.Y / 2, target.Position.Z) * target.Rotation)
-	model.Parent = plot.Content
+	-- v20.106: МАРКЕР «PrestigeCaseMarker» в PlotTemplate (или на участке) -
+	-- кейс встаёт ровно на него (низ модели на нижнюю грань маркера), лицом
+	-- на «PrestigeCaseMarkerLook» или по передней грани маркера. Своя модель -
+	-- Assets/<Config.Prestige.CaseModelName> (сейчас "PrestigeCase").
+	local searchRoots = { plot.Template, plot.Content, plot.Pad and plot.Pad.Parent }
+	local marker, look
+	for _, root in searchRoots do
+		if root and not marker then
+			local found = root:FindFirstChild("PrestigeCaseMarker", true)
+			if found and found:IsA("BasePart") then
+				marker = found
+				local l = root:FindFirstChild("PrestigeCaseMarkerLook", true)
+				look = l and l:IsA("BasePart") and l or nil
+			end
+		end
+	end
+	if marker then
+		local facing = look and (look.Position - marker.Position) or marker.CFrame.LookVector
+		model.Parent = plot.Content
+		PlaceholderFactory.StandOnMarker(model, marker, facing)
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") then part.Anchored = true end
+		end
+		marker.Transparency = 1
+		marker.CanCollide = false
+		if look then look.Transparency = 1; look.CanCollide = false end
+	else
+		local floorY = plot.Pad.Position.Y + plot.Pad.Size.Y / 2
+		local target = anchor * Config.Prestige.CaseOffset
+		local _, size = model:GetBoundingBox()
+		model:PivotTo(CFrame.new(target.Position.X, floorY + size.Y / 2, target.Position.Z) * target.Rotation)
+		model.Parent = plot.Content
+	end
 
 	local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
 	local prompt = Instance.new("ProximityPrompt")

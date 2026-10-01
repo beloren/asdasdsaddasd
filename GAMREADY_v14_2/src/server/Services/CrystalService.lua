@@ -726,6 +726,9 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 	end
 
 	crystal:SetAttribute("CrystalDisplayChance", displayChance) -- v9: переживает рюкзак/печь
+	if miner and Services.BadgeTrackerService then
+		pcall(Services.BadgeTrackerService.OnOre, Services.BadgeTrackerService, miner, crystal:GetAttribute("CrystalRarity"), mutations)
+	end
 	-- v9: книга коллекции по руде (+ маленькая награда за новое).
 	if miner and Services.MutationBookService and Services.MutationBookService.RecordOre then
 		local bookMutations = {}

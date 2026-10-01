@@ -2170,6 +2170,9 @@ function RockService:Break(state, breaker)
 	end
 	if state.Golden then
 		state.Golden = false
+		if breaker and Services.BadgeTrackerService then
+			pcall(Services.BadgeTrackerService.Award, Services.BadgeTrackerService, breaker, "GoldenBoulder")
+		end
 		if Services.AnnounceService and breaker then
 			pcall(function()
 				Services.AnnounceService:Broadcast(("⭐ %s cracked the GOLDEN BOULDER!"):format(breaker.DisplayName), Config.GoldenBoulder.Color)

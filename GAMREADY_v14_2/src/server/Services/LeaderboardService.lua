@@ -34,9 +34,9 @@ local nameCache = {}
 local sessionStarted = {}
 
 local SPECS = {
-	{ Key = "Money", PartName = "MoneyBoard", Stand = "MoneyStand", Title = "TOP MONEY", Color = Color3.fromRGB(255, 211, 75) },
-	{ Key = "Rebirths", PartName = "RebirthBoard", Stand = "PrestigeStand", Title = "TOP PRESTIGE", Color = Color3.fromRGB(105, 225, 255) },
-	{ Key = "Donated", PartName = "DonationBoard", Stand = "DonationStand", Title = "TOP DONATION", Color = Color3.fromRGB(255, 120, 200), Prefix = "R$ " },
+	{ Key = "Money", PartName = "MoneyBoard", Stand = "MoneyStand", Title = "Top Money", Color = Color3.fromRGB(110, 240, 140) },
+	{ Key = "Rebirths", PartName = "RebirthBoard", Stand = "PrestigeStand", Title = "Top Prestige", Color = Color3.fromRGB(255, 95, 120) },
+	{ Key = "Donated", PartName = "DonationBoard", Stand = "DonationStand", Title = "Top Robux Spent", Color = Color3.fromRGB(255, 214, 60), Prefix = "R$ " },
 }
 local stands = {} -- [spec.Key] = { Board=, Plate=, Spot=, StatueUserId=, Statue= }
 
@@ -131,6 +131,54 @@ local function moneyDisplayValue(userId, fallback)
 	return fallback
 end
 
+-- v20.106: ДЕРЕВЯННЫЙ СТИЛЬ (как на референсе): коричневая доска, сверху
+-- заголовок цветом категории с обводкой, строки-доски с квадратным значком
+-- места (1-3 - золото/серебро/бронза), ник и значение. Внизу - место под
+-- строку самого игрока («YouRow»): её рисует клиент (LeaderboardSelfRow),
+-- значения игрока сервер кладёт в атрибуты LbValue_<Key>.
+local WOOD = Color3.fromRGB(150, 92, 48)
+local WOOD_DARK = Color3.fromRGB(96, 56, 28)
+local PLANK = Color3.fromRGB(205, 136, 78)
+local RANK_COLORS = { Color3.fromRGB(255, 205, 60), Color3.fromRGB(215, 218, 226), Color3.fromRGB(240, 150, 70) }
+
+local function woodLabel(parent, text, color, props)
+	local label = WorldUi.Text(nil, "Text", "Number")
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = color
+	label.TextScaled = true
+	for key, value in props or {} do label[key] = value end
+	local stroke = label:FindFirstChildWhichIsA("UIStroke") or Instance.new("UIStroke")
+	stroke.Enabled = true
+	stroke.Thickness = 3
+	stroke.Color = Color3.fromRGB(40, 22, 10)
+	stroke.Parent = label
+	label.Parent = parent
+	return label
+end
+
+local function plank(parent, position, size, color)
+	local frame = Instance.new("Frame")
+	frame.Position = position
+	frame.Size = size
+	frame.BackgroundColor3 = color or PLANK
+	frame.BorderSizePixel = 0
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 14)
+	corner.Parent = frame
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 4
+	stroke.Color = WOOD_DARK
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = frame
+	frame.Parent = parent
+	return frame
+end
+
+local function formatValue(spec, value)
+	return spec.IsTime and formatPlayTime(value) or ((spec.Prefix or "") .. formatNumber(value))
+end
+
 local function renderBoard(part, spec, entries, errorText)
 	local old = part:FindFirstChild("LeaderboardGui")
 	if old then
@@ -140,87 +188,54 @@ local function renderBoard(part, spec, entries, errorText)
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "LeaderboardGui"
 	gui.Face = Config.Leaderboards.BoardFace
-	gui.CanvasSize = Vector2.new(700, 900)
+	gui.CanvasSize = Vector2.new(700, 1000)
 	gui.LightInfluence = 0
 	gui.AlwaysOnTop = false
+	gui:SetAttribute("StatKey", spec.Key)
+	gui:SetAttribute("StatColor", spec.Color)
 	gui.Parent = part
 
 	local background = Instance.new("Frame")
+	background.Name = "Background"
 	background.Size = UDim2.fromScale(1, 1)
-	background.BackgroundColor3 = Color3.fromRGB(18, 20, 26)
+	background.BackgroundColor3 = WOOD
 	background.BorderSizePixel = 0
 	background.Parent = gui
 
-	local title = WorldUi.Text(nil, "Text", "Number")
-	title.Size = UDim2.new(1, 0, 0, 110)
-	title.BackgroundColor3 = spec.Color
-	title.BorderSizePixel = 0
-	title.Text = spec.Title
-	title.TextColor3 = Color3.fromRGB(20, 22, 26)
-	title.TextSize = 45
-	-- v20.85: шаблон текста делает фон прозрачным - тогда тёмная надпись
-	-- категории сливалась с тёмной доской. Плашка цвета категории - сплошная.
-	title.BackgroundTransparency = 0
-	title.TextScaled = true
-	local titlePad = Instance.new("UIPadding")
-	titlePad.PaddingTop = UDim.new(0, 14)
-	titlePad.PaddingBottom = UDim.new(0, 14)
-	titlePad.Parent = title
-	local titleStroke = title:FindFirstChildWhichIsA("UIStroke")
-	if titleStroke then titleStroke.Enabled = false end
-	title.Parent = background
+	local header = plank(background, UDim2.new(0, 16, 0, 12), UDim2.new(1, -32, 0, 104), WOOD_DARK:Lerp(WOOD, 0.4))
+	header.Name = "Header"
+	woodLabel(header, spec.Title, spec.Color, { Size = UDim2.new(1, -24, 1, -16), Position = UDim2.fromOffset(12, 8) })
 
 	local status = errorText or (#entries == 0 and "NO PLAYERS YET" or nil)
 	if status then
-		local label = WorldUi.Text(nil, "Text", "Number")
-		label.Position = UDim2.new(0, 25, 0, 135)
-		label.Size = UDim2.new(1, -50, 1, -160)
-		label.BackgroundTransparency = 1
-		label.Text = status
-		label.TextColor3 = Color3.fromRGB(190, 195, 205)
-		label.TextSize = 31
-		label.TextWrapped = true
-		label.Parent = background
+		woodLabel(background, status, Color3.new(1, 1, 1), {
+			Position = UDim2.new(0, 30, 0, 300), Size = UDim2.new(1, -60, 0, 80),
+		})
 		return
 	end
 
 	for rank, entry in entries do
-		local row = Instance.new("Frame")
-		row.Position = UDim2.new(0, 20, 0, 125 + (rank - 1) * 73)
-		row.Size = UDim2.new(1, -40, 0, 62)
-		row.BackgroundColor3 = rank % 2 == 1 and Color3.fromRGB(31, 34, 43) or Color3.fromRGB(25, 28, 36)
-		row.BorderSizePixel = 0
-		row.Parent = background
-
-		local rankLabel = WorldUi.Text(nil, "Text", "Number")
-		rankLabel.Size = UDim2.new(0, 70, 1, 0)
-		rankLabel.BackgroundTransparency = 1
-		rankLabel.Text = "#" .. rank
-		rankLabel.TextColor3 = rank <= 3 and spec.Color or Color3.fromRGB(185, 190, 200)
-		rankLabel.TextSize = 27
-		rankLabel.Parent = row
-
-		local nameLabel = WorldUi.Text(nil, "Text", "Number")
-		nameLabel.Position = UDim2.new(0, 75, 0, 0)
-		nameLabel.Size = UDim2.new(1, -255, 1, 0)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.Text = entry.Name
-		nameLabel.TextColor3 = Color3.new(1, 1, 1)
-		nameLabel.TextSize = 25
-		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.Parent = row
-
-		local valueLabel = WorldUi.Text(nil, "Text", "Number")
-		valueLabel.AnchorPoint = Vector2.new(1, 0)
-		valueLabel.Position = UDim2.fromScale(1, 0)
-		valueLabel.Size = UDim2.new(0, 175, 1, 0)
-		valueLabel.BackgroundTransparency = 1
-		valueLabel.Text = spec.IsTime and formatPlayTime(entry.Value) or ((spec.Prefix or "") .. formatNumber(entry.Value))
-		valueLabel.TextColor3 = spec.Color
-		valueLabel.TextSize = 27
-		valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-		valueLabel.Parent = row
+		local row = plank(background, UDim2.new(0, 16, 0, 128 + (rank - 1) * 74), UDim2.new(1, -32, 0, 64))
+		row.Name = "Row" .. rank
+		local badge = plank(row, UDim2.fromOffset(6, 6), UDim2.fromOffset(52, 52), RANK_COLORS[rank] or Color3.fromRGB(245, 245, 245))
+		badge.Name = "Rank"
+		local badgeText = WorldUi.Text(nil, "Text", "Number")
+		badgeText.BackgroundTransparency = 1
+		badgeText.Size = UDim2.fromScale(1, 1)
+		badgeText.Text = tostring(rank)
+		badgeText.TextColor3 = Color3.fromRGB(25, 20, 15)
+		badgeText.TextScaled = true
+		local badgeStroke = badgeText:FindFirstChildWhichIsA("UIStroke")
+		if badgeStroke then badgeStroke.Enabled = false end
+		badgeText.Parent = badge
+		woodLabel(row, entry.Name, Color3.new(1, 1, 1), {
+			Position = UDim2.fromOffset(70, 8), Size = UDim2.new(1, -270, 1, -16),
+			TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+		})
+		woodLabel(row, formatValue(spec, entry.Value), spec.Color, {
+			AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.new(0, 190, 1, -20),
+			TextXAlignment = Enum.TextXAlignment.Right,
+		})
 	end
 end
 
@@ -516,6 +531,12 @@ function LeaderboardService:_publishPlayer(player)
 	for _, spec in SPECS do
 		local value, displayValue = valueFor(player, spec.Key)
 		value = math.floor(math.max(0, value))
+		-- v20.106: своя строка внизу доски (клиент LeaderboardSelfRow)
+		if spec.Key == "Money" then
+			player:SetAttribute("LbValue_" .. spec.Key, "$" .. NumberFormat.abbreviate(Services.DataService:GetMoney(player)))
+		else
+			player:SetAttribute("LbValue_" .. spec.Key, formatValue(spec, value))
+		end
 		if previous[spec.Key] ~= value and stores[spec.Key] then
 			-- ФИКС "ТОПЫ ДОЛЖНЫ СОХРАНЯТЬСЯ ПО САМОМУ БОЛЬШОМУ РЕЗУЛЬТАТУ":
 			-- раньше здесь был SetAsync, который слепо ЗАПИСЫВАЛ ТЕКУЩЕЕ

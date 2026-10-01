@@ -27,9 +27,9 @@ local Theme = UiKit.Theme
 local Builder = {}
 Builder.Width = 800
 Builder.Height = 570
-Builder.VERSION = 23
+Builder.VERSION = 24 -- v20.106: фиолетовое окно, узлы-картинки, дерево по координатам
 
-local GOLD = Theme.Accents.Gold
+local GOLD = Theme.Accents.Purple -- v20.106: окно престижа фиолетовое (имя переменной оставлено)
 local STAR = Color3.fromRGB(80, 70, 150)
 
 local function button(parent, name, label, variant, props)
@@ -61,8 +61,8 @@ function Builder.Build()
 	gui:SetAttribute("BuilderVersion", math.max(Config.Prestige and Config.Prestige.PerkUiVersion or 2, Builder.VERSION))
 
 	local panel, parts = UiKit.Window(gui, "Panel", {
-		Title = "⭐ Prestige Perks",
-		Accent = "Gold",
+		Title = "Prestige",
+		Accent = "Purple",
 		Size = UDim2.fromOffset(Builder.Width, Builder.Height),
 		Position = UDim2.fromScale(0.5, 0.53),
 		Visible = true,
@@ -81,7 +81,7 @@ function Builder.Build()
 		Size = UDim2.fromOffset(120, 34),
 		ZIndex = 6,
 	})
-	UiKit.Text(points, "Text", "⭐ 0", {
+	UiKit.Text(points, "Text", "0", {
 		_Style = "Number",
 		Position = UDim2.fromOffset(6, 3),
 		Size = UDim2.new(1, -12, 1, -6),
@@ -121,7 +121,7 @@ function Builder.Build()
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 4,
 	})
-	UiKit.Text(shrine, "Status", "⭐ 3", {
+	UiKit.Text(shrine, "Status", "3", {
 		_Style = "Number",
 		Position = UDim2.new(0, 8, 1, -34),
 		Size = UDim2.new(1, -16, 0, 26),
@@ -191,6 +191,14 @@ function Builder.Build()
 		TextColor3 = GOLD.Light,
 		ZIndex = 8,
 	})
+	-- v20.106: закрытый узел - «?» на тёмном (как на референсе)
+	UiKit.Text(node, "Unknown", "?", {
+		_Style = "Title",
+		Position = UDim2.fromScale(0.15, 0.1),
+		Size = UDim2.fromScale(0.7, 0.8),
+		Visible = false,
+		ZIndex = 8,
+	})
 	emojiText(node, "Lock", "🔒", { _Stroke = 0, Position = UDim2.new(1, -22, 0, -8), Size = UDim2.fromOffset(28, 28), Visible = false, ZIndex = 9 })
 	UiKit.Text(node, "CanBuy", "+", {
 		_Style = "Title",
@@ -223,7 +231,7 @@ function Builder.Build()
 	UiKit.Text(detail, "Now", "+0%", { _Style = "Heading", Position = UDim2.fromOffset(10, 186), Size = UDim2.new(1, -20, 0, 30), TextColor3 = Theme.Colors.SubText, ZIndex = 4 })
 	UiKit.Text(detail, "Next", "> +4%", { _Style = "Heading", Position = UDim2.fromOffset(10, 220), Size = UDim2.new(1, -20, 0, 36), TextColor3 = Theme.Colors.Positive, ZIndex = 4 })
 	UiKit.Text(detail, "Hint", "", { _Style = "Body", Position = UDim2.new(0, 10, 1, -112), Size = UDim2.new(1, -20, 0, 28), TextColor3 = Color3.fromRGB(255, 160, 110), Visible = false, ZIndex = 4 })
-	button(detail, "UpgradeButton", "⭐ 1", "Green", {
+	button(detail, "UpgradeButton", "1", "Green", {
 		Position = UDim2.new(0, 14, 1, -74),
 		Size = UDim2.new(1, -28, 0, 60),
 		ZIndex = 4,

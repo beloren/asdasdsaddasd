@@ -1466,6 +1466,9 @@ function CombatService:_ragdoll(attacker, victimPlayer, victimHrp, attackerHrp, 
 			warn("[CombatService] выпадение руды упало:", info)
 		end
 	end
+	if Services.BadgeTrackerService and attacker and attacker:IsA("Player") then
+		pcall(Services.BadgeTrackerService.Award, Services.BadgeTrackerService, attacker, "FirstKnockdown")
+	end
 	-- Квест «DIE 3 TIMES» теперь засчитывает и рагдоллы (смертей в PvP больше нет).
 	Services.QuestService:RecordMetric(victimPlayer, "Deaths", 1)
 	recordLoss(victimPlayer, dropped)

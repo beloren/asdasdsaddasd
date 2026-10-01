@@ -163,6 +163,7 @@ local DEFAULT_DATA = {
 	-- находил игрок (см. MutationBookService) — просто найдено/не найдено,
 	-- без счётчика повторов.
 	MutationsFound = {},
+	BadgeStats = {}, -- v20.106: счётчики для бейджей (BadgeTrackerService)
 	MobsFound = {},
 	OwnedSkins = {},
 	EquippedSkins = { Pickaxe = "", Cart = "", Ore = "" },

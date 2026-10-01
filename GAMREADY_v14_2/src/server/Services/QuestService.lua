@@ -477,6 +477,9 @@ end
 function QuestService:RecordMetric(player, metric, amount, derived)
 	amount = tonumber(amount) or 0
 	if amount <= 0 then return end
+	if Services.BadgeTrackerService and not derived then
+		pcall(Services.BadgeTrackerService.OnMetric, Services.BadgeTrackerService, player, metric, amount)
+	end
 	-- v16: удачные моменты для мягких предложений (группа/избранное).
 	if Services.SocialOfferService then
 		pcall(Services.SocialOfferService.OnMetric, Services.SocialOfferService, player, metric)

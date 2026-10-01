@@ -278,6 +278,23 @@ Config.Badges = {
 	JoinedGame = 2011645416795580,
 	TutorialComplete = 4396951957389002,
 	RareOre = 3953627961107346,
+	-- v20.106: новые бейджи (BadgeTrackerService). Создай бейдж в Creator Hub
+	-- и впиши его Id; 0 = бейдж выключен.
+	FirstOre = 0,          -- первая руда
+	FirstGeode = 0,        -- первая открытая жеода
+	Geodes10 = 0,          -- 10 жеод
+	Geodes100 = 0,         -- 100 жеод
+	FirstMythic = 0,       -- первая мифическая руда
+	FirstCelestial = 0,    -- первая руда с мутацией Celestial
+	Prestige1 = 0,         -- первый престиж
+	Prestige5 = 0,
+	Prestige10 = 0,
+	Money1M = 0,           -- $1M на руках
+	Money1B = 0,           -- $1B на руках
+	MutationBook = 0,      -- найдены все мутации (хотя бы по разу)
+	GoldenBoulder = 0,     -- разбил Golden Boulder
+	FirstKnockdown = 0,    -- первый нокдаун в PvP
+	OneHour = 0,           -- час в игре
 }
 
 --------------------------------------------------------------------------------
@@ -6885,6 +6902,20 @@ Config.Prestige = {
 		{ Id = "Economy", Title = "ECONOMY", Color = Color3.fromRGB(255, 190, 60),  Perks = { "Money", "Passive", "CartSpace" } },
 		{ Id = "Fortune", Title = "FORTUNE", Color = Color3.fromRGB(90, 215, 110),  Perks = { "Luck", "Mutation", "GeodeLuck", "ChestLuck" } },
 		{ Id = "Utility", Title = "UTILITY", Color = Color3.fromRGB(80, 160, 255),  Perks = { "Speed", "Dynamite", "HeadStart" } },
+	},
+	-- v20.107: ДЕРЕВО КАК НА РЕФЕРЕНСЕ. Позиции узлов в долях окна дерева
+	-- (0..1, центр узла). Start - стартовый узел, от него линии к первому
+	-- перку каждой ветки, дальше по порядку ветки. Нет TreeLayout - старые
+	-- колонки. Закрытые узлы показывают «?».
+	-- NodeImageId - картинка узла (например пятиугольник); 0 - круг.
+	NodeImageId = 0,
+	PointIconId = 0, -- иконка очков престижа у чисел; 0 - нарисованный ромб
+	StartText = "Your journey begins here.",
+	TreeLayout = {
+		Start     = { 0.50, 0.52 },
+		Money     = { 0.36, 0.40 }, Passive  = { 0.22, 0.28 }, CartSpace = { 0.08, 0.16 },
+		Luck      = { 0.64, 0.40 }, Mutation = { 0.76, 0.26 }, GeodeLuck = { 0.90, 0.14 }, ChestLuck = { 0.92, 0.42 },
+		Speed     = { 0.50, 0.76 }, Dynamite = { 0.36, 0.88 }, HeadStart = { 0.20, 0.80 },
 	},
 	Perks = {
 		{ Id = "Money",     Icon = "💰", Title = "Money",        Text = "+{v}% ore sell price",       PerLevel = 0.04, MaxLevel = 25, CostBase = 1, CostGrowth = 0.5, Percent = true },

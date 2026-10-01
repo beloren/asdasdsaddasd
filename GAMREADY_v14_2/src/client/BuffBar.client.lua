@@ -100,6 +100,10 @@ local function showTooltip(icon, title, body)
 	shownFor = icon
 	tooltipTitle.Text = title
 	tooltipBody.Text = body
+	-- v20.106: подложка подсказки цветом эффекта (как на референсе)
+	local tint = tooltip:FindFirstChild("Tint")
+	local tintColor = icon:GetAttribute("TintColor")
+	if tint and typeof(tintColor) == "Color3" then tint.BackgroundColor3 = tintColor end
 	-- Иконки теперь стоят В РЯД, поэтому подсказка открывается НАД
 	-- иконкой (правым краем по правому краю иконки), а не слева от неё —
 	-- слева стоят соседние иконки, и подсказка бы их закрывала.
@@ -196,6 +200,7 @@ local function makeIcon(id, spec, order)
 	local color = spec.Color or Color3.fromRGB(200, 200, 200)
 	local stroke = button:FindFirstChild("SkinStroke")
 	if stroke then stroke.Color = color end
+	button:SetAttribute("TintColor", color)
 	local image = button:FindFirstChild("Image")
 	local glyph = button:WaitForChild("Glyph")
 	glyph.Text = spec.IconText or "?"
@@ -244,10 +249,8 @@ end
 
 local function formatSeconds(seconds)
 	seconds = math.max(0, math.floor(seconds or 0))
-	if seconds >= 60 then
-		return ("%d:%02d"):format(math.floor(seconds / 60), seconds % 60)
-	end
-	return ("%ds"):format(seconds)
+	-- v20.106: всегда «01:36» (как на референсе)
+	return ("%02d:%02d"):format(math.floor(seconds / 60), seconds % 60)
 end
 
 --------------------------------------------------------------------------------
