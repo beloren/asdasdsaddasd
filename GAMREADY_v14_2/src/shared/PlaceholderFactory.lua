@@ -839,6 +839,46 @@ function PlaceholderFactory.GeodeCartVFX()
 	return part, part
 end
 
+-- v20.114: ЦВЕТ «КУБИКА ДРОПА» по описанию награды (жеоды, сундуки,
+-- валуны): руда - её цвет, деньги - золото, эссенция - цвет мутации,
+-- остальное - цвет редкости.
+function PlaceholderFactory.DropColor(item)
+	item = typeof(item) == "table" and item or {}
+	local oreKey = item.OreId or item.Ore
+	if oreKey then
+		local geodeOre = Config.Geodes and Config.Geodes.Ores and Config.Geodes.Ores[oreKey]
+		local mineOre = Config.OreByKey and Config.OreByKey[oreKey]
+		local color = (geodeOre and geodeOre.Color) or (mineOre and mineOre.Color)
+		if color then return color end
+	end
+	if item.Kind == "Money" then return Color3.fromRGB(255, 205, 60) end
+	if item.Kind == "Essence" and item.Mutation and Config.Mutations[item.Mutation] then
+		return Config.Mutations[item.Mutation].Color or Color3.fromRGB(200, 120, 255)
+	end
+	if typeof(item.Color) == "Color3" then return item.Color end
+	return (Config.RarityColors and Config.RarityColors[item.Rarity or ""]) or Color3.fromRGB(200, 200, 210)
+end
+
+-- v20.114: МАЛЕНЬКИЙ КУБИК ДРОПА со стадами (вместо неоновых шаров):
+-- одна деталь, поэтому её можно двигать/масштабировать как прежний шар.
+function PlaceholderFactory.DropCube(item, size)
+	local color = PlaceholderFactory.DropColor(item)
+	local cube = Instance.new("Part")
+	cube.Name = "DropCube"
+	cube.Shape = Enum.PartType.Block
+	cube.Size = Vector3.one * (size or 1)
+	cube.Color = color
+	cube.Material = Enum.Material.SmoothPlastic
+	cube.TopSurface = Enum.SurfaceType.Studs
+	cube.BottomSurface = Enum.SurfaceType.Inlet
+	cube.Anchored = true
+	cube.CanCollide = false
+	cube.CanQuery = false
+	cube.CanTouch = false
+	pcall(StudTexture.ApplyPart, cube)
+	return cube
+end
+
 function PlaceholderFactory.CollectionOre(oreId)
 	local asset = findAsset("CollectionOre_" .. oreId)
 	if asset then
@@ -853,14 +893,18 @@ function PlaceholderFactory.CollectionOre(oreId)
 		return asset
 	end
 	local info = Config.Geodes.Ores[oreId] or Config.Geodes.Ores.Quartz
-	return newPart({
+	-- v20.114: не неоновый столбик, а кубик со стадами цвета руды.
+	local cube = newPart({
 		Name = "CollectionOre_" .. oreId,
-		Size = Vector3.new(2.3, 3.6, 2.3),
+		Size = Vector3.new(1.8, 1.8, 1.8),
 		Color = info.Color,
-		Material = Enum.Material.Neon,
+		Material = Enum.Material.SmoothPlastic,
 		Anchored = true,
 		CanCollide = false,
 	})
+	cube.TopSurface = Enum.SurfaceType.Studs
+	pcall(StudTexture.ApplyPart, cube)
+	return cube
 end
 
 function PlaceholderFactory.GeodeBuilding()

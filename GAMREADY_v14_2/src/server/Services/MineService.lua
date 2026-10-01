@@ -655,7 +655,7 @@ function MineService:Init(services)
 	RunService.Heartbeat:Connect(function(dt)
 		if not groundOreFolder then return end
 		for _, crystal in groundOreFolder:GetChildren() do
-			if crystal:GetAttribute("Landed") == true then
+			if crystal:GetAttribute("Landed") == true and crystal:GetAttribute("Resting") ~= true then
 				local ok, root = pcall(CrystalUtil.GetRoot, crystal)
 				if ok and root and root.Parent then
 					local cfg = Config.MineExpedition
@@ -2175,6 +2175,19 @@ local function flyOre(crystal, fromPos, toPos, seconds, arcHeight, spitPop)
 
 	local cfg = Config.MineExpedition
 	local baseSize = root.Size
+	-- v20.114: лежит на земле (LandedRest): центр на половину высоты выше
+	-- земли, финальный поворот - случайный курс + лёгкий наклон.
+	local rest = cfg.LandedRest ~= false
+	local restLift = 0
+	if rest then
+		local okExtents, extents = pcall(function()
+			return crystal:IsA("Model") and crystal:GetExtentsSize() or root.Size
+		end)
+		restLift = okExtents and extents.Y / 2 or baseSize.Y / 2
+	end
+	local tilt = math.rad(cfg.LandedRestTilt or 18)
+	local restRotation = CFrame.Angles(0, math.random() * math.pi * 2, 0)
+		* CFrame.Angles((math.random() * 2 - 1) * tilt, 0, (math.random() * 2 - 1) * tilt)
 
 	local trail = Instance.new("Trail")
 	local a0 = Instance.new("Attachment", root)
@@ -2342,7 +2355,9 @@ local function flyOre(crystal, fromPos, toPos, seconds, arcHeight, spitPop)
 		end
 
 		if not root.Parent then return end
-		root.CFrame = CFrame.new(toPos)
+		-- v20.114: сохраняем поворот кувырка - дальше он плавно «уляжется»
+		local landedRotation = rest and root.CFrame.Rotation or CFrame.identity
+		root.CFrame = CFrame.new(toPos + Vector3.yAxis * restLift) * landedRotation
 		-- Коллизии у руды нет (по прямому запросу): лежащий кусок
 		-- заанкорен и висит на ховере, толкать игроков/тележку ему незачем.
 		root.CanCollide = false
@@ -2403,6 +2418,10 @@ local function flyOre(crystal, fromPos, toPos, seconds, arcHeight, spitPop)
 			{ Factor = 1.0,  Portion = 0.16, Hop = 0.0 },  -- улёгся
 		}
 		pcall(landingDebris, toPos, unit)
+		local settled, totalSteps = 0, 0
+		for _, phase in phases do
+			totalSteps += math.max(2, math.floor(impactSeconds * phase.Portion * 60))
+		end
 		local fromFactor = 1.2
 		local fromHop = 0
 		for _, phase in phases do
@@ -2416,7 +2435,13 @@ local function flyOre(crystal, fromPos, toPos, seconds, arcHeight, spitPop)
 				-- пока меняется высота (Size растёт от центра в обе стороны),
 				-- и подкидываем на Hop во время отскоков.
 				local hop = fromHop + (phase.Hop - fromHop) * a
-				root.CFrame = CFrame.new(toPos + Vector3.yAxis * hop)
+				if rest then
+					settled = math.min(1, settled + 1 / totalSteps)
+					local ease = settled * settled * (3 - 2 * settled)
+					root.CFrame = CFrame.new(toPos + Vector3.yAxis * (hop + restLift)) * landedRotation:Lerp(restRotation, ease)
+				else
+					root.CFrame = CFrame.new(toPos + Vector3.yAxis * hop)
+				end
 				task.wait(phaseSeconds / phaseSteps)
 			end
 			fromFactor = phase.Factor
@@ -2427,6 +2452,13 @@ local function flyOre(crystal, fromPos, toPos, seconds, arcHeight, spitPop)
 				pcall(function() crystal:ScaleTo(baseScale) end)
 			else
 				root.Size = baseSize
+			end
+			if rest then
+				-- v20.114: просто лежит. Без подъёма в левитацию и вращения.
+				root.CFrame = CFrame.new(toPos + Vector3.yAxis * restLift) * restRotation
+				crystal:SetAttribute("Resting", true)
+				crystal:SetAttribute("PickupReady", true)
+				return
 			end
 			root.CFrame = CFrame.new(toPos)
 			-- ЛЕВИТАЦИЯ ЗАПУСКАЕТСЯ ТОЛЬКО ЗДЕСЬ — когда приземление полностью

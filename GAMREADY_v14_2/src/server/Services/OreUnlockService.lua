@@ -4,8 +4,8 @@
 --   • data.UnlockedOres = { [oreKey] = true } — купленные руды (стартовые
 --     Config.MineRework.StarterOres открыты всегда);
 --   • торговец (вкладка ORE) продаёт коробку "OreBox_<oreKey>" — она лежит
---     в снаряжении; взял в руку (клик в хотбаре/инвентаре) — коробка
---     открывается: карточка «New ore appeared in the mine!», руда в пуле;
+--     в снаряжении; взял в руку - держишь над головой, клик - открыть
+--     (BeginOpen, v20.114): карточка «New ore appeared in the mine!»;
 --   • data.OreGuarantee = { Key, Left } — следующий заход в шахту отдаёт
 --     эту руду Left раз (CrystalService:Create → TakeGuarantee).
 --------------------------------------------------------------------------------
@@ -103,6 +103,42 @@ function OreUnlockService:OpenBox(player, gearKey)
 		return true
 	end
 	return self:Unlock(player, oreKey)
+end
+
+-- v20.114: КЛИК С КОРОБКОЙ В РУКАХ. Коробка трясётся над головой, экран
+-- трясётся, над игроком реплика («what happened..?»), через OpenSeconds -
+-- открытие и карточка новой руды. Повторные клики во время открытия
+-- игнорируются (атрибут OreBoxOpening).
+function OreUnlockService:BeginOpen(player, gearKey)
+	if player:GetAttribute("OreBoxOpening") == true then return false end
+	local oreKey = typeof(gearKey) == "string" and gearKey:sub(#BOX_PREFIX + 1)
+	if not (oreKey and Config.OreByKey[oreKey] and self:HasBox(player, oreKey)) then return false end
+	local cfg = Config.MineRework or {}
+	player:SetAttribute("OreBoxOpening", true)
+	player:SetAttribute("HeldOreBox", oreKey)
+	fxRemote:FireAllClients("Opening", {
+		Player = player,
+		Ore = oreKey,
+		Seconds = cfg.OpenSeconds or 1.8,
+		Line = cfg.OpenLine or "what happened..?",
+	})
+	task.delay(cfg.OpenSeconds or 1.8, function()
+		if not player.Parent then return end
+		local ok, err = pcall(self.OpenBox, self, player, gearKey)
+		if not ok then warn("[OreUnlockService] открытие коробки:", err) end
+		player:SetAttribute("OreBoxOpening", nil)
+		fxRemote:FireAllClients("Opened", { Player = player, Ore = oreKey })
+		-- Ещё такие коробки есть - держим следующую, нет - руки свободны.
+		if self:HasBox(player, oreKey) and player:GetAttribute("HeldGear") == gearKey then
+			player:SetAttribute("HeldOreBox", oreKey)
+		else
+			player:SetAttribute("HeldOreBox", nil)
+			if player:GetAttribute("HeldGear") == gearKey and Services.GearService then
+				Services.GearService:Unequip(player)
+			end
+		end
+	end)
+	return true
 end
 
 function OreUnlockService:SetupPlayer(player)

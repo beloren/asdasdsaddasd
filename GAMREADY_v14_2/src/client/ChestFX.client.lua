@@ -234,10 +234,14 @@ end
 local function lootToken(item, color, from, landing, isOwner, delay)
 	task.delay(delay, function()
 		local icons = CFG.LootIcons or {}
-		local orb = part({
-			Shape = Enum.PartType.Ball, Size = Vector3.one * 1.1, Material = Enum.Material.Neon,
-			Color = color, Transparency = 0.15,
-		})
+		-- v20.114: кубик со стадами цвета награды вместо неонового шара
+		local okCube, orb = pcall(function()
+			return require(ReplicatedStorage.Shared.PlaceholderFactory).DropCube(item, 1.1)
+		end)
+		if not okCube or not orb then
+			orb = part({ Size = Vector3.one * 1.1, Material = Enum.Material.SmoothPlastic, Color = color })
+		end
+		orb.CastShadow = false
 		orb.CFrame = CFrame.new(from)
 		orb.Parent = fxFolder
 		local gui = Instance.new("BillboardGui")
@@ -268,7 +272,7 @@ local function lootToken(item, color, from, landing, isOwner, delay)
 		connection = RunService.RenderStepped:Connect(function()
 			local k = math.clamp((os.clock() - started) / flight, 0, 1)
 			local position = from:Lerp(landing, k) + Vector3.new(0, 4 * apex * k * (1 - k), 0)
-			orb.CFrame = CFrame.new(position)
+			orb.CFrame = CFrame.new(position) * CFrame.Angles(k * 6, k * 4, 0) -- кувырок кубика
 			if k >= 1 then connection:Disconnect() end
 		end)
 		task.wait(flight + 0.7)
@@ -357,13 +361,36 @@ local function playOpen(payload)
 			Power = rarity == "Legendary" and 5 or rarity == "Epic" and 4 or rarity == "Rare" and 3 or 2,
 		})
 	end)
-	local flash = part({ Shape = Enum.PartType.Ball, Size = Vector3.one * 2, Material = Enum.Material.Neon, Color = color })
-	flash.CFrame = CFrame.new(center + Vector3.new(0, 1, 0))
-	flash.Parent = fxFolder
-	TweenService:Create(flash, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = Vector3.one * 9, Transparency = 1,
-	}):Play()
-	Debris:AddItem(flash, 0.4)
+	-- v20.114: вместо взрывающегося шара - крутящиеся лучи редкости за
+	-- сундуком (та же картинка, что за карточками: UiKit.Backdrop).
+	pcall(function()
+		local UiKit = require(ReplicatedStorage.Shared.UiKit)
+		local camera = workspace.CurrentCamera
+		local away = camera and (center - camera.CFrame.Position) * Vector3.new(1, 0, 1) or Vector3.zero
+		away = away.Magnitude > 0.1 and away.Unit or Vector3.zero
+		local anchor = part({ Size = Vector3.one * 0.2, Transparency = 1 })
+		anchor.CFrame = CFrame.new(center + Vector3.new(0, 1.6, 0) + away * 2)
+		anchor.Parent = fxFolder
+		local board = Instance.new("BillboardGui")
+		board.Name = "ChestRays"
+		board.Adornee = anchor
+		board.LightInfluence = 0
+		board.Size = UDim2.fromScale(1, 1)
+		board.MaxDistance = 200
+		board.Parent = anchor
+		local rays = UiKit.Backdrop(board, "Rays", rarity, {
+			Size = UDim2.fromScale(1, 1), Color = color, Transparency = 0.1,
+		})
+		UiKit.Spin(rays, 45)
+		local size = rarity == "Legendary" and 15 or rarity == "Epic" and 13 or rarity == "Rare" and 11 or 9
+		TweenService:Create(board, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = UDim2.fromScale(size, size),
+		}):Play()
+		task.delay(1.6, function()
+			TweenService:Create(rays, TweenInfo.new(0.5), { ImageTransparency = 1 }):Play()
+		end)
+		Debris:AddItem(anchor, 2.3)
+	end)
 	local sparkHolder = part({ Size = Vector3.one * 0.2, Transparency = 1 })
 	sparkHolder.CFrame = CFrame.new(center + Vector3.new(0, 1.5, 0))
 	sparkHolder.Parent = fxFolder

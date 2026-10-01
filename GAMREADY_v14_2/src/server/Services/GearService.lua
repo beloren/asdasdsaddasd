@@ -273,6 +273,7 @@ function GearService:Unequip(player)
 		-- бы висеть после того, как предмет убрали из рук (или потратили).
 		player:SetAttribute("HeldCartPackage", nil)
 		player:SetAttribute("HeldPotion", nil)
+		if player:GetAttribute("OreBoxOpening") ~= true then player:SetAttribute("HeldOreBox", nil) end
 	end
 	-- v18: текст промпта эссенции зависит от того, что в руке.
 	if Services and Services.PassiveIncomeService and Services.PassiveIncomeService.RefreshEssencePrompt then
@@ -288,13 +289,28 @@ function GearService:Equip(player, key)
 		self:Unequip(player)
 		return
 	end
+	if player:GetAttribute("OreBoxOpening") == true then return end -- v20.114: коробка открывается
+	if not key:match("^OreBox_") then player:SetAttribute("HeldOreBox", nil) end
 	if player:GetAttribute("CarryingCart") then
 		Services.NotifyService:Show(player, "Put your cart down first!", { Icon = "Cart" })
 		return
 	end
-	-- v20.109: КОРОБКА С РУДОЙ (торговец, вкладка ORE) - взял = открыл.
+	-- v20.114: КОРОБКА С РУДОЙ (торговец, вкладка ORE) - над головой, как
+	-- зелье (рисует OreCarryPose по атрибуту HeldOreBox); клик - открыть.
 	if key:match("^OreBox_") then
-		if Services.OreUnlockService then Services.OreUnlockService:OpenBox(player, key) end
+		if player:GetAttribute("OreBoxOpening") == true then return end
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if not humanoid then return end
+		humanoid:UnequipTools()
+		if Services.InventoryService then
+			pcall(Services.InventoryService.SetHeldOre, Services.InventoryService, player, nil)
+		end
+		clearHeldVisual(player)
+		player:SetAttribute("HeldCartPackage", nil)
+		player:SetAttribute("HeldPotion", nil)
+		player:SetAttribute("HeldGear", key)
+		player:SetAttribute("HeldOreBox", key:sub(#"OreBox_" + 1))
 		return
 	end
 
@@ -1073,10 +1089,13 @@ function GearService:SetupPlayer(player)
 	end
 	player:SetAttribute("HeldGear", "")
 	player:SetAttribute("HeldCartPackage", nil) -- v12: коробка над головой не переживает заход/респавн
+	player:SetAttribute("HeldOreBox", nil)
+	player:SetAttribute("OreBoxOpening", nil)
 	player.CharacterAdded:Connect(function(character)
 		clearHeldVisual(player)
 		player:SetAttribute("HeldGear", "")
 		player:SetAttribute("HeldCartPackage", nil)
+		if player:GetAttribute("OreBoxOpening") ~= true then player:SetAttribute("HeldOreBox", nil) end
 		-- Взял кирку/тул — снаряжение убирается из руки.
 		character.ChildAdded:Connect(function(child)
 			if child:IsA("Tool") and (player:GetAttribute("HeldGear") or "") ~= "" then
@@ -1135,6 +1154,8 @@ function GearService:Init(services)
 				self:_placeChest(player, b)
 			elseif Config.Potions and Config.Potions.Types[held] then
 				self:_drinkPotion(player, held)
+			elseif held:match("^OreBox_") and Services.OreUnlockService then
+				Services.OreUnlockService:BeginOpen(player, held) -- v20.114
 			elseif DropTables.EssenceMutation(held) then
 				-- v18: эссенцию наносят у подиума, а не кликом.
 				Services.NotifyService:Show(player, "Go to your Income Podium and press APPLY ESSENCE!", { Icon = "Quest", Duration = 2.5 })

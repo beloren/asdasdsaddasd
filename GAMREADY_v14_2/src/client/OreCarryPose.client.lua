@@ -149,7 +149,19 @@ local function heldPotion(plr)
 	return key
 end
 
+-- v20.114: КОРОБКА С РУДОЙ (торговец, вкладка ORE) - над головой, клик -
+-- открыть. Атрибут HeldOreBox = ключ руды.
+local function heldOreBox(plr)
+	local key = plr:GetAttribute("HeldOreBox")
+	if typeof(key) ~= "string" or key == "" or not Config.OreByKey[key] then return nil end
+	return key
+end
+
 local function heldKey(plr)
+	local box = heldOreBox(plr)
+	if box then
+		return "orebox|" .. box
+	end
 	local potion = heldPotion(plr)
 	if potion then
 		return "potion|" .. potion
@@ -289,7 +301,64 @@ local function buildPotionModel(plr, key)
 	return model, root
 end
 
+local function buildOreBoxModel(plr, oreKey)
+	local ok, model = pcall(require(ReplicatedStorage.Shared.OreBoxModel).Build, oreKey)
+	if not (ok and model) then return nil, nil end
+	local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+	if not root then model:Destroy() return nil, nil end
+	model.PrimaryPart = root
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanQuery = false
+			part.CanTouch = false
+			part.Massless = true
+		end
+	end
+	local _, size = model:GetBoundingBox()
+	local biggest = math.max(size.X, size.Y, size.Z)
+	if biggest > MAX_ORE_SIZE then
+		pcall(function() model:ScaleTo(model:GetScale() * MAX_ORE_SIZE / biggest) end)
+	end
+	local ore = Config.OreByKey[oreKey]
+	local rarity = Config.OreBaseRarity and Config.OreBaseRarity(oreKey) or ore.Rarity or "Common"
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "HeldOreBox"
+	billboard.Size = UDim2.new(4.6, 0, 1.3, 0)
+	billboard.StudsOffset = Vector3.new(0, Config.Inventory.HeldRarityBillboardHeight, 0)
+	billboard.AlwaysOnTop = true
+	billboard.LightInfluence = 0
+	billboard.MaxDistance = 80
+	billboard.Adornee = root
+	billboard.Parent = root
+	local title = WorldUi.Text(nil, "Text", "Heading")
+	title.Size = UDim2.fromScale(1, 0.55)
+	title.BackgroundTransparency = 1
+	title.TextScaled = true
+	title.Text = (ore.DisplayName or oreKey):upper() .. " BOX"
+	title.TextColor3 = (Config.RarityColors and Config.RarityColors[rarity]) or Color3.new(1, 1, 1)
+	title.Parent = billboard
+	if plr == Players.LocalPlayer then
+		local hint = WorldUi.Text(nil, "Text", "Heading")
+		hint.Size = UDim2.fromScale(1, 0.45)
+		hint.Position = UDim2.fromScale(0, 0.55)
+		hint.BackgroundTransparency = 1
+		hint.TextScaled = true
+		hint.Text = "CLICK TO OPEN"
+		hint.TextColor3 = Color3.fromRGB(255, 255, 255)
+		hint.Parent = billboard
+	end
+	model.Name = "HeldOreBoxVisual_" .. plr.UserId
+	model.Parent = workspace
+	return model, root
+end
+
 local function buildOreModel(plr)
+	local box = heldOreBox(plr)
+	if box then
+		return buildOreBoxModel(plr, box)
+	end
 	local potion = heldPotion(plr)
 	if potion then
 		return buildPotionModel(plr, potion)
@@ -521,6 +590,7 @@ local function watch(plr)
 	plr:GetAttributeChangedSignal("MineTier"):Connect(function() reconcile(plr) end)
 	plr:GetAttributeChangedSignal("HeldCartPackage"):Connect(function() reconcile(plr) end)
 	plr:GetAttributeChangedSignal("HeldPotion"):Connect(function() reconcile(plr) end)
+	plr:GetAttributeChangedSignal("HeldOreBox"):Connect(function() reconcile(plr) end)
 	plr.CharacterAdded:Connect(function()
 		-- Новый персонаж — старые ссылки на Torso/Motor6D мертвы. Ждём,
 		-- пока риг соберётся, и пересобираем позу, если руда всё ещё в руках.
@@ -584,6 +654,12 @@ RunService.Stepped:Connect(function(_, dt)
 			rig.Spin = (rig.Spin or 0) + dt * SPIN_DEGREES_PER_SECOND
 			if rig.Spin >= 360 then rig.Spin -= 360 end
 			local oreCFrame = CFrame.new(orePosition) * yaw * CFrame.Angles(0, math.rad(rig.Spin), 0)
+			-- v20.114: коробка руды трясётся, пока открывается.
+			if plr:GetAttribute("OreBoxOpening") == true then
+				local t = os.clock() * 38
+				oreCFrame *= CFrame.new(math.sin(t) * 0.12, math.abs(math.sin(t * 0.5)) * 0.15, math.cos(t * 1.3) * 0.08)
+					* CFrame.Angles(math.sin(t * 0.9) * 0.18, 0, math.cos(t * 1.1) * 0.18)
+			end
 			if rig.Model:IsA("Model") then
 				rig.Model:PivotTo(oreCFrame)
 			else

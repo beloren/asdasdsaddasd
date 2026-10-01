@@ -1597,25 +1597,27 @@ end
 -- отскакивает, брызгает искрами, приплющивается и дальше парит на месте,
 -- медленно крутясь, пока не подберут.
 local function spawnScatterDrop(origin, landPos, flightSeconds, arcHeight, result)
-	local prop = Instance.new("Part")
+	-- v20.114: не неоновый шар, а маленький кубик со стадами цвета дропа.
+	local dropColor = NEUTRAL_DROP_COLOR
+	local okCube, prop = pcall(function()
+		local factory = require(ReplicatedStorage.Shared.PlaceholderFactory)
+		dropColor = factory.DropColor(result)
+		return factory.DropCube(result, 1)
+	end)
+	if not okCube or not prop then
+		prop = Instance.new("Part")
+		prop.Material = Enum.Material.SmoothPlastic
+		prop.Color = dropColor
+		prop.Anchored = true
+		prop.CanCollide = false
+	end
 	prop.Name = "GeodeDropProp"
-	prop.Shape = Enum.PartType.Ball
 	local baseSize = Vector3.new(1.1, 1.1, 1.1)
 	prop.Size = baseSize * 0.2
-	prop.Color = NEUTRAL_DROP_COLOR
-	prop.Material = Enum.Material.Neon
-	prop.Anchored = true
-	prop.CanCollide = false
 	prop.CanQuery = false
-	prop.CastShadow = false
 	prop.CFrame = CFrame.new(origin)
 	prop.Parent = workspace
 	propResults[prop] = result
-	local light = Instance.new("PointLight")
-	light.Color = NEUTRAL_DROP_COLOR
-	light.Range = 7
-	light.Brightness = 1.4
-	light.Parent = prop
 
 	-- НАДПИСЬ "1/N" НАД КАПЛЕЙ — только шанс, без названия (что внутри -
 	-- игрок узнаёт, подобрав каплю).
@@ -1648,7 +1650,7 @@ local function spawnScatterDrop(origin, landPos, flightSeconds, arcHeight, resul
 	local trail = Instance.new("Trail")
 	trail.Attachment0 = a0
 	trail.Attachment1 = a1
-	trail.Color = ColorSequence.new(NEUTRAL_DROP_COLOR, Color3.new(1, 1, 1))
+	trail.Color = ColorSequence.new(dropColor, Color3.new(1, 1, 1))
 	trail.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
 	trail.WidthScale = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0) })
 	trail.LightEmission = 1
@@ -1683,7 +1685,7 @@ local function spawnScatterDrop(origin, landPos, flightSeconds, arcHeight, resul
 			if t >= T then break end
 		end
 		if not prop.Parent then return end
-		sparkleBurst(landPos, 8, NEUTRAL_DROP_COLOR)
+		sparkleBurst(landPos, 8, dropColor)
 		trail.Enabled = false
 
 		-- Отскок: маленький прыжок на 0.7 стада за 0.28 с.

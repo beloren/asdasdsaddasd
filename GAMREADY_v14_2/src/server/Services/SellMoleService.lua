@@ -178,6 +178,29 @@ function SellMoleService:_onChoice(player, choice)
 		state.NeedsExit = true
 		return
 	end
+	if choice == "One" then
+		-- v20.114: продать одну руду; крот остаётся и сразу спрашивает снова.
+		state.Busy = true
+		local target = model:GetPivot().Position + Vector3.new(0, 2.5, 0)
+		local ok, err = pcall(Services.BankService.SellBackpackBatch, Services.BankService, player, "One", target)
+		if not ok then warn("[SellMoleService] продажа упала:", err) end
+		state.Busy = false
+		if self:_hasOre(player) and state.Mole == model then
+			local held = player:GetAttribute("HeldOreUid")
+			local heldStack = held and Services.InventoryService:GetStackByUid(player, held)
+			remote:FireClient(player, "Open", {
+				Npc = model,
+				Line = (cfg().OneMoreLines and cfg().OneMoreLines[1]) or "Anything else?",
+				Count = Services.InventoryService:CountItems(player),
+				Capacity = Services.InventoryService:GetCapacity(player) == math.huge and -1 or Services.InventoryService:GetCapacity(player),
+				HandCount = heldStack and heldStack.Count or 0,
+			})
+		else
+			self:_burrow(player)
+			state.NeedsExit = true
+		end
+		return
+	end
 	if choice == "All" or choice == "Hand" then
 		state.Busy = true
 		local target = model:GetPivot().Position + Vector3.new(0, 2.5, 0)
@@ -215,7 +238,7 @@ end
 function SellMoleService:Start()
 	if not (cfg().Enabled) then return end
 	remote.OnServerEvent:Connect(function(player, action, value)
-		if action == "Choice" and (value == "All" or value == "Hand" or value == "No") then
+		if action == "Choice" and (value == "All" or value == "Hand" or value == "One" or value == "No") then
 			self:_onChoice(player, value)
 		elseif action == "Close" then
 			local state = states[player]

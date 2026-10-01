@@ -1558,6 +1558,74 @@ end
 --------------------------------------------------------------------------------
 -- ГЛАВНЫЙ ОБРАБОТЧИК СОСТОЯНИЙ ЭКСПЕДИЦИИ
 --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- v20.114: ВСЯ РУДА В КАДРЕ. Пока идёт выброс, каждый кадр проверяем, что
+-- наша руда (в полёте и на земле) внутри кадра с отступом
+-- Config.MineExpedition.EjectFitMargin; если нет - камера плавно отъезжает
+-- назад вдоль взгляда (не больше EjectFitMaxBack). Смещение кладётся поверх
+-- чужих записей камеры и снимается в следующем кадре (не накапливается).
+--------------------------------------------------------------------------------
+local ejectFit = { Active = false, Back = 0, Target = 0, Written = nil, Offset = CFrame.identity }
+local function ejectFitStep(dt)
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+	local current = camera.CFrame
+	local base = (ejectFit.Written and current == ejectFit.Written) and current * ejectFit.Offset:Inverse() or current
+	if not ejectFit.Active then ejectFit.Target = 0 end
+	if not ejectFit.Active and (ejectFit.Back < 0.05 or camera.CameraType == Enum.CameraType.Custom) then
+		if ejectFit.Written and current == ejectFit.Written then camera.CFrame = base end
+		ejectFit.Written = nil
+		ejectFit.Offset = CFrame.identity
+		RunService:UnbindFromRenderStep("MineEjectFit")
+		return
+	end
+	local cfg = Config.MineExpedition
+	ejectFit.Back += (ejectFit.Target - ejectFit.Back) * math.min(1, dt * (cfg.EjectFitSpeed or 4))
+	local offset = CFrame.new(0, ejectFit.Back * 0.25, ejectFit.Back)
+	local target = base * offset
+	camera.CFrame = target
+	ejectFit.Written = target
+	ejectFit.Offset = offset
+	if not ejectFit.Active then return end
+	-- проверка кадра
+	local folder = workspace:FindFirstChild("MineGroundOre")
+	if not folder then return end
+	local view = camera.ViewportSize
+	local margin = cfg.EjectFitMargin or 0.08
+	local outside = false
+	for _, crystal in folder:GetChildren() do
+		if crystal:GetAttribute("GroundOreOwner") == player.UserId then
+			local okPivot, pivot = pcall(function() return crystal:GetPivot().Position end)
+			if okPivot then
+				for _, point in { pivot, pivot + Vector3.new(0, 2.5, 0) } do
+					local screen = camera:WorldToViewportPoint(point)
+					if screen.Z <= 0 or screen.X < view.X * margin or screen.X > view.X * (1 - margin)
+						or screen.Y < view.Y * margin or screen.Y > view.Y * (1 - margin) then
+						outside = true
+						break
+					end
+				end
+			end
+		end
+		if outside then break end
+	end
+	if outside then
+		ejectFit.Target = math.min(cfg.EjectFitMaxBack or 45, ejectFit.Target + dt * (cfg.EjectFitGrow or 30))
+	end
+end
+
+local function startEjectFit()
+	ejectFit.Active = true
+	ejectFit.Back, ejectFit.Target = 0, 0
+	if Config.MineExpedition.EjectFitToScreen == false then return end
+	RunService:UnbindFromRenderStep("MineEjectFit")
+	RunService:BindToRenderStep("MineEjectFit", Enum.RenderPriority.Camera.Value + 6, ejectFitStep)
+end
+
+local function stopEjectFit()
+	ejectFit.Active = false
+end
+
 stateRemote.OnClientEvent:Connect(function(stage, data)
 	data = data or {}
 	if stage == "WalkIn" then
@@ -1640,6 +1708,7 @@ stateRemote.OnClientEvent:Connect(function(stage, data)
 
 	elseif stage == "Eject" then
 		stopArcVisual()
+		startEjectFit()
 		-- ШАХТА ЛОПНУЛА. Камера уходит ЕЩЁ дальше в сторону банка и
 		-- ОПУСКАЕТСЯ почти на землю: руда летит из шахты прямо над ней, и
 		-- низкий план даёт ей пройти через весь кадр. FOV тоже
@@ -1677,6 +1746,7 @@ stateRemote.OnClientEvent:Connect(function(stage, data)
 		end
 
 	elseif stage == "Done" then
+		stopEjectFit()
 		cinematicMode:Fire(false) -- катсцена кончилась — возвращаем HUD
 		fovTo(BASE_FOV, 0.5)
 		task.delay(0.5, function()
@@ -1685,6 +1755,7 @@ stateRemote.OnClientEvent:Connect(function(stage, data)
 			stopArcVisual()
 		end)
 	elseif stage == "Cancelled" then
+		stopEjectFit()
 		stopArcVisual()
 		endCameraControl()
 		ProximityPromptService.Enabled = true

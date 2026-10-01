@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
 -- SellMoleUI (v20.108) — КРОТ-СКУПЩИК (см. server/Services/SellMoleService).
 --   • Меню над кротом в стиле диалога шахтёра (MinerDialogUiBuilder):
---     SELL ALL / SELL HAND / NOT NOW.
+--     SELL ALL / SELL HAND / SELL ONE (v20.114) / NOT NOW.
 --   • Анимация всех кротов в workspace.SellMoles (видят все игроки):
 --     вылезает из земли, «дышит» масштабом, по State = "Burrow" зарывается,
 --     комья земли из стадов разлетаются и залетают обратно в ямку.
@@ -131,6 +131,10 @@ local function openMenu(payload)
 	if (tonumber(payload.HandCount) or 0) > 0 then
 		table.insert(list, { Kind = "Ask", Text = ("✋ SELL HAND (%d)"):format(payload.HandCount), Value = "Hand" })
 	end
+	-- v20.114: продать ОДНУ руду (из руки, а если в руке пусто - первую из рюкзака)
+	if count > 0 or (tonumber(payload.HandCount) or 0) > 0 then
+		table.insert(list, { Kind = "Ask", Text = "☝ SELL ONE", Value = "One" })
+	end
 	table.insert(list, { Kind = "No", Text = "NOT NOW", Value = "No" })
 	setChoices(list)
 end
@@ -255,6 +259,17 @@ local function animate(model)
 		if bobbing then
 			local k = 1 + math.sin((os.clock() - t0) * (cfg.BobSpeed or 3) * math.pi) * (cfg.BobAmount or 0.06)
 			pcall(model.ScaleTo, model, baseScale * k)
+		end
+		-- v20.114: крот всегда смотрит лицом на своего игрока (плавно).
+		local owner = Players:GetPlayerByUserId(tonumber(model:GetAttribute("OwnerUserId")) or 0)
+		local ownerRoot = owner and owner.Character and owner.Character:FindFirstChild("HumanoidRootPart")
+		if ownerRoot then
+			local from = base.Position
+			local to = Vector3.new(ownerRoot.Position.X, from.Y, ownerRoot.Position.Z)
+			if (to - from).Magnitude > 0.2 then
+				local wanted = CFrame.lookAt(from, to)
+				base = base:Lerp(wanted, 0.18)
+			end
 		end
 		model:PivotTo(base + Vector3.new(0, offset.Value, 0))
 	end)

@@ -223,6 +223,21 @@ function BankService:SellBackpackBatch(player, mode, targetPosition)
 			local uid = player:GetAttribute("HeldOreUid")
 			local stack = uid and inventory:GetStackByUid(player, uid)
 			if stack then table.insert(queue, { Uid = uid, Count = stack.Count }) end
+		elseif mode == "One" then
+			-- v20.114: одна руда - из руки, иначе первая стопка рюкзака
+			local uid = player:GetAttribute("HeldOreUid")
+			local stack = uid and inventory:GetStackByUid(player, uid)
+			if stack and (stack.Count or 0) > 0 then
+				table.insert(queue, { Uid = uid, Count = 1 })
+			else
+				local data = Services.DataService:GetGeodeData(player)
+				for _, other in (data and data.Backpack) or {} do
+					if typeof(other) == "table" and other.Uid and (other.Count or 0) > 0 then
+						table.insert(queue, { Uid = other.Uid, Count = 1 })
+						break
+					end
+				end
+			end
 		else
 			local data = Services.DataService:GetGeodeData(player)
 			local pieces = 0

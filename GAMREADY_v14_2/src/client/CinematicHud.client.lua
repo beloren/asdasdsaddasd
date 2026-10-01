@@ -54,6 +54,15 @@ local KEEP_VISIBLE = {
 	IslandLabels = true,       -- мировые подписи над островами (IslandUI), не HUD
 	RevealCards = true,        -- v20: карточки открытия наград
 	TutorialUi = true,         -- v20: реплики обучения
+	-- v20.114: экраны, которые сами появляются ВО ВРЕМЯ катсцен
+	RarityReel = true,         -- лента редкостей шахты
+	MineRarityFlash = true,
+	BoulderHitVignette = true,
+	CoinShowerFx = true,
+	TutorialSpotlight = true,
+	BoulderGameUi = true,
+	MiningRhythmUi = true,
+	MinerDialogUi = true,
 }
 
 local SLIDE_SECONDS = 0.35
@@ -104,7 +113,7 @@ end
 local function hudElements()
 	local list = {}
 	for _, gui in playerGui:GetChildren() do
-		if gui:IsA("ScreenGui") and gui.Enabled and not KEEP_VISIBLE[gui.Name] then
+		if gui:IsA("ScreenGui") and gui.Enabled and not KEEP_VISIBLE[gui.Name] and gui:GetAttribute("CinematicKeep") ~= true then
 			for _, child in gui:GetChildren() do
 				-- Только верхнеуровневые видимые элементы: двигать вложенные
 				-- бессмысленно, они уедут вместе с родителем.
@@ -144,13 +153,54 @@ local function showHud()
 	hiddenElements = {}
 end
 
+-- v20.114: ВСЁ UI НА ВРЕМЯ КАТСЦЕНЫ. Пока катсцена идёт, раз в 0.25 с
+-- досдвигаем то, что появилось уже после её начала (уведомления, компас,
+-- новые панели), и прячем интерфейс Roblox (чат, список игроков, рюкзак,
+-- эмоции) - Config.UI.CinematicHideCoreGui. После катсцены всё как было.
+local StarterGui = game:GetService("StarterGui")
+local okConfig, Config = pcall(require, ReplicatedStorage.Shared.Config)
+local HIDE_CORE = not (okConfig and Config.UI and Config.UI.CinematicHideCoreGui == false)
+local CORE_TYPES = { Enum.CoreGuiType.Chat, Enum.CoreGuiType.PlayerList, Enum.CoreGuiType.Backpack, Enum.CoreGuiType.EmotesMenu, Enum.CoreGuiType.Health }
+local coreWasEnabled = nil
+
+local function hideCore()
+	if not HIDE_CORE or coreWasEnabled then return end
+	coreWasEnabled = {}
+	for _, kind in CORE_TYPES do
+		local ok, enabled = pcall(StarterGui.GetCoreGuiEnabled, StarterGui, kind)
+		coreWasEnabled[kind] = ok and enabled
+		pcall(StarterGui.SetCoreGuiEnabled, StarterGui, kind, false)
+	end
+end
+
+local function restoreCore()
+	if not coreWasEnabled then return end
+	for kind, enabled in coreWasEnabled do
+		if enabled then pcall(StarterGui.SetCoreGuiEnabled, StarterGui, kind, true) end
+	end
+	coreWasEnabled = nil
+end
+
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		if depth > 0 then pcall(hideHud) end
+	end
+end)
+
 local function setCinematic(active)
 	if active then
 		depth += 1
-		if depth == 1 then hideHud() end
+		if depth == 1 then
+			hideHud()
+			hideCore()
+		end
 	else
 		depth = math.max(0, depth - 1)
-		if depth == 0 then showHud() end
+		if depth == 0 then
+			showHud()
+			restoreCore()
+		end
 	end
 	playerGui:SetAttribute("CinematicActive", depth > 0)
 end
@@ -162,6 +212,7 @@ player.CharacterAdded:Connect(function()
 		depth = 0
 		playerGui:SetAttribute("CinematicActive", false)
 		showHud()
+		restoreCore()
 	end
 end)
 

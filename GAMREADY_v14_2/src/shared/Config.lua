@@ -265,8 +265,8 @@ Config.Tutorial = {
 				},
 				{
 					Id = "OpenBox",
-					Lines = { "Open the box! Click it in your hotbar." },
-					Short = "OPEN THE BOX", Task = "Click the ore box in your hotbar",
+					Lines = { "Take the box from your hotbar - you'll lift it over your head.", "Then click anywhere to open it!" },
+					Short = "OPEN THE BOX", Task = "Take the box from the hotbar, then click to open",
 					Goal = { Kind = "Check", Check = "OreUnlockedAny" },
 					UiTargets = { "Hotbar:gear:OreBox_*" },
 				},
@@ -1054,10 +1054,14 @@ Config.MineExpedition = {
 	RarityReel = {
 		Enabled = true,
 		Seconds = 3.4,       -- прокрутка
-		HoldSeconds = 0.5,   -- пауза на выпавшей редкости
+		HoldSeconds = 0.8,   -- пауза на выпавшей редкости (с лучами сзади)
 		Tiles = 46,          -- плиток в ленте
-		TileWidth = 118,
-		TileGap = 8,
+		TileWidth = 118,     -- (старая горизонтальная лента, не используется)
+		TileGap = 10,        -- зазор между карточками
+		-- v20.114: вертикальная лента без фона (карточки едут сверху вниз)
+		CardWidth = 300,
+		CardHeight = 92,
+		VisibleCards = 5,    -- сколько карточек видно в колонке
 		TeaseChance = 0.75,  -- шанс, что следующая плитка - редкость повыше
 		Weights = { Common = 50, Uncommon = 26, Rare = 13, Epic = 7, Legendary = 3, Mythic = 1 },
 	},
@@ -1205,6 +1209,19 @@ Config.MineExpedition = {
 	-- MineService:Init (крутит всё, что лежит в workspace.MineGroundOre
 	-- с атрибутом Landed=true, пока не подобрано).
 	EjectSpinAfterLanding = 1.6,
+	-- v20.114: ВСЯ РУДА В КАДРЕ - если кусок (в полёте или на земле) вышел
+	-- за край кадра (отступ EjectFitMargin, доля экрана), камера выброса
+	-- плавно отъезжает назад (до EjectFitMaxBack стадов).
+	EjectFitToScreen = true,
+	EjectFitMargin = 0.08,
+	EjectFitMaxBack = 45,
+	EjectFitGrow = 30,          -- стадов/с, пока что-то вне кадра
+	EjectFitSpeed = 4,          -- сглаживание отъезда
+	-- v20.114: ПРИЗЕМЛЕНИЕ «ПО ФИЗИКЕ»: после отскоков кусок плавно
+	-- заваливается и просто лежит на земле (без резкого подъёма в
+	-- левитацию и без вращения). false - как раньше (висит и крутится).
+	LandedRest = true,
+	LandedRestTilt = 18,        -- случайный наклон лежащего куска, градусы
 	-- Трейл во время полёта (см. flyOre) — толщина у начала/конца
 	-- (Attachment0/1 разнесены по высоте камня) и время жизни хвоста.
 	EjectTrailWidth = 0.6,
@@ -1831,6 +1848,14 @@ end
 --------------------------------------------------------------------------------
 Config.MineRework = {
 	Enabled = true,
+	-- v20.114: КОРОБКА РУДЫ. Купил у торговца - она в инвентаре; взял в руку -
+	-- держишь над головой; клик - открыть: коробка трясётся, экран трясётся,
+	-- над игроком реплика OpenLine, через OpenSeconds - карточка новой руды.
+	OpenSeconds = 1.8,
+	OpenLine = "what happened..?",
+	OpenShake = 0.35,          -- сила тряски экрана
+	OreBoxImages = {},         -- рисунок на коробке: { Coal = 1234567, ... }; нет - пиксельный самоцвет
+	OreBoxOreOnTop = false,    -- true - ещё и руда сверху на коробке (как раньше)
 	WipeVersion = 1,
 	StarterOres = { "Coal", "Copper" },
 	RarityWeights = { Common = 60, Uncommon = 28, Rare = 9, Epic = 2.5, Legendary = 0.5, Mythic = 0.2 },
@@ -5944,6 +5969,8 @@ Config.UI = {
 -- картинки (12/360 = 0.033, 92/360 = 0.256).
 -- ImageId = 0 - рисуется похожая заглушка из рамок (чтобы было видно, где что).
 --------------------------------------------------------------------------------
+Config.UI.CinematicHideCoreGui = true -- v20.114: в катсценах (жеода, шахта) прятать и чат/список игроков Roblox
+
 Config.UI.HudImage = {
 	Enabled = true,          -- false - старый HUD из пилюль
 	ImageId = 0,             -- ← сюда Id картинки HUD целиком
@@ -7546,7 +7573,7 @@ Config.BoulderLoot = {
 --------------------------------------------------------------------------------
 Config.GeodeCutscene = {
 	StandDistance = 3.6,          -- студов от центра наковальни до игрока
-	PlayerScale = 2,              -- v20.106: во время раскола игрок в 2 раза крупнее (1 = как есть)
+	PlayerScale = 1.35,           -- v20.114: было 2 - персонаж «скукоживался» (голова в теле); 1 = как есть
 	ButtonSize = 104,             -- v20.106: квадратные кнопки AUTO и SKIP, пиксели
 	HammerAsset = "GeodeHammer",
 	SwingSeconds = 0.8,           -- минимум между ударами (длина взмаха)
