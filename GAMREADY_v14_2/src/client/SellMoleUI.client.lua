@@ -240,10 +240,28 @@ local function animate(model)
 	if not model.Parent then return end
 	local base = model:GetPivot()
 	local _, size = model:GetBoundingBox()
-	local depth = size.Y + 0.6
+	local depth = math.max(tonumber(cfg.Depth) or 12, size.Y + 0.6) -- v20.118: глубоко под землёй
 	local groundY = tonumber(model:GetAttribute("GroundY")) or base.Position.Y
 	local holeCenter = Vector3.new(base.Position.X, groundY, base.Position.Z)
-	local baseScale = model:GetScale()
+	-- v20.118: «дыхание» - растяжение по вертикали (ширина в обратную
+	-- сторону, объём сохраняется), а не равномерный масштаб всей модели.
+	-- Запоминаем каждую деталь относительно опоры модели.
+	local rest = {}
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") then
+			table.insert(rest, { Part = part, Rel = base:ToObjectSpace(part.CFrame), Size = part.Size })
+		end
+	end
+	local function stretch(k)
+		local w = 1 / math.sqrt(k)
+		local pivot = model:GetPivot()
+		local function axis(v) return math.abs(v.X) * w + math.abs(v.Y) * k + math.abs(v.Z) * w end
+		for _, item in rest do
+			local p, rot = item.Rel.Position, item.Rel.Rotation
+			item.Part.Size = Vector3.new(item.Size.X * axis(rot.RightVector), item.Size.Y * axis(rot.UpVector), item.Size.Z * axis(rot.LookVector))
+			item.Part.CFrame = pivot * CFrame.new(p.X * w, p.Y * k, p.Z * w) * rot
+		end
+	end
 	local offset = Instance.new("NumberValue")
 	offset.Value = -depth
 	local alive = true
@@ -255,10 +273,6 @@ local function animate(model)
 		if not (alive and model.Parent) then
 			conn:Disconnect()
 			return
-		end
-		if bobbing then
-			local k = 1 + math.sin((os.clock() - t0) * (cfg.BobSpeed or 3) * math.pi) * (cfg.BobAmount or 0.06)
-			pcall(model.ScaleTo, model, baseScale * k)
 		end
 		-- v20.114: крот всегда смотрит лицом на своего игрока (плавно).
 		local owner = Players:GetPlayerByUserId(tonumber(model:GetAttribute("OwnerUserId")) or 0)
@@ -272,6 +286,10 @@ local function animate(model)
 			end
 		end
 		model:PivotTo(base + Vector3.new(0, offset.Value, 0))
+		if bobbing then
+			local k = 1 + math.sin((os.clock() - t0) * (cfg.BobSpeed or 3) * math.pi) * (cfg.BobAmount or 0.07)
+			pcall(stretch, k)
+		end
 	end)
 	model:PivotTo(base + Vector3.new(0, -depth, 0))
 	dirtBurst(holeCenter, false)
@@ -283,7 +301,7 @@ local function animate(model)
 
 	local function burrow()
 		bobbing = false
-		pcall(model.ScaleTo, model, baseScale)
+		pcall(stretch, 1)
 		dirtBurst(holeCenter, true)
 		TweenService:Create(offset, TweenInfo.new(cfg.BurrowSeconds or 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Value = -depth }):Play()
 	end

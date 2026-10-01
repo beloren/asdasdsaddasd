@@ -572,5 +572,17 @@ if remote then
 		if record then jolt(record) end
 		if amount > 0 then pcall(showNumber, model, amount, grade, final == true, hitPoint) end
 		flashVignette(final and "Final" or grade)
+		-- v20.118: валун разломан - лучи, как у сундука (редкость по тиру валуна,
+		-- золотой/элитный - Legendary).
+		if final == true and (Config.Rocks == nil or Config.Rocks.BreakRays ~= false) then
+			local okPos, position = pcall(function() return model:GetPivot().Position end)
+			if okPos then
+				local tier = tonumber(model:GetAttribute("Tier")) or 1
+				local order = Config.RarityOrder or { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic" }
+				local rarity = order[math.clamp(math.ceil(tier / 1.6), 1, #order)]
+				if model:GetAttribute("Elite") == true or model:GetAttribute("GoldenBoulder") == true then rarity = "Legendary" end
+				require(ReplicatedStorage.Shared.WorldRays).Play(position, rarity, { Color = Config.RarityColors[rarity] })
+			end
+		end
 	end)
 end

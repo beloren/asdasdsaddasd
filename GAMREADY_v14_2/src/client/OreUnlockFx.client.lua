@@ -102,8 +102,9 @@ remote.OnClientEvent:Connect(function(action, payload)
 		pcall(RevealCards.Show, { {
 			Kind = "Ore", OreId = payload.Ore, Variant = 2, Rarity = rarity,
 			Title = ore.DisplayName,
-			MutationNames = ("NEXT DIG: x%d GUARANTEED!"):format(payload.Guaranteed or 3),
-		} }, { Title = "NEW ORE APPEARED IN THE MINE!", Color = Config.RarityColors[rarity] or ore.Color })
+			MutationNames = payload.Boost and ("DROPS x%.2f MORE OFTEN"):format(payload.Boost)
+				or ("NEXT DIG: x%d GUARANTEED!"):format(payload.Guaranteed or 3),
+		} }, { Title = payload.Boost and "ORE BOOSTED!" or "NEW ORE APPEARED IN THE MINE!", Color = Config.RarityColors[rarity] or ore.Color })
 	end
 	local okVfx, AssetVfx = pcall(require, ReplicatedStorage.Shared.AssetVfx)
 	local character = player.Character

@@ -961,7 +961,16 @@ function RockService:FindInHitbox(attacker, hrp, hitboxSize, forwardOffset)
 	local attackerPlayer = typeof(attacker) == "Instance" and attacker:IsA("Player") and attacker or nil
 	for _, state in active do
 		if state.Model.Parent and state.Health > 0 and not (attackerPlayer and self:IsForeignPlotBoulder(state, attackerPlayer)) then
+			-- v20.118: проверяем БЛИЖАЙШУЮ к игроку точку валуна, а не его
+			-- центр - крупный валун раньше было трудно задеть.
 			local position = state.Model:GetPivot().Position
+			local okBox, boxCF, boxSize = pcall(function() return state.Model:GetBoundingBox() end)
+			if okBox and boxCF then
+				local rel = boxCF:PointToObjectSpace(hrp.Position)
+				local h = boxSize / 2
+				position = boxCF:PointToWorldSpace(Vector3.new(
+					math.clamp(rel.X, -h.X, h.X), math.clamp(rel.Y, -h.Y, h.Y), math.clamp(rel.Z, -h.Z, h.Z)))
+			end
 			local localPosition = hrp.CFrame:PointToObjectSpace(position)
 			if math.abs(localPosition.X) <= half.X and math.abs(localPosition.Y) <= half.Y + 3
 				and localPosition.Z >= -forwardOffset - half.Z and localPosition.Z <= -forwardOffset + half.Z then

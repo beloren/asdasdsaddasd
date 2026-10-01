@@ -362,35 +362,8 @@ local function playOpen(payload)
 		})
 	end)
 	-- v20.114: вместо взрывающегося шара - крутящиеся лучи редкости за
-	-- сундуком (та же картинка, что за карточками: UiKit.Backdrop).
-	pcall(function()
-		local UiKit = require(ReplicatedStorage.Shared.UiKit)
-		local camera = workspace.CurrentCamera
-		local away = camera and (center - camera.CFrame.Position) * Vector3.new(1, 0, 1) or Vector3.zero
-		away = away.Magnitude > 0.1 and away.Unit or Vector3.zero
-		local anchor = part({ Size = Vector3.one * 0.2, Transparency = 1 })
-		anchor.CFrame = CFrame.new(center + Vector3.new(0, 1.6, 0) + away * 2)
-		anchor.Parent = fxFolder
-		local board = Instance.new("BillboardGui")
-		board.Name = "ChestRays"
-		board.Adornee = anchor
-		board.LightInfluence = 0
-		board.Size = UDim2.fromScale(1, 1)
-		board.MaxDistance = 200
-		board.Parent = anchor
-		local rays = UiKit.Backdrop(board, "Rays", rarity, {
-			Size = UDim2.fromScale(1, 1), Color = color, Transparency = 0.1,
-		})
-		UiKit.Spin(rays, 45)
-		local size = rarity == "Legendary" and 15 or rarity == "Epic" and 13 or rarity == "Rare" and 11 or 9
-		TweenService:Create(board, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = UDim2.fromScale(size, size),
-		}):Play()
-		task.delay(1.6, function()
-			TweenService:Create(rays, TweenInfo.new(0.5), { ImageTransparency = 1 }):Play()
-		end)
-		Debris:AddItem(anchor, 2.3)
-	end)
+	-- сундуком (v20.118: общий Shared.WorldRays, как у разлома валуна).
+	require(ReplicatedStorage.Shared.WorldRays).Play(center, rarity, { Color = color })
 	local sparkHolder = part({ Size = Vector3.one * 0.2, Transparency = 1 })
 	sparkHolder.CFrame = CFrame.new(center + Vector3.new(0, 1.5, 0))
 	sparkHolder.Parent = fxFolder

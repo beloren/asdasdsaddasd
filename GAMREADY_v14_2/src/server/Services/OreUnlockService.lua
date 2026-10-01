@@ -31,6 +31,23 @@ function OreUnlockService:GetUnlocked(player)
 	return data.UnlockedOres
 end
 
+-- v20.118: сколько раз куплена каждая руда ({ [oreKey] = N }, открытая = 1+).
+function OreUnlockService:GetBuys(player)
+	local data = dataOf(player)
+	if not data then return {} end
+	if type(data.OreBuys) ~= "table" then data.OreBuys = {} end
+	for key in self:GetUnlocked(player) do
+		if (tonumber(data.OreBuys[key]) or 0) < 1 then data.OreBuys[key] = 1 end
+	end
+	return data.OreBuys
+end
+
+-- Коробок этой руды в сумке.
+function OreUnlockService:BoxCount(player, oreKey)
+	local data = dataOf(player)
+	return data and data.Gear and (tonumber(data.Gear[BOX_PREFIX .. oreKey]) or 0) or 0
+end
+
 function OreUnlockService:IsUnlocked(player, oreKey)
 	return Config.IsStarterOre(oreKey) or self:GetUnlocked(player)[oreKey] == true
 end
@@ -94,14 +111,32 @@ function OreUnlockService:OpenBox(player, gearKey)
 	if not self:HasBox(player, oreKey) then return false end
 	Services.GearService:AddGear(player, gearKey, -1)
 	if self:IsUnlocked(player, oreKey) then
-		-- уже открыта (купили дважды) - деньги назад
-		local refund = Config.OreShopPrice(oreKey)
-		if refund ~= math.huge then Services.DataService:AddMoney(player, refund) end
-		if Services.NotifyService then
-			Services.NotifyService:Show(player, "You already have this ore. Money refunded.", { Icon = "Refund" })
+		-- v20.118: уже открыта - коробка усиливает руду (падает чаще)
+		local buys = self:GetBuys(player)
+		local maxBuys = Config.MineRework.MaxBuys or 10
+		if (buys[oreKey] or 1) >= maxBuys then
+			local refund = Config.OreShopPrice(oreKey)
+			if refund ~= math.huge then Services.DataService:AddMoney(player, refund) end
+			if Services.NotifyService then
+				Services.NotifyService:Show(player, "This ore is already maxed out. Money refunded.", { Icon = "Refund" })
+			end
+			return true
 		end
+		buys[oreKey] = (buys[oreKey] or 1) + 1
+		local ore = Config.OreByKey[oreKey]
+		fxRemote:FireClient(player, "Unlocked", {
+			Ore = oreKey,
+			Rarity = Config.OreBaseRarity(oreKey),
+			Boost = Config.OreRebuyMultiplier(buys[oreKey]),
+			Buys = buys[oreKey],
+		})
+		if Services.NotifyService then
+			Services.NotifyService:Show(player, ("⛏ %s drops more often now (x%.2f)!"):format(ore.DisplayName, Config.OreRebuyMultiplier(buys[oreKey])), { Icon = "Reward", Duration = 4 })
+		end
+		task.spawn(function() pcall(Services.DataService.SaveProfile, Services.DataService, player) end)
 		return true
 	end
+	self:GetBuys(player)[oreKey] = 1
 	return self:Unlock(player, oreKey)
 end
 

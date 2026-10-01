@@ -368,8 +368,10 @@ end
 -- Почему товар сейчас нельзя купить (кроме денег/стока) — или nil.
 local function lockReason(player, item)
 	if item.Kind == "OreUnlock" and Services.OreUnlockService then
-		if Services.OreUnlockService:IsUnlocked(player, item.OreKey) then return "OWNED" end
-		if Services.OreUnlockService:HasBox(player, item.OreKey) then return "IN BAG" end
+		-- v20.118: руду можно покупать снова (падает чаще) до MaxBuys
+		local unlock = Services.OreUnlockService
+		local owned = unlock:IsUnlocked(player, item.OreKey) and (unlock:GetBuys(player)[item.OreKey] or 1) or 0
+		if owned + unlock:BoxCount(player, item.OreKey) >= (Config.MineRework.MaxBuys or 10) then return "MAX" end
 		return nil
 	end
 	if item.Kind == "Skin" then
@@ -422,6 +424,12 @@ local function describe(item, player)
 		return "???", "❓", nil, "A random surprise: potion, geode, furniture, cash… or a rare pickaxe!"
 	elseif item.Kind == "OreUnlock" then
 		local ore = Config.OreByKey[item.OreKey]
+		local unlock = Services.OreUnlockService
+		if unlock and unlock:IsUnlocked(player, item.OreKey) then
+			local buys = unlock:GetBuys(player)[item.OreKey] or 1
+			return (ore and ore.DisplayName or item.OreKey) .. " Ore", icon or "📦", nil,
+				("Already in your mine (x%.2f). Buy again - it drops more often (x%.2f)!"):format(Config.OreRebuyMultiplier(buys), Config.OreRebuyMultiplier(buys + 1))
+		end
 		return (ore and ore.DisplayName or item.OreKey) .. " Ore", icon or "📦", nil,
 			("Unlocks %s in your mine. Worth $%s each!"):format(ore and ore.DisplayName or "it", ore and tostring(ore.CrystalValue) or "?")
 	elseif item.Kind == "Chest" then

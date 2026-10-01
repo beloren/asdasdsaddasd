@@ -193,6 +193,13 @@ local function makeTabButton(tab)
 	require(ReplicatedStorage.Shared.TutorialTarget).Mark(b, "MerchantTab:" .. tab.Id)
 end
 for _, tab in CFG.Tabs or { { Id = "Shop", Label = "SHOP" } } do makeTabButton(tab) end
+-- v20.118: плашки курса в окне больше нет - вкладки и список поднимаются
+-- на её место (без пустой полосы под шапкой). Работает и на старых сборках.
+if not marketBar.Visible then
+	tabsBar.Position = UDim2.fromOffset(12, 66)
+	body.Position = UDim2.fromOffset(12, 112)
+	body.Size = UDim2.new(1, -24, 1, -124)
+end
 -- v20.104: вкладки из старой сборки окна (например «TOTEMS & DECOR»),
 -- которых больше нет в Config.Merchant.Tabs, - прячем.
 for _, child in tabsBar:GetChildren() do

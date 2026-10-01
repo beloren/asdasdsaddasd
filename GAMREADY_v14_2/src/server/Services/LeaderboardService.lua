@@ -267,6 +267,13 @@ local function placeStatue(stand, userId)
 	if not rig.Parent then return end
 	rig:PivotTo(rig:GetPivot() + Vector3.new(0, topY - feetBottom(rig), 0))
 	stand.Statue = rig
+	-- v20.118: лидер на постаменте «живой» - стойка торговцев
+	-- (Config.Leaderboards.StatueAnimations: ключи Config.NpcIdleAnimations).
+	local keys = Config.Leaderboards.StatueAnimations or { "BankMerchant", "IslandKeeperNPC" }
+	local key = stand.AnimKey or keys[1]
+	if key then
+		pcall(function() require(ReplicatedStorage.Shared.NpcIdle).Play(rig, key) end)
+	end
 end
 
 local function renderPlate(stand, spec, entry)
@@ -328,7 +335,9 @@ function LeaderboardService:_setupStands()
 			local plate = standModel:FindFirstChild("Plate", true)
 			local oldPlateGui = plate and plate:FindFirstChild("PlateGui")
 			if oldPlateGui then oldPlateGui:Destroy() end
-			stands[spec.Key] = { Board = board, Plate = plate, Spot = spot and spot:IsA("BasePart") and spot or nil }
+			local animKeys = Config.Leaderboards.StatueAnimations or { "BankMerchant", "IslandKeeperNPC" }
+			stands[spec.Key] = { Board = board, Plate = plate, Spot = spot and spot:IsA("BasePart") and spot or nil,
+				AnimKey = animKeys[((table.find(SPECS, spec) or 1) - 1) % math.max(1, #animKeys) + 1] }
 			renderBoard(board, spec, {}, nil)
 			renderPlate(stands[spec.Key], spec, nil)
 		else

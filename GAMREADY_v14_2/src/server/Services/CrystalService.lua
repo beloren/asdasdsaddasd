@@ -557,7 +557,8 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 		local forced = source == nil and Services.OreUnlockService:TakeGuarantee(miner) or nil
 		local caveLuck = (rework.LuckPerCave or 0) * math.max(0, (tonumber(tier) or 1) - 1)
 		oreInfo, oreChance, _oreSlot, oreRarity = Config.RollOreUnlocked(
-			Services.OreUnlockService:GetUnlocked(miner), (luckBonus or 0) + caveLuck, forced)
+			Services.OreUnlockService:GetUnlocked(miner), (luckBonus or 0) + caveLuck, forced,
+			Services.OreUnlockService:GetBuys(miner))
 	elseif rework and rework.Enabled and rework.BoulderWindow and source == "Boulder" then
 		-- v20.110: tier здесь - тир ВАЛУНА (1..9) → окно пещеры
 		local cave = Config.CaveForNineTier(tier)

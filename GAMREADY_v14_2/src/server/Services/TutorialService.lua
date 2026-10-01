@@ -869,6 +869,15 @@ local function moneyAtLeast(player, amount)
 end
 
 TutorialService.Checks = {
+	-- v20.118: кирка в руках (первый шаг обучения - взять её из хотбара)
+	PickaxeEquipped = function(_, player)
+		local character = player.Character
+		if not character then return false end
+		for _, child in character:GetChildren() do
+			if child:IsA("Tool") and (child.Name == "Pickaxe" or child.Name:match("^Pickaxe")) then return true end
+		end
+		return false
+	end,
 	IslandOwned = function(_, player, id)
 		return Services.IslandService ~= nil and Services.IslandService:Owns(player, id)
 	end,

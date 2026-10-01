@@ -1298,23 +1298,15 @@ local function screenFlash(color, transparency)
 	tween:Play()
 end
 
-local activeCard = nil
-
-local function playRarityCard(data)
-	local cfg = Config.MineExpedition.RarityCard or {}
-	local rarity = data.Rarity or "Common"
-	local color = data.Color or Config.RarityColors[rarity] or Color3.new(1, 1, 1)
-	local fx = (cfg.Effects and cfg.Effects[rarity]) or {}
-	if activeCard then activeCard:Destroy() end
-
+-- v20.118: подготовка одной 3D-карточки (модель, масштаб, поворот лицом к
+-- камере) - общая для выпавшей карточки и карточек ленты.
+local function prepareCard(rarity, color, cfg, distance)
 	local model = findCardAsset(rarity) or buildCardPlaceholder(rarity, color)
-	activeCard = model
 	local primary = model.PrimaryPart
 	model:PivotTo(CFrame.new())
 	local pivotOffset = primary.CFrame:ToObjectSpace(model:GetPivot())
 	local _, rawSize = model:GetBoundingBox()
 
-	local distance = cfg.Distance or 10
 	local function visible()
 		local height = 2 * distance * math.tan(math.rad(camera.FieldOfView / 2))
 		local viewport = camera.ViewportSize
@@ -1361,6 +1353,21 @@ local function playRarityCard(data)
 	pivotOffset = primary.CFrame:ToObjectSpace(model:GetPivot())
 	local _, size = model:GetBoundingBox()
 	model.Parent = camera
+	return model, primary, pivotOffset, cardRotation, faceAlign, size, visible, cardW
+end
+
+local activeCard = nil
+
+local function playRarityCard(data)
+	local cfg = Config.MineExpedition.RarityCard or {}
+	local rarity = data.Rarity or "Common"
+	local color = data.Color or Config.RarityColors[rarity] or Color3.new(1, 1, 1)
+	local fx = (cfg.Effects and cfg.Effects[rarity]) or {}
+	if activeCard then activeCard:Destroy() end
+
+	local distance = cfg.Distance or 10
+	local model, primary, pivotOffset, cardRotation, faceAlign, size, visible, cardW = prepareCard(rarity, color, cfg, distance)
+	activeCard = model
 
 	-- Точка эффектов — центр карточки, чуть перед лицевой гранью.
 	local anchor = Instance.new("Attachment")
@@ -1371,6 +1378,48 @@ local function playRarityCard(data)
 	anchor.Position = faceNormal * (thickness / 2 + 0.2)
 	anchor.Parent = primary
 	local scaleK = cardW / 6 -- размеры эффектов относительно карточки
+
+	-- v20.118: 3D-ЛЕНТА ИЗ ЭТИХ ЖЕ КАРТОЧЕК (Config.MineExpedition.RarityReel,
+	-- Mode = "3D"): колонка карточек едет сверху вниз как барабан
+	-- (карточки у краёв наклонены и уходят вглубь), замедляется, чуть
+	-- проскакивает, дразнит карточкой повыше и встаёт на выпавшую - она и
+	-- остаётся в центре с эффектами редкости.
+	local reelCfg = Config.MineExpedition.RarityReel or {}
+	local reel = nil
+	if data.Reel3D then
+		local order = Config.RarityOrder
+		local weights = reelCfg.Weights or {}
+		local rng = Random.new()
+		local function pick()
+			local total = 0
+			for _, name in order do total += weights[name] or 0 end
+			local roll = rng:NextNumber() * total
+			for _, name in order do
+				roll -= weights[name] or 0
+				if roll <= 0 then return name end
+			end
+			return order[1]
+		end
+		local count = reelCfg.Cards3D or 16
+		local targetIndex = count - 3
+		local targetRank = table.find(order, rarity) or 1
+		local screenH = math.abs(faceAlign.RightVector.Y) * size.X + math.abs(faceAlign.UpVector.Y) * size.Y + math.abs(faceAlign.LookVector.Y) * size.Z
+		local spacing = screenH * (1 + (reelCfg.Gap3D or 0.5))
+		reel = { Cards = {}, Target = targetIndex, Spacing = spacing, Seconds = reelCfg.Seconds or 3.4, LastTick = nil }
+		reel.Start = (targetIndex - 1) * spacing + visible() * 0.6
+		for i = 1, count do
+			if i ~= targetIndex then
+				local r = pick()
+				if i == targetIndex + 1 and targetRank < #order and rng:NextNumber() < (reelCfg.TeaseChance or 0.75) then
+					r = order[math.min(#order, targetRank + rng:NextInteger(1, 2))]
+				end
+				local okCard, m, _, po, rot = pcall(prepareCard, r, Config.RarityColors[r] or Color3.new(1, 1, 1), cfg, distance)
+				if okCard and m then
+					table.insert(reel.Cards, { Model = m, PivotOffset = po, Rotation = rot, Index = i })
+				end
+			end
+		end
+	end
 
 	-- ПОЛОСКИ ЗА КАРТОЧКОЙ (v20.38) — у КАЖДОЙ редкости свой набор слоёв
 	-- (Config.MineExpedition.RarityCard.Backdrops): невидимые плиты с Decal
@@ -1404,6 +1453,7 @@ local function playRarityCard(data)
 	end
 
 	local inSeconds = cfg.InSeconds or 0.6
+	if reel then inSeconds = reel.Seconds + 0.45 end -- прокрутка + доводка
 	local holdSeconds = (cfg.HoldSeconds or 1.45) + (fx.HoldExtra or 0)
 	local outSeconds = cfg.OutSeconds or 0.5
 	local tilt = math.rad(cfg.TiltDegrees or 24)
@@ -1431,10 +1481,29 @@ local function playRarityCard(data)
 
 	local conn
 	conn = RunService.RenderStepped:Connect(function(dt)
-		if activeCard ~= model then conn:Disconnect() return end
+		if activeCard ~= model then
+			conn:Disconnect()
+			if reel then for _, card in reel.Cards do card.Model:Destroy() end end
+			return
+		end
 		local t = os.clock() - started
 		local vy, bob, roll, yaw = 0, 0, 0, 0
-		if t < inSeconds then
+		local reelY = 0
+		if reel and t < inSeconds then
+			-- остаток пути ленты: замедление (quint), затем перелёт вниз и возврат
+			if t < reel.Seconds then
+				local a = t / reel.Seconds
+				reelY = reel.Start * (1 - a) ^ 5 - reel.Spacing * 0.32 * math.sin(math.clamp((a - 0.75) / 0.25, 0, 1) * math.pi / 2)
+			else
+				local a = math.clamp((t - reel.Seconds) / 0.45, 0, 1)
+				reelY = -reel.Spacing * 0.32 * (1 - easeOutBack(a))
+			end
+			local tickIndex = math.floor(reelY / reel.Spacing + 0.5)
+			if tickIndex ~= reel.LastTick then
+				reel.LastTick = tickIndex
+				UiSfx.play("UiHover")
+			end
+		elseif t < inSeconds then
 			local a = t / inSeconds
 			vy = startVy * (1 - easeOutBack(a))
 		elseif t < inSeconds + holdSeconds then
@@ -1506,9 +1575,31 @@ local function playRarityCard(data)
 		local targetTilt = math.clamp(vy / 1.2, -1, 1) * tilt
 		smoothTilt += (targetTilt - smoothTilt) * math.clamp(dt * 14, 0, 1)
 		-- Лицом к камере (flip на 180°).
-		local cardCF = camCF * CFrame.new(0, vy * visibleH / 2 + bob, -distance)
+		-- барабан: чем дальше от центра по вертикали, тем сильнее наклон и глубже
+		local function drum(y)
+			local k = math.clamp(y / (visibleH * 0.55), -1.2, 1.2)
+			return math.rad(reelCfg.DrumDegrees or 38) * k, (k * k) * distance * 0.18
+		end
+		local winTilt, winDepth = 0, 0
+		if reel then winTilt, winDepth = drum(reelY) end
+		local cardCF = camCF * CFrame.new(0, vy * visibleH / 2 + bob + reelY, -distance - winDepth)
 			* CFrame.Angles(0, math.pi + yaw, 0)
-			* CFrame.Angles(smoothTilt + bob * 0.6, 0, roll)
+			* CFrame.Angles(smoothTilt + bob * 0.6 - winTilt, 0, roll)
+		if reel then
+			-- остальные карточки ленты; после остановки разлетаются и исчезают
+			local away = reachedCenter and math.clamp((t - burstAt) / 0.35, 0, 1) or 0
+			for _, card in reel.Cards do
+				if card.Model.Parent then
+					local y = (card.Index - reel.Target) * reel.Spacing + reelY
+					y *= 1 + away * 1.8
+					local tiltA, depth = drum(y)
+					local cf = camCF * CFrame.new(0, y, -distance - depth - away * distance * 0.6)
+						* CFrame.Angles(0, math.pi, 0) * CFrame.Angles(-tiltA, 0, 0)
+					card.Model:PivotTo(cf * card.Rotation * card.PivotOffset)
+					if away >= 1 then card.Model:Destroy() end
+				end
+			end
+		end
 		-- «Поп» при остановке в центре.
 		local popScale = 1
 		if reachedCenter then
@@ -1543,6 +1634,7 @@ local function playRarityCard(data)
 
 		if t >= inSeconds + holdSeconds + outSeconds then
 			conn:Disconnect()
+			if reel then for _, card in reel.Cards do card.Model:Destroy() end end
 			if activeCard == model then activeCard = nil end
 			-- Частицам даём догореть.
 			for _, part in model:GetDescendants() do
@@ -1694,7 +1786,11 @@ stateRemote.OnClientEvent:Connect(function(stage, data)
 		if rank >= 3 then fovKick(rank >= 5 and -8 or -4, 0.3) end
 	elseif stage == "RarityCard" then
 		stopArcVisual()
-		if data.Reel then
+		if data.Reel and (Config.MineExpedition.RarityReel or {}).Mode ~= "2D" then
+			-- v20.118: лента из самих 3D-карточек (сверху вниз), стоп на выпавшей
+			data.Reel3D = true
+			playRarityCard(data)
+		elseif data.Reel then
 			-- v20.109: сначала лента редкостей, потом карточка как раньше
 			task.spawn(function()
 				local ok = pcall(require(ReplicatedStorage.Shared.RarityReel).Play, data.Rarity, function()

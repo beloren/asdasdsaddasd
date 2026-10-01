@@ -792,6 +792,7 @@ end
 
 -- Слот кирки остаётся чужим: им владеет CustomCartUI.
 local pickaxeSlot = bar:FindFirstChild("PickaxeSlot")
+if pickaxeSlot then require(ReplicatedStorage.Shared.TutorialTarget).Mark(pickaxeSlot, "PickaxeSlot") end -- v20.118: цель обучения
 
 -- v20.93: КИРКА - 3D-иконка вместо надписи «Pickaxe / T1»: в хотбаре -
 -- та кирка, что сейчас у игрока (со скином), в сетке - кирка своего тира.

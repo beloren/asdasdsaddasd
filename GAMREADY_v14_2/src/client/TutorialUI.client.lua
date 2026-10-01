@@ -226,6 +226,7 @@ local current = nil        -- последняя карточка от серв�
 local currentTarget = nil  -- Instance цели
 local typingToken = 0
 local canAdvance = false
+local uiPointerActive = false -- v20.118: курсор сейчас в интерфейсе (мировые стрелки прячем)
 
 local stateRemote = ReplicatedStorage.Shared:WaitForChild("TutorialStateEvent")
 local actionRemote = ReplicatedStorage.Shared:WaitForChild("TutorialActionEvent")
@@ -337,9 +338,59 @@ local function restingPosition(frame)
 	return UDim2.new(frame.Position.X.Scale, frame.Position.X.Offset, 1, aboveHotbarOffset())
 end
 
+-- v20.118: ПОКА ГОВОРИТ НПС - остальной интерфейс уезжает к краям (кроме
+-- нужного: хотбар, само обучение, курсор). Config.Tutorial.DialogFocusKeep.
+local FOCUS_KEEP = Config.Tutorial.DialogFocusKeep or { "HotbarUi", "TutorialUi", "TutorialCursor" }
+local focusOn = false
+local function setHudFocus(on)
+	if on == focusOn then return end
+	focusOn = on
+	local signal = ReplicatedStorage.Shared:FindFirstChild("HudFocus")
+	if signal then signal:Fire(on, FOCUS_KEEP) end
+end
+
+-- v20.118: персонаж выпрыгивает слева с наклоном, табличка «вспухает».
+local function dialogEntrance()
+	if characterImage then
+		local base = characterImage:GetAttribute("BasePosition")
+		if typeof(base) ~= "UDim2" then
+			base = characterImage.Position
+			characterImage:SetAttribute("BasePosition", base)
+		end
+		characterImage.Position = base - UDim2.fromOffset(260, -40)
+		characterImage.Rotation = -14
+		TweenService:Create(characterImage, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Position = base, Rotation = 0,
+		}):Play()
+	end
+	if boardImage then
+		local scale = boardImage:FindFirstChild("PopScale") or Instance.new("UIScale")
+		scale.Name = "PopScale"
+		scale.Parent = boardImage
+		scale.Scale = 0.6
+		TweenService:Create(scale, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	end
+end
+local function dialogExit()
+	if characterImage then
+		local base = characterImage:GetAttribute("BasePosition")
+		if typeof(base) == "UDim2" then
+			TweenService:Create(characterImage, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Position = base - UDim2.fromOffset(200, -30), Rotation = -10,
+			}):Play()
+		end
+	end
+	local scale = boardImage and boardImage:FindFirstChild("PopScale")
+	if scale then TweenService:Create(scale, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.8 }):Play() end
+end
+
 local function slideIn(frame)
 	if frame.Visible and frame:GetAttribute("_Shown") == true then return end
 	frame:SetAttribute("_Shown", true)
+	if frame == dialog then
+		setHudFocus(true)
+		dialogEntrance()
+	end
 	local rest = restingPosition(frame)
 	frame.Position = UDim2.new(rest.X.Scale, rest.X.Offset, 1, 90)
 	frame.Visible = true
@@ -347,8 +398,10 @@ local function slideIn(frame)
 end
 
 local function slideOut(frame)
+	if frame == dialog then setHudFocus(false) end
 	if not frame.Visible then return end
 	frame:SetAttribute("_Shown", false)
+	if frame == dialog then dialogExit() end
 	local rest = restingPosition(frame)
 	local tween = TweenService:Create(frame, ANIM_OUT, {
 		Position = UDim2.new(rest.X.Scale, rest.X.Offset, 1, 90),
@@ -654,7 +707,13 @@ RunService.RenderStepped:Connect(function()
 		return
 	end
 	worldArrowAnchor.Position = position + Vector3.new(0, 2.5 + math.sin(os.clock() * 4) * 0.45, 0)
-	worldArrow.Enabled = true
+	-- v20.118: над целью теперь 3D-курсор (Config.Tutorial.Cursor3D); пока
+	-- курсор в интерфейсе (открыто меню) - мировые подсказки спрятаны.
+	worldArrow.Enabled = Config.Tutorial.Cursor3D == false and not uiPointerActive
+	if uiPointerActive then
+		trailBeam.Enabled = false
+		return
+	end
 	-- Конец дорожки держим у земли (без покачивания, в отличие от стрелки):
 	-- иначе линия уходит по диагонали вверх и теряется на глаз.
 	trailGroundAnchor.Position = Vector3.new(position.X, position.Y - 2, position.Z)
@@ -714,7 +773,9 @@ if pointer then pointer.Visible = false end -- старый указатель �
 
 local TUT = Config.Tutorial or {}
 local TIP = typeof(TUT.PointerTip) == "Vector2" and TUT.PointerTip or Vector2.new(0.5, 0.06)
-local TAP_SECONDS = tonumber(TUT.PointerTapSeconds) or 1.15
+local TAP_SECONDS = tonumber(TUT.PointerTapSeconds) or 1.3
+-- куда «смотрит» остриё картинки (градусы, 0 = вправо, 90 = вниз)
+local TIP_ANGLE = math.deg(math.atan2(TIP.Y - 0.5, TIP.X - 0.5))
 local FROM_DIR = (typeof(TUT.PointerFromDir) == "Vector2" and TUT.PointerFromDir or Vector2.new(0.45, 1)).Unit
 
 -- Слой для курсора над миром / у края экрана (координаты = экран целиком).
@@ -799,11 +860,12 @@ local function playRipple(at)
 	local size = cursorSize() * 0.9
 	ripple.Size = UDim2.fromOffset(size, size)
 	ripple.Visible = true
-	ripple.BackgroundTransparency = 0.55
-	rippleStroke.Transparency = 0
-	rippleScale.Scale = 0.2
-	local info = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	TweenService:Create(rippleScale, info, { Scale = 1.3 }):Play()
+	-- v20.118: мягче - бледнее, дольше и плавнее расходится
+	ripple.BackgroundTransparency = 0.78
+	rippleStroke.Transparency = 0.35
+	rippleScale.Scale = 0.35
+	local info = TweenInfo.new(0.75, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	TweenService:Create(rippleScale, info, { Scale = 1.1 }):Play()
 	TweenService:Create(ripple, info, { BackgroundTransparency = 1 }):Play()
 	TweenService:Create(rippleStroke, info, { Transparency = 1 }):Play()
 end
@@ -825,7 +887,7 @@ local function tapAt(tip, rotation)
 	elseif p < 0.62 then
 		distance = 0
 		local a = (p - 0.45) / 0.17
-		press = 1 - math.sin(a * math.pi) * 0.18
+		press = 1 - math.sin(a * math.pi) * 0.1
 		if cycle ~= lastCycle and a >= 0.35 then
 			lastCycle = cycle
 			playRipple(tip)
@@ -842,6 +904,90 @@ local function tapAt(tip, rotation)
 	cursor.Visible = true
 end
 
+-- v20.118: 3D-КУРСОР В МИРЕ (Config.Tutorial.Cursor3D): невидимая плитка с
+-- картинкой курсора, перевёрнутой остриём ВНИЗ, висит над целью и покачивается
+-- (туда идти / это бить). Всегда повёрнута к камере.
+local cursor3D = Instance.new("Part")
+cursor3D.Name = "TutorialCursor3D"
+cursor3D.Anchored = true
+cursor3D.CanCollide = false
+cursor3D.CanQuery = false
+cursor3D.CanTouch = false
+cursor3D.CastShadow = false
+cursor3D.Transparency = 1
+local CURSOR3D_SIZE = tonumber(TUT.Pointer3DSize) or 3.5
+cursor3D.Size = Vector3.new(CURSOR3D_SIZE, CURSOR3D_SIZE, 0.05)
+cursor3D.Parent = nil
+do
+	local image = cursorImage.Image
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		if image ~= "" then
+			local decal = Instance.new("Decal")
+			decal.Face = face
+			decal.Texture = image
+			decal.Parent = cursor3D
+		else
+			local surface = Instance.new("SurfaceGui")
+			surface.Face = face
+			surface.LightInfluence = 0
+			surface.CanvasSize = Vector2.new(200, 200)
+			surface.Parent = cursor3D
+			local hand = Instance.new("TextLabel")
+			hand.BackgroundTransparency = 1
+			hand.Size = UDim2.fromScale(1, 1)
+			hand.Text = "👆"
+			hand.TextScaled = true
+			hand.Parent = surface
+		end
+	end
+end
+-- поворот картинки в своей плоскости, чтобы остриё смотрело вниз
+local ROLL_DOWN = math.rad(90 - TIP_ANGLE)
+
+local function show3D(position)
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+	local bob = math.abs(math.sin(os.clock() * 3.2)) * 0.9
+	local at = position + Vector3.new(0, CURSOR3D_SIZE * 0.5 + 0.4 + bob, 0)
+	local look = camera.CFrame.Position - at
+	look = Vector3.new(look.X, 0, look.Z)
+	if look.Magnitude < 0.05 then look = Vector3.new(0, 0, 1) end
+	-- лицевая грань (-Z) к камере; крутим вокруг оси взгляда - остриё вниз
+	-- (Back-грань видна сзади и тоже правильная)
+	cursor3D.CFrame = CFrame.lookAt(at, at + look.Unit) * CFrame.Angles(0, 0, ROLL_DOWN)
+	if cursor3D.Parent ~= workspace then cursor3D.Parent = workspace end
+end
+local function hide3D()
+	if cursor3D.Parent then cursor3D.Parent = nil end
+end
+
+-- Точка на экране (в координатах слоя курсора) для элемента интерфейса:
+-- ScreenGui - по AbsolutePosition; BillboardGui (меню крота и т.п.) - по
+-- проекции его точки в мире. Возвращает центр-точку тапа и размер элемента.
+local function uiPoint(target)
+	local layer = target:FindFirstAncestorWhichIsA("LayerCollector")
+	if layer and layer:IsA("BillboardGui") then
+		local camera = workspace.CurrentCamera
+		local adornee = layer.Adornee or layer.Parent
+		local position
+		if adornee and adornee:IsA("BasePart") then position = adornee.Position
+		elseif adornee and adornee:IsA("Model") then position = adornee:GetPivot().Position
+		elseif adornee and adornee:IsA("Attachment") then position = adornee.WorldPosition end
+		if not (position and camera) then return nil end
+		position += layer.StudsOffsetWorldSpace
+		local cf = camera.CFrame
+		position += cf.RightVector * layer.StudsOffset.X + cf.UpVector * layer.StudsOffset.Y + cf.LookVector * -layer.StudsOffset.Z
+		local sp = camera:WorldToViewportPoint(position)
+		if sp.Z <= 0 then return nil end
+		local size = layer.AbsoluteSize
+		local topLeft = Vector2.new(sp.X, sp.Y) - size / 2
+		local rel = target.AbsolutePosition - layer.AbsolutePosition
+		return topLeft + rel + target.AbsoluteSize * Vector2.new(0.55, 0.6), target.AbsoluteSize, topLeft + rel
+	end
+	local topLeft = target.AbsolutePosition - cursorLayer.AbsolutePosition
+	return topLeft + target.AbsoluteSize * Vector2.new(0.55, 0.6), target.AbsoluteSize, topLeft
+end
+
 local function hideCursor()
 	cursor.Visible = false
 	ripple.Visible = false
@@ -853,8 +999,10 @@ UserInputService.InputBegan:Connect(function(input)
 	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
 	local target = uiTarget
 	if not (target and target.Parent) then return end
-	local pos = Vector2.new(input.Position.X, input.Position.Y)
-	local a, size = target.AbsolutePosition, target.AbsoluteSize
+	local okPoint, _, size, a = pcall(uiPoint, target)
+	if not (okPoint and a) then return end
+	-- позиция ввода - от низа топбара, как AbsolutePosition; в слой курсора
+	local pos = Vector2.new(input.Position.X, input.Position.Y) - cursorLayer.AbsolutePosition
 	if pos.X >= a.X and pos.Y >= a.Y and pos.X <= a.X + size.X and pos.Y <= a.Y + size.Y then
 		pausedUntil = os.clock() + 1.5
 		hideCursor()
@@ -866,6 +1014,8 @@ RunService.RenderStepped:Connect(function(dt)
 	nudgeBoost = math.max(0, nudgeBoost - dt * 0.4)
 	if not active or os.clock() < pausedUntil then
 		hideCursor()
+		hide3D()
+		uiPointerActive = false
 		return
 	end
 	-- цель интерфейса (переискиваем 4 раза в секунду)
@@ -874,20 +1024,37 @@ RunService.RenderStepped:Connect(function(dt)
 		uiTarget = current.UiTargets and TutorialTarget.Find(current.UiTargets) or nil
 	end
 	if uiTarget and uiTarget.Parent and TutorialTarget.Shown(uiTarget) then
-		-- AbsolutePosition у всех ScreenGui в одном пространстве (от низа
-		-- топбара Roblox); вычитаем начало своего слоя - и точка совпадает при
-		-- любых IgnoreGuiInset/ScreenInsets (вырез на телефоне, топбар).
-		-- Точка тапа - чуть правее и ниже центра кнопки (подпись не закрываем).
-		local target = uiTarget.AbsolutePosition + uiTarget.AbsoluteSize * Vector2.new(0.55, 0.6) - cursorLayer.AbsolutePosition
-		tapAt(target, 0)
-		return
+		local okPoint, point = pcall(uiPoint, uiTarget)
+		if okPoint and point then
+			-- открыто нужное меню: курсор в интерфейсе, над НПС ничего
+			uiPointerActive = true
+			hide3D()
+			tapAt(point, 0)
+			return
+		end
 	end
+	uiPointerActive = false
 	-- цель в мире
 	local position = targetPosition(currentTarget)
 	local camera = workspace.CurrentCamera
 	if not (position and camera) then
 		hideCursor()
+		hide3D()
 		return
+	end
+	-- далеко - подсказываем компас (если он на экране)
+	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	local far = hrp and (hrp.Position - position).Magnitude > (tonumber(TUT.FarDistance) or 160)
+	if far then
+		local compass = TutorialTarget.Find({ "Compass" })
+		if compass and TutorialTarget.Shown(compass) then
+			local okPoint, point = pcall(uiPoint, compass)
+			if okPoint and point then
+				hide3D()
+				tapAt(point, 0)
+				return
+			end
+		end
 	end
 	local screen = camera:WorldToViewportPoint(position + Vector3.new(0, 3.5, 0))
 	local view = camera.ViewportSize
@@ -895,9 +1062,17 @@ RunService.RenderStepped:Connect(function(dt)
 	local inside = screen.Z > 0 and screen.X > margin * 0.5 and screen.X < view.X - margin * 0.5
 		and screen.Y > margin * 0.5 and screen.Y < view.Y - margin * 0.5
 	if inside then
-		tapAt(Vector2.new(screen.X, screen.Y), 0)
+		if TUT.Cursor3D ~= false then
+			-- рядом и видно: курсор в мире, остриём вниз на цель
+			hideCursor()
+			show3D(position)
+		else
+			hide3D()
+			tapAt(Vector2.new(screen.X, screen.Y), 0)
+		end
 	else
-		-- за краем: курсор у края, палец в сторону цели
+		hide3D()
+		-- за краем: курсор у края, остриём в сторону цели
 		local center = view / 2
 		local dir = Vector2.new(screen.X, screen.Y) - center
 		if screen.Z < 0 then dir = -dir end
@@ -906,8 +1081,7 @@ RunService.RenderStepped:Connect(function(dt)
 		local scaleX = (view.X / 2 - margin) / math.max(0.001, math.abs(dir.X))
 		local scaleY = (view.Y / 2 - margin) / math.max(0.001, math.abs(dir.Y))
 		local edge = center + dir * math.min(scaleX, scaleY)
-		-- палец смотрит вверх (0°) - поворачиваем к цели
-		local angle = math.deg(math.atan2(dir.Y, dir.X)) + 90
+		local angle = math.deg(math.atan2(dir.Y, dir.X)) - TIP_ANGLE
 		local size = cursorSize()
 		local bob = math.abs(math.sin(os.clock() * 4)) * 10
 		cursor.Size = UDim2.fromOffset(size, size)

@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Localization = require(ReplicatedStorage.Shared.Localization)
@@ -212,6 +213,143 @@ end
 
 local renderDetail
 
+--------------------------------------------------------------------------------
+-- v20.118: ПОЛНОЭКРАННОЕ ДЕРЕВО КАК НА РЕФЕРЕНСЕ (Config.Prestige.FullScreen):
+-- окна нет - узлы висят прямо поверх размытого мира, дерево можно таскать
+-- мышью/пальцем (колесо - масштаб), карточка перка всплывает рядом с узлом,
+-- внизу большая кнопка CLOSE. Вкладка SHRINES - крупные 3D-превью святилищ,
+-- клик - карточка с ценой, покупкой и подсказкой. Остальной интерфейс
+-- прячет ScreenFocus (полупрозрачная подложка на весь экран).
+--------------------------------------------------------------------------------
+local FULL = cfg.FullScreen ~= false and cfg.TreeLayout ~= nil
+local CANVAS = typeof(cfg.TreeCanvas) == "Vector2" and cfg.TreeCanvas or Vector2.new(1500, 1000)
+local pan = Vector2.zero
+local zoom = 1
+local dragging, dragMoved, dragStart, panStart = false, false, nil, nil
+local fullClose = nil
+local function isPhone()
+	local camera = workspace.CurrentCamera
+	return camera and camera.ViewportSize.X < 700
+end
+if FULL then
+	NODE_SIZE = tonumber(cfg.FullNodeSize) or 96 -- узлы крупнее, как на референсе
+	local backdrop = gui:FindFirstChild("FullBackdrop") or Instance.new("Frame")
+	backdrop.Name = "FullBackdrop"
+	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.BackgroundColor3 = Color3.fromRGB(8, 6, 18)
+	backdrop.BackgroundTransparency = 0.55
+	backdrop.BorderSizePixel = 0
+	backdrop.ZIndex = 0
+	backdrop.Parent = gui
+	local keep = { Points = true, Tabs = true, Tree = true, Shrines = true, Detail = true }
+	for _, child in panel:GetChildren() do
+		if child:IsA("GuiObject") and not keep[child.Name] then child.Visible = false end
+	end
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Position = UDim2.fromScale(0.5, 0.5)
+	panel.Size = UDim2.fromScale(1, 1)
+	panel.BackgroundTransparency = 1
+	if panel:IsA("ImageLabel") then panel.ImageTransparency = 1 end
+	for _, d in panel:GetChildren() do
+		if d:IsA("UIStroke") or d:IsA("UISizeConstraint") or d:IsA("UIAspectRatioConstraint") then d:Destroy() end
+	end
+	if autoScale then autoScale.Scale = 1 end
+	tabs.AnchorPoint = Vector2.new(0.5, 0)
+	tabs.Position = UDim2.new(0.5, 0, 0, 14)
+	local points = panel:FindFirstChild("Points")
+	if points then
+		points.AnchorPoint = Vector2.new(1, 0)
+		points.Position = UDim2.new(1, -18, 0, 16)
+	end
+	tree.AnchorPoint = Vector2.zero
+	tree.Position = UDim2.fromScale(0, 0)
+	tree.Size = UDim2.fromScale(1, 1)
+	tree.BackgroundTransparency = 1
+	if tree:IsA("ImageLabel") then tree.ImageTransparency = 1 end
+	tree.ClipsDescendants = true
+	for _, d in tree:GetChildren() do
+		if d:IsA("UIListLayout") or d:IsA("UIPadding") or d:IsA("UIStroke") then d:Destroy() end
+	end
+	-- святилища: по центру, крупные карточки с 3D-превью
+	shrinesList.AnchorPoint = Vector2.new(0.5, 0)
+	shrinesList.Position = UDim2.new(0.5, 0, 0, 74)
+	shrinesList.Size = UDim2.new(0.86, 0, 1, -170)
+	shrinesList.BackgroundTransparency = 1
+	if shrinesList:IsA("ScrollingFrame") then shrinesList.ScrollBarImageTransparency = 0.4 end
+	local grid = shrinesList:FindFirstChildOfClass("UIGridLayout")
+	if grid then
+		grid.CellSize = UDim2.fromOffset(190, 220)
+		grid.CellPadding = UDim2.fromOffset(18, 18)
+		grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	end
+	local icon = shrineTemplate:FindFirstChild("Icon")
+	if icon then
+		icon.Position = UDim2.fromOffset(10, 8)
+		icon.Size = UDim2.new(1, -20, 0, 140)
+	end
+	local title = shrineTemplate:FindFirstChild("Title")
+	if title then
+		title.Position = UDim2.fromOffset(8, 150)
+		title.Size = UDim2.new(1, -16, 0, 30)
+		title.TextXAlignment = Enum.TextXAlignment.Center
+	end
+	local status = shrineTemplate:FindFirstChild("Status")
+	if status then
+		status.Position = UDim2.new(0, 8, 1, -34)
+		status.Size = UDim2.new(1, -16, 0, 28)
+	end
+	-- карточка перка - плавающая
+	detail.AnchorPoint = Vector2.zero
+	detail.Size = UDim2.fromOffset(300, 380)
+	detail.ZIndex = 20
+	-- большая кнопка CLOSE внизу
+	fullClose = UiKit.Button(panel, "BigClose", "CLOSE", "Red", {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -18),
+		Size = UDim2.fromOffset(240, 62),
+		ZIndex = 25,
+	})
+	readableCaption(fullClose, 24)
+	closeButton.Visible = false
+end
+
+-- где рисовать карточку: справа от узла (или слева, если не влезает);
+-- на телефоне - внизу по центру над CLOSE.
+local function placeDetail()
+	if not (FULL and detail.Visible) then return end
+	local area = panel.AbsoluteSize
+	-- на маленьком экране карточка меньше (влезает над CLOSE)
+	local fit = detail:FindFirstChild("FitScale") or Instance.new("UIScale")
+	fit.Name = "FitScale"
+	fit.Scale = math.clamp((area.Y - 170) / 380, 0.55, 1)
+	fit.Parent = detail
+	local dSize = detail.AbsoluteSize
+	if isPhone() then
+		detail.Position = UDim2.fromOffset((area.X - dSize.X) / 2, area.Y - dSize.Y - 90)
+		return
+	end
+	local anchorGui = nil
+	if mode == "Shrines" then
+		anchorGui = selectedShrine and shrinesList:FindFirstChild("Shrine_" .. selectedShrine)
+	else
+		local holder = tree:FindFirstChild("FreeTree")
+		anchorGui = holder and (selected == "__Start" and holder:FindFirstChild("StartNode") or (selected and holder:FindFirstChild("Node_" .. selected)))
+	end
+	local x, y
+	if anchorGui then
+		local a = anchorGui.AbsolutePosition - panel.AbsolutePosition
+		local s = anchorGui.AbsoluteSize
+		x = a.X + s.X + 18
+		if x + dSize.X > area.X - 10 then x = a.X - dSize.X - 18 end
+		y = a.Y + s.Y / 2 - dSize.Y / 2
+	else
+		x, y = area.X - dSize.X - 20, (area.Y - dSize.Y) / 2
+	end
+	x = math.clamp(x, 10, math.max(10, area.X - dSize.X - 10))
+	y = math.clamp(y, 70, math.max(70, area.Y - dSize.Y - 90))
+	detail.Position = UDim2.fromOffset(x, y)
+end
+
 -- v20.107: СВОБОДНОЕ ДЕРЕВО (Config.Prestige.TreeLayout) как на референсе:
 -- стартовый узел в центре, ветки расходятся линиями, закрытые узлы - «?».
 local Free = {}
@@ -255,6 +393,18 @@ function Free.Render()
 	local size = holder.AbsoluteSize
 	if size.X < 10 then size = tree.AbsoluteSize end
 	local startPos = layout.Start or { 0.5, 0.5 }
+	if FULL then
+		-- большое полотно, стартовый узел в центре экрана + сдвиг пальцем
+		size = CANVAS * (isPhone() and 0.75 or 1)
+		holder.ClipsDescendants = false
+		holder.AnchorPoint = Vector2.new(0.5, 0.5)
+		holder.Size = UDim2.fromOffset(size.X, size.Y)
+		holder.Position = UDim2.new(0.5, (0.5 - startPos[1]) * size.X + pan.X, 0.5, (0.5 - startPos[2]) * size.Y + pan.Y)
+		local zoomScale = Instance.new("UIScale")
+		zoomScale.Name = "Zoom"
+		zoomScale.Scale = zoom
+		zoomScale.Parent = holder
+	end
 	-- стартовый узел
 	local start = nodeTemplate:Clone()
 	start.Name = "StartNode"
@@ -271,6 +421,7 @@ function Free.Render()
 	Free.Shape(start)
 	press(start)
 	start.Activated:Connect(function()
+		if dragMoved then return end
 		UiSfx.play("UiButtonClick")
 		selected = "__Start"
 		renderTree()
@@ -317,6 +468,7 @@ function Free.Render()
 				Free.Shape(node)
 				press(node)
 				node.Activated:Connect(function()
+					if dragMoved then return end
 					UiSfx.play("UiButtonClick")
 					selected = perkId
 					renderTree()
@@ -609,7 +761,7 @@ local function open()
 	openedAt = hrp and hrp.Position or nil
 	gui.Enabled = true
 	UiSfx.play("UiMenuOpen")
-	if autoScale then
+	if autoScale and not FULL then
 		local camera = workspace.CurrentCamera
 		local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
 		local target = math.min(1.1, (viewport.X - 40) / (Builder.Width + 20), (viewport.Y - 80) / (Builder.Height + 20))
@@ -626,6 +778,58 @@ local function close()
 end
 
 closeButton.Activated:Connect(close)
+if fullClose then fullClose.Activated:Connect(close) end
+
+-- v20.118: ТАСКАНИЕ ДЕРЕВА (мышь/палец) и масштаб колесом.
+local function applyPan()
+	local holder = tree:FindFirstChild("FreeTree")
+	if not (holder and FULL) then return end
+	local layout = cfg.TreeLayout or {}
+	local startPos = layout.Start or { 0.5, 0.5 }
+	local size = holder.Size
+	local limit = Vector2.new(size.X.Offset, size.Y.Offset) * 0.5 * zoom
+	pan = Vector2.new(math.clamp(pan.X, -limit.X, limit.X), math.clamp(pan.Y, -limit.Y, limit.Y))
+	holder.Position = UDim2.new(0.5, (0.5 - startPos[1]) * size.X.Offset * zoom + pan.X, 0.5, (0.5 - startPos[2]) * size.Y.Offset * zoom + pan.Y)
+	local zoomScale = holder:FindFirstChild("Zoom")
+	if zoomScale then zoomScale.Scale = zoom end
+end
+UserInputService.InputBegan:Connect(function(input)
+	if not (FULL and isOpen and mode == "Perks") then return end
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+	-- не начинаем таскать с карточки перка и кнопок
+	local p = Vector2.new(input.Position.X, input.Position.Y)
+	for _, blocker in { detail, fullClose, tabs } do
+		if blocker and blocker.Visible then
+			local a, sz = blocker.AbsolutePosition, blocker.AbsoluteSize
+			if p.X >= a.X and p.Y >= a.Y and p.X <= a.X + sz.X and p.Y <= a.Y + sz.Y then return end
+		end
+	end
+	dragging, dragMoved, dragStart, panStart = true, false, p, pan
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if not (FULL and isOpen) then return end
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = Vector2.new(input.Position.X, input.Position.Y) - dragStart
+		if delta.Magnitude > 8 then dragMoved = true end
+		if dragMoved then
+			pan = panStart + delta
+			applyPan()
+		end
+	elseif input.UserInputType == Enum.UserInputType.MouseWheel and mode == "Perks" then
+		zoom = math.clamp(zoom + input.Position.Z * 0.08, 0.6, 1.5)
+		applyPan()
+	end
+end)
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+		-- клик по узлу после перетаскивания не засчитываем; сбрасываем чуть позже
+		task.defer(function() dragMoved = false end)
+	end
+end)
+RunService.RenderStepped:Connect(function()
+	if isOpen and FULL then placeDetail() end
+end)
 upgradeButton.Activated:Connect(function()
 	if mode == "Shrines" then
 		if selectedShrine and not (shrineState[selectedShrine] and shrineState[selectedShrine].Owned) then

@@ -28,6 +28,9 @@ Config.Leaderboards = {
 	RefreshInterval = 60,
 	-- v20.85: ВАЙП ТОПОВ - новый префикс = новые пустые рейтинги (старые
 	-- «_02» остаются в DataStore, просто больше не читаются).
+	-- v20.118: стойка лидеров на постаментах - по очереди анимации торговцев
+	-- (ключи Config.NpcIdleAnimations): деньги, престиж, донат.
+	StatueAnimations = { "BankMerchant", "IslandKeeperNPC", "BankMerchant" },
 	StorePrefix = "PvPExtraction_Leaderboard_05", -- текущие глобальные рейтинги (v20.116: сброс топов, профили не трогаем)
 	BoardFace = Enum.NormalId.Front,
 	-- v20.82: топы (деньги / престиж / донат) - три стенда в центре города
@@ -148,12 +151,14 @@ Config.Tutorial = {
 		-- кнопки подсветить (Shared.TutorialTarget): экран вокруг темнеет,
 		-- указатель тапает в кнопку. Target - цель в мире (указатель/стрелка).
 		{
+			-- v20.118: первый шаг - взять кирку (курсор тапает в слот кирки).
 			Id = "Intro",
-			Lines = { "Hi! I'm your mining buddy.", "Rocks are blocking your mine. Let's smash them!" },
-			Short = "CLEAR THE WAY",
-			Task = "Click the boulders to break them",
-			Goal = { Kind = "Ack" },
-			Target = "BaseBoulder",
+			Lines = { "Hi! I'm your mining buddy.", "First, grab your pickaxe from the hotbar below!" },
+			Short = "TAKE THE PICKAXE",
+			Task = "Tap the pickaxe in your hotbar (or press 1)",
+			Goal = { Kind = "Check", Check = "PickaxeEquipped" },
+			UiTargets = { "PickaxeSlot" },
+			Done = { "Rocks are blocking your mine. Let's smash them!" },
 		},
 		{
 			Id = "BreakBoulders",
@@ -196,7 +201,7 @@ Config.Tutorial = {
 			Goal = { Kind = "Counter", Key = "OrePickedUp", Target = 1 },
 			KeepEarlyProgress = true,
 			CompleteWhenBagFull = true,
-			Target = nil,
+			Target = "MinerNPC", -- v20.118: руда лежит у шахтёра - на него и показываем
 			Done = { "Ore goes to your backpack. The counter shows how much fits." },
 		},
 		{
@@ -239,7 +244,14 @@ Config.Tutorial = {
 	-- v20.115: курсор «тапает» в нужную кнопку, пока игрок не нажмёт.
 	PointerTip = Vector2.new(0.08, 0.06), -- где на картинке остриё (доли: 0,0 - левый верх). Стрелка мыши - ~0.08,0.06; рука 👆 - 0.5,0.06
 	PointerSize = 0,                     -- размер в пикселях; 0 = 64 на ПК / 52 на телефоне
-	PointerTapSeconds = 1.15,            -- один цикл «подлёт - нажатие - отход»
+	-- v20.118: цель в мире (идти/бить) - 3D-курсор над ней, перевёрнутый остриём
+	-- вниз (плитка с картинкой курсора). false - экранный курсор и стрелка-шеврон.
+	Cursor3D = true,
+	Pointer3DSize = 3.5,                 -- размер 3D-курсора в стадах
+	FarDistance = 160,                   -- дальше этого - курсор тапает в кнопку компаса
+	-- Пока говорит НПС обучения - эти экраны остаются, остальное уезжает к краям.
+	DialogFocusKeep = { "HotbarUi", "TutorialUi", "TutorialCursor" },
+	PointerTapSeconds = 1.3,             -- один цикл «подлёт - нажатие - отход» (v20.118: мягче)
 	PointerFromDir = Vector2.new(0.45, 1), -- откуда подлетает курсор (вниз-вправо от цели)
 	SpotlightColor = Color3.fromRGB(255, 215, 60),
 	Chapters = {
@@ -1058,6 +1070,12 @@ Config.MineExpedition = {
 	-- этой пачки. Только без тележек (руда роллится заранее).
 	RarityReel = {
 		Enabled = true,
+		-- v20.118: "3D" - крутятся сами 3D-карточки редкости (MineRarityCards)
+		-- сверху вниз барабаном и встают на выпавшую; "2D" - плоская лента.
+		Mode = "3D",
+		Cards3D = 16,        -- карточек в 3D-ленте
+		Gap3D = 0.5,         -- промежуток между карточками (доля высоты карточки)
+		DrumDegrees = 38,    -- наклон карточек у краёв (эффект барабана)
 		Seconds = 3.4,       -- прокрутка
 		HoldSeconds = 0.8,   -- пауза на выпавшей редкости (с лучами сзади)
 		Tiles = 46,          -- плиток в ленте
@@ -1217,6 +1235,7 @@ Config.MineExpedition = {
 	-- v20.114: ВСЯ РУДА В КАДРЕ - если кусок (в полёте или на земле) вышел
 	-- за край кадра (отступ EjectFitMargin, доля экрана), камера выброса
 	-- плавно отъезжает назад (до EjectFitMaxBack стадов).
+	ActorStraightPath = true,   -- v20.118: вход/выход из шахты строго по прямой (без подпрыгиваний)
 	EjectFitToScreen = true,
 	EjectFitMargin = 0.08,
 	EjectFitMaxBack = 45,
@@ -1866,6 +1885,12 @@ Config.MineRework = {
 	RarityWeights = { Common = 60, Uncommon = 28, Rare = 9, Epic = 2.5, Legendary = 0.5, Mythic = 0.2 },
 	SameRarityDecay = 0.85,
 	UnlockBoost = 2,       -- купленная руда выпадает в 2 раза чаще своей редкости
+	-- v20.118: ПОВТОРНАЯ ПОКУПКА той же руды - она падает чаще, но мягко:
+	-- каждая следующая коробка даёт меньше (RebuyBoost × RebuyDecay^(n-2)).
+	-- 2 коробки ≈ x1.35, 3 ≈ x1.61, 5 ≈ x1.96, предел ≈ x2.4. MaxBuys - потолок.
+	RebuyBoost = 0.35,
+	RebuyDecay = 0.75,
+	MaxBuys = 10,
 	LuckPerCave = 0.15,    -- удача за уровень шахты: вес редкости × (1+удача)^(ступень редкости-1)
 	MineCostScale = 0.6,   -- цены улучшения шахты × это (шахта больше не открывает руду)
 	GuaranteedCount = 3,   -- столько кусков следующего захода - новая руда
@@ -1921,9 +1946,19 @@ function Config.OreDropWeight(oreKey)
 	return weight
 end
 
--- Ролл руды из открытых. unlocked - { [oreKey] = true }. Возвращает то же,
--- что RollOreForTier: (oreInfo, честный шанс без удачи, slot, rarity).
-function Config.RollOreUnlocked(unlocked, luckBonus, forcedKey)
+-- v20.118: множитель веса руды от числа купленных коробок (1 = одна).
+function Config.OreRebuyMultiplier(buys)
+	local rework = Config.MineRework
+	local extra = math.max(0, math.floor(tonumber(buys) or 1) - 1)
+	if extra == 0 then return 1 end
+	local decay = rework.RebuyDecay or 0.75
+	return 1 + (rework.RebuyBoost or 0.35) * (1 - decay ^ extra) / (1 - decay)
+end
+
+-- Ролл руды из открытых. unlocked - { [oreKey] = true }, buys - { [oreKey] = N }
+-- (v20.118, сколько раз куплена). Возвращает то же, что RollOreForTier:
+-- (oreInfo, честный шанс без удачи, slot, rarity).
+function Config.RollOreUnlocked(unlocked, luckBonus, forcedKey, buys)
 	local list = {}
 	for _, ore in Config.OreChain do
 		if unlocked[ore.Key] or Config.IsStarterOre(ore.Key) then table.insert(list, ore) end
@@ -1931,8 +1966,10 @@ function Config.RollOreUnlocked(unlocked, luckBonus, forcedKey)
 	local baseTotal, total = 0, 0
 	local weights = {}
 	luckBonus = math.clamp(tonumber(luckBonus) or 0, 0, 10)
+	local baseWeights = {}
 	for index, ore in list do
-		local w = Config.OreDropWeight(ore.Key)
+		local w = Config.OreDropWeight(ore.Key) * Config.OreRebuyMultiplier(buys and buys[ore.Key])
+		baseWeights[index] = w
 		baseTotal += w
 		local rarityIndex = table.find(Config.RarityOrder or {}, ore.BaseRarity or ore.Rarity) or 1
 		local tilted = w * (1 + luckBonus) ^ (rarityIndex - 1) -- удача растит редкие ступенчато
@@ -1941,7 +1978,7 @@ function Config.RollOreUnlocked(unlocked, luckBonus, forcedKey)
 	end
 	local function result(index)
 		local ore = list[index]
-		return ore, Config.OreDropWeight(ore.Key) / math.max(1e-9, baseTotal), index, ore.BaseRarity or ore.Rarity
+		return ore, baseWeights[index] / math.max(1e-9, baseTotal), index, ore.BaseRarity or ore.Rarity
 	end
 	if forcedKey then
 		for index, ore in list do
@@ -2655,7 +2692,7 @@ Config.Combat = {
 	-- расхождения между "визуальным ориентиром" и реальным попаданием.
 	-- Растёт вместе с тиром кирки (Config.PickaxeTiers[tier].Scale), как и
 	-- сама модель кирки (см. PlaceholderFactory.Pickaxe).
-	HitboxSize = Vector3.new(15.5, 15.5, 15.5),
+	HitboxSize = Vector3.new(19, 17, 19), -- v20.118: было 15.5 - удар кирки дотягивается дальше
 	HitboxForwardOffset = 0,
 	HitboxActiveDuration = 0.02, -- хитбокс следует за атакующим ещё 20 мс
 	SwingAnimationDuration = 1.9, -- полный замах: прежние 0.9 сек + 1 сек
@@ -4063,9 +4100,10 @@ Config.SellMole = {
 	Distance = 7,        -- насколько перед игроком вылезает
 	EdgeMargin = 3,      -- отступ от края зоны
 	Scale = 1,           -- масштаб модели
-	RiseSeconds = 0.55,
-	BurrowSeconds = 0.5,
-	BobAmount = 0.06,    -- «дыхание» масштабом (доля)
+	RiseSeconds = 0.8,   -- v20.118: из-под земли глубже - вылезает чуть дольше
+	BurrowSeconds = 0.6,
+	Depth = 12,          -- v20.118: насколько глубоко крот сидит под землёй (стады)
+	BobAmount = 0.07,    -- v20.118: «дыхание» - растягивание ВВЕРХ-ВНИЗ (доля), ширина обратно
 	BobSpeed = 3,
 	SellDelay = 0.06,    -- сек между кусками при продаже
 	SellSeconds = 2.5,   -- вся продажа не дольше этого
@@ -6570,7 +6608,7 @@ Config.Quests = {
 		-- v20.53: цепочка по прогрессии — каждый квест учит одной механике.
 		{ Id = "FirstSale", Metric = "CartSales", Title = "FIRST DELIVERY", Description = "Sell your backpack to the mole", Short = "Sell to the mole", Target = 1, Nav = "Bank",
 			Why = "Ore only turns into money at the bank.", Reward = { TripValue = 1, MinMoney = 60, Items = { { Kind = "Gear", Key = "Dynamite", Count = 2 } } } },
-		{ Id = "GrabOre", Metric = "OrePickedUp", Title = "GRAB THE ORE", Description = "Walk over ore from the mine to pick it up (10 pieces)", Short = "Pick up 10 ore", Target = 10, Nav = "Mine", SkipWhenMaxTierAtLeast = 3,
+		{ Id = "GrabOre", Metric = "OrePickedUp", Title = "GRAB THE ORE", Description = "Walk over ore from the mine to pick it up (10 pieces)", Short = "Pick up 10 ore", Target = 10, Nav = "Miner", SkipWhenMaxTierAtLeast = 3,
 			Why = "Ore in your bag goes to the cart or straight to the bank.", Reward = { TripValue = 0.5, MinMoney = 40 } },
 		{ Id = "UpgradeMine", Metric = "MineTier", Title = "DIG DEEPER", Description = "Upgrade the Cave to 3", Short = "Cave to 3", Target = 3, Nav = "UpgradeShopNPC",
 			Why = "Deeper caves have pricier ore.", Reward = { TripValue = 1.5, MinMoney = 100 } },
@@ -7346,6 +7384,12 @@ Config.Prestige = {
 	-- колонки. Закрытые узлы показывают «?».
 	-- NodeImageId - картинка узла (например пятиугольник); 0 - круг.
 	NodeImageId = 0,
+	-- v20.118: дерево на весь экран поверх размытого мира, можно таскать
+	-- мышью/пальцем (колесо - масштаб); TreeCanvas - размер полотна в
+	-- пикселях (позиции TreeLayout - доли этого полотна); FullNodeSize - узлы.
+	FullScreen = true,
+	TreeCanvas = Vector2.new(1500, 1000),
+	FullNodeSize = 96,
 	PointIconId = 0, -- иконка очков престижа у чисел; 0 - нарисованный ромб
 	StartText = "Your journey begins here.",
 	TreeLayout = {

@@ -351,9 +351,20 @@ local function walkPath(model, points, yawOffset, onArrive)
 	for _, point in points do
 		table.insert(path, Vector3.new(point.X, y, point.Z))
 	end
+	-- v20.118: СТРОГО ПО ПРЯМОЙ (Config.MineExpedition.ActorStraightPath):
+	-- высоту земли меряем один раз в каждой точке пути и между ними едем
+	-- линейно - без подпрыгиваний на мусоре/кромке входа в шахту.
+	local straight = cfg.ActorStraightPath ~= false
+	if straight then
+		local h = y
+		for i = 2, #path do
+			h = groundY(path[i], h)
+			path[i] = Vector3.new(path[i].X, h, path[i].Z)
+		end
+	end
 	local lengths, total = {}, 0
 	for i = 2, #path do
-		lengths[i] = (path[i] - path[i - 1]).Magnitude
+		lengths[i] = ((path[i] - path[i - 1]) * Vector3.new(1, 0, 1)).Magnitude
 		total += lengths[i]
 	end
 	local token = HttpService:GenerateGUID(false)
@@ -386,8 +397,12 @@ local function walkPath(model, points, yawOffset, onArrive)
 				local target = CFrame.lookAt(Vector3.zero, heading) * CFrame.Angles(0, yawOffset or 0, 0)
 				rotation = rotation:Lerp(target.Rotation, math.min(1, dt * turnSpeed))
 			end
-			local targetY = groundY(position, y)
-			y += (targetY - y) * math.min(1, dt * 12)
+			if straight then
+				y = position.Y
+			else
+				local targetY = groundY(position, y)
+				y += (targetY - y) * math.min(1, dt * 12)
+			end
 			model:PivotTo(CFrame.new(position.X, y, position.Z) * rotation)
 			if travelled >= total then break end
 		end
@@ -1958,8 +1973,13 @@ function MineService:_showRarityCard(player, expedition)
 		Color = Config.RarityColors[rarity],
 		Reel = reelSeconds > 0 or nil,
 	})
-	task.wait(reelSeconds)
 	local extra = (card.Effects and card.Effects[rarity] and card.Effects[rarity].HoldExtra) or 0
+	if reelSeconds > 0 and reel.Mode ~= "2D" then
+		-- v20.118: 3D-лента = вылет карточки (прокрутка + доводка 0.45 с)
+		task.wait((reel.Seconds or 3.4) + 0.45 + (card.HoldSeconds or 0.42) + extra + (card.OutSeconds or 0.3) + 0.05)
+		return
+	end
+	task.wait(reelSeconds)
 	task.wait((card.InSeconds or 0.34) + (card.HoldSeconds or 0.42) + extra + (card.OutSeconds or 0.3) + 0.05)
 end
 

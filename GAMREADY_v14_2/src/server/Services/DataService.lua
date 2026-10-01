@@ -165,6 +165,7 @@ local DEFAULT_DATA = {
 	MutationsFound = {},
 	BadgeStats = {}, -- v20.106: счётчики для бейджей (BadgeTrackerService)
 	UnlockedOres = {}, -- v20.109: купленные руды шахты (OreUnlockService)
+	OreBuys = {}, -- v20.118: сколько раз куплена каждая руда (повторная покупка - падает чаще)
 	MineReworkVersion = 0, -- v20.109: версия вайпа шахты (Config.MineRework.WipeVersion)
 	MobsFound = {},
 	OwnedSkins = {},
@@ -639,6 +640,7 @@ function DataService:LoadProfile(player)
 		data.MineReworkVersion = rework.WipeVersion or 1
 		data.MineIndex = 0
 		data.UnlockedOres = {}
+		data.OreBuys = {}
 		data.OreGuarantee = nil
 		if hadProgress then player:SetAttribute("MineReworkWiped", true) end
 	end

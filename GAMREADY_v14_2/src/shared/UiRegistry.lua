@@ -52,7 +52,7 @@ UiRegistry.Entries = {
 	{ Name = "SkinUi", Module = "SkinUiBuilder", MinVersion = 21, What = "скины" },
 	{ Name = "PerkUi", Module = "PerkUiBuilder", MinVersion = 24, What = "перки престижа" },
 	{ Name = "RebirthDialogButtons", Module = "PrestigeUiBuilder", MinVersion = 22, What = "окно престижа у NPC" },
-	{ Name = "MerchantUi", Module = "MerchantUiBuilder", MinVersion = 22, What = "торговец" },
+	{ Name = "MerchantUi", Module = "MerchantUiBuilder", MinVersion = 23, What = "торговец" },
 	{ Name = "MarketTicker", Module = "MerchantUiBuilder", Fn = "BuildMarketTicker", MinVersion = 22, What = "табло курса руды" },
 	{ Name = "GeodeUi", Module = "GeodeUiBuilder", MinVersion = 23, What = "жеоды" },
 	{ Name = "DropPreviewUi", Module = "UiBuilders.DropPreviewUi", MinVersion = 21, What = "окно шансов" },

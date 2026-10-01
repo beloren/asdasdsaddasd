@@ -19,7 +19,7 @@ local UiKit = require(script.Parent.UiKit)
 local Theme = UiKit.Theme
 
 local MerchantUiBuilder = {}
-MerchantUiBuilder.VERSION = 22 -- v20.112: редкость во 2-й строке (не закрывает цену на телефоне), RESTOCK по ширине
+MerchantUiBuilder.VERSION = 23 -- v20.118: вкладки и список выше; v20.112: редкость во 2-й строке (не закрывает цену на телефоне), RESTOCK по ширине
 
 local ACCENT = "Green"
 
@@ -76,6 +76,7 @@ function MerchantUiBuilder.Build()
 
 	-- БИРЖА.
 	local market = UiKit.Plate(window, "Market", "Inset", {
+		Visible = false, -- v20.118: курс - только над зоной продажи
 		Position = UDim2.fromOffset(12, 68),
 		Size = UDim2.new(1, -24, 0, 58),
 		ZIndex = 2,
@@ -121,7 +122,7 @@ function MerchantUiBuilder.Build()
 
 	-- ВКЛАДКИ.
 	local tabsBar = UiKit.Group(window, "Tabs", {
-		Position = UDim2.fromOffset(12, 134),
+		Position = UDim2.fromOffset(12, 66), -- v20.118: сразу под шапкой (курса в окне нет)
 		Size = UDim2.new(1, -24, 0, 38),
 		ZIndex = 2,
 	})
@@ -145,8 +146,8 @@ function MerchantUiBuilder.Build()
 
 	-- СПИСОК.
 	local body = UiKit.Plate(window, "Body", "Inset", {
-		Position = UDim2.fromOffset(12, 180),
-		Size = UDim2.new(1, -24, 1, -192),
+		Position = UDim2.fromOffset(12, 112),
+		Size = UDim2.new(1, -24, 1, -124),
 		ZIndex = 2,
 	})
 	local list = UiKit.Scroll(body, "List", {

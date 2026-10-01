@@ -108,6 +108,8 @@ local resolvers = {
 	GeodeVault = function() return inContent("Crusher", "GeodeBuilding") end,
 	GeodeSafe = function() return inContent("GeodeSafe", "GeodePodium") end,
 	Mine = function() return inContent("ENTRY", "Entry", "MineDoor") end,
+	-- v20.118: шахтёр у шахты (с ним говорят, чтобы копать)
+	Miner = function() return inContent("MinerNPC") or inContent("ENTRY", "Entry", "MineDoor") end,
 	PlotBase = function() return ownPlotPad() end,
 	Merchant = function() return workspace:FindFirstChild("BankMerchant") or workspace:FindFirstChild("SellZone", true) end,
 	-- v20.53: лагерь гоблинов и своя плавильня.

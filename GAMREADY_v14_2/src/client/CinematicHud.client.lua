@@ -70,6 +70,7 @@ local EASING_OUT = TweenInfo.new(SLIDE_SECONDS, Enum.EasingStyle.Quint, Enum.Eas
 local EASING_IN = TweenInfo.new(SLIDE_SECONDS, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
 
 local hiddenElements = {} -- [GuiObject] = оригинальный UDim2
+local dynamicKeep = {}    -- v20.118: [имя ScreenGui] = счётчик - временно не прячем (HudFocus)
 local depth = 0
 
 local function viewportSize()
@@ -113,7 +114,7 @@ end
 local function hudElements()
 	local list = {}
 	for _, gui in playerGui:GetChildren() do
-		if gui:IsA("ScreenGui") and gui.Enabled and not KEEP_VISIBLE[gui.Name] and gui:GetAttribute("CinematicKeep") ~= true then
+		if gui:IsA("ScreenGui") and gui.Enabled and not KEEP_VISIBLE[gui.Name] and not dynamicKeep[gui.Name] and gui:GetAttribute("CinematicKeep") ~= true then
 			for _, child in gui:GetChildren() do
 				-- Только верхнеуровневые видимые элементы: двигать вложенные
 				-- бессмысленно, они уедут вместе с родителем.
@@ -188,12 +189,14 @@ task.spawn(function()
 	end
 end)
 
-local function setCinematic(active)
+local realDepth = 0 -- v20.118: только настоящие катсцены (без HudFocus) - для атрибута CinematicActive
+local function setCinematic(active, noCore, isFocus)
+	if not isFocus then realDepth = math.max(0, realDepth + (active and 1 or -1)) end
 	if active then
 		depth += 1
 		if depth == 1 then
 			hideHud()
-			hideCore()
+			if not noCore then hideCore() end
 		end
 	else
 		depth = math.max(0, depth - 1)
@@ -202,7 +205,7 @@ local function setCinematic(active)
 			restoreCore()
 		end
 	end
-	playerGui:SetAttribute("CinematicActive", depth > 0)
+	playerGui:SetAttribute("CinematicActive", realDepth > 0)
 end
 
 -- Страховка: если персонаж умер/переродился посреди катсцены, счётчик мог
@@ -210,6 +213,8 @@ end
 player.CharacterAdded:Connect(function()
 	if depth > 0 then
 		depth = 0
+		realDepth = 0
+		table.clear(dynamicKeep)
 		playerGui:SetAttribute("CinematicActive", false)
 		showHud()
 		restoreCore()
@@ -226,4 +231,27 @@ if not signal then
 end
 signal.Event:Connect(function(active)
 	setCinematic(active == true)
+end)
+
+-- v20.118: «ФОКУС» ДЛЯ ДИАЛОГОВ (обучение и т.п.): всё уезжает к краям,
+-- кроме перечисленных экранов (например хотбар). Fire(true, {"HotbarUi"}) /
+-- Fire(false, {"HotbarUi"}) - тот же список при снятии. Интерфейс Roblox не трогает.
+local focus = ReplicatedStorage.Shared:FindFirstChild("HudFocus")
+if not focus then
+	focus = Instance.new("BindableEvent")
+	focus.Name = "HudFocus"
+	focus.Parent = ReplicatedStorage.Shared
+end
+focus.Event:Connect(function(active, keep)
+	keep = type(keep) == "table" and keep or {}
+	if active == true then
+		for _, name in keep do dynamicKeep[name] = (dynamicKeep[name] or 0) + 1 end
+		setCinematic(true, true, true)
+	else
+		for _, name in keep do
+			dynamicKeep[name] = (dynamicKeep[name] or 1) - 1
+			if dynamicKeep[name] <= 0 then dynamicKeep[name] = nil end
+		end
+		setCinematic(false, nil, true)
+	end
 end)
