@@ -9,6 +9,8 @@
 --   StatueSpot  - маркер: здесь встанет R6-риг игрока с 1-го места,
 --                 смотрит туда же, куда перёд маркера (в игре невидим);
 --   остальное   - декор (столбы, шапка, постамент) - меняй как хочешь.
+-- v20.117: стенды деревянные, таблица на доске - тот же деревянный вид, что
+-- рисует игра (Shared.LeaderboardBoardGui; сначала синхронизируй Rojo).
 -- Сейчас на досках и табличке ПРИМЕР (LeaderboardGui / PlateGui), на
 -- постаменте - R6-манекен StatuePreview: в игре сервер поставит на его
 -- место R6-риг игрока с 1-го места (с одеждой и аксессуарами).
@@ -24,9 +26,10 @@ local recording = ChangeHistoryService:TryBeginRecording("BuildLeaderboardStands
 
 local SPACING = 17 -- расстояние между стендами
 local SPECS = {
-	{ Name = "MoneyStand", Title = "TOP MONEY", Color = Color3.fromRGB(255, 211, 75), Sample = "$1.2B" },
-	{ Name = "PrestigeStand", Title = "TOP PRESTIGE", Color = Color3.fromRGB(105, 225, 255), Sample = "42" },
-	{ Name = "DonationStand", Title = "TOP DONATION", Color = Color3.fromRGB(255, 120, 200), Sample = "R$ 5.0K" },
+	-- Названия и цвета как в игре (LeaderboardService SPECS).
+	{ Name = "MoneyStand", Key = "Money", Title = "Top Money", Color = Color3.fromRGB(110, 240, 140), Sample = "$1.2B" },
+	{ Name = "PrestigeStand", Key = "Rebirths", Title = "Top Prestige", Color = Color3.fromRGB(255, 95, 120), Sample = "42" },
+	{ Name = "DonationStand", Key = "Donated", Title = "Top Robux Spent", Color = Color3.fromRGB(255, 214, 60), Sample = "R$ 5.0K" },
 }
 
 -- Убираем старые стенды.
@@ -60,66 +63,37 @@ local function box(parent, name, size, cf, color, props)
 	return p
 end
 
-local function text(parent, name, value, color, props)
-	local label = Instance.new("TextLabel")
-	label.Name = name
-	label.BackgroundTransparency = 1
-	label.FontFace = Font.fromEnum(Enum.Font.FredokaOne)
-	label.TextScaled = true
-	label.Text = value
-	label.TextColor3 = color
-	for k, v in props or {} do label[k] = v end
-	label.Parent = parent
-	return label
-end
 
--- Пример таблицы (в игре сервер нарисует свою с настоящими данными).
-local function previewBoard(board, spec)
-	local gui = Instance.new("SurfaceGui")
-	gui.Name = "LeaderboardGui"
-	gui.Face = Enum.NormalId.Front
-	gui.CanvasSize = Vector2.new(700, 900)
-	gui.LightInfluence = 0
-	gui.Parent = board
-	local bg = Instance.new("Frame")
-	bg.Size = UDim2.fromScale(1, 1)
-	bg.BackgroundColor3 = Color3.fromRGB(18, 20, 26)
-	bg.BorderSizePixel = 0
-	bg.Parent = gui
-	text(bg, "Title", spec.Title, Color3.fromRGB(20, 22, 26), {
-		Size = UDim2.new(1, 0, 0, 110), BackgroundTransparency = 0, BackgroundColor3 = spec.Color, BorderSizePixel = 0,
-	})
-	for rank = 1, 10 do
-		local row = Instance.new("Frame")
-		row.Position = UDim2.new(0, 20, 0, 125 + (rank - 1) * 73)
-		row.Size = UDim2.new(1, -40, 0, 62)
-		row.BackgroundColor3 = rank % 2 == 1 and Color3.fromRGB(31, 34, 43) or Color3.fromRGB(25, 28, 36)
-		row.BorderSizePixel = 0
-		row.Parent = bg
-		text(row, "Rank", "#" .. rank, rank <= 3 and spec.Color or Color3.fromRGB(185, 190, 200), { Size = UDim2.new(0, 70, 1, 0) })
-		text(row, "Name", "Player" .. rank, Color3.new(1, 1, 1), {
-			Position = UDim2.new(0, 75, 0, 0), Size = UDim2.new(1, -255, 1, 0), TextXAlignment = Enum.TextXAlignment.Left,
-		})
-		text(row, "Value", spec.Sample, spec.Color, {
-			AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.new(0, 175, 1, 0), TextXAlignment = Enum.TextXAlignment.Right,
-		})
+-- v20.117: ПРИМЕР ТАБЛИЦЫ - тем же модулем, что рисует сервер
+-- (Shared.LeaderboardBoardGui): в Studio видно ровно то, что будет в игре.
+local BoardGui = nil
+do
+	local shared = game:GetService("ReplicatedStorage"):FindFirstChild("Shared")
+	local module = shared and shared:FindFirstChild("LeaderboardBoardGui")
+	if module then
+		-- свежая копия папки: Command Bar кэширует модули после синхронизации Rojo
+		local fresh = shared:Clone()
+		local ok, result = pcall(require, fresh.LeaderboardBoardGui)
+		if ok then BoardGui = result else warn("[BuildLeaderboardStands] LeaderboardBoardGui:", result) end
+	else
+		warn("[BuildLeaderboardStands] Нет ReplicatedStorage.Shared.LeaderboardBoardGui - сначала синхронизируй Rojo. Пример таблицы будет простым.")
 	end
 end
 
+local function previewBoard(board, spec)
+	if not BoardGui then return end
+	local entries = {}
+	for rank = 1, 10 do
+		table.insert(entries, { Name = "Player" .. rank, Value = spec.Sample })
+	end
+	BoardGui.Board(board, { Key = spec.Key, Title = spec.Title, Color = spec.Color }, entries, {
+		Format = function(_, value) return value end,
+	})
+end
+
 local function previewPlate(plate, spec)
-	local gui = Instance.new("SurfaceGui")
-	gui.Name = "PlateGui"
-	gui.Face = Enum.NormalId.Front
-	gui.CanvasSize = Vector2.new(460, 140)
-	gui.LightInfluence = 0
-	gui.Parent = plate
-	local frame = Instance.new("Frame")
-	frame.Size = UDim2.fromScale(1, 1)
-	frame.BackgroundColor3 = Color3.fromRGB(18, 20, 26)
-	frame.BorderSizePixel = 0
-	frame.Parent = gui
-	text(frame, "NameText", "#1 Player1", Color3.new(1, 1, 1), { Size = UDim2.fromScale(1, 0.58) })
-	text(frame, "ValueText", spec.Sample, spec.Color, { Position = UDim2.fromScale(0, 0.58), Size = UDim2.fromScale(1, 0.42) })
+	if not BoardGui then return end
+	BoardGui.Plate(plate, { Color = spec.Color }, "#1 Player1", spec.Sample)
 end
 
 -- Манекен R6 на месте лидера (в игре его заменит риг игрока с 1-го места).
@@ -169,16 +143,26 @@ for index, spec in SPECS do
 	stand.Name = spec.Name
 	stand.Parent = folder
 	local cf = groupCF * CFrame.new((index - 2) * SPACING, 0, 0)
-	local wood, woodDark = Color3.fromRGB(40, 32, 26), Color3.fromRGB(120, 78, 48)
-	for _, x in { -7, 7 } do
-		box(stand, "Post", Vector3.new(1.2, 25, 1.2), cf * CFrame.new(x, 12.5, 0.4), woodDark)
+	-- v20.117: ДЕРЕВЯННЫЙ СТЕНД (столбы, рама из досок, крыша-козырёк).
+	local woodDark, wood, plankColor = Color3.fromRGB(96, 56, 28), Color3.fromRGB(150, 92, 48), Color3.fromRGB(205, 136, 78)
+	local woodProps = { Material = Enum.Material.WoodPlanks }
+	for _, x in { -7.2, 7.2 } do
+		box(stand, "Post", Vector3.new(1.3, 25, 1.3), cf * CFrame.new(x, 12.5, 0.4), woodDark, { Material = Enum.Material.Wood })
 	end
-	local board = box(stand, "Board", Vector3.new(13, 16, 0.8), cf * CFrame.new(0, 16, 0), wood)
-	box(stand, "Header", Vector3.new(15.4, 1.6, 1.4), cf * CFrame.new(0, 24.8, 0.2), spec.Color)
+	local board = box(stand, "Board", Vector3.new(13, 16, 0.8), cf * CFrame.new(0, 16, 0), wood, woodProps)
+	-- рама вокруг доски
+	box(stand, "FrameTop", Vector3.new(14.2, 0.8, 1.2), cf * CFrame.new(0, 24.3, 0.1), woodDark, woodProps)
+	box(stand, "FrameBottom", Vector3.new(14.2, 0.8, 1.2), cf * CFrame.new(0, 7.7, 0.1), woodDark, woodProps)
+	-- козырёк из двух скатов и конёк цвета категории
+	box(stand, "RoofLeft", Vector3.new(8.4, 0.6, 3.2), cf * CFrame.new(-3.9, 26.2, 0.2) * CFrame.Angles(0, 0, math.rad(14)), plankColor, woodProps)
+	box(stand, "RoofRight", Vector3.new(8.4, 0.6, 3.2), cf * CFrame.new(3.9, 26.2, 0.2) * CFrame.Angles(0, 0, math.rad(-14)), plankColor, woodProps)
+	box(stand, "Header", Vector3.new(1.2, 1.2, 3.4), cf * CFrame.new(0, 27.2, 0.2), spec.Color)
+	-- подпорка-доска под рамой
+	box(stand, "Shelf", Vector3.new(14.2, 0.5, 2.2), cf * CFrame.new(0, 7.2, -0.4), plankColor, woodProps)
 	box(stand, "PedestalBase", Vector3.new(6.4, 1, 6.4), cf * CFrame.new(0, 0.5, -7), Color3.fromRGB(96, 98, 112))
 	box(stand, "Pedestal", Vector3.new(5, 2, 5), cf * CFrame.new(0, 2, -7), Color3.fromRGB(150, 152, 164))
 	box(stand, "PedestalTop", Vector3.new(5.6, 0.5, 5.6), cf * CFrame.new(0, 3.25, -7), spec.Color)
-	local plate = box(stand, "Plate", Vector3.new(4.4, 1.4, 0.2), cf * CFrame.new(0, 2, -9.6), Color3.fromRGB(30, 30, 36))
+	local plate = box(stand, "Plate", Vector3.new(4.4, 1.4, 0.2), cf * CFrame.new(0, 2, -9.6), woodDark, woodProps)
 	local spot = box(stand, "StatueSpot", Vector3.new(2, 0.2, 2), cf * CFrame.new(0, 3.6, -7), Color3.new(1, 1, 1), {
 		Transparency = 0.5, CanCollide = false, CanQuery = false, CanTouch = false,
 	})

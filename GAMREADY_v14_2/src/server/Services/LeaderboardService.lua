@@ -17,7 +17,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BigNum = require(ReplicatedStorage.Shared.BigNum)
 local Config = require(ReplicatedStorage.Shared.Config)
-local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20: стили мировых надписей (StarterGui/WorldUiTemplates)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 
@@ -131,112 +130,23 @@ local function moneyDisplayValue(userId, fallback)
 	return fallback
 end
 
--- v20.106: ДЕРЕВЯННЫЙ СТИЛЬ (как на референсе): коричневая доска, сверху
--- заголовок цветом категории с обводкой, строки-доски с квадратным значком
--- места (1-3 - золото/серебро/бронза), ник и значение. Внизу - место под
--- строку самого игрока («YouRow»): её рисует клиент (LeaderboardSelfRow),
--- значения игрока сервер кладёт в атрибуты LbValue_<Key>.
-local WOOD = Color3.fromRGB(150, 92, 48)
-local WOOD_DARK = Color3.fromRGB(96, 56, 28)
-local PLANK = Color3.fromRGB(205, 136, 78)
-local RANK_COLORS = { Color3.fromRGB(255, 205, 60), Color3.fromRGB(215, 218, 226), Color3.fromRGB(240, 150, 70) }
-
-local function woodLabel(parent, text, color, props)
-	local label = WorldUi.Text(nil, "Text", "Number")
-	label.BackgroundTransparency = 1
-	label.Text = text
-	label.TextColor3 = color
-	label.TextScaled = true
-	for key, value in props or {} do label[key] = value end
-	local stroke = label:FindFirstChildWhichIsA("UIStroke") or Instance.new("UIStroke")
-	stroke.Enabled = true
-	stroke.Thickness = 3
-	stroke.Color = Color3.fromRGB(40, 22, 10)
-	stroke.Parent = label
-	label.Parent = parent
-	return label
-end
-
-local function plank(parent, position, size, color)
-	local frame = Instance.new("Frame")
-	frame.Position = position
-	frame.Size = size
-	frame.BackgroundColor3 = color or PLANK
-	frame.BorderSizePixel = 0
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 14)
-	corner.Parent = frame
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 4
-	stroke.Color = WOOD_DARK
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = frame
-	frame.Parent = parent
-	return frame
-end
+-- v20.106: ДЕРЕВЯННЫЙ СТИЛЬ (как на референсе). v20.117: рисование вынесено
+-- в Shared.LeaderboardBoardGui - тот же вид показывает пример в Studio
+-- (tools/BuildLeaderboardStands). Внизу доски - место под строку игрока
+-- («YouRow»): её рисует клиент (LeaderboardSelfRow), значения игрока сервер
+-- кладёт в атрибуты LbValue_<Key>.
+local BoardGui = require(ReplicatedStorage.Shared.LeaderboardBoardGui)
 
 local function formatValue(spec, value)
 	return spec.IsTime and formatPlayTime(value) or ((spec.Prefix or "") .. formatNumber(value))
 end
 
 local function renderBoard(part, spec, entries, errorText)
-	local old = part:FindFirstChild("LeaderboardGui")
-	if old then
-		old:Destroy()
-	end
-
-	local gui = Instance.new("SurfaceGui")
-	gui.Name = "LeaderboardGui"
-	gui.Face = Config.Leaderboards.BoardFace
-	gui.CanvasSize = Vector2.new(700, 1000)
-	gui.LightInfluence = 0
-	gui.AlwaysOnTop = false
-	gui:SetAttribute("StatKey", spec.Key)
-	gui:SetAttribute("StatColor", spec.Color)
-	gui.Parent = part
-
-	local background = Instance.new("Frame")
-	background.Name = "Background"
-	background.Size = UDim2.fromScale(1, 1)
-	background.BackgroundColor3 = WOOD
-	background.BorderSizePixel = 0
-	background.Parent = gui
-
-	local header = plank(background, UDim2.new(0, 16, 0, 12), UDim2.new(1, -32, 0, 104), WOOD_DARK:Lerp(WOOD, 0.4))
-	header.Name = "Header"
-	woodLabel(header, spec.Title, spec.Color, { Size = UDim2.new(1, -24, 1, -16), Position = UDim2.fromOffset(12, 8) })
-
-	local status = errorText or (#entries == 0 and "NO PLAYERS YET" or nil)
-	if status then
-		woodLabel(background, status, Color3.new(1, 1, 1), {
-			Position = UDim2.new(0, 30, 0, 300), Size = UDim2.new(1, -60, 0, 80),
-		})
-		return
-	end
-
-	for rank, entry in entries do
-		local row = plank(background, UDim2.new(0, 16, 0, 128 + (rank - 1) * 74), UDim2.new(1, -32, 0, 64))
-		row.Name = "Row" .. rank
-		local badge = plank(row, UDim2.fromOffset(6, 6), UDim2.fromOffset(52, 52), RANK_COLORS[rank] or Color3.fromRGB(245, 245, 245))
-		badge.Name = "Rank"
-		local badgeText = WorldUi.Text(nil, "Text", "Number")
-		badgeText.BackgroundTransparency = 1
-		badgeText.Size = UDim2.fromScale(1, 1)
-		badgeText.Text = tostring(rank)
-		badgeText.TextColor3 = Color3.fromRGB(25, 20, 15)
-		badgeText.TextScaled = true
-		local badgeStroke = badgeText:FindFirstChildWhichIsA("UIStroke")
-		if badgeStroke then badgeStroke.Enabled = false end
-		badgeText.Parent = badge
-		woodLabel(row, entry.Name, Color3.new(1, 1, 1), {
-			Position = UDim2.fromOffset(70, 8), Size = UDim2.new(1, -270, 1, -16),
-			TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
-		})
-		woodLabel(row, formatValue(spec, entry.Value), spec.Color, {
-			AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.new(0, 190, 1, -20),
-			TextXAlignment = Enum.TextXAlignment.Right,
-		})
-	end
+	BoardGui.Board(part, spec, entries, {
+		Format = formatValue,
+		Status = errorText,
+		Face = Config.Leaderboards.BoardFace,
+	})
 end
 
 local function fetchEntries(spec)
@@ -362,42 +272,9 @@ end
 local function renderPlate(stand, spec, entry)
 	local plate = stand.Plate
 	if not (plate and plate.Parent) then return end
-	local gui = plate:FindFirstChild("PlateGui")
-	if not gui then
-		gui = Instance.new("SurfaceGui")
-		gui.Name = "PlateGui"
-		gui.Face = Enum.NormalId.Front
-		gui.CanvasSize = Vector2.new(460, 140)
-		gui.LightInfluence = 0
-		gui.Parent = plate
-		local frame = Instance.new("Frame")
-		frame.Name = "Frame"
-		frame.Size = UDim2.fromScale(1, 1)
-		frame.BackgroundColor3 = Color3.fromRGB(18, 20, 26)
-		frame.BorderSizePixel = 0
-		frame.Parent = gui
-		local name = WorldUi.Text(nil, "Text", "Number")
-		name.Name = "NameText"
-		name.Size = UDim2.fromScale(1, 0.58)
-		name.BackgroundTransparency = 1
-		name.TextScaled = true
-		name.Parent = frame
-		local value = WorldUi.Text(nil, "Text", "Number")
-		value.Name = "ValueText"
-		value.Position = UDim2.fromScale(0, 0.58)
-		value.Size = UDim2.fromScale(1, 0.42)
-		value.BackgroundTransparency = 1
-		value.TextScaled = true
-		value.Parent = frame
-	end
-	local frame = gui:FindFirstChild("Frame")
-	local nameText = frame and frame:FindFirstChild("NameText")
-	local valueText = frame and frame:FindFirstChild("ValueText")
-	if not (nameText and valueText) then return end
-	nameText.Text = entry and ("#1 " .. entry.Name) or "#1 ???"
-	nameText.TextColor3 = Color3.new(1, 1, 1)
-	valueText.Text = entry and ((spec.Prefix or "") .. formatNumber(entry.Value)) or spec.Title
-	valueText.TextColor3 = spec.Color
+	BoardGui.Plate(plate, spec,
+		entry and ("#1 " .. entry.Name) or "#1 ???",
+		entry and ((spec.Prefix or "") .. formatNumber(entry.Value)) or spec.Title)
 end
 
 -- Простые стенды у банка, если на карте нет LeaderboardStands.
@@ -425,9 +302,9 @@ local function buildFallbackStands()
 		stand.Name = spec.Stand
 		stand.Parent = folder
 		local cf = lookCF * CFrame.new((index - 2) * 17, 0, 0)
-		part(stand, "Board", Vector3.new(13, 16, 0.8), cf * CFrame.new(0, 16, 0), Color3.fromRGB(40, 32, 26))
+		part(stand, "Board", Vector3.new(13, 16, 0.8), cf * CFrame.new(0, 16, 0), BoardGui.Colors.WoodDark)
 		part(stand, "Pedestal", Vector3.new(5, 3, 5), cf * CFrame.new(0, 1.5, -6), Color3.fromRGB(120, 122, 130))
-		part(stand, "Plate", Vector3.new(4.6, 1.4, 0.2), cf * CFrame.new(0, 1.6, -8.6), Color3.fromRGB(30, 30, 36))
+		part(stand, "Plate", Vector3.new(4.6, 1.4, 0.2), cf * CFrame.new(0, 1.6, -8.6), BoardGui.Colors.WoodDark)
 		local spot = part(stand, "StatueSpot", Vector3.new(2, 0.2, 2), cf * CFrame.new(0, 3.1, -6), Color3.new(1, 1, 1))
 		spot.Transparency = 1
 		spot.CanCollide = false
