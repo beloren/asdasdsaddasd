@@ -591,5 +591,14 @@ remote.OnClientEvent:Connect(function(kind, payload)
 		finishNearest(payload.Position)
 		local ok, err = pcall(playBoom, payload.Key, payload.Position, payload.Radius)
 		if not ok then warn("[DynamiteFX] ", err) end
+		-- v20.106: взрывы из Assets/VFX по виду шашки + BoomOrAttack на месте взрыва.
+		pcall(function()
+			local AssetVfx = require(ReplicatedStorage.Shared.AssetVfx)
+			local key = tostring(payload.Key or "Dynamite")
+			local name = key:find("Mega") and "BigDynamite" or key:find("Medium") and "MediumDynamite" or "SmallDynamite"
+			local scale = name == "BigDynamite" and 1.4 or name == "MediumDynamite" and 1.15 or 1
+			AssetVfx.PlayAt(name, payload.Position, { Duration = 0.6, Burst = 30, Fallback = "BoomOrAttack" })
+			AssetVfx.PlayAt("BoomOrAttack", payload.Position, { Duration = 0.5, Burst = 20, Scale = scale })
+		end)
 	end
 end)

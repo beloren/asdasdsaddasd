@@ -1038,6 +1038,15 @@ local function spawnHitDebris(model, tier, hitPosition)
 	local radius = math.max(size.X, size.Z) * 0.5
 	local origin = hitPosition or (center + Vector3.new(0, size.Y * 0.12, 0))
 	local color = (Config.Boulders.HitDebrisColors and Config.Boulders.HitDebrisColors[tier]) or Color3.fromRGB(150, 150, 150)
+	-- v20.106: эмиттер Rocks (Assets/VFX) в валуне на каждый удар, цветом
+	-- валуна; через полсекунды снимается.
+	pcall(function()
+		local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+		if root then
+			local offset = root.CFrame:PointToObjectSpace(origin)
+			require(ReplicatedStorage.Shared.AssetVfx).AttachTo("Rocks", root, { Color = root.Color, Duration = 0.5, Offset = offset, Fallback = false })
+		end
+	end)
 	-- Размер осколка тоже от габаритов камня — на огромной модели крошка в
 	-- треть студа была бы неразличима с обычной дистанции.
 	local pieceSize = math.clamp(radius * 0.16, 0.3, 0.9)

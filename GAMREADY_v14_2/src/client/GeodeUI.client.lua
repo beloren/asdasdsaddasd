@@ -965,6 +965,10 @@ local function attachHammer()
 		end
 	end
 	local model, handle, toolGrip = buildHammer()
+	-- v20.106: молот растёт вместе с игроком (Config.GeodeCutscene.PlayerScale)
+	if Hit.PlayerScale and model:IsA("Model") and model.ScaleTo then
+		pcall(model.ScaleTo, model, CUT.PlayerScale or 2)
+	end
 	local gripAttachment = hand:FindFirstChild("RightGripAttachment")
 	local handCFrame = gripAttachment and gripAttachment.WorldCFrame or (hand.CFrame * CFrame.new(0, -hand.Size.Y / 2, 0))
 	local defaultGrip = CFrame.new(0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -1, 0)
@@ -1227,7 +1231,17 @@ local function standAtAnvil(anvil)
 	if not (anvil and root and humanoid) then return end
 	local toPlayer = Vector3.new(root.Position.X - anvil.Position.X, 0, root.Position.Z - anvil.Position.Z)
 	local direction = toPlayer.Magnitude > 0.5 and toPlayer.Unit or Vector3.new(0, 0, 1)
-	local standXZ = anvil.Position + direction * (CUT.StandDistance or 3.6)
+	-- v20.106: игрок на время раскола КРУПНЕЕ (Config.GeodeCutscene.PlayerScale,
+	-- x2) - рядом с наковальней он большой; после сцены масштаб возвращается.
+	local playerScale = CUT.PlayerScale or 2
+	if playerScale ~= 1 and character.ScaleTo and not Hit.PlayerScale then
+		local okScale, current = pcall(function() return character:GetScale() end)
+		if okScale and current then
+			Hit.PlayerScale = current
+			pcall(character.ScaleTo, character, current * playerScale)
+		end
+	end
+	local standXZ = anvil.Position + direction * (CUT.StandDistance or 3.6) * math.max(1, playerScale * 0.75)
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { character, activeGeodeProp, anvil }
@@ -1235,6 +1249,20 @@ local function standAtAnvil(anvil)
 	local groundY = hit and hit.Position.Y or (root.Position.Y - humanoid.HipHeight - root.Size.Y / 2)
 	local standPos = Vector3.new(standXZ.X, groundY + humanoid.HipHeight + root.Size.Y / 2, standXZ.Z)
 	root.CFrame = CFrame.lookAt(standPos, Vector3.new(anvil.Position.X, standPos.Y, anvil.Position.Z))
+	-- v20.106: ступни РОВНО на землю. HipHeight у R6 = 0 - игрок раньше
+	-- наполовину уходил под землю. Меряем самую нижнюю видимую деталь
+	-- персонажа и поднимаем/опускаем корень на разницу.
+	local bottom = math.huge
+	for _, part in character:GetDescendants() do
+		if part:IsA("BasePart") and part ~= root and part.Transparency < 1 and not part:FindFirstAncestorWhichIsA("Accessory") then
+			local cf, half = part.CFrame, part.Size / 2
+			local b = cf.Position.Y - (math.abs(cf.RightVector.Y) * half.X + math.abs(cf.UpVector.Y) * half.Y + math.abs(cf.LookVector.Y) * half.Z)
+			if b < bottom then bottom = b end
+		end
+	end
+	if bottom < math.huge then
+		root.CFrame = root.CFrame + Vector3.new(0, groundY - bottom, 0)
+	end
 	root.AssemblyLinearVelocity = Vector3.zero
 	root.Anchored = true
 	anchoredRoot = root
@@ -1246,7 +1274,7 @@ local function shakeGeodeCamera(amount, seconds)
 	geodeShakeUntil = os.clock() + seconds
 end
 
-local function flash(brightness, seconds)
+local function flashLighting(brightness, seconds) -- v20.106: было flash - перекрывало рамку Flash (ошибка :2897)
 	if not flashEffect or not flashEffect.Parent then
 		flashEffect = Instance.new("ColorCorrectionEffect")
 		flashEffect.Name = "GeodeFlash"
@@ -1259,6 +1287,11 @@ end
 -- Снимает всё, что поставила катсцена (молот, якорь, вспышку).
 local function releaseCutscene()
 	detachHammer()
+	if Hit.PlayerScale then
+		local character = player.Character
+		if character and character.ScaleTo then pcall(character.ScaleTo, character, Hit.PlayerScale) end
+		Hit.PlayerScale = nil
+	end
 	if anchoredRoot and anchoredRoot.Parent then anchoredRoot.Anchored = false end
 	anchoredRoot = nil
 	if flashEffect then flashEffect:Destroy() flashEffect = nil end
@@ -1843,6 +1876,15 @@ local function geodeImpact(hitIndex, isFinal)
 		local hitPosition = activeGeodeProp:IsA("Model") and activeGeodeProp:GetPivot().Position or activeGeodeProp.Position
 		local color = geodePropColor(activeGeodeProp)
 		burstGeodeChips(hitPosition, color, 18 + hitIndex * 8)
+		-- v20.106: BoomOrAttack (Assets/VFX) на месте удара, сильнее с каждым ударом;
+		-- на последнем - ещё и OpenVFX (раскол).
+		pcall(function()
+			local AssetVfx = require(ReplicatedStorage.Shared.AssetVfx)
+			AssetVfx.PlayAt("BoomOrAttack", hitPosition, { Duration = 0.5, Burst = 12 + hitIndex * 4, Scale = 0.7 + hitIndex * 0.12, Color = color, Fallback = false })
+			if isFinal then
+				AssetVfx.PlayAt("OpenVFX", hitPosition, { Duration = 1.6, Color = color })
+			end
+		end)
 		local growth = 1 + hitIndex * 0.1
 		pcall(function()
 			if activeGeodeProp:IsA("Model") then
@@ -1873,7 +1915,7 @@ end
 local function playGeodeFinale(onDone)
 	local cut = Config.GeodeCutscene or {}
 	TweenService:Create(camera, TweenInfo.new(0.12, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { FieldOfView = cut.FinalFov or 42 }):Play()
-	flash(cut.FlashBrightness or 0.5, (cut.FinalHold or 0.5) + 0.2)
+	flashLighting(cut.FlashBrightness or 0.5, (cut.FinalHold or 0.5) + 0.2)
 	task.delay(cut.FinalHold or 0.5, onDone)
 end
 
@@ -1982,15 +2024,50 @@ end
 
 function Hit.RefreshAuto()
 	if Hit.OwnsAuto() then
-		Hit.AutoButton.Text = Hit.AutoOn and "AUTO: ON" or "AUTO: OFF"
+		Hit.AutoButton.Text = Hit.AutoOn and "AUTO\nON" or "AUTO\nOFF"
 		Hit.AutoButton.BackgroundColor3 = Hit.AutoOn and Color3.fromRGB(70, 190, 90) or Color3.fromRGB(110, 110, 125)
 	else
-		Hit.AutoButton.Text = ("AUTO  R$%d"):format(Hit.AutoPass.PriceRobux or 49)
+		Hit.AutoButton.Text = ("AUTO\nR$%d"):format(Hit.AutoPass.PriceRobux or 49)
 		Hit.AutoButton.BackgroundColor3 = Color3.fromRGB(120, 80, 200)
 	end
 end
 Hit.RefreshAuto()
 player:GetAttributeChangedSignal("Owns_AutoHammer"):Connect(Hit.RefreshAuto)
+
+-- v20.106: AUTO и SKIP - одинаковые КВАДРАТНЫЕ кнопки рядом внизу справа
+-- (Config.GeodeCutscene.ButtonSize).
+function Hit.Square(btn, rightOffset)
+	if not (btn and btn:IsA("GuiObject")) then return end
+	local size = (Config.GeodeCutscene and Config.GeodeCutscene.ButtonSize) or 104
+	btn.AnchorPoint = Vector2.new(1, 1)
+	btn.Size = UDim2.fromOffset(size, size)
+	btn.Position = UDim2.new(1, rightOffset, 1, -20)
+	btn.ZIndex = 30
+	local corner = btn:FindFirstChildOfClass("UICorner") or Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 14)
+	corner.Parent = btn
+	local stroke = btn:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke")
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Thickness = 3
+	stroke.Color = Color3.fromRGB(25, 20, 35)
+	stroke.Parent = btn
+	local text = btn:IsA("TextButton") and btn or btn:FindFirstChildWhichIsA("TextLabel", true)
+	if text then
+		text.TextWrapped = true
+		text.TextScaled = true
+		local limit = text:FindFirstChildOfClass("UITextSizeConstraint") or Instance.new("UITextSizeConstraint")
+		limit.MaxTextSize = 30
+		limit.Parent = text
+	end
+end
+local buttonSize = (Config.GeodeCutscene and Config.GeodeCutscene.ButtonSize) or 104
+Hit.Square(skipButton, -20)
+Hit.Square(Hit.AutoButton, -20 - buttonSize - 14)
+if skipButton and (skipButton:IsA("ImageButton") or skipButton:IsA("TextButton")) then
+	if skipButton:IsA("ImageButton") then skipButton.Image = "" end
+	skipButton.BackgroundTransparency = 0
+	skipButton.BackgroundColor3 = Color3.fromRGB(235, 160, 40)
+end
 
 Hit.AutoButton.Activated:Connect(function()
 	if Hit.OwnsAuto() then
@@ -2098,7 +2175,7 @@ beginCrack = function()
 	if skipButton:IsA("TextButton") then
 		skipButton.Text = "SKIP >"
 	elseif skipButtonLabel then
-		skipButtonLabel.Text = "SKIP >"
+		skipButtonLabel.Text = "SKIP"
 	end
 
 	-- 3D-ПОСТАНОВКА (по прямому запросу — "камера отдаётся и вращается

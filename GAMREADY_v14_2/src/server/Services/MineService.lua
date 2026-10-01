@@ -2619,6 +2619,15 @@ function MineService:_ejectOre(player, expedition)
 	if Services.BuffService and Services.BuffService:GetBonus(player, "DoubleHaul") > 0 then
 		yieldCount *= 2
 	end
+	-- v20.106: качество ударов мини-игры меняет число кусков.
+	do
+		local bonusCfg = Config.MineExpedition.VeinYieldBonus or {}
+		local delta = 0
+		for _, quality in expedition.HitResults or {} do
+			delta += bonusCfg[quality] or 0
+		end
+		yieldCount = math.max(Config.MineExpedition.VeinMinYield or 1, yieldCount + delta)
+	end
 	-- v10: 🚀 ракетная кирка — вполовину меньше руды.
 	if Services.CombatService and Services.CombatService.IsRocketActive and Services.CombatService:IsRocketActive(player) then
 		yieldCount = math.max(1, math.floor(yieldCount * (Config.RocketPickaxe.MineYieldMultiplier or 0.5)))

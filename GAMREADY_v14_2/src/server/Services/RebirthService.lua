@@ -503,6 +503,11 @@ function RebirthService:_tryRebirth(player)
 	-- (уведомление клиенту, лог) не выполнялись.
 	local record = records[player]
 	Sfx.play("Rebirth", record and record.Npc and record.Npc.PrimaryPart)
+	-- v20.106: Sparkles (Assets/VFX) на игроке за престиж
+	pcall(function()
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		require(ReplicatedStorage.Shared.AssetVfx).AttachTo("Sparkles", hrp, { Color = Color3.fromRGB(255, 200, 60), Duration = 3, Fallback = "OpenVFX" })
+	end)
 	-- v20.35: аура-корона вокруг игрока у всех клиентов (client/PrestigeAuraFX).
 	player:SetAttribute("PrestigeFxAt", workspace:GetServerTimeNow())
 	if rebirthNpcRemote then

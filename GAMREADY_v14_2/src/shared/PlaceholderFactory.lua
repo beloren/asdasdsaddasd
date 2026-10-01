@@ -1363,6 +1363,13 @@ function PlaceholderFactory.MutationVfx(vfxName)
 	if asset then
 		return prepareVfxAttachment(asset)
 	end
+	-- v20.106: своего эффекта у мутации нет - база Assets/VFX/ThunderVFX
+	-- (перекрашивается в цвет мутации в MutationVisuals.applyParticles).
+	local thunder = extractVfxAttachment(findAsset("ThunderVFX"), "ThunderVFX")
+	if thunder then
+		thunder.Name = assetName
+		return prepareVfxAttachment(thunder)
+	end
 	local preset = MUTATION_VFX_PRESETS[vfxName]
 	if not preset then return nil end
 

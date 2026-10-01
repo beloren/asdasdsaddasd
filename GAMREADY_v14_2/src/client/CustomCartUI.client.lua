@@ -1419,6 +1419,16 @@ end
 -- "когда будет доступна следующая бесплатная активация").
 local playProtectionCooldown = setupFillBar(protectionSlot, ACTION_BAR_COLOR, COUNTDOWN_THRESHOLD)
 local protectionClickCatcher = addClickCatcher(protectionSlot)
+-- v20.106: ловушка клика для щита - ТОЛЬКО пока везёшь тележку. Раньше она
+-- лежала поверх слота всегда и на телефоне тап по кирке включал щит вместо
+-- того, чтобы взять кирку (на ПК спасала клавиша F).
+local function refreshClickCatcher()
+	local carrying = player:GetAttribute("CarryingCart") == true or player:GetAttribute("CartCarrying") == true
+	protectionClickCatcher.Visible = carrying
+	protectionClickCatcher.Active = carrying
+end
+refreshClickCatcher()
+player:GetAttributeChangedSignal("CarryingCart"):Connect(refreshClickCatcher)
 local protectionStroke = protectionSlot:FindFirstChildWhichIsA("UIStroke")
 local protectionWarning = buildWarningLabel(protectionSlot)
 

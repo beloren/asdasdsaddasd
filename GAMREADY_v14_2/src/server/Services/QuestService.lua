@@ -222,6 +222,18 @@ end
 
 function QuestService:Init(services)
 	Services = services
+	-- v20.106: квесты «прокачай до N» сверяются с ТЕКУЩИМ уровнем раз в
+	-- 5 с. Раньше квест, ставший активным не через новое событие (выдан
+	-- после прошлого, пропущен, обучение), ждал следующей прокачки - и
+	-- висел «Cave to 3», хотя пещера уже 5.
+	task.spawn(function()
+		while true do
+			task.wait(5)
+			for _, player in Players:GetPlayers() do
+				pcall(self._refreshDerived, self, player)
+			end
+		end
+	end)
 	remote = ReplicatedStorage.Shared:FindFirstChild("QuestRequest") or Instance.new("RemoteEvent")
 	remote.Name = "QuestRequest"
 	remote.Parent = ReplicatedStorage.Shared
@@ -589,6 +601,13 @@ function QuestService:RecordMetric(player, metric, amount, derived)
 		end
 	end
 	if starterCompletedNow then task.defer(function() if player.Parent then self:_refreshDerived(player) end end) end
+	-- v20.106: Sparkles (Assets/VFX) на игроке за выполненный квест
+	if completedAny or starterCompletedNow then
+		pcall(function()
+			local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			require(ReplicatedStorage.Shared.AssetVfx).AttachTo("Sparkles", hrp, { Color = Color3.fromRGB(255, 170, 40), Duration = 2.5, Fallback = "OpenVFX" })
+		end)
+	end
 end
 
 function QuestService:GetState(player)

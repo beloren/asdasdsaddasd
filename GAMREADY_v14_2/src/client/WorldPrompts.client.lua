@@ -651,6 +651,20 @@ local function refresh()
 			end
 		end
 	end
+	-- v20.106: рядом только ВТОРИЧНЫЙ промпт (R), а основной его соседа
+	-- Roblox сейчас не показывает (один промпт на клавишу) - раньше кружок
+	-- пропадал, хотя R срабатывала. Показываем вторичный как основной.
+	if not best then
+		for prompt, inputType in shown do
+			if prompt.Parent and prompt.Enabled and canUse(prompt) then
+				local position = worldPosition(prompt)
+				local distance = (hrp and position) and (position - hrp.Position).Magnitude or 0
+				if distance < bestDistance then
+					best, bestInput, bestDistance = prompt, inputType, distance
+				end
+			end
+		end
+	end
 	-- Ничего рядом, а в руках тележка — "Отпустить тележку" на ней самой.
 	if not best then
 		cachedCartPart = heldCartPart()
@@ -660,6 +674,14 @@ local function refresh()
 	end
 	local changed = best ~= active
 	if changed then resetFill() end
+	-- v20.106: САМОЛЕЧЕНИЕ. Промпт тот же, но кружок погас (билборд
+	-- выключен, деталь-адорни пропала/перестроилась) - показываем заново.
+	if best and not changed then
+		local adornee = billboard.Adornee
+		if not billboard.Enabled or adornee == nil or not adornee:IsDescendantOf(workspace) then
+			changed = true
+		end
+	end
 	if best then
 		-- Новый промпт (или переход на другой объект) — проигрываем
 		-- появление; тот же промпт — только обновляем текст/клавишу.

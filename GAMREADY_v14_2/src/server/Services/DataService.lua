@@ -647,10 +647,8 @@ function DataService:LoadProfile(player)
 	rebirths.Name = "Prestige" -- см. комментарий в syncLeaderstats выше
 	rebirths.Value = data.Rebirths
 	rebirths.Parent = leaderstats
-	local cartDamage = Instance.new("IntValue")
-	cartDamage.Name = "Cart Damage"
-	cartDamage.Value = math.floor(data.CartDamage)
-	cartDamage.Parent = leaderstats
+	-- v20.106: колонка «Cart Damage» убрана из таба (тележек больше нет) -
+	-- в списке игроков ник, деньги и престиж.
 	leaderstats.Parent = player
 
 	-- Для клиентского баннера "стартовый пак" (StarterPackUI.client.lua) —

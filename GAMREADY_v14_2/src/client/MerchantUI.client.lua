@@ -69,6 +69,9 @@ tickerGui.Enabled = CFG.ShowTicker == true
 local window = gui.Window
 local header = window.Header
 local marketBar = window.Market
+-- v20.106: курс руды (ORE PRICE) - только над зоной продажи: в окне
+-- торговца и над ним самим его больше нет.
+marketBar.Visible = false
 local list = window.Body.List
 local template = list.ItemTemplate
 local openScale = window:FindFirstChild("OpenScale")
@@ -811,9 +814,7 @@ local function paintMarket()
 	local board = model and model:FindFirstChild("MerchantBoard", true)
 	if board then
 		-- v20.19: «ORE PRICE» золотым, курс — цветом корзины (рост/падение).
-		board.Market.RichText = true
-		board.Market.Text = ('<font color="#FFD24A">%s</font> %s'):format(tr("ORE PRICE"), valueText)
-		board.Market.TextColor3 = bucket.Color
+		board.Market.Visible = false -- v20.106: курс только над зоной продажи
 	end
 
 	-- v20.105: табло над зоной продажи (MerchantService:_buildSellZoneBoard)
@@ -866,7 +867,7 @@ task.spawn(function()
 			end
 		end
 		-- Паинт курса на случай, если табло торговца появилось позже атрибута.
-		if board and board.Market.Text == "" then paintMarket() end
+
 		local zoneBoard = sellZoneBoard()
 		if zoneBoard and zoneBoard:FindFirstChild("Market") and zoneBoard.Market.Text == "" then paintMarket() end
 		task.wait(0.25)
