@@ -28,44 +28,19 @@ local function isPhone()
 	return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 end
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "CompassUi"
-gui.ResetOnSpawn = false
-gui.DisplayOrder = 96
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-pcall(function() gui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets end)
-gui.Parent = playerGui
+-- v20.126: весь вид - билдер UiBuilders.CompassUi (StarterGui/CompassUi,
+-- правится в Studio). Здесь только логика.
+local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("CompassUi")
+if not gui then return end
+gui.Enabled = true
 
---------------------------------------------------------------------------------
--- КНОПКА (под книгой MENU)
---------------------------------------------------------------------------------
-local button = Instance.new("ImageButton")
-button.Name = "CompassButton"
-button.AutoButtonColor = false
-button.BackgroundColor3 = Color3.fromRGB(35, 30, 55)
-button.BackgroundTransparency = 0.15
-button.Image = (tonumber(cfg.ButtonImageId) or 0) > 0 and ("rbxassetid://" .. cfg.ButtonImageId) or ""
-button.Parent = gui
-Instance.new("UICorner", button).CornerRadius = UDim.new(1, 0)
-local buttonStroke = Instance.new("UIStroke")
-buttonStroke.Thickness = 3
-buttonStroke.Color = Color3.fromRGB(255, 215, 90)
-buttonStroke.Parent = button
-local buttonEmoji = Instance.new("TextLabel")
-buttonEmoji.BackgroundTransparency = 1
-buttonEmoji.Size = UDim2.fromScale(0.8, 0.8)
-buttonEmoji.Position = UDim2.fromScale(0.1, 0.08)
-buttonEmoji.Text = "🧭"
-buttonEmoji.TextScaled = true
-buttonEmoji.Visible = button.Image == ""
-buttonEmoji.Parent = button
-local buttonLabel = UiKit.Text(button, "Label", "TRAVEL", {
-	_Style = "Heading",
-	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 1, -2),
-	Size = UDim2.new(1.5, 0, 0, 18),
-})
-buttonLabel.TextScaled = true
+local button = gui:WaitForChild("CompassButton")
+local buttonIcon = button:FindFirstChild("Icon")
+local buttonLabel = button:WaitForChild("Label")
+if buttonIcon and (tonumber(cfg.ButtonImageId) or 0) > 0 and buttonIcon.Image == "" then
+	buttonIcon.Image = "rbxassetid://" .. cfg.ButtonImageId
+end
+if buttonIcon and buttonIcon:FindFirstChild("Emoji") then buttonIcon.Emoji.Visible = buttonIcon.Image == "" end
 TutorialTarget.Mark(button, "Compass")
 
 local function placeButton()
@@ -79,48 +54,23 @@ local function placeButton()
 end
 placeButton()
 
---------------------------------------------------------------------------------
--- ОКНО-МЕНЮ С КАРТОЧКАМИ МЕСТ
---------------------------------------------------------------------------------
-local dimmer = UiKit.Dimmer(gui, { ZIndex = 10 })
-local panel, parts = UiKit.Window(gui, "Panel", {
-	Title = "TELEPORT",
-	Accent = "Gold",
-	Size = UDim2.fromOffset(640, 430),
-	Position = UDim2.fromScale(0.5, 0.5),
-	Scroll = true,
-	ZIndex = 11,
-})
+local dimmer = gui:WaitForChild("Dimmer")
+local panel = gui:WaitForChild("Panel")
 panel.Visible = false
-local panelScale = UiKit.Scale(panel, "ResponsiveScale", 1)
-local body = parts.Body
-local grid = UiKit.Grid(body, UDim2.fromOffset(180, 170), UDim2.fromOffset(14, 14))
-grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
-pcall(function() body.AutomaticCanvasSize = Enum.AutomaticSize.Y end)
-pcall(function() body.CanvasSize = UDim2.new() end)
-
-local cooldownLabel = UiKit.Text(panel, "Cooldown", "", {
-	_Style = "Body",
-	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 1, 6),
-	Size = UDim2.new(1, 0, 0, 26),
-	TextColor3 = Color3.fromRGB(255, 220, 120),
-})
-cooldownLabel.TextScaled = true
-
-local fade = Instance.new("Frame")
-fade.Name = "Fade"
-fade.BackgroundColor3 = Color3.new(0, 0, 0)
-fade.BackgroundTransparency = 1
-fade.Size = UDim2.fromScale(1, 1)
-fade.ZIndex = 50
-fade.Visible = false
-fade.Parent = gui
+dimmer.Visible = false
+local panelScale = panel:FindFirstChild("ResponsiveScale") or UiKit.Scale(panel, "ResponsiveScale", 1)
+local body = panel:WaitForChild("Places")
+local cardTemplate = panel:WaitForChild("Templates"):WaitForChild("PlaceCardTemplate")
+local closeButton = panel:FindFirstChild("CloseButton", true)
+local cooldownLabel = panel:WaitForChild("Cooldown")
+local fade = gui:WaitForChild("Fade")
+local BASE_W = panel.Size.X.Offset > 0 and panel.Size.X.Offset or 640
+local BASE_H = panel.Size.Y.Offset > 0 and panel.Size.Y.Offset or 430
 
 local function layout()
 	local camera = workspace.CurrentCamera
 	local view = camera and camera.ViewportSize or Vector2.new(1280, 720)
-	panelScale.Scale = math.clamp(math.min((view.X - 30) / 640, (view.Y - 90) / 430), 0.45, 1)
+	panelScale.Scale = math.clamp(math.min((view.X - 30) / BASE_W, (view.Y - 90) / BASE_H), 0.45, 1)
 end
 layout()
 
@@ -132,40 +82,31 @@ local cooldownUntil = 0
 local teleport -- forward
 
 local function card(dest, order)
-	local accent = ACCENTS[dest.Id] or "Blue"
-	local c = UiKit.CardButton(body, "Place_" .. dest.Id, accent, { LayoutOrder = order, ZIndex = 12 })
-	local icon = UiKit.Text(c, "Icon", dest.Icon or "📍", {
-		_Style = "Heading",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 10),
-		Size = UDim2.new(1, -20, 0, 62),
-		ZIndex = 13,
-	})
-	icon.TextScaled = true
-	local name = UiKit.Text(c, "PlaceName", (dest.Name or dest.Id):upper(), {
-		_Style = "Heading",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 78),
-		Size = UDim2.new(1, -16, 0, 30),
-		ZIndex = 13,
-	})
-	name.TextScaled = true
-	local sub = UiKit.Text(c, "Subtitle", SUBTITLES[dest.Id] or "Your island", {
-		_Style = "Body",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 110),
-		Size = UDim2.new(1, -16, 0, 18),
-		TextColor3 = Color3.fromRGB(210, 210, 225),
-		ZIndex = 13,
-	})
-	sub.TextScaled = true
-	local go = UiKit.Button(c, "Go", "GO", "Green", {
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -8),
-		Size = UDim2.new(1, -24, 0, 30),
-		ZIndex = 13,
-	})
-	go.Active = false -- нажатие ловит вся карточка
+	local c = cardTemplate:Clone()
+	c.Name = "Place_" .. dest.Id
+	c.LayoutOrder = order
+	c.Visible = true
+	-- рамка цветом места (вид карточки - из билдера, своё не перетираем)
+	local skinStroke = c:FindFirstChild("SkinStroke")
+	if skinStroke and c.Image == "" then skinStroke.Color = UiKit.Accent(ACCENTS[dest.Id] or "Blue").Main end
+	local icon = c:FindFirstChild("Icon")
+	local images = cfg.PlaceImages or {}
+	local imageId = tonumber(images[dest.Id] or images[(dest.Id:match("^Island:(%w+)$") or "")]) or 0
+	if icon then
+		if imageId > 0 then icon.Image = "rbxassetid://" .. imageId end
+		local emoji = icon:FindFirstChild("Emoji")
+		if emoji then
+			emoji.Text = dest.Icon or "📍"
+			emoji.Visible = icon.Image == ""
+		end
+	end
+	local name = c:FindFirstChild("PlaceName")
+	if name then name.Text = (dest.Name or dest.Id):upper() end
+	local sub = c:FindFirstChild("Subtitle")
+	if sub then sub.Text = SUBTITLES[dest.Id] or "Your island" end
+	local go = c:FindFirstChild("Go")
+	if go then go.Active = false end -- нажатие ловит вся карточка
+	c.Parent = body
 	c.Activated:Connect(function() teleport(dest.Id) end)
 	TutorialTarget.Mark(c, "Compass:" .. dest.Id)
 	c:SetAttribute("WorldPos", dest.Position) -- обучение выбирает место ближе к цели
@@ -242,7 +183,7 @@ button.Activated:Connect(function()
 	sfx("UiButtonClick")
 	setOpen(not panel.Visible)
 end)
-if parts.CloseButton then parts.CloseButton.Activated:Connect(function() setOpen(false) end) end
+if closeButton then closeButton.Activated:Connect(function() setOpen(false) end) end
 dimmer.Activated:Connect(function() setOpen(false) end)
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then return end

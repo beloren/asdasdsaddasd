@@ -57,6 +57,7 @@ UiRegistry.Entries = {
 	{ Name = "GeodeUi", Module = "GeodeUiBuilder", MinVersion = 23, What = "жеоды" },
 	{ Name = "DropPreviewUi", Module = "UiBuilders.DropPreviewUi", MinVersion = 21, What = "окно шансов" },
 	{ Name = "DecorStorageUi", Module = "UiBuilders.DecorStorageUi", MinVersion = 22, What = "сундук-хранилище на базе" },
+	{ Name = "CompassUi", Module = "UiBuilders.CompassUi", MinVersion = 26, What = "кнопка TRAVEL и окно телепорта" },
 	{ Name = "IslandUi", Module = "UiBuilders.IslandUi", MinVersion = 22, What = "острова и путешествия" },
 	{ Name = "GearUi", Module = "GearUiBuilder", MinVersion = 22, What = "снаряжение, лут сундуков" },
 	{ Name = "OfferUi", Module = "OfferUiBuilder", MinVersion = 21, What = "предложения" },

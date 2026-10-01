@@ -4146,6 +4146,8 @@ Config.Compass = {
 	Enabled = true,
 	Cooldown = 5,            -- сек между телепортами
 	ButtonImageId = 0,       -- иконка кнопки; 0 - 🧭
+	-- картинки карточек (0 - эмодзи): Center, Raft, Anvil, Income, Smelter
+	PlaceImages = { Center = 0, Raft = 0, Anvil = 0, Income = 0, Smelter = 0 },
 	MerchantDistance = 9,    -- на сколько стадов перед торговцем руды встаёт игрок
 	CenterMarkerName = "CompassCenterMarker", -- запасной вариант, если торговца нет
 	CenterOffset = Vector3.new(0, 0, 18),
