@@ -66,7 +66,7 @@ local COLORS = {
 	Text = UiKit.Theme.Colors.Text,
 	Muted = UiKit.Theme.Colors.SubText,
 	Buy = "Green",
-	Poor = "Yellow",
+	Poor = "Red", -- v20.105: не хватает денег - красная
 	Grey = "Dark",
 }
 local DARK_CARD = UiKit.Theme.Skins.Card.Color

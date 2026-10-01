@@ -328,7 +328,9 @@ local function refreshRow(itemId)
 		paintBuy(row, tr("NO STOCK"), Color3.fromRGB(200, 50, 50))
 		main.Stock.Text = tr("NO STOCK")
 	else
-		paintBuy(row, tr("BUY") .. "  $" .. NumberFormat.abbreviate(data.Price), Color3.fromRGB(60, 200, 60))
+		-- v20.105: хватает денег - зелёная, не хватает - красная
+		paintBuy(row, tr("BUY") .. "  $" .. NumberFormat.abbreviate(data.Price),
+			data.CanAfford == false and Color3.fromRGB(205, 55, 55) or Color3.fromRGB(60, 200, 60))
 	end
 	local effect = row.Frame:FindFirstChild("Effect")
 	if effect then
@@ -775,6 +777,16 @@ end
 --------------------------------------------------------------------------------
 local lastMarket = nil
 
+local sellZoneBoardCache = { Board = nil, SearchedAt = -math.huge }
+local function sellZoneBoard()
+	local cache = sellZoneBoardCache
+	if cache.Board and cache.Board.Parent then return cache.Board end
+	if os.clock() - cache.SearchedAt < 3 then return nil end
+	cache.SearchedAt = os.clock()
+	cache.Board = workspace:FindFirstChild("SellZonePriceBoard", true)
+	return cache.Board
+end
+
 local function paintMarket()
 	local multiplier = workspace:GetAttribute("MarketMultiplier") or 1
 	local bucket = bucketInfo(workspace:GetAttribute("MarketBucket"))
@@ -804,6 +816,14 @@ local function paintMarket()
 		board.Market.TextColor3 = bucket.Color
 	end
 
+	-- v20.105: табло над зоной продажи (MerchantService:_buildSellZoneBoard)
+	local zoneBoard = sellZoneBoard()
+	if zoneBoard and zoneBoard:FindFirstChild("Market") then
+		zoneBoard.Market.RichText = true
+		zoneBoard.Market.Text = ('<font color="#FFD24A">%s</font> %s'):format(tr("ORE PRICE"), valueText)
+		zoneBoard.Market.TextColor3 = bucket.Color
+		if zoneBoard:FindFirstChild("Title") then zoneBoard.Title.Text = tr("SELL ORE HERE") end
+	end
 	if lastMarket and lastMarket ~= multiplier then
 		pop(tickerPill:FindFirstChild("Pop"), 1.3)
 	end
@@ -847,6 +867,8 @@ task.spawn(function()
 		end
 		-- Паинт курса на случай, если табло торговца появилось позже атрибута.
 		if board and board.Market.Text == "" then paintMarket() end
+		local zoneBoard = sellZoneBoard()
+		if zoneBoard and zoneBoard:FindFirstChild("Market") and zoneBoard.Market.Text == "" then paintMarket() end
 		task.wait(0.25)
 	end
 end)

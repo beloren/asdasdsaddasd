@@ -134,6 +134,7 @@ local function hookPlayerCollisionGroup(player)
 end
 
 local Services = nil
+local inventoryRemote = nil -- v20.105: окно тележки
 local carts = {}       -- [Model] = data
 local ownerIndex = {}  -- [userId] = data (тележка, созданная для игрока)
 local holderIndex = {} -- [userId] = data (тележка в руках игрока)
@@ -227,6 +228,7 @@ end
 local function updatePrompt(data)
 	local free = data.HolderUserId == nil
 	data.Prompt.Enabled = free
+	if data.InventoryPrompt then data.InventoryPrompt.Enabled = free end
 	data.Prompt.ActionText = "Take Cart"
 	data.Prompt:SetAttribute("OwnerUserId", data.OwnerUserId)
 	data.Prompt:SetAttribute("Stealable", data.Stealable == true)
@@ -794,6 +796,19 @@ end
 function CartService:Init(services)
 	Services = services
 
+	-- v20.105: окно тележки (client/CartInventoryUI)
+	inventoryRemote = ReplicatedStorage.Shared:FindFirstChild("CartInventoryRequest")
+	if not inventoryRemote then
+		inventoryRemote = Instance.new("RemoteEvent")
+		inventoryRemote.Name = "CartInventoryRequest"
+		inventoryRemote.Parent = ReplicatedStorage.Shared
+	end
+	inventoryRemote.OnServerEvent:Connect(function(player, action, value)
+		local ok, err = pcall(self._onInventoryRequest, self, player, action, value)
+		if not ok then warn("[CartService] окно тележки:", err) end
+	end)
+	Players.PlayerRemoving:Connect(function(player) inventoryLast[player] = nil end)
+
 	ensureCollisionGroups()
 	Players.PlayerAdded:Connect(hookPlayerCollisionGroup)
 	for _, player in Players:GetPlayers() do
@@ -1037,6 +1052,7 @@ function CartService:Start()
 				-- (MineExitPos), руду из шахты тележкой тоже не собираем.
 				local holder = Players:GetPlayerByUserId(data.HolderUserId)
 				local holderJustExited = holder and holder:GetAttribute("MineExitPos") ~= nil
+				if holder and holder:GetAttribute("MineExpeditionActive") == true then continue end -- v20.105
 				for _, crystal in folder:GetChildren() do
 					if #data.Crystals >= data.Capacity then break end
 					if holderJustExited and crystal:GetAttribute("MineDrop") == true then continue end
@@ -1878,6 +1894,21 @@ function CartService:_buildCart(player, options)
 	prompt:SetAttribute("PromptKind", "CartGrab")
 	prompt.Parent = root
 
+	-- v20.105: доп. действие на R - заглянуть в тележку (окно как у сундука).
+	local inventoryPrompt = Instance.new("ProximityPrompt")
+	inventoryPrompt.Name = "CartInventoryPrompt"
+	inventoryPrompt.ObjectText = ""
+	inventoryPrompt.ActionText = "LOOK INSIDE"
+	inventoryPrompt.MaxActivationDistance = 12
+	inventoryPrompt.RequiresLineOfSight = false
+	inventoryPrompt.HoldDuration = 0
+	inventoryPrompt.KeyboardKeyCode = Enum.KeyCode.R
+	inventoryPrompt.GamepadKeyCode = Enum.KeyCode.ButtonY
+	inventoryPrompt.Style = Enum.ProximityPromptStyle.Custom
+	inventoryPrompt:SetAttribute("SecondaryPrompt", true)
+	inventoryPrompt:SetAttribute("OwnerUserId", player.UserId)
+	inventoryPrompt.Parent = root
+
 	local valueGui, valueLabel = findOrBuildValueGui(root)
 	local comboGui, comboLabel, comboGradient = findOrBuildComboGui(root)
 	local obsoleteGeodeGui = root:FindFirstChild("GeodeGui", true)
@@ -1916,6 +1947,7 @@ function CartService:_buildCart(player, options)
 		HolderUserId = nil,
 		Selling = false,
 		Prompt = prompt,
+		InventoryPrompt = inventoryPrompt,
 		Motor = nil,     -- Motor6D, приваривающий Root к HRP держателя
 		TurnAttachment = nil, -- Attachment на HRP для AlignOrientation-поворота
 		TurnAlign = nil,      -- AlignOrientation, ограничивающий скорость поворота
@@ -1953,6 +1985,11 @@ function CartService:_buildCart(player, options)
 	updateComboLabel(data)
 	updateGeodeLabel(data)
 
+	inventoryPrompt.Triggered:Connect(function(triggerer)
+		if triggerer.UserId == data.OwnerUserId and data.HolderUserId == nil then
+			self:OpenInventory(triggerer, data)
+		end
+	end)
 	prompt.Triggered:Connect(function(triggerer)
 		if data.HolderUserId == nil then
 			self:Attach(data, triggerer) -- Attach сам решает, можно ли: владелец — всегда, чужой — только если Stealable (см. Detach)
@@ -3184,6 +3221,171 @@ function CartService:CleanupPlayer(player)
 	if owned then
 		self:_destroy(owned)
 	end
+end
+
+--------------------------------------------------------------------------------
+-- v20.105: ОКНО ТЕЛЕЖКИ (R у своей стоящей тележки). Руда в тележке
+-- собрана в стопки (руда + вариант + мутации + слиток). Клик по стопке
+-- тележки - забрать в рюкзак (сколько влезет), клик по руде рюкзака -
+-- положить в тележку. Забранная руда 10 с не переливается обратно
+-- автоматически (Config.Cart.InventoryNoAutoDepositSeconds).
+--------------------------------------------------------------------------------
+local inventoryLast = {}
+
+local function crystalKey(crystal)
+	return table.concat({
+		tostring(crystal:GetAttribute("CrystalOre") or ""),
+		tostring(crystal:GetAttribute("CrystalVariant") or 1),
+		tostring(crystal:GetAttribute("Mutations") or ""),
+		crystal:GetAttribute("Smelted") == true and "S" or "",
+	}, "|")
+end
+
+function CartService:_inventoryState(player, data)
+	local stacks, byKey = {}, {}
+	for _, crystal in data.Crystals do
+		if typeof(crystal) == "Instance" and crystal:GetAttribute("CrystalOre") then
+			local key = crystalKey(crystal)
+			local stack = byKey[key]
+			if not stack then
+				local mutations = crystal:GetAttribute("Mutations")
+				stack = {
+					Key = key, Ore = crystal:GetAttribute("CrystalOre"), Variant = crystal:GetAttribute("CrystalVariant") or 1,
+					Mutations = (mutations ~= "" and mutations) or nil, Smelted = crystal:GetAttribute("Smelted") == true or nil,
+					Tier = crystal:GetAttribute("CrystalTier"), Count = 0,
+				}
+				byKey[key] = stack
+				table.insert(stacks, stack)
+			end
+			stack.Count += 1
+		end
+	end
+	local backpack = {}
+	local profile = Services.DataService:GetGeodeData(player)
+	for _, stack in (profile and profile.Backpack) or {} do
+		if typeof(stack) == "table" and stack.Uid and Config.OreByKey[stack.Ore] then
+			table.insert(backpack, {
+				Uid = stack.Uid, Ore = stack.Ore, Variant = stack.Variant or 1, Mutations = stack.Mutations,
+				Count = stack.Count, Smelted = stack.Smelted, Gigantic = stack.Gigantic, Tier = stack.Tier,
+			})
+		end
+	end
+	return {
+		Name = "CART",
+		Count = #data.Crystals,
+		Capacity = data.Capacity,
+		Items = stacks,
+		Backpack = backpack,
+		PauseSeconds = Config.Cart.InventoryNoAutoDepositSeconds or 10,
+	}
+end
+
+function CartService:OpenInventory(player, data)
+	if not (inventoryRemote and data and data.Model.Parent) then return end
+	inventoryRemote:FireClient(player, "Open", self:_inventoryState(player, data))
+end
+
+-- Снять из тележки КОНКРЕТНЫЙ кристалл (меняем с верхним и снимаем сверху,
+-- как RemoveMostValuable - сетка слотов привязана к индексу).
+function CartService:_removeCrystalAt(data, index)
+	local lastIndex = #data.Crystals
+	if index ~= lastIndex then
+		local target, top = data.Crystals[index], data.Crystals[lastIndex]
+		local targetWeld = CrystalUtil.GetRoot(target):FindFirstChild("CrystalWeld")
+		local topWeld = CrystalUtil.GetRoot(top):FindFirstChild("CrystalWeld")
+		if targetWeld and topWeld then
+			targetWeld.C0, topWeld.C0 = topWeld.C0, targetWeld.C0
+		end
+		data.Crystals[index], data.Crystals[lastIndex] = top, target
+	end
+	return self:RemoveCrystals(data, 1)[1]
+end
+
+function CartService:_inventoryWithdraw(player, data, key)
+	local inventory = Services.InventoryService
+	local moved = 0
+	for index = #data.Crystals, 1, -1 do
+		local crystal = data.Crystals[index]
+		if typeof(crystal) == "Instance" and crystalKey(crystal) == key then
+			local mutations = crystal:GetAttribute("Mutations")
+			local stack = {
+				Ore = crystal:GetAttribute("CrystalOre"), Variant = crystal:GetAttribute("CrystalVariant") or 1,
+				Mutations = (mutations ~= "" and mutations) or nil, Smelted = crystal:GetAttribute("Smelted") == true or nil,
+			}
+			if inventory:RoomFor(player, stack) <= 0 then
+				if moved == 0 and Services.NotifyService then Services.NotifyService:Show(player, "Your backpack is full!", { Icon = "Error" }) end
+				break
+			end
+			local removed = self:_removeCrystalAt(data, index)
+			if not removed then break end
+			local ok = inventory:AddOre(player, stack.Ore, stack.Variant, stack.Mutations, removed:GetAttribute("CrystalValue") or 0, 1, stack.Smelted,
+				{ Tier = removed:GetAttribute("CrystalTier"), Chance = removed:GetAttribute("CrystalDisplayChance") })
+			if ok then
+				removed:Destroy()
+				moved += 1
+			else
+				self:AddCrystal(data, removed, true, nil, true) -- не влезло - обратно
+				break
+			end
+		end
+	end
+	if moved > 0 then inventory:PauseCartDeposit(player, Config.Cart.InventoryNoAutoDepositSeconds or 10) end
+	return moved > 0
+end
+
+function CartService:_onInventoryRequest(player, action, value)
+	if typeof(action) ~= "string" then return end
+	local now = os.clock()
+	if now - (inventoryLast[player] or 0) < 0.12 then return end
+	inventoryLast[player] = now
+	local data = ownerIndex[player.UserId]
+	local character = player.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+	if not (data and data.Model.Parent and data.Root and data.Root.Parent and hrp)
+		or data.HolderUserId ~= nil or data.Selling or data.GoblinStolen
+		or (hrp.Position - data.Root.Position).Magnitude > (Config.Cart.InventoryUseDistance or 16) then
+		inventoryRemote:FireClient(player, "Close")
+		return
+	end
+	if player:GetAttribute("EconomyTransactionLocked") == true or data.PaidFillPendingSave then return end
+	local inventory = Services.InventoryService
+	if action == "Withdraw" and typeof(value) == "string" then
+		self:_inventoryWithdraw(player, data, value)
+	elseif action == "WithdrawAll" then
+		local keys, seen = {}, {}
+		for _, crystal in data.Crystals do
+			if typeof(crystal) == "Instance" and crystal:GetAttribute("CrystalOre") then
+				local key = crystalKey(crystal)
+				if not seen[key] then seen[key] = true table.insert(keys, key) end
+			end
+		end
+		for _, key in keys do self:_inventoryWithdraw(player, data, key) end
+	elseif action == "Deposit" and typeof(value) == "string" then
+		local index = inventory:IndexOfUid(player, value)
+		local stack = index and inventory:GetStackByUid(player, value)
+		if stack then
+			if #data.Crystals >= data.Capacity and Services.NotifyService then
+				Services.NotifyService:Show(player, "Your cart is full!", { Icon = "Error" })
+			end
+			inventory:TransferToCart(player, index, stack.Count, false)
+		end
+	elseif action == "DepositAll" then
+		local profile = Services.DataService:GetGeodeData(player)
+		local uids = {}
+		for _, stack in (profile and profile.Backpack) or {} do
+			if typeof(stack) == "table" and stack.Uid and Config.OreByKey[stack.Ore] then table.insert(uids, stack.Uid) end
+		end
+		for _, uid in uids do
+			if #data.Crystals >= data.Capacity then break end
+			local index = inventory:IndexOfUid(player, uid)
+			local stack = index and inventory:GetStackByUid(player, uid)
+			if stack then inventory:TransferToCart(player, index, stack.Count, true) end
+		end
+		inventory:Sync(player)
+	elseif action ~= "Refresh" then
+		return
+	end
+	inventoryRemote:FireClient(player, "State", self:_inventoryState(player, data))
 end
 
 function CartService:_destroy(data)

@@ -1817,6 +1817,10 @@ Config.Cart = {
 	-- дальше которой тележку сразу ставит к игроку, и высота, выше которой
 	-- тележка считается потерянной (возвращается упаковкой).
 	FollowMaxVelocity = 60,
+	-- v20.105: окно тележки (R): сколько секунд достанная руда не
+	-- переливается обратно автоматически, и с какого расстояния работает окно.
+	InventoryNoAutoDepositSeconds = 10,
+	InventoryUseDistance = 16,
 	FlingMaxSpeed = 90,
 	FlingSnapDistance = 18,
 	FlingHolderUpSpeed = 70,
@@ -3569,14 +3573,16 @@ Config.WeatherEvents = {
 			Lighting = {
 				ClockTime = 0,
 				Brightness = 1.8, -- запасное значение
-				Ambient = Color3.fromRGB(76, 30, 30),
-				OutdoorAmbient = Color3.fromRGB(68, 25, 25),
-				FogColor = Color3.fromRGB(52, 15, 15),
-				FogEnd = 700,
+				-- v20.105: красного заметно МЕНЬШЕ, больше обычного цвета
+				-- (красный - акцент неба/тумана, а не заливка всего мира).
+				Ambient = Color3.fromRGB(70, 56, 60),
+				OutdoorAmbient = Color3.fromRGB(66, 52, 56),
+				FogColor = Color3.fromRGB(46, 28, 32),
+				FogEnd = 900,
 			},
 			Look = {
-				Atmosphere = { Density = 0.38, Offset = 0.1, Color = Color3.fromRGB(150, 48, 58), Decay = Color3.fromRGB(70, 12, 28), Glare = 0.4, Haze = 1.8 },
-				ColorCorrection = { TintColor = Color3.fromRGB(255, 218, 218), Saturation = 0.1, Contrast = 0.1, Brightness = 0 },
+				Atmosphere = { Density = 0.3, Offset = 0.1, Color = Color3.fromRGB(150, 96, 104), Decay = Color3.fromRGB(80, 40, 52), Glare = 0.3, Haze = 1.4 },
+				ColorCorrection = { TintColor = Color3.fromRGB(255, 240, 240), Saturation = 0.05, Contrast = 0.08, Brightness = 0 },
 				Bloom = { Intensity = 0.5, Size = 30, Threshold = 1.4 },
 				Sky = { StarCount = 1500, MoonAngularSize = 30, CelestialBodiesShown = true },
 			},
@@ -5217,12 +5223,12 @@ Config.Icons = {
 Config.CameraLandBob = {
 	Enabled = true,
 	Stiffness = 200,      -- жёсткость пружины: больше — быстрее
-	Damping = 12,         -- v20.104: было 17 - теперь заметное «пружинит обратно»
+	Damping = 10,         -- v20.105: меньше затухание - заметный отскок обратно
 	MinFallSpeed = 12,    -- медленнее этого (ступенька) — не качаем
 	FullFallSpeed = 45,   -- скорость, при которой толчок = KickVelocity
-	KickVelocity = 14,    -- v20.104: было 6.5 - пружина при прыжке в ~2 раза сильнее
-	MaxScale = 2.2,       -- потолок для высоких падений
-	PitchDegrees = 2.5,   -- кивок вниз вместе с проседанием
+	KickVelocity = 20,    -- v20.105: ещё сильнее (было 14, изначально 6.5)
+	MaxScale = 2.5,       -- потолок для высоких падений
+	PitchDegrees = 3.5,   -- кивок вниз вместе с проседанием
 }
 
 -- v20.96: ПОСТОЯННАЯ СТОЙКА НПС (см. src/shared/NpcIdle.lua). ID кладётся в
@@ -7202,17 +7208,20 @@ Config.Placeables = {
 	TierPrices = { 600, 8000, 190000 },
 	TierHomeCave = { 1, 6, 11 },
 	TotemTypes = {
-		Fortune = { DisplayName = "Fortune Totem", Names = { "Clover Totem", "Jade Luck Totem", "Fortune Prime" }, Icon = "🍀", Color = Color3.fromRGB(110, 235, 120), Effect = "Luck",           Values = { 0.04, 0.10, 0.20 }, PriceMult = 1.0, Asset = "Totem_Fortune" },
-		Ember   = { DisplayName = "Ember Totem", Names = { "Ember Totem", "Blaze Totem", "Inferno Prime" },   Icon = "🔥", Color = Color3.fromRGB(255, 130, 50),  Effect = "Income",         Values = { 0.02, 0.05, 0.10 }, PriceMult = 1.5, Asset = "Totem_Ember" },
-		Quake   = { DisplayName = "Quake Totem", Names = { "Pebble Totem", "Golem Totem", "Quake Prime" },   Icon = "🪨", Color = Color3.fromRGB(170, 140, 110), Effect = "BoulderRespawn", Values = { 0.12, 0.30, 0.60 }, PriceMult = 0.8, Asset = "Totem_Quake" },
+		Fortune = { DisplayName = "Fortune Totem", Names = { "Luck Totem 1", "Luck Totem 2", "Luck Totem 3" }, Icon = "🍀", Color = Color3.fromRGB(110, 235, 120), Effect = "Luck",           Values = { 0.04, 0.10, 0.20 }, PriceMult = 1.0, Asset = "Totem_Fortune" },
+		Ember   = { DisplayName = "Ember Totem", Names = { "Income Totem 1", "Income Totem 2", "Income Totem 3" },   Icon = "🔥", Color = Color3.fromRGB(255, 130, 50),  Effect = "Income",         Values = { 0.02, 0.05, 0.10 }, PriceMult = 1.5, Asset = "Totem_Ember" },
+		Quake   = { DisplayName = "Quake Totem", Names = { "Boulder Totem 1", "Boulder Totem 2", "Boulder Totem 3" },   Icon = "🪨", Color = Color3.fromRGB(170, 140, 110), Effect = "BoulderRespawn", Values = { 0.12, 0.30, 0.60 }, PriceMult = 0.8, Asset = "Totem_Quake" },
 		-- Prism теперь один на ВСЕ мутации из PrismMutations: шанс каждой ×(1 + Value).
-		Prism   = { DisplayName = "Prism Totem", Names = { "Shard Totem", "Crystal Totem", "Prism Prime" },   Icon = "🔮", Color = Color3.fromRGB(200, 120, 255), Effect = "Mutation",       Values = { 0.20, 0.50, 1.00 }, PriceMult = 1.2, Asset = "Totem_Prism" },
+		Prism   = { DisplayName = "Prism Totem", Names = { "Mutation Totem 1", "Mutation Totem 2", "Mutation Totem 3" },   Icon = "🔮", Color = Color3.fromRGB(200, 120, 255), Effect = "Mutation",       Values = { 0.20, 0.50, 1.00 }, PriceMult = 1.2, Asset = "Totem_Prism" },
 	},
 	TotemOrder = { "Fortune", "Ember", "Quake", "Prism" },
 	-- Какие мутации усиливает Prism-тотем.
 	PrismMutations = { "Frozen", "Toxic", "Void", "Electric", "Molten", "Golden", "Prismatic", "Celestial" },
-	-- Сколько РАЗНЫХ тотемов каждого тира в стоке за цикл (видно: свой тир ±1).
-	TotemsPerTier = 3,
+	-- Сколько РАЗНЫХ тотемов каждого тира в стоке за цикл.
+	-- v20.105: все 4 типа каждого тира - всегда в стоке (раньше 3 из 4
+	-- случайных, и какого-то тотема не было).
+	TotemsPerTier = 4,
+	ShowAllTotemTiers = true, -- v20.105: во вкладке TOTEMS видны все тиры (раньше только свой ±1)
 	TierWeights = { 30, 22, 15, 11, 8, 5.5, 3.5, 2.5, 1.5, 1 }, -- legacy, v4 не использует
 	-- ДЕКОР — без эффектов, чисто для красоты. Asset — своя модель в
 	-- ReplicatedStorage.Assets (пивот у основания), иначе плейсхолдер.

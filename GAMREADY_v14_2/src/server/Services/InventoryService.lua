@@ -1042,6 +1042,17 @@ function InventoryService:TakeRandomOreForKnockout(player)
 	return crystal, removed
 end
 
+-- v20.105: индекс стопки рюкзака по Uid (окно тележки).
+function InventoryService:IndexOfUid(player, uid)
+	local _, index = findByUid(backpackOf(player), uid)
+	return index
+end
+
+-- v20.105: руду, достанную из тележки через окно, 10 с не переливаем обратно.
+function InventoryService:PauseCartDeposit(player, seconds)
+	player:SetAttribute("CartDepositPausedUntil", workspace:GetServerTimeNow() + (seconds or 10))
+end
+
 function InventoryService:GetStackByUid(player, uid)
 	return (findByUid(backpackOf(player), uid))
 end
@@ -1270,6 +1281,9 @@ function InventoryService:Init(services)
 		for _, player in Players:GetPlayers() do
 			local character = player.Character
 			local root = character and character:FindFirstChild("HumanoidRootPart")
+			-- v20.105: пока идёт мини-игра шахты, персонаж спрятан у камеры -
+			-- руда, вылетающая рядом, раньше «сама» подбиралась. Не подбираем.
+			if player:GetAttribute("MineExpeditionActive") == true then root = nil end
 			-- Если девать руду некуда (рюкзак полон И тележки в руках нет),
 			-- даже не перебираем лежащие куски: раньше это каждый тик
 			-- прогоняло весь цикл впустую и дёргало AddOre по кругу.
@@ -1355,6 +1369,8 @@ function InventoryService:Init(services)
 		if not Services.CartService then return end
 		for _, player in Players:GetPlayers() do
 			if player:GetAttribute("EconomyTransactionLocked") == true then continue end
+			-- v20.105: только что достал руду из тележки - не всасываем обратно
+			if workspace:GetServerTimeNow() < (tonumber(player:GetAttribute("CartDepositPausedUntil")) or 0) then continue end
 			local ok, err = pcall(function()
 				local cart = Services.CartService:GetDepositCart(player, Config.Cart.DepositDistance)
 				if cart and not cart.Selling and cart.Root and cart.Root.Parent then

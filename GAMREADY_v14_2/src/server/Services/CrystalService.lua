@@ -858,6 +858,7 @@ function CrystalService:MakeLoose(crystal, velocity, ownerUserId, noCollideWith,
 		if not player then
 			return
 		end
+		if player:GetAttribute("MineExpeditionActive") == true then return end -- v20.105: в мини-игре шахты не подбирает
 
 		local owner = crystal:GetAttribute("OwnerUserId")
 		local isOwnerPickup = (owner == nil) or (owner == player.UserId)

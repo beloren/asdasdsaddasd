@@ -31,6 +31,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local BigNum = require(ReplicatedStorage.Shared.BigNum)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
+local WorldUi = require(ReplicatedStorage.Shared.WorldUi) -- v20.105: табло над зоной продажи
 local NpcNameTag = require(ReplicatedStorage.Shared.NpcNameTag) -- v20.97: подпись над НПС
 local NpcIdle = require(ReplicatedStorage.Shared.NpcIdle) -- v20.96: стойка торговца
 local PlaceableCatalog = require(ReplicatedStorage.Shared.PlaceableCatalog)
@@ -136,9 +137,13 @@ local function rollOffers(rng)
 		local used = {}
 		for tier = 1, #(placeables.TierPrices or {}) do
 			local picked = 0
-			for _ = 1, 20 do
+			-- v20.105: TotemsPerTier >= числа типов - все типы по порядку
+			-- (без случайных пропусков), иначе случайная выборка как раньше.
+			local allKinds = (placeables.TotemsPerTier or 2) >= #kinds
+			for attempt = 1, 20 do
 				if picked >= (placeables.TotemsPerTier or 2) then break end
-				local kind = kinds[rng:NextInteger(1, #kinds)]
+				local kind = allKinds and kinds[attempt] or kinds[rng:NextInteger(1, #kinds)]
+				if not kind then break end
 				local placeableId = PlaceableCatalog.TotemId(kind.Type, tier, kind.Mutation)
 				local info = PlaceableCatalog.Info(placeableId)
 				if info and not used[placeableId] then
@@ -336,6 +341,7 @@ end
 -- где «свой» — PlaceableCatalog.TotemTierForCave(пещера игрока).
 local function visibleFor(player, item)
 	if not item.TotemTier then return true end
+	if Config.Placeables and Config.Placeables.ShowAllTotemTiers then return true end
 	local cave = Services.DataService:GetTiers(player).Mine or 1
 	local own = PlaceableCatalog.TotemTierForCave(cave)
 	return math.abs(item.TotemTier - own) <= 1
@@ -455,6 +461,8 @@ function MerchantService:BuildState(player)
 			Order = sortOrder,
 			Stock = left,
 			Price = priceFor(player, item),
+			-- v20.105: хватает ли денег - кнопка зелёная/красная
+			CanAfford = not BigNum.lt(Services.DataService:GetMoney(player), priceFor(player, item)),
 			Lock = lockReason(player, item),
 			-- v20.28
 			SkinId = item.SkinId,
@@ -815,12 +823,45 @@ local function removeSlimeLeftovers(root)
 	end
 end
 
+-- v20.105: КРУПНОЕ ТАБЛО «ORE PRICE» НАД ЗОНОЙ ПРОДАЖИ - курс видно
+-- издалека, там, где продают. Текст и цвет рисует клиент (MerchantUI,
+-- paintMarket) - так же, как табло над торговцем.
+function MerchantService:_buildSellZoneBoard(zone)
+	if CFG.SellZoneBoard == false then return end
+	local part = zone:IsA("BasePart") and zone or zone:FindFirstChildWhichIsA("BasePart", true)
+	if not part or part:FindFirstChild("SellZonePriceBoard") then return end
+	local board = Instance.new("BillboardGui")
+	board.Name = "SellZonePriceBoard"
+	board.Size = UDim2.fromScale(18, 5)
+	board.StudsOffsetWorldSpace = Vector3.new(0, part.Size.Y / 2 + (CFG.SellZoneBoardHeight or 12), 0)
+	board.AlwaysOnTop = false
+	board.MaxDistance = 250
+	board.LightInfluence = 0
+	board.Parent = part
+	local function line(name, y, height, style, color)
+		local label = WorldUi.Text(nil, "Text", style)
+		label.Name = name
+		label.BackgroundTransparency = 1
+		label.Size = UDim2.fromScale(1, height)
+		label.Position = UDim2.fromScale(0, y)
+		label.TextScaled = true
+		label.TextColor3 = color
+		label.RichText = true
+		label.Text = ""
+		label.Parent = board
+		return label
+	end
+	line("Title", 0, 0.4, "Label", Color3.fromRGB(255, 210, 74)).Text = "SELL ORE HERE"
+	line("Market", 0.4, 0.6, "Label", Color3.fromRGB(120, 255, 120))
+end
+
 function MerchantService:_spawnNpc()
 	local zone = Services.WorldService:GetSellZone()
 	if not zone then
 		warn("[MerchantService] Нет SellZone - торговец не поставлен.")
 		return
 	end
+	pcall(function() self:_buildSellZoneBoard(zone) end)
 	local bankModel = zone:FindFirstAncestorWhichIsA("Model")
 	removeSlimeLeftovers(bankModel)
 	-- v20.19: без маркера MerchantSpot — справа ЗА краем зоны продажи, а не

@@ -2873,7 +2873,7 @@ end
 		Text = Color3.fromRGB(245, 245, 250),
 		Muted = Color3.fromRGB(170, 176, 196),
 		Buy = Color3.fromRGB(70, 200, 95),
-		Poor = Color3.fromRGB(215, 120, 45),
+		Poor = Color3.fromRGB(210, 55, 55), -- v20.105: не хватает денег - красная
 		Grey = Color3.fromRGB(95, 98, 110),
 		Gold = Color3.fromRGB(255, 212, 80),
 		Close = Color3.fromRGB(225, 50, 55),
@@ -2995,8 +2995,10 @@ end
 	local function money(value)
 		return "$" .. NumberFormat.abbreviate(value)
 	end
-	local function highlightCost(cost)
-		return ("<font color=\"#FFD75A\">$%s</font>"):format(NumberFormat.abbreviate(cost))
+	-- v20.105: canAfford true - зелёным, false - красным, nil - как раньше (золото)
+	local function highlightCost(cost, canAfford)
+		local color = canAfford == true and "#6CFF7E" or canAfford == false and "#FF5A5A" or "#FFD75A"
+		return ("<font color=\"%s\">$%s</font>"):format(color, NumberFormat.abbreviate(cost))
 	end
 
 	-- Что показывает карточка в сетке: уровень, короткий итог следующего шага.
@@ -3103,9 +3105,10 @@ end
 			visual.ChipText.Text = '<font color="#9CFFB4">' .. tr("GET IT FREE") .. "</font>"
 		else
 			paintCard(visual, view.Color, false)
+			-- v20.105: можно купить - зелёным, нельзя - красным
 			visual.ChipText.Text = status.CanAfford
-				and ('<font color="#FFE27A">' .. money(status.Cost) .. "</font>")
-				or ('<font color="#FF9E6A">' .. money(status.Cost) .. "</font>")
+				and ('<font color="#6CFF7E">' .. money(status.Cost) .. "</font>")
+				or ('<font color="#FF5A5A">' .. money(status.Cost) .. "</font>")
 		end
 	end
 
@@ -3339,7 +3342,7 @@ end
 			priceLabel.Text = ""
 			setAction(tr("NEED PRESTIGE"), COLORS.Grey, false)
 		elseif cooldown > 0 then
-			priceLabel.Text = highlightCost(status.Cost)
+			priceLabel.Text = highlightCost(status.Cost, status.CanAfford)
 			setAction(tr("WAIT {seconds}s", { seconds = cooldown }), COLORS.Grey, false)
 		elseif status.Repair then
 			-- Во время обучения починка бесплатна — ценник "$0" выглядел бы
@@ -3348,7 +3351,7 @@ end
 				priceLabel.Text = '<font color="#9CFFB4">' .. tr("FREE") .. "</font>"
 				setAction("⛏ " .. tr("REPAIR THE MINE"), COLORS.Buy, true)
 			else
-				priceLabel.Text = highlightCost(status.Cost)
+				priceLabel.Text = highlightCost(status.Cost, status.CanAfford)
 				setAction("⛏ " .. tr("REPAIR THE MINE"), COLORS.Buy, status.CanAfford)
 			end
 		elseif status.Unlock then
@@ -3357,7 +3360,7 @@ end
 			priceLabel.Text = '<font color="#9CFFB4">' .. tr("FREE") .. "</font>"
 			setAction("📦 " .. tr("GET YOUR CART"), COLORS.Buy, true)
 		else
-			priceLabel.Text = highlightCost(status.Cost)
+			priceLabel.Text = highlightCost(status.Cost, status.CanAfford)
 			-- v9: цена прямо на кнопке, без дубля строкой ниже.
 			setAction("⬆ " .. money(status.Cost), status.CanAfford and COLORS.Buy or COLORS.Poor, true)
 			-- v4: денег не хватает — рядом кнопка скипа за Robux.
@@ -3795,8 +3798,10 @@ end)()
 
 	-- Цена сокращена до K/M/B/T через NumberFormat.abbreviate и выделена
 	-- жёлтым прямо внутри строки через RichText.
-	local function highlightCost(cost)
-		return ("<font color=\"#FFD75A\">$%s</font>"):format(NumberFormat.abbreviate(cost))
+	-- v20.105: canAfford true - зелёным, false - красным, nil - как раньше (золото)
+	local function highlightCost(cost, canAfford)
+		local color = canAfford == true and "#6CFF7E" or canAfford == false and "#FF5A5A" or "#FFD75A"
+		return ("<font color=\"%s\">$%s</font>"):format(color, NumberFormat.abbreviate(cost))
 	end
 
 	local function rowTextAndColor(status)
@@ -3808,17 +3813,17 @@ end)()
 			return tr("upgrade.needRebirth", { number = num, branch = label, tier = status.Cap }), Color3.fromRGB(140, 210, 255)
 		elseif status.State == "Buyable" then
 			if status.Repair then
-				return ("%d. %s - <font color=\"#FFC846\">REPAIR</font> %s"):format(num or 1, label, highlightCost(status.Cost)), Color3.new(1, 1, 1)
+				return ("%d. %s - <font color=\"#FFC846\">REPAIR</font> %s"):format(num or 1, label, highlightCost(status.Cost, status.CanAfford)), Color3.new(1, 1, 1)
 			end
 			if status.Unlock then
 				-- v12: бесплатная первая тележка в списковом варианте диалога.
 				return ("%d. %s - <font color=\"#9CFFB4\">FREE</font>"):format(num or 2, label), Color3.new(1, 1, 1)
 			end
 			if status.Blocked then
-				return tr("upgrade.blocked", { number = num, branch = label, tier = status.NextTier, cost = highlightCost(status.Cost) }),
+				return tr("upgrade.blocked", { number = num, branch = label, tier = status.NextTier, cost = highlightCost(status.Cost, status.CanAfford) }),
 					Color3.fromRGB(180, 180, 190)
 			end
-			return tr("upgrade.buy", { number = num, branch = label, tier = status.NextTier, cost = highlightCost(status.Cost) }), Color3.new(1, 1, 1)
+			return tr("upgrade.buy", { number = num, branch = label, tier = status.NextTier, cost = highlightCost(status.Cost, status.CanAfford) }), Color3.new(1, 1, 1)
 		end
 		return tr("upgrade.wait", { number = num, branch = label }), Color3.fromRGB(180, 180, 190)
 	end
