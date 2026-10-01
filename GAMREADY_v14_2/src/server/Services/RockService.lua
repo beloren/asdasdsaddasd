@@ -1408,11 +1408,16 @@ end
 -- собираются наездом тележки: один и тот же камень работает и до первой
 -- тележки, и после неё.
 --------------------------------------------------------------------------------
-local function spawnBaseBoulderOre(player, position, count)
+local function spawnBaseBoulderOre(player, position, count, boulderTier)
 	if not Services.CrystalService then return 0, {} end
 	local cfg = Config.Boulders.Base
 	local lootCfg = Config.BoulderLoot or {}
 	local mineTier = Services.DataService:GetTiers(player).Mine or 1
+	-- v20.110: руда по тиру ВАЛУНА (Config.MineRework.BoulderWindow)
+	local rework = Config.MineRework
+	if rework and rework.Enabled and rework.BoulderWindow then
+		mineTier = math.clamp(tonumber(boulderTier) or plotBoulderTier(player), 1, 9)
+	end
 
 	-- v14: РУДА ВЫЛЕТАЕТ ИЗ ВАЛУНА ПО ДУГЕ. Раньше куски телепортировались в
 	-- точку «над валуном + 1.2» без проверки пола: висели в воздухе, тонули
@@ -1529,7 +1534,7 @@ function RockService:GrantBoulderRewards(player, tier, position, deferNotificati
 		-- честный ролл пещеры 1 на него не хватал. Теперь починка и первая
 		-- тележка бесплатны, копить не на что, и руда стоит ровно столько,
 		-- сколько стоит.
-		local _, crystals = spawnBaseBoulderOre(player, position, count)
+		local _, crystals = spawnBaseBoulderOre(player, position, count, tier)
 
 		local rich = {}
 		-- Лента лута: руда по названию и редкости («Iron x2»).

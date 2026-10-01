@@ -3804,6 +3804,7 @@ end)()
 		option.Parent = responsesFrame
 		optionButtons[kind] = option
 		optionTexts[kind] = option:FindFirstChild("Text", true)
+		require(ReplicatedStorage.Shared.TutorialTarget).Mark(option, "Upgrade:" .. kind) -- v20.110: цель обучения
 
 		-- ФИКС "ТЕГИ ПОКАЗЫВАЮТСЯ КАК ТЕКСТ, А НЕ ЦВЕТОМ": не полагаемся
 		-- на то, что живой ассет в StarterGui уже пересобран через
@@ -6268,6 +6269,7 @@ task.spawn(function()
 		end)
 	end
 
+	require(ReplicatedStorage.Shared.TutorialTarget).Mark(confirmButton, "PrestigeConfirm") -- v20.110
 	connectClick(confirmButton, function()
 		if not dialogOpen or not confirmButton.Active then
 			return

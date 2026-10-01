@@ -689,8 +689,27 @@ function MerchantService:Buy(player, itemId)
 	if Services.QuestService and Services.QuestService.RecordMetric then
 		pcall(function() Services.QuestService:RecordMetric(player, "MerchantBuys", 1) end)
 	end
+	if item.Kind == "OreUnlock" and Services.TutorialService then
+		pcall(Services.TutorialService.Count, Services.TutorialService, player, "OreBoxBought", 1) -- v20.110
+	end
 	self:SendState(player)
 	return true, reveal
+end
+
+-- v20.110: глава обучения «Новая руда» - у игрока в стоке гарантированно
+-- есть самая дешёвая покупная руда (личный сток на этот цикл).
+function MerchantService:EnsureTutorialOre(player)
+	local cheapest
+	for _, ore in Config.OreChain do
+		if not Config.IsStarterOre(ore.Key) then cheapest = ore break end
+	end
+	if not cheapest then return end
+	local itemId = "Ore_" .. cheapest.Key
+	if not itemById[itemId] or stockLeft(player, itemId) > 0 then return end
+	local entry = personalOf(player)
+	entry.Stock = entry.Stock or table.clone(globalStock)
+	entry.Stock[itemId] = math.max(1, (entry.Bought[itemId] or 0) + 1)
+	self:SendState(player)
 end
 
 -- v20.28: «напомни мне» — звёздочка на товаре.

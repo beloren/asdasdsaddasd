@@ -69,7 +69,7 @@ UiRegistry.Entries = {
 	{ Name = "MineArcUi", Module = "MineVeinUiBuilder", MinVersion = 20, What = "мини-игра шахты" },
 	{ Name = "MinerDialogUi", Module = "MinerDialogUiBuilder", MinVersion = 20, What = "диалог шахтёра" },
 	{ Name = "MiningRhythmUi", Module = "UiBuilders.MiningRhythmUi", MinVersion = 20, What = "ритм добычи" },
-	{ Name = "TutorialUi", Module = "TutorialUiBuilder", MinVersion = 21, What = "обучение" },
+	{ Name = "TutorialUi", Module = "TutorialUiBuilder", MinVersion = 22, What = "обучение" },
 	{ Name = "RubbleCrystalHotbar", Module = "UiBuilders.RubbleCrystalUi", MinVersion = 20, What = "кристалл в руках" },
 	{ Name = "OrePreviewHud", Module = "UiBuilders.OrePreviewUi", MinVersion = 20, What = "руда в руках" },
 	{ Name = "PlacementUi", Module = "UiBuilders.PlacementUi", MinVersion = 21, What = "подсказки установки" },

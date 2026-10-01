@@ -157,6 +157,7 @@ local function makeTabButton(tab)
 			renderList()
 		end)
 		tabButtons[tab.Id] = existing
+		require(ReplicatedStorage.Shared.TutorialTarget).Mark(existing, "MerchantTab:" .. tab.Id)
 		return
 	end
 	local b = Instance.new("TextButton")
@@ -189,6 +190,7 @@ local function makeTabButton(tab)
 		renderList()
 	end)
 	tabButtons[tab.Id] = b
+	require(ReplicatedStorage.Shared.TutorialTarget).Mark(b, "MerchantTab:" .. tab.Id)
 end
 for _, tab in CFG.Tabs or { { Id = "Shop", Label = "SHOP" } } do makeTabButton(tab) end
 -- v20.104: вкладки из старой сборки окна (например «TOTEMS & DECOR»),
@@ -335,6 +337,13 @@ local function refreshRow(itemId)
 		-- v20.105: хватает денег - зелёная, не хватает - красная
 		paintBuy(row, tr("BUY") .. "  $" .. NumberFormat.abbreviate(data.Price),
 			data.CanAfford == false and Color3.fromRGB(205, 55, 55) or Color3.fromRGB(60, 200, 60))
+	end
+	-- v20.110: цели обучения - только то, что можно купить прямо сейчас
+	do
+		local buyable = not data.Lock and not soldOut and data.CanAfford ~= false
+		local TutorialTarget = require(ReplicatedStorage.Shared.TutorialTarget)
+		TutorialTarget.Mark(main, buyable and ("MerchantRow:" .. data.Id) or "MerchantRow-")
+		TutorialTarget.Mark(row.Frame.BuyRow.Buy, buyable and ("MerchantBuy:" .. data.Id) or "MerchantBuy-")
 	end
 	local effect = row.Frame:FindFirstChild("Effect")
 	if effect then

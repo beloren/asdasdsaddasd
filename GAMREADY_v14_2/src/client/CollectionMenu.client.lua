@@ -158,6 +158,7 @@ end
 local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("CollectionMenu")
 gui.DisplayOrder = 30
 local bookButton = gui:WaitForChild("BookButton")
+require(game:GetService("ReplicatedStorage").Shared.TutorialTarget).Mark(bookButton, "MenuButton") -- v20.110
 assert(bookButton:IsA("GuiButton"), "StarterGui/CollectionMenu/BookButton должен быть ImageButton или TextButton")
 
 local bookMobileScale = bookButton:FindFirstChild("MobileBookScale")
@@ -405,9 +406,15 @@ for order, item in ITEMS do
 		label.Parent = row
 	end
 
+	require(game:GetService("ReplicatedStorage").Shared.TutorialTarget).Mark(row, "Menu:" .. item.Key) -- v20.110
 	row.Activated:Connect(function()
 		UiSfx.play()
 		closeSubmenu()
+		if item.Key == "Quests" then
+			-- v20.110: глава обучения «Квесты» ждёт открытия журнала
+			local remote = game:GetService("ReplicatedStorage").Shared:FindFirstChild("TutorialActionEvent")
+			if remote then remote:FireServer("UiFlag", "QuestsOpened") end
+		end
 		if item.Key == "Mutations" then
 			if mutationBookPanel then
 				mutationBookPanel.Visible = true

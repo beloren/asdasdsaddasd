@@ -122,6 +122,7 @@ local function setChoices(list)
 		button.LayoutOrder = index
 		button.Visible = true
 		button.BackgroundColor3 = DialogBuilder.CHOICE_COLORS[choice.Kind] or DialogBuilder.CHOICE_COLORS.Ask
+		require(ReplicatedStorage.Shared.TutorialTarget).Mark(button, "Miner:" .. tostring(choice.Kind)) -- v20.110: цель обучения
 		local label = button:FindFirstChild("Label")
 		if label then label.Text = choice.Text end
 		-- Кнопки выезжают по очереди.

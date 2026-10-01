@@ -51,6 +51,19 @@ local function stepAt(index)
 	return steps()[index]
 end
 
+-- v20.110: шаги ТЕКУЩЕЙ ветки - основное обучение или глава.
+local function stepOf(state, index)
+	local list = state and state.Steps or steps()
+	return list[index]
+end
+
+local function chapterById(id)
+	for _, chapter in Config.Tutorial.Chapters or {} do
+		if chapter.Id == id then return chapter end
+	end
+	return nil
+end
+
 --------------------------------------------------------------------------------
 -- СОСТОЯНИЕ
 --------------------------------------------------------------------------------
@@ -75,7 +88,7 @@ function TutorialService:Init(services)
 	actionRemote = Instance.new("RemoteEvent")
 	actionRemote.Name = "TutorialActionEvent"
 	actionRemote.Parent = ReplicatedStorage.Shared
-	actionRemote.OnServerEvent:Connect(function(player, action)
+	actionRemote.OnServerEvent:Connect(function(player, action, value)
 		-- Клиент не присылает ни номер шага, ни прогресс — только намерение.
 		-- Подделать переход через него невозможно: сервер сам решает, что
 		-- сейчас за фаза и можно ли из неё уйти.
@@ -94,12 +107,18 @@ function TutorialService:Init(services)
 			-- экране не появлялось НИЧЕГО до первого случайного
 			-- обновления прогресса.
 			self:_push(player)
-			self:_setHiddenUi(player, states[player] ~= nil)
+			self:_setHiddenUi(player, self:IsActive(player))
+		elseif action == "UiFlag" and typeof(value) == "string" then
+			-- v20.110: клиентское событие (открыл квесты/компас) - только из списка
+			if table.find(Config.Tutorial.ClientFlags or {}, value) then
+				self:SetFlag(player, value, true)
+			end
 		end
 	end)
 
 	Players.PlayerRemoving:Connect(function(player)
 		states[player] = nil
+		if self._nextChapterAt then self._nextChapterAt[player] = nil end
 	end)
 end
 
@@ -114,6 +133,11 @@ function TutorialService:Start()
 		while true do
 			task.wait(1)
 			tick += 1
+			if tick % 2 == 0 then
+				for _, player in Players:GetPlayers() do
+					pcall(self._tickChapters, self, player)
+				end
+			end
 			for player, state in states do
 				-- v20.41: авто-листание реплик — на клиенте (TutorialUI), чтобы
 				-- отсчёт начинался после катсцены, когда текст реально виден.
@@ -215,12 +239,19 @@ function TutorialService:IsRequired(player)
 end
 
 function TutorialService:IsActive(player)
-	return states[player] ~= nil
+	-- v20.110: главы (после основного обучения) не включают «режим новичка»
+	local state = states[player]
+	return state ~= nil and state.Chapter == nil
+end
+
+function TutorialService:GetChapter(player)
+	local state = states[player]
+	return state and state.Chapter or nil
 end
 
 function TutorialService:GetStepId(player)
 	local state = states[player]
-	local step = state and stepAt(state.Step)
+	local step = state and stepOf(state, state.Step)
 	return step and step.Id or nil
 end
 
@@ -353,9 +384,17 @@ end
 function TutorialService:_enterStep(player, index, restoring)
 	local state = states[player]
 	if not state then return end
-	local step = stepAt(index)
+	local step = stepOf(state, index)
 	if not step then
 		self:_complete(player)
+		return
+	end
+	-- v20.110: действие при входе в шаг (например, руда в стоке у торговца)
+	if step.OnEnter and self.OnEnter[step.OnEnter] then
+		pcall(self.OnEnter[step.OnEnter], self, player, step)
+	end
+	if step.SkipUnless and not self:_check(player, step.SkipUnless) then
+		self:_enterStep(player, index + 1, restoring)
 		return
 	end
 	state.Step = index
@@ -391,7 +430,15 @@ function TutorialService:_enterStep(player, index, restoring)
 	-- выдавал её повторно, а _finish не выдал ту же награду второй раз.
 	if step.GrantMoney and step.GrantMoney > 0 then
 		local data = Services.DataService:GetGeodeData(player)
-		if data and data.TutorialRewardGiven ~= true then
+		if data and state.Chapter then
+			-- в главах - один раз на шаг главы
+			data.TutorialGrants = type(data.TutorialGrants) == "table" and data.TutorialGrants or {}
+			local key = state.Chapter .. ":" .. tostring(index)
+			if not data.TutorialGrants[key] then
+				data.TutorialGrants[key] = true
+				Services.DataService:AddMoney(player, step.GrantMoney)
+			end
+		elseif data and data.TutorialRewardGiven ~= true then
 			data.TutorialRewardGiven = true
 			Services.DataService:AddMoney(player, step.GrantMoney)
 		end
@@ -442,7 +489,7 @@ end
 function TutorialService:_advance(player)
 	local state = states[player]
 	if not state then return end
-	local step = stepAt(state.Step)
+	local step = stepOf(state, state.Step)
 	if not step then return end
 
 	if state.Phase == PHASE_LINES then
@@ -512,6 +559,19 @@ function TutorialService:_goalProgress(player, step)
 	elseif goal.Kind == "Flag" then
 		local done = state.Flags[goal.Key] == true or player:GetAttribute(goal.Key) == true
 		return done and 1 or 0, 1
+	elseif goal.Kind == "Near" then
+		-- v20.110: дойти до цели (остров, НПС)
+		local target = self:_resolveTarget(player, goal.Target or step.Target)
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		local position = target and (target:IsA("BasePart") and target.Position or (target:IsA("Model") and target:GetPivot().Position))
+		local near = hrp and position and (hrp.Position - position).Magnitude <= (goal.Radius or 20)
+		return near and 1 or 0, 1
+	elseif goal.Kind == "Check" then
+		-- v20.110: проверка состояния игрока (см. TutorialService.Checks)
+		local check = self.Checks[goal.Check]
+		local ok, done = false, false
+		if check then ok, done = pcall(check, self, player, goal.Arg) end
+		return (ok and done) and 1 or 0, 1
 	end
 	return 0, 1
 end
@@ -519,7 +579,7 @@ end
 function TutorialService:_checkGoal(player)
 	local state = states[player]
 	if not state or state.Phase ~= PHASE_TASK then return end
-	local step = stepAt(state.Step)
+	local step = stepOf(state, state.Step)
 	if not step or not step.Goal then return end
 	if step.Goal.Kind == "Ack" then return end -- закрывается только кнопкой
 	local current, target = self:_goalProgress(player, step)
@@ -540,7 +600,7 @@ end
 function TutorialService:_finishStep(player)
 	local state = states[player]
 	if not state then return end
-	local step = stepAt(state.Step)
+	local step = stepOf(state, state.Step)
 	if not step then return end
 
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -551,7 +611,11 @@ function TutorialService:_finishStep(player)
 	-- реплике "Для такой добычи нужна тележка" заставлял заново идти в
 	-- экспедицию. Теперь перезаход сразу открывает следующий шаг.
 	local data = Services.DataService:GetGeodeData(player)
-	if data then data.TutorialStep = state.Step + 1 end
+	if data and state.Chapter then
+		data.TutorialChapterActive = { Id = state.Chapter, Step = state.Step + 1 }
+	elseif data then
+		data.TutorialStep = state.Step + 1
+	end
 
 	if step.Done and #step.Done > 0 then
 		state.Phase = PHASE_DONE
@@ -565,6 +629,10 @@ end
 function TutorialService:_skip(player)
 	local state = states[player]
 	if not state then return end
+	if state.Chapter then
+		self:_finishChapter(player, false)
+		return
+	end
 	-- Пропуск НЕ выдаёт награду, но ЧИНИТ ШАХТУ и открывает первую
 	-- тележку. Раньше пропустивший оставался со сломанной шахтой, починка
 	-- у него стоила $220 (бесплатна только внутри обучения), денег ноль,
@@ -584,6 +652,11 @@ function TutorialService:_skip(player)
 end
 
 function TutorialService:_complete(player)
+	local state = states[player]
+	if state and state.Chapter then
+		self:_finishChapter(player, true)
+		return
+	end
 	self:_finish(player, true)
 end
 
@@ -637,6 +710,9 @@ function TutorialService:_finish(player, rewarded)
 
 	stateRemote:FireClient(player, { Phase = "Finished" })
 	self:_flushQueuedHints(player)
+	-- v20.110: после основного обучения - пауза перед первой главой
+	self._nextChapterAt = self._nextChapterAt or {}
+	self._nextChapterAt[player] = os.clock() + (Config.Tutorial.ChapterGapSeconds or 6)
 end
 
 --------------------------------------------------------------------------------
@@ -665,6 +741,20 @@ function TutorialService:_resolveTarget(player, kind)
 		local cart = Services.CartService and (Services.CartService:GetHeldCart(player)
 			or Services.CartService:GetOwnedCart(player))
 		return cart and cart.Root or nil
+	elseif kind == "RebirthNPC" and Services.RebirthService and Services.RebirthService.GetNpc then
+		local ok, npc = pcall(Services.RebirthService.GetNpc, Services.RebirthService, player)
+		if ok and npc then return npc end
+		return content and content:FindFirstChild("RebirthNPC", true) or nil
+	elseif kind:sub(1, 6) == "World:" then
+		-- v20.110: общие объекты мира (торговец, хранитель островов) - по имени
+		self._worldCache = self._worldCache or {}
+		local name = kind:sub(7)
+		local cached = self._worldCache[name]
+		if cached and cached.Parent then return cached end
+		cached = workspace:FindFirstChild(name, true)
+		if cached and cached:IsA("Folder") then cached = cached:FindFirstChildWhichIsA("Model") or cached:FindFirstChildWhichIsA("BasePart") end
+		self._worldCache[name] = cached
+		return cached
 	elseif content then
 		-- MinerNPC / UpgradeShopNPC и любые другие именованные объекты на
 		-- участке ищутся по имени — они строятся кодом, имена стабильны.
@@ -676,7 +766,7 @@ end
 function TutorialService:_push(player)
 	local state = states[player]
 	if not state then return end
-	local step = stepAt(state.Step)
+	local step = stepOf(state, state.Step)
 	if not step then return end
 
 	local text
@@ -691,7 +781,9 @@ function TutorialService:_push(player)
 	stateRemote:FireClient(player, {
 		Phase = state.Phase,
 		StepIndex = state.Step,
-		StepCount = #steps(),
+		StepCount = #(state.Steps or steps()),
+		Chapter = state.Chapter,
+		UiTargets = step.UiTargets, -- v20.110: кнопки для затемнения/указателя
 		Id = step.Id,
 		Speaker = Config.Tutorial.SpeakerName,
 		Portrait = Config.Tutorial.PortraitImageId,
@@ -707,6 +799,7 @@ function TutorialService:_push(player)
 		-- Пропуск доступен на любом шаге: последний шаг (апгрейд) без
 		-- него мог бы стать тупиком, если игрок успел потратить деньги.
 		CanSkip = true,
+		SkipText = state.Chapter and "SKIP" or nil,
 	})
 end
 
@@ -753,7 +846,193 @@ function TutorialService:_save(player)
 	-- В фазе Done задание шага УЖЕ выполнено (см. _finishStep) — пишем
 	-- следующий шаг. Иначе сохранение при выходе (CleanupPlayer)
 	-- затирало бы продвижение и перезаход снова требовал бы экспедицию.
-	data.TutorialStep = state.Phase == PHASE_DONE and state.Step + 1 or state.Step
+	local stepIndex = state.Phase == PHASE_DONE and state.Step + 1 or state.Step
+	if state.Chapter then
+		data.TutorialChapterActive = { Id = state.Chapter, Step = stepIndex }
+	else
+		data.TutorialStep = stepIndex
+	end
+end
+
+--------------------------------------------------------------------------------
+-- v20.110: ГЛАВЫ ОБУЧЕНИЯ (Config.Tutorial.Chapters). После основного
+-- обучения каждая механика объясняется в момент, когда она становится
+-- доступна: тот же диалог, затемнение и указатель. Глава висит целью,
+-- пока игрок её не выполнит (или не нажмёт SKIP). Пройденные главы -
+-- data.TutorialChapters, недоигранная - data.TutorialChapterActive.
+--------------------------------------------------------------------------------
+local BigNum = require(ReplicatedStorage.Shared.BigNum)
+
+local function moneyAtLeast(player, amount)
+	local ok, money = pcall(Services.DataService.GetMoney, Services.DataService, player)
+	return ok and money ~= nil and not BigNum.lt(money, tonumber(amount) or 0)
+end
+
+TutorialService.Checks = {
+	IslandOwned = function(_, player, id)
+		return Services.IslandService ~= nil and Services.IslandService:Owns(player, id)
+	end,
+	CanAffordIsland = function(_, player, id)
+		local def = Config.Islands and Config.Islands.Definitions[id]
+		return def ~= nil and moneyAtLeast(player, def.Cost or 0)
+	end,
+	MoneyAtLeast = function(_, player, amount)
+		return moneyAtLeast(player, amount)
+	end,
+	OreUnlockedAny = function(_, player)
+		local data = Services.DataService:GetGeodeData(player)
+		return data ~= nil and type(data.UnlockedOres) == "table" and next(data.UnlockedOres) ~= nil
+	end,
+	OreBoxOwned = function(_, player)
+		local data = Services.DataService:GetGeodeData(player)
+		for key, count in (data and data.Gear) or {} do
+			if typeof(key) == "string" and key:match("^OreBox_") and (tonumber(count) or 0) > 0 then return true end
+		end
+		return data ~= nil and type(data.UnlockedOres) == "table" and next(data.UnlockedOres) ~= nil
+	end,
+	CanAffordOre = function(_, player)
+		-- самая дешёвая покупная руда
+		return moneyAtLeast(player, Config.OreShop and Config.OreShop.PriceBase or 250)
+	end,
+	HasGeode = function(_, player)
+		local data = Services.DataService:GetGeodeData(player)
+		for _, count in (data and data.Geodes) or {} do
+			if (tonumber(count) or 0) > 0 then return true end
+		end
+		return false
+	end,
+	HasCrystal = function(_, player)
+		local data = Services.DataService:GetGeodeData(player)
+		return data ~= nil and type(data.GeodeCollection) == "table" and next(data.GeodeCollection) ~= nil
+	end,
+	CrystalOnPodium = function(_, player)
+		local data = Services.DataService:GetGeodeData(player)
+		return data ~= nil and typeof(data.InstalledGeodeOre) == "string" and data.InstalledGeodeOre ~= ""
+	end,
+	MineLevelAtLeast = function(_, player, level)
+		return (Services.DataService:GetTiers(player).Mine or 1) >= (tonumber(level) or 1)
+	end,
+	CanPrestige = function(_, player)
+		local rebirth = Services.RebirthService
+		if not (rebirth and rebirth._buildStatus) then return false end
+		local ok, status = pcall(rebirth._buildStatus, rebirth, player)
+		return ok and type(status) == "table" and status.AllMet == true
+	end,
+	HasPrestiged = function(_, player)
+		local ok, count = pcall(Services.DataService.GetRebirths, Services.DataService, player)
+		return ok and (tonumber(count) or 0) > 0
+	end,
+	PerkBoughtAny = function(_, player)
+		local data = Services.DataService:GetGeodeData(player)
+		for _, level in (data and data.Perks) or {} do
+			if (tonumber(level) or 0) > 0 then return true end
+		end
+		return false
+	end,
+}
+
+TutorialService.OnEnter = {
+	-- в стоке у торговца гарантированно есть хотя бы одна недорогая руда
+	EnsureOreStock = function(_, player)
+		if Services.MerchantService and Services.MerchantService.EnsureTutorialOre then
+			Services.MerchantService:EnsureTutorialOre(player)
+		end
+	end,
+}
+
+function TutorialService:_check(player, spec)
+	if spec == nil then return true end
+	if type(spec) == "string" then spec = { Check = spec } end
+	local check = self.Checks[spec.Check]
+	if not check then return false end
+	local ok, result = pcall(check, self, player, spec.Arg)
+	return ok and result == true
+end
+
+function TutorialService:_chaptersDone(player)
+	local data = Services.DataService:GetGeodeData(player)
+	if not data then return nil end
+	if type(data.TutorialChapters) ~= "table" then data.TutorialChapters = {} end
+	return data.TutorialChapters
+end
+
+function TutorialService:_startChapter(player, chapter, stepIndex)
+	states[player] = {
+		Step = stepIndex or 1,
+		Phase = nil,
+		LineIndex = 1,
+		Counters = {},
+		Flags = {},
+		Revealed = {},
+		Chapter = chapter.Id,
+		Steps = chapter.Steps,
+	}
+	local data = Services.DataService:GetGeodeData(player)
+	if data then data.TutorialChapterActive = { Id = chapter.Id, Step = stepIndex or 1 } end
+	player:SetAttribute("TutorialChapter", chapter.Id)
+	self:_enterStep(player, stepIndex or 1, (stepIndex or 1) > 1)
+end
+
+function TutorialService:_finishChapter(player, rewarded)
+	local state = states[player]
+	if not (state and state.Chapter) then return end
+	local chapter = chapterById(state.Chapter)
+	states[player] = nil
+	local done = self:_chaptersDone(player)
+	if done then done[state.Chapter] = true end
+	local data = Services.DataService:GetGeodeData(player)
+	if data then data.TutorialChapterActive = nil end
+	player:SetAttribute("TutorialChapter", nil)
+	player:SetAttribute("TutorialHighlight", nil)
+	player:SetAttribute("TutorialHighlightColor", nil)
+	if rewarded and chapter and (chapter.RewardMoney or 0) > 0 then
+		Services.DataService:AddMoney(player, chapter.RewardMoney)
+		if Services.NotifyService then
+			Services.NotifyService:Show(player, ("📘 %s - +$%d"):format(chapter.Title or chapter.Id, chapter.RewardMoney), { Icon = "Reward", Duration = 3 })
+		end
+	end
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if rewarded then pcall(Sfx.play, "TutorialComplete", root) end
+	pcall(function() Services.DataService:SaveProfile(player) end)
+	stateRemote:FireClient(player, { Phase = "Finished" })
+	self._nextChapterAt = self._nextChapterAt or {}
+	self._nextChapterAt[player] = os.clock() + (Config.Tutorial.ChapterGapSeconds or 6)
+end
+
+-- Есть ли глава, которую пора начать.
+function TutorialService:_tickChapters(player)
+	if states[player] or not player.Parent then return end
+	if self:IsRequired(player) then return end
+	if player:GetAttribute("MineExpeditionActive") == true then return end
+	self._nextChapterAt = self._nextChapterAt or {}
+	if (self._nextChapterAt[player] or 0) > os.clock() then return end
+	local done = self:_chaptersDone(player)
+	if not done then return end
+	local data = Services.DataService:GetGeodeData(player)
+	local active = data and data.TutorialChapterActive
+	if type(active) == "table" and active.Id and not done[active.Id] then
+		local chapter = chapterById(active.Id)
+		if chapter then
+			self:_startChapter(player, chapter, math.clamp(tonumber(active.Step) or 1, 1, #chapter.Steps))
+			return
+		end
+	end
+	for _, chapter in Config.Tutorial.Chapters or {} do
+		if not done[chapter.Id] then
+			local after = true
+			for _, id in chapter.After or {} do
+				if not done[id] then after = false break end
+			end
+			if after then
+				if chapter.SkipIf and self:_check(player, chapter.SkipIf) then
+					done[chapter.Id] = true -- уже умеет (старый игрок)
+				elseif self:_check(player, chapter.When) then
+					self:_startChapter(player, chapter, 1)
+					return
+				end
+			end
+		end
+	end
 end
 
 return TutorialService

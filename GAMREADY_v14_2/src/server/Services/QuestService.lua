@@ -480,6 +480,10 @@ function QuestService:RecordMetric(player, metric, amount, derived)
 	if Services.BadgeTrackerService and not derived then
 		pcall(Services.BadgeTrackerService.OnMetric, Services.BadgeTrackerService, player, metric, amount)
 	end
+	-- v20.110: счётчики обучения/глав видят все метрики квестов
+	if Services.TutorialService and not derived then
+		pcall(Services.TutorialService.Count, Services.TutorialService, player, metric, amount)
+	end
 	-- v16: удачные моменты для мягких предложений (группа/избранное).
 	if Services.SocialOfferService then
 		pcall(Services.SocialOfferService.OnMetric, Services.SocialOfferService, player, metric)

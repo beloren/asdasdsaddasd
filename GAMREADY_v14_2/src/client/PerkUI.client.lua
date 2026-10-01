@@ -70,6 +70,7 @@ local linkTemplate = tree:WaitForChild("LinkTemplate")
 local detail = panel:WaitForChild("Detail")
 local upgradeButton = detail:WaitForChild("UpgradeButton")
 local upgradeText = upgradeButton:WaitForChild("Text")
+require(ReplicatedStorage.Shared.TutorialTarget).Mark(upgradeButton, "PerkUpgrade") -- v20.110
 -- v4: вкладки и список святилищ.
 local tabs = panel:WaitForChild("Tabs")
 local perksTab = tabs:WaitForChild("PerksTab")
@@ -290,6 +291,7 @@ function Free.Render()
 				local node = nodeTemplate:Clone()
 				node.Name = "Node_" .. perkId
 				node.Visible = true
+				require(ReplicatedStorage.Shared.TutorialTarget).Mark(node, locked and "PerkNode-" or ("PerkNode:" .. perkId)) -- v20.110
 				node.AnchorPoint = Vector2.new(0.5, 0.5)
 				node.Position = UDim2.fromScale(pos[1], pos[2])
 				node.Size = UDim2.fromOffset(NODE_SIZE, NODE_SIZE)

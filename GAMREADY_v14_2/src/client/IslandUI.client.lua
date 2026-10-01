@@ -317,6 +317,7 @@ local function render(state)
 				}):Play()
 			end)
 			gridCards[entry.Id] = visual
+			require(ReplicatedStorage.Shared.TutorialTarget).Mark(visual.Card, "IslandCard:" .. entry.Id) -- v20.110
 		end
 		applyCard(visual, decorated(entry))
 	end
@@ -426,6 +427,7 @@ end)
 -- улучшения печи); здесь — только вызов.
 local captureSmelterSnapshot, cancelSmelterSnapshot
 
+require(ReplicatedStorage.Shared.TutorialTarget).Mark(actionButton, "IslandBuy") -- v20.110
 actionButton.Activated:Connect(function()
 	if not actionButton.Active or pendingAction or not selectedId then
 		playSfx("UiError")

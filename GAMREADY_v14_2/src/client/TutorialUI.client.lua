@@ -64,11 +64,37 @@ gui.Enabled = false
 -- отсутствии нельзя: лучше не показать портрет, чем уронить весь скрипт и
 -- оставить игрока вообще без обучения.
 local dialog = gui:WaitForChild("Dialog")
-local nameplate = dialog:WaitForChild("Nameplate")
-local speakerLabel = nameplate:WaitForChild("Speaker")
-local portrait = dialog:WaitForChild("Portrait")
-local body = dialog:WaitForChild("Body")
-local continueArrow = dialog:WaitForChild("Continue")
+-- v20.110: персонаж слева + табличка справа (элементы могут лежать в Board).
+local function find(name)
+	return dialog:FindFirstChild(name, true) or dialog:WaitForChild(name, 5)
+end
+local nameplate = find("Nameplate")
+local speakerLabel = nameplate:FindFirstChild("Speaker", true)
+local portrait = find("Portrait")
+local body = find("Body")
+local continueArrow = find("Continue")
+local characterImage = dialog:FindFirstChild("Character")
+local boardImage = dialog:FindFirstChild("Board")
+local function imageUri(id)
+	id = tonumber(id) or 0
+	return id > 0 and ("rbxassetid://" .. id) or nil
+end
+-- Картинки из Config (если в Studio не поставили свои).
+if characterImage and characterImage.Image == "" then
+	characterImage.Image = imageUri(Config.Tutorial.CharacterImageId) or imageUri(Config.Tutorial.PortraitImageId) or ""
+end
+if boardImage and boardImage.Image == "" and imageUri(Config.Tutorial.BoardImageId) then
+	boardImage.Image = imageUri(Config.Tutorial.BoardImageId)
+	boardImage.BackgroundTransparency = 1
+	local outline = boardImage:FindFirstChild("Outline")
+	if outline then outline.Enabled = false end
+end
+local pointer = gui:FindFirstChild("Pointer")
+if pointer and pointer.Image == "" and imageUri(Config.Tutorial.PointerImageId) then
+	pointer.Image = imageUri(Config.Tutorial.PointerImageId)
+	local fb = pointer:FindFirstChild("Fallback")
+	if fb then fb.Visible = false end
+end
 if continueArrow:IsA("TextLabel") and continueArrow.Text ~= "" then -- старая сборка с символом ▼
 	require(game:GetService("ReplicatedStorage").Shared.UiKit).GlyphToShape(continueArrow, "ChevronDown")
 end
@@ -373,11 +399,7 @@ local function showDialog(payload)
 	-- На узком экране текст растянут почти на всю ширину окна — портрет
 	-- поверх него закрывал бы конец строки. Раньше здесь стояло
 	-- безусловное Visible = true, и на телефоне портрет наезжал на текст.
-	if (payload.Portrait or 0) ~= 0 then
-		portrait.Image = "rbxassetid://" .. tostring(payload.Portrait)
-	end
-	portrait.Visible = (payload.Portrait or 0) ~= 0 and not isNarrow()
-	body.Size = isNarrow() and UDim2.new(1, -32, 1, -42) or UDim2.new(1, -104, 1, -42)
+	portrait.Visible = false -- v20.110: вместо портрета - персонаж слева (Character)
 
 	typeText(body, tr(payload.Text or ""), function()
 		task.wait(Config.Tutorial.AdvanceGuardSeconds or 0.25)
@@ -415,6 +437,7 @@ local function showTask(payload)
 		skipStepIndex = payload.StepIndex
 		resetSkipConfirm()
 	end
+	if not skipArmed then skipButton.Text = tr(payload.SkipText or "SKIP TUTORIAL") end -- v20.110: в главах - SKIP
 end
 
 local function hideAll()
@@ -641,11 +664,161 @@ local camera = workspace.CurrentCamera
 if camera then
 	camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
 		local narrow = isNarrow()
-		dialog.Size = narrow and UDim2.new(0.88, 0, 0, 118) or UDim2.new(0.40, 0, 0, 104)
+		dialog.Size = narrow and UDim2.new(0.96, 0, 0, 150) or UDim2.new(0, 760, 0, 170)
 		task_.Size = narrow and UDim2.new(0.88, 0, 0, 52) or UDim2.new(0.30, 0, 0, 52)
-		-- Портрет возвращается при повороте обратно в широкий режим —
-		-- раньше, спрятавшись однажды, он пропадал до следующей реплики.
-		portrait.Visible = portrait.Image ~= "" and dialog.Visible and not narrow
-		body.Size = narrow and UDim2.new(1, -32, 1, -42) or UDim2.new(1, -104, 1, -42)
+		if characterImage then characterImage.Size = narrow and UDim2.new(0, 120, 1, 40) or UDim2.new(0, 190, 1, 70) end
+		if boardImage then boardImage.Size = narrow and UDim2.new(1, -112, 1, 0) or UDim2.new(1, -176, 1, 0) end
 	end)
 end
+
+--------------------------------------------------------------------------------
+-- v20.110: ЗАТЕМНЕНИЕ + УКАЗАТЕЛЬ + НАПОМИНАНИЯ.
+--   • Шаг может назвать цели интерфейса (payload.UiTargets, см.
+--     Shared.TutorialTarget). Если такая кнопка сейчас на экране - всё
+--     вокруг неё темнеет (клики мимо не проходят), вокруг пульсирует рамка,
+--     указатель «тапает» в неё.
+--   • Иначе указатель показывает на цель в мире (payload.Target), а если
+--     она за краем экрана - стоит у края и смотрит в её сторону.
+--   • Игрок долго ничего не делает - задание мигает, указатель растёт,
+--     звучит подсказка (Config.Tutorial.NudgeSeconds).
+--------------------------------------------------------------------------------
+local GuiService = game:GetService("GuiService")
+local TutorialTarget = require(ReplicatedStorage.Shared.TutorialTarget)
+
+local spot = Instance.new("ScreenGui")
+spot.Name = "TutorialSpotlight"
+spot.IgnoreGuiInset = true
+spot.ResetOnSpawn = false
+spot.DisplayOrder = 1150
+spot.Enabled = false
+spot.Parent = playerGui
+local shades = {}
+for _, name in { "Top", "Bottom", "Left", "Right" } do
+	local frame = Instance.new("TextButton") -- кнопка = клики мимо цели не проходят
+	frame.Name = name
+	frame.Text = ""
+	frame.AutoButtonColor = false
+	frame.BackgroundColor3 = Color3.new(0, 0, 0)
+	frame.BackgroundTransparency = 0.45
+	frame.BorderSizePixel = 0
+	frame.Parent = spot
+	shades[name] = frame
+end
+local ring = Instance.new("Frame")
+ring.Name = "Ring"
+ring.BackgroundTransparency = 1
+ring.Parent = spot
+local ringStroke = Instance.new("UIStroke")
+ringStroke.Thickness = 4
+ringStroke.Color = Config.Tutorial.SpotlightColor or Color3.fromRGB(255, 215, 60)
+ringStroke.Parent = ring
+Instance.new("UICorner", ring).CornerRadius = UDim.new(0, 12)
+
+local SPOT_PAD = 8
+local function placeSpot(target)
+	local inset = GuiService:GetGuiInset()
+	local layer = target:FindFirstAncestorWhichIsA("LayerCollector")
+	local offset = (layer and layer:IsA("ScreenGui") and not layer.IgnoreGuiInset) and inset or Vector2.zero
+	local pos = target.AbsolutePosition + offset - Vector2.new(SPOT_PAD, SPOT_PAD)
+	local size = target.AbsoluteSize + Vector2.new(SPOT_PAD * 2, SPOT_PAD * 2)
+	local view = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
+	shades.Top.Position = UDim2.fromOffset(0, 0)
+	shades.Top.Size = UDim2.fromOffset(view.X, math.max(0, pos.Y))
+	shades.Bottom.Position = UDim2.fromOffset(0, pos.Y + size.Y)
+	shades.Bottom.Size = UDim2.fromOffset(view.X, math.max(0, view.Y - pos.Y - size.Y))
+	shades.Left.Position = UDim2.fromOffset(0, pos.Y)
+	shades.Left.Size = UDim2.fromOffset(math.max(0, pos.X), size.Y)
+	shades.Right.Position = UDim2.fromOffset(pos.X + size.X, pos.Y)
+	shades.Right.Size = UDim2.fromOffset(math.max(0, view.X - pos.X - size.X), size.Y)
+	ring.Position = UDim2.fromOffset(pos.X, pos.Y)
+	ring.Size = UDim2.fromOffset(size.X, size.Y)
+	ringStroke.Transparency = 0.15 + (math.sin(os.clock() * 6) + 1) * 0.25
+	return pos + size * 0.5, size
+end
+
+local lastChangeAt = os.clock()
+local lastSignature = nil
+local nudgeBoost = 0
+local uiTarget, uiCheckAt = nil, 0
+
+local function pointerAt(screenPos, angle, tap)
+	if not pointer then return end
+	-- острие картинки - левый верхний угол: ставим его в точку
+	local bob = math.abs(math.sin(os.clock() * (tap and 5 or 3))) * (tap and 14 or 10)
+	local scale = 1 + nudgeBoost * 0.35
+	pointer.Size = UDim2.fromOffset(64 * scale, 64 * scale)
+	pointer.Rotation = angle or 0
+	local dir = Vector2.new(math.cos(math.rad((angle or 0) + 45)), math.sin(math.rad((angle or 0) + 45)))
+	local p = screenPos + dir * (6 + bob)
+	local insetY = gui.IgnoreGuiInset and 0 or GuiService:GetGuiInset().Y
+	pointer.Position = UDim2.fromOffset(p.X, p.Y - insetY)
+	pointer.Visible = true
+end
+
+RunService.RenderStepped:Connect(function(dt)
+	local active = gui.Enabled and current ~= nil and gateOpen() and current.Phase ~= "Hint"
+	nudgeBoost = math.max(0, nudgeBoost - dt * 0.4)
+	if not active then
+		spot.Enabled = false
+		if pointer then pointer.Visible = false end
+		return
+	end
+	-- цель интерфейса (переискиваем 4 раза в секунду)
+	if os.clock() >= uiCheckAt then
+		uiCheckAt = os.clock() + 0.25
+		uiTarget = current.UiTargets and TutorialTarget.Find(current.UiTargets) or nil
+	end
+	if uiTarget and uiTarget.Parent and TutorialTarget.Shown(uiTarget) then
+		spot.Enabled = current.Phase == "Task" or current.Phase == "Lines"
+		local center, size = placeSpot(uiTarget)
+		pointerAt(center + Vector2.new(size.X * 0.15, size.Y * 0.15), 0, true)
+		return
+	end
+	spot.Enabled = false
+	-- цель в мире
+	local position = targetPosition(currentTarget)
+	local camera = workspace.CurrentCamera
+	if not (position and camera) or current.Phase ~= "Task" then
+		if pointer then pointer.Visible = false end
+		return
+	end
+	local screen, onScreen = camera:WorldToViewportPoint(position + Vector3.new(0, 3.5, 0))
+	local view = camera.ViewportSize
+	if onScreen and screen.Z > 0 then
+		pointerAt(Vector2.new(screen.X, screen.Y), 0, false)
+	else
+		-- за краем: стрелка у края, острие в сторону цели
+		local center = view / 2
+		local dir = Vector2.new(screen.X, screen.Y) - center
+		if screen.Z < 0 then dir = -dir end
+		if dir.Magnitude < 1 then dir = Vector2.new(0, -1) end
+		dir = dir.Unit
+		local margin = 70
+		local scaleX = (view.X / 2 - margin) / math.max(0.001, math.abs(dir.X))
+		local scaleY = (view.Y / 2 - margin) / math.max(0.001, math.abs(dir.Y))
+		local edge = center + dir * math.min(scaleX, scaleY)
+		-- картинка острием в левый верх (-135°), поворачиваем на цель
+		local angle = math.deg(math.atan2(dir.Y, dir.X)) + 135
+		pointerAt(edge, angle, false)
+	end
+end)
+
+-- Напоминания: игрок застрял на задании.
+task.spawn(function()
+	local nudgeEvery = tonumber(Config.Tutorial.NudgeSeconds) or 18
+	while true do
+		task.wait(1)
+		if current then
+			local signature = tostring(current.StepIndex) .. "|" .. tostring(current.Phase) .. "|" .. tostring(current.Progress) .. "|" .. tostring(current.Chapter)
+			if signature ~= lastSignature then
+				lastSignature = signature
+				lastChangeAt = os.clock()
+			elseif current.Phase == "Task" and gateOpen() and os.clock() - lastChangeAt >= nudgeEvery then
+				lastChangeAt = os.clock()
+				nudgeBoost = 1
+				if task_.Visible then flashFrame(task_) end
+				pcall(function() require(ReplicatedStorage.Shared.UiSfx).play("UiHover") end)
+			end
+		end
+	end
+end)

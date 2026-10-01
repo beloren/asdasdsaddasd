@@ -144,11 +144,14 @@ Config.Tutorial = {
 	-- v20.40: реплики, где надо жать «Далее», листаются сами через N секунд (0 — выкл).
 	AutoAdvanceSeconds = 5,
 	Steps = {
+		-- v20.110: тексты - что сделать и зачем, коротко. UiTargets - какие
+		-- кнопки подсветить (Shared.TutorialTarget): экран вокруг темнеет,
+		-- указатель тапает в кнопку. Target - цель в мире (указатель/стрелка).
 		{
 			Id = "Intro",
-			Lines = { "The mine broke! Mine some stone to fix it." },
+			Lines = { "Hi! I'm your mining buddy.", "Rocks are blocking your mine. Let's smash them!" },
 			Short = "CLEAR THE WAY",
-			Task = "Break the boulders",
+			Task = "Click the boulders to break them",
 			Goal = { Kind = "Ack" },
 			Target = "BaseBoulder",
 		},
@@ -156,30 +159,32 @@ Config.Tutorial = {
 			Id = "BreakBoulders",
 			Lines = {},
 			Short = "CLEAR THE WAY",
-			Task = "Break the boulders",
+			Task = "Click the boulders to break them",
 			Goal = { Kind = "Counter", Key = "BaseBouldersBroken", Target = 2 },
 			KeepEarlyProgress = true,
 			Target = "BaseBoulder",
-			Done = { "Nice! Now fix the mine at the trader. It's free." },
+			Done = { "Nice! Boulders drop ore and money." },
 		},
 		{
 			Id = "RepairMine",
-			Lines = {},
+			Lines = { "Your mine is broken. The trader fixes it for FREE." },
 			Short = "FIX THE MINE",
-			Task = "Fix the mine at the trader",
+			Task = "Talk to the trader and press MINE",
 			Goal = { Kind = "Flag", Key = "MineRepaired" },
 			Target = "UpgradeShopNPC",
+			UiTargets = { "Upgrade:Mine" },
 			Highlight = "Mine",
 			HighlightColor = Color3.fromRGB(255, 70, 70),
-			Done = { "The mine works again. Let's go down!" },
+			Done = { "The mine works again!" },
 		},
 		{
 			Id = "FirstExpedition",
-			Lines = { "Talk to me to go down.", "Tap when the marker is on green." },
+			Lines = { "Talk to me at the mine to go digging.", "Tap when the marker is on GREEN - you get more and rarer ore!" },
 			Short = "GO MINING",
-			Task = "Talk to the miner",
+			Task = "Talk to the miner and press LET'S DIG",
 			Goal = { Kind = "Counter", Key = "ExpeditionsDone", Target = 1 },
 			Target = "MinerNPC",
+			UiTargets = { "Miner:Yes" },
 			ResetCounters = { "OrePickedUp" },
 			Done = { "Great haul! Walk over the ore to pick it up." },
 		},
@@ -190,33 +195,206 @@ Config.Tutorial = {
 			Task = "Walk over the ore to pick it up",
 			Goal = { Kind = "Counter", Key = "OrePickedUp", Target = 1 },
 			KeepEarlyProgress = true,
-			CompleteWhenBagFull = true, -- рюкзак уже полон — подобрать нечем, шаг засчитан
+			CompleteWhenBagFull = true,
 			Target = nil,
-			Done = { "Nice! Now let's sell it." },
+			Done = { "Ore goes to your backpack. The counter shows how much fits." },
 		},
-		-- v20.108: тележек больше нет - руда в рюкзаке, продаётся кроту
-		-- на зоне продажи (SellMoleService).
 		{
 			Id = "SellOre",
-			Lines = { "Take your ore to the sell zone. The mole will buy it." },
+			Lines = { "Take your ore to the sell zone in the middle. A mole will pop up!" },
 			Short = "SELL THE ORE",
-			Task = "Sell ore to the mole",
+			Task = "Go to the sell zone and press SELL ALL",
 			Goal = { Kind = "Counter", Keys = { "CartSold", "OreSoldFromBag" }, Target = 1 },
 			CompleteWhenBagEmpty = true,
 			Target = "Bank",
-			Done = { "Bigger backpack, bigger payout. Let's spend it." },
+			UiTargets = { "Mole:All" },
+			Done = { "A fuller backpack sells for more - up to x3!" },
 		},
 		{
 			Id = "FirstUpgrade",
-			Lines = { "Here's a bonus. Buy an upgrade at the trader." },
-			Short = "FIRST UPGRADE",
-			Task = "Buy any upgrade at the trader",
+			Lines = { "Here's a bonus! Make your backpack bigger at the trader." },
+			Short = "BIGGER BACKPACK",
+			Task = "Talk to the trader and press BACKPACK",
 			Goal = { Kind = "Counter", Key = "UpgradesBought", Target = 1 },
 			GrantMoney = 150,
 			Target = "UpgradeShopNPC",
-			Highlight = "Cheapest",
+			UiTargets = { "Upgrade:Cart" },
+			Highlight = "Cart",
 			HighlightColor = Color3.fromRGB(255, 200, 50),
-			Done = { "That's the loop: dig, sell, upgrade. More goals are in Quests. Good luck!" },
+			Done = { "That's the loop: dig, sell, upgrade! I'll show you more soon." },
+		},
+	},
+
+	-- v20.110: ГЛАВЫ после основного обучения. When - когда начать
+	-- (проверка из TutorialService.Checks), After - какие главы раньше,
+	-- SkipIf - уже умеет (старый игрок) => глава засчитана молча.
+	-- Шаги - как выше; Goal.Kind ещё "Near" (дойти до Target, Radius) и
+	-- "Check" (состояние игрока); SkipUnless - пропустить шаг, если нет условия.
+	ChapterGapSeconds = 8,   -- пауза между главами
+	NudgeSeconds = 18,       -- игрок стоит на задании столько - напоминание
+	ClientFlags = { "QuestsOpened", "CompassOpened" },
+	CharacterImageId = 0,    -- персонаж слева в диалоге (0 - PortraitImageId)
+	BoardImageId = 0,        -- подложка-табличка справа (0 - тёмная панель)
+	PointerImageId = 0,      -- курсор-указатель (острие в левом верхнем углу)
+	SpotlightColor = Color3.fromRGB(255, 215, 60),
+	Chapters = {
+		{
+			Id = "Quests", Title = "Quests", RewardMoney = 50,
+			Steps = {
+				{
+					Id = "OpenQuests",
+					Lines = { "Quests give free money and items.", "Open the MENU and press QUESTS." },
+					Short = "QUESTS", Task = "Open MENU, then QUESTS",
+					Goal = { Kind = "Flag", Key = "QuestsOpened" },
+					UiTargets = { "Menu:Quests", "MenuButton" },
+					Done = { "Do quests to earn rewards. New ones come every day!" },
+				},
+			},
+		},
+		{
+			Id = "NewOre", Title = "New Ore", RewardMoney = 100, After = { "Quests" },
+			When = { Check = "CanAffordOre" }, SkipIf = { Check = "OreUnlockedAny" },
+			Steps = {
+				{
+					Id = "BuyOre",
+					Lines = { "Your mine only has Coal and Copper.", "Buy new ore from the Ore Merchant in the middle - ORE tab!" },
+					Short = "NEW ORE", Task = "Buy an ore box at the Ore Merchant (ORE tab)",
+					Goal = { Kind = "Check", Check = "OreBoxOwned" },
+					Target = "World:BankMerchant", OnEnter = "EnsureOreStock",
+					UiTargets = { "MerchantBuy:Ore_*", "MerchantRow:Ore_*", "MerchantTab:Ore" },
+				},
+				{
+					Id = "OpenBox",
+					Lines = { "Open the box! Click it in your hotbar." },
+					Short = "OPEN THE BOX", Task = "Click the ore box in your hotbar",
+					Goal = { Kind = "Check", Check = "OreUnlockedAny" },
+					UiTargets = { "Hotbar:gear:OreBox_*" },
+				},
+				{
+					Id = "DigNewOre",
+					Lines = { "The new ore is in your mine now.", "Your next dig gives it for sure!" },
+					Short = "DIG IT UP", Task = "Talk to the miner and dig",
+					Goal = { Kind = "Counter", Key = "ExpeditionsDone", Target = 1 },
+					Target = "MinerNPC", UiTargets = { "Miner:Yes" },
+					Done = { "Rarer ore sells for more. Buy more ores to get rich!" },
+				},
+			},
+		},
+		{
+			Id = "AnvilIsland", Title = "Anvil Island", RewardMoney = 150, After = { "NewOre" },
+			When = { Check = "CanAffordIsland", Arg = "Anvil" }, SkipIf = { Check = "IslandOwned", Arg = "Anvil" },
+			Steps = {
+				{
+					Id = "BuyAnvil",
+					Lines = { "Islands unlock new things! The first one opens geodes.", "Buy the Anvil Island from the Island Keeper." },
+					Short = "ANVIL ISLAND", Task = "Buy Anvil Island at the Island Keeper",
+					Goal = { Kind = "Check", Check = "IslandOwned", Arg = "Anvil" },
+					Target = "World:IslandKeeper", UiTargets = { "IslandBuy", "IslandCard:Anvil" },
+				},
+				{
+					Id = "VisitAnvil",
+					Lines = { "Your island rose up behind your base. Go take a look!" },
+					Short = "VISIT THE ISLAND", Task = "Walk to your Anvil Island",
+					Goal = { Kind = "Near", Radius = 30 }, Target = "Island_Anvil",
+				},
+				{
+					Id = "OpenGeode",
+					SkipUnless = { Check = "HasGeode" },
+					Lines = { "Geodes from the mine wait in your vault.", "Open one at the anvil to find a crystal!" },
+					Short = "OPEN A GEODE", Task = "Open a geode at the anvil",
+					Goal = { Kind = "Counter", Key = "GeodesOpened", Target = 1 },
+					Target = "Island_Anvil",
+					Done = { "Crystals earn money on the Income Island. Remember that!" },
+				},
+			},
+		},
+		{
+			Id = "Compass", Title = "Compass", RewardMoney = 50, After = { "AnvilIsland" },
+			Steps = {
+				{
+					Id = "UseCompass",
+					Lines = { "Tired of walking? Use the COMPASS on the left to teleport!" },
+					Short = "COMPASS", Task = "Open the compass and teleport",
+					Goal = { Kind = "Counter", Key = "Teleported", Target = 1 },
+					UiTargets = { "Compass:*", "Compass" },
+				},
+			},
+		},
+		{
+			Id = "IncomeIsland", Title = "Income Island", RewardMoney = 300, After = { "AnvilIsland" },
+			When = { Check = "CanAffordIsland", Arg = "Income" }, SkipIf = { Check = "IslandOwned", Arg = "Income" },
+			Steps = {
+				{
+					Id = "BuyIncome",
+					Lines = { "The Income Island makes money - even when you're offline!", "Buy it from the Island Keeper." },
+					Short = "INCOME ISLAND", Task = "Buy Income Island at the Island Keeper",
+					Goal = { Kind = "Check", Check = "IslandOwned", Arg = "Income" },
+					Target = "World:IslandKeeper", UiTargets = { "IslandBuy", "IslandCard:Income" },
+				},
+				{
+					Id = "VisitIncome",
+					Lines = { "Go to your new island." },
+					Short = "VISIT THE ISLAND", Task = "Walk to your Income Island",
+					Goal = { Kind = "Near", Radius = 30 }, Target = "Island_Income",
+				},
+				{
+					Id = "PlaceCrystal",
+					SkipUnless = { Check = "HasCrystal" },
+					Lines = { "Put a crystal on the podium. It earns money every second." },
+					Short = "PLACE A CRYSTAL", Task = "Use the podium and pick a crystal",
+					Goal = { Kind = "Check", Check = "CrystalOnPodium" },
+					Target = "GeodePodium",
+					Done = { "Money piles up in the safe. Come back to collect it!" },
+				},
+			},
+		},
+		{
+			Id = "SmelterIsland", Title = "Smelter", RewardMoney = 500, After = { "IncomeIsland" },
+			When = { Check = "CanAffordIsland", Arg = "Smelter" }, SkipIf = { Check = "IslandOwned", Arg = "Smelter" },
+			Steps = {
+				{
+					Id = "BuySmelter",
+					Lines = { "The Smelter turns ore into ingots worth x10!", "Buy it from the Island Keeper." },
+					Short = "SMELTER", Task = "Buy the Smelter Island at the Island Keeper",
+					Goal = { Kind = "Check", Check = "IslandOwned", Arg = "Smelter" },
+					Target = "World:IslandKeeper", UiTargets = { "IslandBuy", "IslandCard:Smelter" },
+				},
+				{
+					Id = "VisitSmelter",
+					Lines = { "Go to the Smelter." },
+					Short = "VISIT THE ISLAND", Task = "Walk to your Smelter Island",
+					Goal = { Kind = "Near", Radius = 30 }, Target = "Island_Smelter",
+				},
+				{
+					Id = "Smelt",
+					Lines = { "Take ore in your hand and use the furnace." },
+					Short = "SMELT ORE", Task = "Hold ore and use the furnace",
+					Goal = { Kind = "Counter", Key = "OresSmelted", Target = 1 },
+					Target = "Smelter",
+					Done = { "Ingots keep the ore's mutations. Sell them for big money!" },
+				},
+			},
+		},
+		{
+			Id = "Prestige", Title = "Prestige",
+			When = { Check = "CanPrestige" }, SkipIf = { Check = "HasPrestiged" },
+			Steps = {
+				{
+					Id = "DoPrestige",
+					Lines = { "You're ready to PRESTIGE!", "You start over, but get Prestige Points for perks that stay forever." },
+					Short = "PRESTIGE", Task = "Talk to the Prestige NPC and confirm",
+					Goal = { Kind = "Check", Check = "HasPrestiged" },
+					Target = "RebirthNPC", UiTargets = { "PrestigeConfirm" },
+				},
+				{
+					Id = "BuyPerk",
+					Lines = { "Spend your points in the Prestige case next to your base." },
+					Short = "BUY A PERK", Task = "Open the Prestige case and buy a perk",
+					Goal = { Kind = "Check", Check = "PerkBoughtAny" },
+					Target = "PrestigeCase", UiTargets = { "PerkUpgrade", "PerkNode:*" },
+					Done = { "Perks stay after every prestige. Have fun!" },
+				},
+			},
 		},
 	},
 
@@ -1641,9 +1819,14 @@ Config.MineRework = {
 	SameRarityDecay = 0.85,
 	UnlockBoost = 2,       -- купленная руда выпадает в 2 раза чаще своей редкости
 	LuckPerCave = 0.15,    -- удача за уровень шахты: вес редкости × (1+удача)^(ступень редкости-1)
-	MineCostScale = 0.35,  -- цены улучшения шахты × это (шахта больше не открывает руду)
+	MineCostScale = 0.6,   -- цены улучшения шахты × это (шахта больше не открывает руду)
 	GuaranteedCount = 3,   -- столько кусков следующего захода - новая руда
-	ApplyToBoulders = true, -- валуны роняют руду из того же пула
+	-- v20.110: ВАЛУНЫ роняют СЛУЧАЙНУЮ руду по своему тиру (окно из 5 руд,
+	-- как у старых пещер; тир валуна растёт вместе с игроком), удача
+	-- наклоняет к редким. Руда, которой ещё нет в шахте, подписана NEW.
+	ApplyToBoulders = false,
+	BoulderWindow = true,
+
 }
 Config.OreShop = {
 	PriceBase = 250,       -- цена третьей руды (первой покупной)
@@ -3802,6 +3985,24 @@ Config.Sprint = {
 	-- фиксированная (Config.Cart.FixedCartSpeed), чтобы доставка не зависела
 	-- от прокачки и все игроки везли груз одинаково — бег бы это сломал.
 	ApplyWhileHoldingCart = false,
+}
+
+-- v20.110: КОМПАС - кнопка слева под MENU. Открывает мини-карту (вид
+-- сверху) и телепортирует в центр (торговцы), на свой плот или на свои
+-- острова. Карта: MapImageId - твоя картинка вида сверху; чтобы метки
+-- совпали с картинкой, поставь в workspace две невидимые детали
+-- CompassMapMin (левый верхний угол картинки = минимальные X/Z) и
+-- CompassMapMax (правый нижний = максимальные X/Z). Нет их - границы
+-- считаются по плотам и центру.
+Config.Compass = {
+	Enabled = true,
+	Cooldown = 5,            -- сек между телепортами
+	MapImageId = 0,          -- картинка карты (вид сверху); 0 - схема
+	ButtonImageId = 0,       -- иконка кнопки; 0 - 🧭
+	CenterMarkerName = "CompassCenterMarker", -- куда телепорт «в центр» (иначе у зоны продажи)
+	CenterOffset = Vector3.new(0, 0, 18),
+	MapSizePC = 440,
+	MapSizePhone = 290,
 }
 
 -- v20.108: КРОТ-СКУПЩИК на зоне продажи. Зашёл в зону с рудой - перед

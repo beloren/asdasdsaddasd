@@ -70,6 +70,9 @@ function OreUnlockService:Unlock(player, oreKey)
 	local data = dataOf(player)
 	if not (ore and data) then return false end
 	self:GetUnlocked(player)[oreKey] = true
+	if Services.TutorialService then
+		pcall(Services.TutorialService.Count, Services.TutorialService, player, "OreUnlocked", 1) -- v20.110
+	end
 	data.OreGuarantee = { Key = oreKey, Left = Config.MineRework.GuaranteedCount or 3 }
 	self:_publish(player)
 	fxRemote:FireClient(player, "Unlocked", {

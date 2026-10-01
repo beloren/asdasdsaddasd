@@ -118,6 +118,11 @@ local function attachPriceGui(crystal, oreInfo, value, chanceFraction, mutationN
 		mutationLine = ('<font color="#%s">%s</font>'):format(colorHex(Color3.fromRGB(255, 160, 60)), mutationName:upper())
 	end
 	local nameLine = baseName
+	if crystal:GetAttribute("NotInMine") == true then
+		-- v20.110: руды ещё нет в шахте - подсказка купить у торговца
+		local tag = ('<font color="#7CFF6B">NEW!</font>')
+		mutationLine = mutationLine and (tag .. " " .. mutationLine) or tag
+	end
 	-- ШАНС ПОКАЗЫВАЕМ, ТОЛЬКО ЕСЛИ ОН ЕСТЬ.
 	--
 	-- Раньше строка жёстко содержала "1/%d", и при chanceFraction = 0
@@ -553,9 +558,16 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 		local caveLuck = (rework.LuckPerCave or 0) * math.max(0, (tonumber(tier) or 1) - 1)
 		oreInfo, oreChance, _oreSlot, oreRarity = Config.RollOreUnlocked(
 			Services.OreUnlockService:GetUnlocked(miner), (luckBonus or 0) + caveLuck, forced)
+	elseif rework and rework.Enabled and rework.BoulderWindow and source == "Boulder" then
+		-- v20.110: tier здесь - тир ВАЛУНА (1..9) → окно пещеры
+		local cave = Config.CaveForNineTier(tier)
+		oreInfo, oreChance, _oreSlot = Config.RollOreForTier(cave, luckBonus)
+		oreRarity = Config.OreBaseRarity(oreInfo.Key)
 	else
 		oreInfo, oreChance, _oreSlot, oreRarity = Config.RollOreForTier(tier, luckBonus)
 	end
+	local notInMine = rework and rework.Enabled and miner and Services.OreUnlockService
+		and not Services.OreUnlockService:IsUnlocked(miner, oreInfo.Key)
 	-- ВАРИАЦИЯ (1/2/3, см. Config.OreVariants) — роллится отдельно поверх
 	-- уже выпавшей руды и домножает цену. Шанс перемножается с шансом
 	-- самой руды, чтобы надпись "1/N" над камнем оставалась честной.
@@ -655,6 +667,7 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 	crystal:SetAttribute("CrystalValue", value)
 	crystal:SetAttribute("CrystalPoints", points) -- отдельная шкала для комбо тележки, см. CartService
 	crystal:SetAttribute("CrystalChance", oreChance) -- честный шанс ЭТОЙ руды в этом тире (без мутации)
+	if notInMine then crystal:SetAttribute("NotInMine", true) end -- v20.110: подпись NEW над рудой
 
 	-- v20.66: надпись «1/N» - редкость САМОГО редкого в куске (руда или
 	-- мутация), а не произведение всего (руда × вариация × мутации уходило

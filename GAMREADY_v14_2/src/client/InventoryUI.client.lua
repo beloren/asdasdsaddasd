@@ -826,6 +826,7 @@ renderHotbar = function()
 		if slot then
 			local uid = hotbarAt(slotIndex)
 			local stack = stackByUid(uid)
+			require(ReplicatedStorage.Shared.TutorialTarget).Mark(slot, "Hotbar:" .. tostring(stack and uid or "")) -- v20.110
 			applyPreview(slot:FindFirstChild("Preview"), stack)
 			local count = slot:FindFirstChild("CountLabel")
 			if count then count.Text = stack and ("x" .. stack.Count) or "" end
