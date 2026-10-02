@@ -303,6 +303,11 @@ local lastDistanceSent = 0
 RunService.RenderStepped:Connect(function()
 	local top, bottom = anchorOf(currentTarget)
 	local origin = rootPosition()
+	-- v20.148: обучение само показывает дорогу - вторую стрелку не рисуем
+	if player:GetAttribute("TutorialPointing") == true then
+		hideAll()
+		return
+	end
 	if currentKey == "" or not top or not origin then
 		hideAll()
 		if currentKey == "" and player:GetAttribute("QuestNavDistance") ~= nil then

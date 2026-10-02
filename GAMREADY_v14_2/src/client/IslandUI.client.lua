@@ -1363,8 +1363,9 @@ do
 								local okCall, ok, reason, state = pcall(perkRemote.InvokeServer, perkRemote, "Buy", id)
 								busy = false
 								if okCall and type(state) == "table" then perkState = state end
-								playSfx((okCall and ok) and "Upgrade" or "UiError")
+								if not (okCall and ok) then playSfx("UiError") end
 								refresh()
+								if okCall and ok then view:Bump(id) end
 								if okCall and not ok and reason then
 									local level = view.Card:FindFirstChild("Level")
 									if level then level.Text = '<font color="#FF6A6A">' .. tr(reason) .. "</font>" end

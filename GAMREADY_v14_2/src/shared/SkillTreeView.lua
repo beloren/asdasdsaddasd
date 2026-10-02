@@ -424,6 +424,31 @@ function SkillTreeView:_paintSelection(entry)
 	end
 end
 
+-- v20.148: «улучшил» - узел раздувается и пружинит обратно, линия к нему
+-- на миг становится толще (Config.TreeReveal.BumpScale).
+function SkillTreeView:Bump(id)
+	local entry = self.Nodes[id]
+	if not (entry and entry.Revealed) then return end
+	local node = entry.Holder
+	local base = entry.BaseSize
+	local k = tonumber((require(ReplicatedStorage.Shared.Config).TreeReveal or {}).BumpScale) or 1.35
+	local big = UDim2.new(base.X.Scale * k, base.X.Offset * k, base.Y.Scale * k, base.Y.Offset * k)
+	local grow = TweenService:Create(node, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = big })
+	grow.Completed:Connect(function()
+		TweenService:Create(node, TweenInfo.new(0.45, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Size = base }):Play()
+	end)
+	grow:Play()
+	for _, link in self.Links do
+		if link.To == id and link.Shown then
+			local line = link.Line
+			local thick = line.Size.Y.Offset
+			line.Size = UDim2.fromOffset(line.Size.X.Offset, thick * 2)
+			TweenService:Create(line, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(line.Size.X.Offset, thick) }):Play()
+		end
+	end
+	pcall(function() require(ReplicatedStorage.Shared.UiSfx).play("Upgrade") end)
+end
+
 function SkillTreeView:Select(id)
 	self.Selected = id
 	for _, entry in self.Nodes do self:_paintSelection(entry) end

@@ -1319,6 +1319,10 @@ if cfg.TreeStyle ~= false and cfg.TreeLayout then
 			view:Open()
 		end
 		treeStyle.Close = function() view:Close() end
+		treeStyle.Bump = function(perkId)
+			if not view:IsOpen() then return end
+			view:Bump((perkId == ROOT_PERK) and "Root" or perkId)
+		end
 		treeStyle.IsOpen = function() return view:IsOpen() end
 		treeStyle.Refresh = function() if built or view:IsOpen() then refresh() end end
 		treeStyle.Message = function(text)
@@ -1345,6 +1349,7 @@ remote.OnClientEvent:Connect(function(command, payload)
 			-- святилище легло в инвентарь (вкладка TOTEMS)
 		elseif payload.Ok then
 			task.defer(bounceNode, payload.PerkId)
+			if treeStyle.Bump then task.delay(0.1, treeStyle.Bump, payload.PerkId) end
 		elseif payload.Reason and isOpen and treeStyle.Message and treeStyle.IsOpen() then
 			treeStyle.Message(tr(payload.Reason))
 		elseif payload.Reason and isOpen then

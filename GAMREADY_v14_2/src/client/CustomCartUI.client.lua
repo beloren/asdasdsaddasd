@@ -3630,9 +3630,10 @@ end
 								cardBusy = false
 								if okCall then
 									if type(state) == "table" then statState = state end
-									playUiClick(ok and "Upgrade" or "UiError")
+									if not ok then playUiClick("UiError") end
 								end
 								refreshTree()
+								if okCall and ok then treeView:Bump(id) end
 								if okCall and not ok and reason then cardMessage(tr(reason)) end
 							end)
 						end,
@@ -3659,6 +3660,7 @@ end
 							if gearRemote then
 								playUiClick()
 								gearRemote:FireServer("BuyDynamite", 1, key)
+								treeView:Bump(id)
 							end
 						end,
 					} or nil,

@@ -123,6 +123,39 @@ bodySize.MaxTextSize = isNarrow() and 17 or 20
 bodySize.Parent = body
 body.TextScaled = true
 body.TextWrapped = true
+-- v20.148: текст обучения - жирный (тот же шрифт, начертание Bold/Heavy)
+local function boldFont(label)
+	if not (label and label:IsA("TextLabel")) then return end
+	local face = label.FontFace
+	label.FontFace = Font.new(face.Family, ((Config.Tutorial or {}).TextWeight == "Heavy") and Enum.FontWeight.Heavy or Enum.FontWeight.Bold, face.Style)
+end
+boldFont(body)
+boldFont(taskBody)
+boldFont(taskTitle)
+
+-- v20.148: ПЕРСОНАЖ РЯДОМ С РЕПЛИКОЙ ПОКАЧИВАЕТСЯ: пока печатается текст -
+-- живо подпрыгивает («говорит»), потом - еле заметно дышит.
+local portraitTalking = false
+if characterImage then
+	local basePosition = characterImage.Position
+	local bobT = 0
+	RunService.RenderStepped:Connect(function(dt)
+		if not (gui.Enabled and dialog.Visible) then
+			bobT = 0
+			if characterImage.Position ~= basePosition then characterImage.Position = basePosition end
+			return
+		end
+		bobT += dt
+		local amp = tonumber((Config.Tutorial or {}).PortraitBob) or 5
+		local offset
+		if portraitTalking then
+			offset = -math.abs(math.sin(bobT * 9)) * amp -- быстрые подскоки
+		else
+			offset = math.sin(bobT * 2.2) * amp * 0.35 -- спокойное дыхание
+		end
+		characterImage.Position = basePosition + UDim2.fromOffset(0, offset)
+	end)
+end
 skipButton.Text = tr("SKIP TUTORIAL")
 
 -- ПРОПУСК В ДВА ТАПА. Кнопка маленькая и стоит у нижнего края — на
@@ -262,12 +295,14 @@ local function typeText(label, text, onDone)
 	label.MaxVisibleGraphemes = 0
 	local total = utf8.len(text) or #text
 	local delayPerChar = Config.Tutorial.TypewriterCharDelay or 0.022
+	if label == body then portraitTalking = true end
 	task.spawn(function()
 		for index = 1, total do
 			if myToken ~= typingToken then return end
 			label.MaxVisibleGraphemes = index
 			task.wait(delayPerChar)
 		end
+		if label == body then portraitTalking = false end
 		if myToken ~= typingToken then return end
 		label.MaxVisibleGraphemes = -1
 		if onDone then onDone() end
@@ -760,18 +795,29 @@ local function targetPosition(instance)
 	return nil
 end
 
+-- v20.148: пока обучение само показывает дорогу (дорожка / 3D-курсор),
+-- остальные подсказки пути (стрелка квеста, «BANK») молчат - раньше с
+-- кристаллом в руках было видно сразу несколько стрелок.
+local function setPointing(on)
+	if (player:GetAttribute("TutorialPointing") == true) ~= on then
+		player:SetAttribute("TutorialPointing", on or nil)
+	end
+end
 RunService.RenderStepped:Connect(function()
 	if not gui.Enabled or not current then
 		worldArrow.Enabled = false
 		trailBeam.Enabled = false
+		setPointing(false)
 		return
 	end
 	local position = targetPosition(currentTarget)
 	if not position then
 		worldArrow.Enabled = false
 		trailBeam.Enabled = false
+		setPointing(false)
 		return
 	end
+	setPointing(current.Phase == "Task")
 	worldArrowAnchor.Position = position + Vector3.new(0, 2.5 + math.sin(os.clock() * 4) * 0.45, 0)
 	-- v20.118: над целью теперь 3D-курсор (Config.Tutorial.Cursor3D); пока
 	-- курсор в интерфейсе (открыто меню) - мировые подсказки спрятаны.
@@ -1065,13 +1111,18 @@ local function uiPoint(target)
 		elseif adornee and adornee:IsA("Model") then position = adornee:GetPivot().Position
 		elseif adornee and adornee:IsA("Attachment") then position = adornee.WorldPosition end
 		if not (position and camera) then return nil end
-		position += layer.StudsOffsetWorldSpace
+		position += layer.StudsOffsetWorldSpace + layer.ExtentsOffsetWorldSpace
 		local cf = camera.CFrame
 		position += cf.RightVector * layer.StudsOffset.X + cf.UpVector * layer.StudsOffset.Y + cf.LookVector * -layer.StudsOffset.Z
+		position += cf.RightVector * layer.ExtentsOffset.X + cf.UpVector * layer.ExtentsOffset.Y + cf.LookVector * -layer.ExtentsOffset.Z
 		local sp = camera:WorldToViewportPoint(position)
 		if sp.Z <= 0 then return nil end
 		local size = layer.AbsoluteSize
-		local topLeft = Vector2.new(sp.X, sp.Y) - size / 2
+		-- v20.148: SizeOffset сдвигает билборд на долю его размера (X - вправо,
+		-- Y - вверх). Раньше не учитывался - на окне шахтёра (LET'S DIG) и на
+		-- меню кристалла курсор попадал левее кнопки.
+		local shift = Vector2.new(layer.SizeOffset.X * size.X, -layer.SizeOffset.Y * size.Y)
+		local topLeft = Vector2.new(sp.X, sp.Y) - size / 2 + shift
 		local rel = target.AbsolutePosition - layer.AbsolutePosition
 		return topLeft + rel + target.AbsoluteSize * Vector2.new(0.55, 0.6), target.AbsoluteSize, topLeft + rel
 	end

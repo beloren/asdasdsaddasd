@@ -87,6 +87,10 @@ local function showGuide(cargoKind)
 		local carrying = cargoKind == "Rubble" and player:GetAttribute("CarryingCrystal") ~= ""
 			or cargoKind == "Hand" and (player:GetAttribute("HandOreCount") or 0) > 0
 		if not currentRoot or startAttachment.Parent ~= currentRoot or not carrying or os.clock() - startedAt > 60 then cleanup(); return end
+		-- v20.148: обучение ведёт игрока само - подсказка «BANK» не нужна
+		local hidden = player:GetAttribute("TutorialPointing") == true
+		beam.Enabled = not hidden
+		arrow.Enabled = not hidden
 		local localPosition = sellZone.CFrame:PointToObjectSpace(currentRoot.Position)
 		if math.abs(localPosition.X) <= sellZone.Size.X * 0.5
 			and math.abs(localPosition.Y) <= sellZone.Size.Y * 0.5 + 4
