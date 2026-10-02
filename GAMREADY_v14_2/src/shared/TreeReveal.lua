@@ -29,7 +29,30 @@ function TreeReveal.Settings()
 		PopSeconds = c.PopSeconds or 0.34,
 		LineSeconds = c.LineSeconds or 0.22,
 		Sound = c.Sound ~= false,
+		ChromeAt = c.ChromeAt or 0.7,             -- доля веток, после которой появляются кнопки
+		ChromeStagger = c.ChromeStagger or 0.08,  -- между кнопками
 	}
+end
+
+-- Момент для кнопок окна (PERKS / SHRINES / CLOSE ...): после того как
+-- появилась бОльшая часть веток. times - список моментов появления узлов.
+function TreeReveal.ChromeTime(times, fallback)
+	if #times == 0 then return fallback or 0 end
+	table.sort(times)
+	local index = math.clamp(math.ceil(#times * TreeReveal.Settings().ChromeAt), 1, #times)
+	return times[index]
+end
+
+-- Кнопки и надписи окна - пузырьками по очереди начиная с delay.
+function TreeReveal.Chrome(list, delay, token, tokenRef)
+	local s = TreeReveal.Settings()
+	local index = 0
+	for _, gui in list do
+		if gui and gui:IsA("GuiObject") then
+			TreeReveal.Pop(gui, delay + index * s.ChromeStagger, nil, token, tokenRef)
+			index += 1
+		end
+	end
 end
 
 local function baseSize(gui)

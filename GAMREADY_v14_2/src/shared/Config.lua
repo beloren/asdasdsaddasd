@@ -4378,6 +4378,8 @@ Config.TreeReveal = {
 	PopSeconds = 0.34,
 	LineSeconds = 0.22,
 	Sound = true,        -- тихий щелчок на каждый пузырёк (звук ReelTick)
+	ChromeAt = 0.7,      -- v20.145: кнопки окна (PERKS, SHRINES, CLOSE...) - после 70% веток
+	ChromeStagger = 0.08,
 }
 
 -- v20.131: чёрная обводка (Highlight) на каждом игроке

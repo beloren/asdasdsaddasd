@@ -935,7 +935,21 @@ local function buildHammer()
 	return model, handle, nil
 end
 
+-- v20.145: молот - настоящий Tool из Assets: его выдаёт сервер (хват Roblox
+-- по Handle и Tool.Grip, ничего не меняем). Иначе - старая модель-заглушка.
+local hammerRemote = ReplicatedStorage.Shared:WaitForChild("GeodeHammerEvent", 10)
+local hammerIsTool = false
+local function hammerToolAsset()
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local source = assets and assets:FindFirstChild(CUT.HammerAsset or "GeodeHammer")
+	return source and source:IsA("Tool") and source or nil
+end
+
 local function detachHammer()
+	if hammerIsTool then
+		hammerIsTool = false
+		if hammerRemote then hammerRemote:FireServer("Unequip") end
+	end
 	if hammerTrack then pcall(function() hammerTrack:Stop(0.15) end) end
 	hammerTrack = nil
 	if idleTrack then pcall(function() idleTrack:Stop(0.2) end) end
@@ -950,11 +964,39 @@ local function detachHammer()
 	table.clear(hiddenToolParts)
 end
 
+-- плечо (замах рукой) и поза «держит молот» - общие для Tool и заглушки
+local function setupHammerPose(character)
+	local motor = character:FindFirstChild("RightShoulder", true) or character:FindFirstChild("Right Shoulder", true)
+	if motor and motor:IsA("Motor6D") then
+		shoulderMotor, shoulderRestC0 = motor, motor.C0
+	end
+	local idleId = tonumber(CUT.IdleAnimationId) or 0
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local animator = humanoid and (humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid))
+	if idleId ~= 0 and animator then
+		pcall(function()
+			local animation = Instance.new("Animation")
+			animation.AnimationId = "rbxassetid://" .. tostring(idleId)
+			idleTrack = animator:LoadAnimation(animation)
+			idleTrack.Looped = true
+			idleTrack.Priority = Enum.AnimationPriority.Action
+			idleTrack:Play(0.2)
+		end)
+	end
+end
+
 local function attachHammer()
 	detachHammer()
 	local character = player.Character
 	local hand = character and rightHandOf(character)
 	if not hand then return end
+	-- v20.145: свой Tool GeodeHammer - просто выдаём его (сервер), хват не трогаем
+	if hammerRemote and hammerToolAsset() then
+		hammerIsTool = true
+		hammerRemote:FireServer("Equip")
+		setupHammerPose(character)
+		return
+	end
 	-- Кирку (или другой инструмент) в руке на время сцены прячем.
 	local tool = character:FindFirstChildOfClass("Tool")
 	if tool then

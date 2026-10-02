@@ -50,6 +50,7 @@ function SkillTreeView.new(gui, opts)
 	self.BigClose = gui:FindFirstChild("BigClose")
 	self.Money = gui:FindFirstChild("Money")
 	self.Title = gui:FindFirstChild("Title")
+	self.Hint = gui:FindFirstChild("Hint")
 	self.Nodes = {}
 	self.Links = {}
 	self.Backdrop = gui:FindFirstChild("Backdrop")
@@ -350,9 +351,11 @@ function SkillTreeView:_playOpening()
 	table.sort(early, byDistance)
 	table.sort(late, byDistance)
 	local t = s.FirstDelay
+	local times = {}
 	local function schedule(list)
 		for _, entry in list do
 			local at = t
+			table.insert(times, at)
 			task.delay(at, function()
 				if self.SeqToken ~= token or not self.Gui.Enabled then return end
 				self:_reveal(entry, 0, true)
@@ -363,6 +366,9 @@ function SkillTreeView:_playOpening()
 	schedule(early)
 	t += s.LateGap
 	schedule(late)
+	-- кнопки и надписи окна - после бОльшей части веток
+	local chrome = { self.Title, self.Money, self.Hint, self.BigClose }
+	TreeReveal.Chrome(chrome, TreeReveal.ChromeTime(times, s.FirstDelay) + s.PopSeconds * 0.5, token, function() return self.SeqToken end)
 	task.delay(t + s.PopSeconds, function()
 		if self.SeqToken ~= token then return end
 		self.Sequencing = false

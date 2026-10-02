@@ -84,8 +84,71 @@ local function incomeFor(player, key, level)
 	return OreIncome.PerMinuteForPlayer(player, key, level)
 end
 
+--------------------------------------------------------------------------------
+-- v20.145: МОЛОТ РАСКОЛА ЖЕОДЫ - просто выдаётся как инструмент.
+-- Если ReplicatedStorage.Assets.GeodeHammer - это Tool, сервер на время
+-- раскола кладёт его копию в руку игрока (Roblox сам крепит его по Handle и
+-- Tool.Grip - ничего не двигаем и не меняем), после раскола убирает и
+-- возвращает в руку то, что было (кирку). Клиент: GeodeUI (attachHammer).
+--------------------------------------------------------------------------------
+local hammers = {} -- [player] = { Tool, Prev, Token }
+
+local function hammerAsset()
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local name = (Config.GeodeCutscene and Config.GeodeCutscene.HammerAsset) or "GeodeHammer"
+	local source = assets and assets:FindFirstChild(name)
+	return source and source:IsA("Tool") and source or nil
+end
+
+local function takeHammer(player)
+	local entry = hammers[player]
+	hammers[player] = nil
+	if not entry then return end
+	if entry.Tool then entry.Tool:Destroy() end
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	local prev = entry.Prev
+	if humanoid and prev and backpack and prev.Parent == backpack and not character:FindFirstChildOfClass("Tool") then
+		pcall(humanoid.EquipTool, humanoid, prev)
+	end
+end
+
+local function giveHammer(player)
+	takeHammer(player)
+	local source = hammerAsset()
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not (source and humanoid and humanoid.Health > 0) then return end
+	local prev = character:FindFirstChildOfClass("Tool")
+	pcall(humanoid.UnequipTools, humanoid)
+	local tool = source:Clone()
+	tool.Name = source.Name
+	tool.CanBeDropped = false
+	tool:SetAttribute("GeodeHammer", true)
+	tool.Parent = character -- экипировка Roblox: хват по Handle + Tool.Grip
+	local token = {}
+	hammers[player] = { Tool = tool, Prev = prev, Token = token }
+	-- страховка: раскол завис / клиент не прислал Unequip
+	task.delay(120, function()
+		local entry = hammers[player]
+		if entry and entry.Token == token then takeHammer(player) end
+	end)
+end
+
 function GeodeService:Init(services)
 	Services = services
+	local hammerRemote = ReplicatedStorage.Shared:FindFirstChild("GeodeHammerEvent") or Instance.new("RemoteEvent")
+	hammerRemote.Name = "GeodeHammerEvent"
+	hammerRemote.Parent = ReplicatedStorage.Shared
+	hammerRemote.OnServerEvent:Connect(function(player, action)
+		if action == "Equip" then
+			giveHammer(player)
+		elseif action == "Unequip" then
+			takeHammer(player)
+		end
+	end)
+	game:GetService("Players").PlayerRemoving:Connect(function(player) hammers[player] = nil end)
 	remote = ReplicatedStorage.Shared:FindFirstChild("GeodeRequest")
 	if not remote then
 		remote = Instance.new("RemoteEvent")

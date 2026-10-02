@@ -638,6 +638,18 @@ function Free.Reveal()
 		revealEnd = t
 		local backdrop = gui:FindFirstChild("FullBackdrop")
 		if backdrop then TreeReveal.Darken(backdrop, 0.55, s.DarkenDelay) end
+		-- кнопки окна (PERKS / SHRINES / очки / CLOSE) - после бОльшей части веток
+		local times = {}
+		for name, at in revealAt do
+			if root == nil or name ~= root.Name then table.insert(times, at - now) end
+		end
+		local chrome = {}
+		for _, child in tabs:GetChildren() do
+			if child:IsA("GuiButton") then table.insert(chrome, child) end
+		end
+		table.insert(chrome, panel:FindFirstChild("Points"))
+		table.insert(chrome, fullClose)
+		TreeReveal.Chrome(chrome, TreeReveal.ChromeTime(times, s.FirstDelay) + s.PopSeconds * 0.5)
 	end
 	for _, node in nodes do
 		local at = revealAt[node.Name]
