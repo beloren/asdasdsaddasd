@@ -37,6 +37,7 @@ local Services = nil
 local states = {}        -- [player] = { Step, Phase, LineIndex, Counters, Flags }
 local stateRemote = nil  -- сервер → клиент: что рисовать
 local actionRemote = nil -- клиент → сервер: "Advance" / "Skip"
+local offerRemote
 local hintRemote = nil   -- сервер → клиент: одноразовая контекстная подсказка
 
 local PHASE_LINES = "Lines"   -- печатаем реплики ДО задания
@@ -85,6 +86,11 @@ function TutorialService:Init(services)
 	hintRemote.Name = "TutorialHintEvent"
 	hintRemote.Parent = ReplicatedStorage.Shared
 
+	-- v20.140: предложение необязательной главы (плашка на 10 с)
+	offerRemote = Instance.new("RemoteEvent")
+	offerRemote.Name = "TutorialGuideOffer"
+	offerRemote.Parent = ReplicatedStorage.Shared
+
 	actionRemote = Instance.new("RemoteEvent")
 	actionRemote.Name = "TutorialActionEvent"
 	actionRemote.Parent = ReplicatedStorage.Shared
@@ -111,6 +117,9 @@ function TutorialService:Init(services)
 		elseif action == "UiHintSeen" and typeof(value) == "string" then
 			-- v20.121: курсор-подсказка «куда нажать» показана ещё раз
 			self:_uiHintSeen(player, value)
+		elseif action == "AcceptGuide" and typeof(value) == "string" then
+			-- v20.140: игрок нажал SHOW ME (плашка или журнал квестов)
+			self:AcceptGuide(player, value)
 		elseif action == "UiFlag" and typeof(value) == "string" then
 			-- v20.110: клиентское событие (открыл квесты/компас) - только из списка
 			if table.find(Config.Tutorial.ClientFlags or {}, value) then
@@ -180,6 +189,7 @@ function TutorialService:_uiHintSeen(player, id)
 end
 
 function TutorialService:SetupPlayer(player)
+	task.delay(2, function() pcall(self._publishGuides, self, player) end) -- v20.140: раздел GUIDES в журнале
 	local data = Services.DataService:GetGeodeData(player)
 	if not data then return end
 	for id, count in (type(data.UiHintCounts) == "table" and data.UiHintCounts) or {} do
@@ -1072,6 +1082,7 @@ function TutorialService:_finishChapter(player, rewarded)
 	if done then done[state.Chapter] = true end
 	local data = Services.DataService:GetGeodeData(player)
 	if data then data.TutorialChapterActive = nil end
+	self:_publishGuides(player)
 	player:SetAttribute("TutorialChapter", nil)
 	player:SetAttribute("TutorialHighlight", nil)
 	player:SetAttribute("TutorialHighlightColor", nil)
@@ -1107,22 +1118,71 @@ function TutorialService:_tickChapters(player)
 			return
 		end
 	end
+	-- v20.140: НЕОБЯЗАТЕЛЬНЫЕ главы (всё, кроме Required) сами не стартуют:
+	-- игрок получает плашку «NEW: ... SHOW ME» на 10 с, а глава ложится в
+	-- журнал квестов (раздел GUIDES) - запускается кнопкой, когда захочет.
+	local offered = self:_guidesOffered(player)
 	for _, chapter in Config.Tutorial.Chapters or {} do
-		if not done[chapter.Id] then
+		if not done[chapter.Id] and not (offered and offered[chapter.Id]) then
 			local after = true
 			for _, id in chapter.After or {} do
-				if not done[id] then after = false break end
+				if not done[id] and not (offered and offered[id]) then after = false break end
 			end
 			if after then
 				if chapter.SkipIf and self:_check(player, chapter.SkipIf) then
 					done[chapter.Id] = true -- уже умеет (старый игрок)
+					self:_publishGuides(player)
 				elseif self:_check(player, chapter.When) then
-					self:_startChapter(player, chapter, 1)
+					if chapter.Required or not offered then
+						self:_startChapter(player, chapter, 1)
+					else
+						offered[chapter.Id] = true
+						self:_publishGuides(player)
+						if offerRemote then
+							local first = chapter.Steps and chapter.Steps[1]
+							offerRemote:FireClient(player, {
+								Id = chapter.Id,
+								Title = chapter.Title or chapter.Id,
+								Text = first and (first.Task or first.Short) or "",
+								Reward = chapter.RewardMoney or 0,
+								Seconds = Config.Tutorial.GuideBannerSeconds or 10,
+							})
+						end
+						self._nextChapterAt[player] = os.clock() + (Config.Tutorial.ChapterGapSeconds or 6)
+					end
 					return
 				end
 			end
 		end
 	end
+end
+
+-- v20.140: предложенные, но ещё не пройденные главы
+function TutorialService:_guidesOffered(player)
+	local data = Services.DataService:GetGeodeData(player)
+	if not data then return nil end
+	if type(data.TutorialOffered) ~= "table" then data.TutorialOffered = {} end
+	return data.TutorialOffered
+end
+
+function TutorialService:_publishGuides(player)
+	if not player.Parent then return end
+	local offered = self:_guidesOffered(player) or {}
+	local done = self:_chaptersDone(player) or {}
+	local list = {}
+	for _, chapter in Config.Tutorial.Chapters or {} do
+		if offered[chapter.Id] and not done[chapter.Id] then table.insert(list, chapter.Id) end
+	end
+	player:SetAttribute("TutorialGuides", table.concat(list, ","))
+end
+
+function TutorialService:AcceptGuide(player, chapterId)
+	if states[player] or self:IsRequired(player) then return end
+	local chapter = chapterById(chapterId)
+	local done = self:_chaptersDone(player)
+	if not (chapter and done) or done[chapterId] then return end
+	if player:GetAttribute("MineExpeditionActive") == true then return end
+	self:_startChapter(player, chapter, 1)
 end
 
 return TutorialService

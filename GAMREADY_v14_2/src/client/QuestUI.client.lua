@@ -300,6 +300,7 @@ end
 
 local renderModal
 
+local closeModal -- v20.140: объявлена ниже, нужна разделу GUIDES
 local function questCard(quest, order, accent, done)
 	if done then
 		local card = clone("DoneCard")
@@ -323,7 +324,7 @@ local function questCard(quest, order, accent, done)
 	addChips(card:FindFirstChild("Chips"), quest.Chips)
 	-- Кнопка «вести сюда» (Track).
 	local track = card:FindFirstChild("TrackButton")
-	if track then
+	if track and not quest.IsGuide then
 		track.Visible = navKeyOf(quest) ~= nil
 		local caption = track:FindFirstChild("Caption")
 		if caption then
@@ -378,6 +379,42 @@ local function renderStory(state)
 		questCard(active, order, accent, false)
 	else
 		sectionTitle(tr("All story quests complete!"), order, Theme.Accents.Green)
+	end
+	-- v20.140: GUIDES - предложенные главы обучения (плашка «NEW: ...»), их
+	-- можно запустить, когда захочешь. Кнопка «Show me» включает гайд.
+	local guidesAttr = player:GetAttribute("TutorialGuides")
+	if typeof(guidesAttr) == "string" and guidesAttr ~= "" then
+		order += 1
+		sectionTitle(tr("GUIDES"), order, Theme.Accents.Gold)
+		for id in guidesAttr:gmatch("[^,]+") do
+			local chapter
+			for _, c in (Config.Tutorial and Config.Tutorial.Chapters) or {} do
+				if c.Id == id then chapter = c break end
+			end
+			if chapter then
+				order += 1
+				local first = chapter.Steps and chapter.Steps[1]
+				local card = questCard({
+					Id = "Guide_" .. id,
+					Title = "📘 " .. (chapter.Title or id),
+					Description = first and (first.Task or first.Short) or "",
+					Progress = 0, Target = 1, IsGuide = true,
+				}, order, Theme.Accents.Gold, false)
+				local track = card and card:FindFirstChild("TrackButton")
+				if track then
+					track.Visible = true
+					local caption = track:FindFirstChild("Caption")
+					if caption then caption.Text = tr("Show me") end
+					track.Activated:Connect(function()
+						local action = ReplicatedStorage.Shared:FindFirstChild("TutorialActionEvent")
+						if action then action:FireServer("AcceptGuide", id) end
+						if closeModal then pcall(closeModal) end
+					end)
+				end
+				local progress = card and card:FindFirstChild("Progress")
+				if progress then progress.Text = (chapter.RewardMoney or 0) > 0 and ("+$" .. chapter.RewardMoney) or "" end
+			end
+		end
 	end
 	if #done > 0 then
 		order += 1
@@ -496,7 +533,7 @@ local function openModal()
 	remote:FireServer("RequestState")
 end
 
-local function closeModal()
+closeModal = function()
 	if not modalOpen then return end
 	modalOpen = false
 	modal.Visible = false
@@ -552,6 +589,9 @@ task.delay(1, function()
 end)
 
 player:GetAttributeChangedSignal("NeedsTutorial"):Connect(function()
+	if latestState then render(latestState) end
+end)
+player:GetAttributeChangedSignal("TutorialGuides"):Connect(function() -- v20.140
 	if latestState then render(latestState) end
 end)
 

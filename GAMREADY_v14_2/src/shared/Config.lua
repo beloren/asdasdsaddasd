@@ -239,6 +239,9 @@ Config.Tutorial = {
 	-- Шаги - как выше; Goal.Kind ещё "Near" (дойти до Target, Radius) и
 	-- "Check" (состояние игрока); SkipUnless - пропустить шаг, если нет условия.
 	ChapterGapSeconds = 8,   -- пауза между главами
+	-- v20.140: главы без Required = true НЕ стартуют сами: плашка «NEW: ...
+	-- SHOW ME» на GuideBannerSeconds секунд + запись в журнале квестов (GUIDES).
+	GuideBannerSeconds = 10,
 	NudgeSeconds = 18,       -- игрок стоит на задании столько - напоминание
 	ClientFlags = { "QuestsOpened", "CompassOpened", "PrestigeOpened" },
 	PrestigeGiftPoints = 1,  -- v20.132: очков престижа в подарок в главе PrestigeIntro
@@ -259,23 +262,10 @@ Config.Tutorial = {
 	PointerFromDir = Vector2.new(0.45, 1), -- откуда подлетает курсор (вниз-вправо от цели)
 	SpotlightColor = Color3.fromRGB(255, 215, 60),
 	Chapters = {
-		{
-			Id = "Quests", Title = "Quests", RewardMoney = 50,
-			Steps = {
-				{
-					Id = "OpenQuests",
-					Lines = { "Quests give free rewards", "Open MENU, then QUESTS" },
-					Short = "QUESTS", Task = "Open MENU, then QUESTS",
-					Goal = { Kind = "Flag", Key = "QuestsOpened" },
-					UiTargets = { "Menu:Quests", "MenuButton" },
-					Done = { "New quests come every day!" },
-				},
-			},
-		},
 		-- v20.132: ДЕРЕВО ПРЕСТИЖА сразу после гайда - игрок получает 1 очко,
 		-- открывает центральный перк Starter Miner и узнаёт, что престиж есть
 		{
-			Id = "PrestigeIntro", Title = "Prestige Tree", RewardMoney = 50, After = { "Quests" },
+			Id = "PrestigeIntro", Title = "Prestige Tree", RewardMoney = 50, Required = true, -- v20.140: обязательная (сразу после гайда)
 			SkipIf = { Check = "PerkOwned", Arg = "Starter" },
 			Steps = {
 				{
@@ -293,6 +283,19 @@ Config.Tutorial = {
 					Goal = { Kind = "Check", Check = "PerkOwned", Arg = "Starter" },
 					UiTargets = { "PerkUpgrade", "PerkNode:Starter" },
 					Done = { "Prestige later for more points", "They open new branches!" },
+				},
+			},
+		},
+		{
+			Id = "Quests", Title = "Quests", RewardMoney = 50,
+			Steps = {
+				{
+					Id = "OpenQuests",
+					Lines = { "Quests give free rewards", "Open MENU, then QUESTS" },
+					Short = "QUESTS", Task = "Open MENU, then QUESTS",
+					Goal = { Kind = "Flag", Key = "QuestsOpened" },
+					UiTargets = { "Menu:Quests", "MenuButton" },
+					Done = { "New quests come every day!" },
 				},
 			},
 		},
@@ -476,7 +479,7 @@ Config.Tutorial = {
 			},
 		},
 		{
-			Id = "Prestige", Title = "Prestige",
+			Id = "Prestige", Title = "Prestige", Required = true, -- v20.140: обязательная
 			When = { Check = "CanPrestige" }, SkipIf = { Check = "HasPrestiged" },
 			Steps = {
 				{
