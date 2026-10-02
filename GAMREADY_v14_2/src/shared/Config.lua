@@ -6256,7 +6256,7 @@ Config.UI.HudImage = {
 	MoneyIcon = { 0.31, 0.08, 0.13, 0.42 },
 	PrestigeIcon = { 0.31, 0.5, 0.13, 0.42 },
 	MoneyColor = Color3.fromRGB(255, 226, 90),
-	PrestigeColor = Color3.fromRGB(185, 110, 255), -- v20.136: очки престижа - фиолетовые
+	PrestigeColor = Color3.fromRGB(255, 150, 215),
 	TextStrokeColor = Color3.fromRGB(40, 20, 10),
 	PrestigePrefix = "",     -- например "PRESTIGE " - иначе только число
 }

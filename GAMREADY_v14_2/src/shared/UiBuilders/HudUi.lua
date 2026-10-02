@@ -158,7 +158,7 @@ function Builder.BuildImage(cfg)
 	portrait.Parent = container
 
 	imagePill(container, "MoneyPill", cfg, cfg.Money, cfg.MoneyIcon, cfg.MoneyColor or Color3.fromRGB(255, 226, 90), "$0")
-	local prestige = imagePill(container, "RebirthPill", cfg, cfg.Prestige, cfg.PrestigeIcon, cfg.PrestigeColor or Color3.fromRGB(185, 110, 255), "0")
+	local prestige = imagePill(container, "RebirthPill", cfg, cfg.Prestige, cfg.PrestigeIcon, cfg.PrestigeColor or Color3.fromRGB(255, 150, 215), "0")
 	prestige:SetAttribute("Prefix", cfg.PrestigePrefix or "")
 	gui:SetAttribute("UiKitVersion", 23)
 	return gui

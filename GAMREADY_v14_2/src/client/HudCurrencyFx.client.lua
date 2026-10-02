@@ -22,11 +22,6 @@ local playerGui = player:WaitForChild("PlayerGui")
 local remote = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CurrencyFx", 60)
 if not remote then return end
 
--- v20.136: очки престижа - фиолетовые
-local PURPLE = Color3.fromRGB(185, 110, 255)
-local PURPLE_LIGHT = Color3.fromRGB(215, 170, 255)
-local OLD_PINK = Color3.fromRGB(255, 150, 215)
-
 local function sfx(name)
 	pcall(function() require(ReplicatedStorage.Shared.UiSfx).play(name) end)
 end
@@ -214,7 +209,7 @@ local function onPrestige(amount)
 	caption.Text = ("+%d PRESTIGE POINT%s"):format(amount, amount > 1 and "S" or "")
 	UiKit.StyleText(caption, "Title")
 	caption.TextScaled = true
-	caption.TextColor3 = PURPLE
+	caption.TextColor3 = Color3.fromRGB(255, 150, 215)
 	caption.TextTransparency = 1
 	caption.ZIndex = 8
 	caption.Parent = layer
@@ -222,7 +217,7 @@ local function onPrestige(amount)
 	sfx("PerkUnlock")
 	TweenService:Create(scale, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 	TweenService:Create(caption, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
-	sparkle(center, PURPLE_LIGHT)
+	sparkle(center, Color3.fromRGB(255, 190, 235))
 	-- покачивание, пока висит
 	local started = os.clock()
 	local wobble = RunService.RenderStepped:Connect(function()
@@ -255,30 +250,14 @@ local function onPrestige(amount)
 	prestigeQueue = math.max(0, prestigeQueue - amount)
 	points = tonumber(player:GetAttribute("PrestigePoints")) or points
 	if value then value.Text = prefix .. NumberFormat.abbreviate(math.max(0, points - prestigeQueue)) end
-	sparkle(target, PURPLE_LIGHT)
+	sparkle(target, Color3.fromRGB(255, 190, 235))
 	sfx("RewardCrystal")
 	bump(value or pill, 0.35)
 	bump(iconTarget, 0.4)
 	if value then
-		popText("+" .. amount, PURPLE, screenCenter(value) + Vector2.new(value.AbsoluteSize.X / 2 + 8, 0))
+		popText("+" .. amount, Color3.fromRGB(255, 150, 215), screenCenter(value) + Vector2.new(value.AbsoluteSize.X / 2 + 8, 0))
 	end
 end
-
--- число престижа в HUD собрано старым билдером розовым - красим в фиолетовый
--- (свой цвет, выставленный в Studio, не трогаем)
-task.spawn(function()
-	for _ = 1, 20 do
-		local _, value = pillParts("RebirthPill")
-		if value then
-			local c = value.TextColor3
-			if math.abs(c.R - OLD_PINK.R) + math.abs(c.G - OLD_PINK.G) + math.abs(c.B - OLD_PINK.B) < 0.03 then
-				value.TextColor3 = PURPLE
-			end
-			return
-		end
-		task.wait(1)
-	end
-end)
 
 remote.OnClientEvent:Connect(function(kind, amount)
 	if kind == "Money" then
