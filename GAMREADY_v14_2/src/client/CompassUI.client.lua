@@ -211,8 +211,24 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	if input.KeyCode == Enum.KeyCode.Escape and panel.Visible then setOpen(false) end
 end)
 
+-- v20.133: кнопка TRAVEL «дышит» синхронно с кнопкой MENU (IconBounce.ApplyPulse
+-- у книги): берём её текущий размер относительно базового
+local pulseScale = button:FindFirstChild("SyncPulse") or Instance.new("UIScale")
+pulseScale.Name = "SyncPulse"
+pulseScale.Parent = button
+local function bookPulseRatio()
+	local menuGui = playerGui:FindFirstChild("CollectionMenu")
+	local book = menuGui and menuGui:FindFirstChild("BookButton")
+	local base = book and book:GetAttribute("PulseBaseSize")
+	if typeof(base) ~= "UDim2" then return 1 end
+	if base.X.Offset > 0 then return book.Size.X.Offset / base.X.Offset end
+	if base.X.Scale > 0 then return book.Size.X.Scale / base.X.Scale end
+	return 1
+end
+
 -- отсчёт отката на кнопке и в окне
 RunService.RenderStepped:Connect(function()
+	pulseScale.Scale = math.clamp(bookPulseRatio(), 0.8, 1.3)
 	local left = cooldownUntil - os.clock()
 	if left > 0 then
 		button.BackgroundColor3 = Color3.fromRGB(70, 60, 80)

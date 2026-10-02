@@ -78,6 +78,8 @@ function IconBounce.ApplyPulse(icon, options)
 	local duration = options.Duration or 1.3
 
 	local baseSize = icon.Size
+	-- v20.133: по этому атрибуту другие кнопки пульсируют синхронно (TRAVEL)
+	icon:SetAttribute("PulseBaseSize", baseSize)
 	local upSize = UDim2.new(
 		baseSize.X.Scale * scale, baseSize.X.Offset * scale,
 		baseSize.Y.Scale * scale, baseSize.Y.Offset * scale

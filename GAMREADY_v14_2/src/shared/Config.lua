@@ -145,8 +145,8 @@ Config.Tutorial = {
 	-- окне улучшений крутит лучи (Mine / Cheapest), HighlightColor — цвет.
 	-- ResetCounters — счётчики, которые обнуляются при входе в шаг.
 	-- v20.40: реплики, где надо жать «Далее», листаются сами через N секунд (0 — выкл).
-	AutoAdvanceSeconds = 5.5,      -- v20.130: МАКСИМУМ на реплику; реальное время = Base + PerChar × длина текста
-	AutoAdvanceBase = 1.4,         -- сек на любую реплику
+	AutoAdvanceSeconds = 7.5,      -- v20.130: МАКСИМУМ на реплику; реальное время = Base + PerChar × длина текста (v20.133: +2 с)
+	AutoAdvanceBase = 3.4,         -- сек на любую реплику (v20.133: +2 с)
 	AutoAdvancePerChar = 0.045,    -- сек на каждую букву (короткая реплика листается быстрее)
 	DialogHudFocus = false,        -- v20.130: true - HUD уезжает к краям, пока говорит НПС
 	Steps = {
@@ -300,9 +300,18 @@ Config.Tutorial = {
 			Id = "NewOre", Title = "New Ore", RewardMoney = 100, After = { "PrestigeIntro" },
 			When = { Check = "CanAffordOre" }, SkipIf = { Check = "OreUnlockedAny" },
 			Steps = {
+				-- v20.133: TRAVEL учим здесь - когда реально надо в центр к торговцу
+				{
+					Id = "TravelToMerchant",
+					Lines = { "New ore is sold at the Ore Merchant", "Press TRAVEL and pick ORE MERCHANT" },
+					Short = "GO TO THE MERCHANT", Task = "Press TRAVEL, pick Ore Merchant",
+					Goal = { Kind = "Near", Radius = 30 },
+					Target = "World:BankMerchant",
+					UiTargets = { "Compass:Center", "Compass" },
+				},
 				{
 					Id = "BuyOre",
-					Lines = { "Your mine has only Coal and Copper", "Buy new ore at the Ore Merchant" },
+					Lines = { "Your mine has only Coal and Copper", "Buy a new ore box here" },
 					Short = "NEW ORE", Task = "Buy an ore box (ORE tab)",
 					Goal = { Kind = "Check", Check = "OreBoxOwned" },
 					Target = "World:BankMerchant", OnEnter = "EnsureOreStock",
@@ -317,8 +326,8 @@ Config.Tutorial = {
 				},
 				{
 					Id = "DigNewOre",
-					Lines = { "The new ore is in your mine", "Your next dig gives it for sure!" },
-					Short = "DIG IT UP", Task = "Talk to the miner and dig",
+					Lines = { "The new ore is in your mine", "Go home and dig: TRAVEL, then YOUR RAFT" },
+					Short = "DIG IT UP", Task = "Go to the miner and dig",
 					Goal = { Kind = "Counter", Key = "ExpeditionsDone", Target = 1 },
 					Target = "MinerNPC", UiTargets = { "Miner:Yes" },
 					Done = { "Rarer ore sells for more!" },
@@ -350,18 +359,6 @@ Config.Tutorial = {
 					Goal = { Kind = "Counter", Key = "GeodesOpened", Target = 1 },
 					Target = "GeodeBuilding", -- v20.121: курсор на саму наковальню, а не на верх острова
 					Done = { "Crystals earn money on Income Island" },
-				},
-			},
-		},
-		{
-			Id = "Compass", Title = "Travel", RewardMoney = 50, After = { "AnvilIsland" },
-			Steps = {
-				{
-					Id = "UseCompass",
-					Lines = { "Tired of walking? Press TRAVEL", "Pick a place and you're there!" },
-					Short = "TRAVEL", Task = "Press TRAVEL, pick a place",
-					Goal = { Kind = "Counter", Key = "Teleported", Target = 1 },
-					UiTargets = { "Compass:*", "Compass" },
 				},
 			},
 		},

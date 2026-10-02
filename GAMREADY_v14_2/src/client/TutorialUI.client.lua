@@ -466,7 +466,6 @@ if not autoBar then
 	autoBar.BorderSizePixel = 0
 	autoBar.ZIndex = 7
 	autoBar.Parent = holder
-	Instance.new("UICorner", autoBar).CornerRadius = UDim.new(1, 0)
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.Size = UDim2.fromScale(0, 1)
@@ -474,9 +473,13 @@ if not autoBar then
 	fill.BorderSizePixel = 0
 	fill.ZIndex = 8
 	fill.Parent = autoBar
-	Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
 end
 local autoFill = autoBar:FindFirstChild("Fill")
+-- v20.133: полоска с прямыми углами (без скругления)
+for _, d in autoBar:GetDescendants() do
+	if d:IsA("UICorner") then d:Destroy() end
+end
+
 autoBar.Visible = false
 
 local function readSeconds()
@@ -484,7 +487,7 @@ local function readSeconds()
 	local perChar = tonumber(Config.Tutorial.AutoAdvancePerChar) or 0.045
 	local base = tonumber(Config.Tutorial.AutoAdvanceBase) or 1.4
 	local maxSeconds = tonumber(Config.Tutorial.AutoAdvanceSeconds) or 5
-	return math.clamp(base + #text * perChar, math.min(2.2, maxSeconds), maxSeconds)
+	return math.clamp(base + #text * perChar, math.min(4.2, maxSeconds), maxSeconds)
 end
 
 local function startAutoAdvance()
