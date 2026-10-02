@@ -4309,6 +4309,9 @@ Config.UpgradeStats = {
 --   SmeltSpeed    - плавка быстрее (доля времени, максимум 60%)
 --   IngotValue    - цена слитка (+доля); IngotMultiplier - прибавка к x10
 Config.IslandPerks = {
+	FullScreen = true, -- v20.143: Island Keeper открывает дерево на весь экран (StarterGui/IslandTreeUi)
+	-- направления веток от центра ({ x, y }: {0,-1} - вверх)
+	Dirs = { Anvil = { 0, -1 }, Income = { 0.87, 0.5 }, Smelter = { -0.87, 0.5 } },
 	Order = { "Anvil", "Income", "Smelter" },
 	Islands = {
 		Anvil = {
@@ -4335,19 +4338,21 @@ Config.IslandPerks = {
 	},
 }
 
--- v20.140: ДЕРЕВО ПРОКАЧКИ вместо сетки карточек в окне Experienced Miner:
--- дорожки тиров (пещера, рюкзак, кирка) + «звёзды» мелких улучшений.
+-- v20.143: ДЕРЕВО ПРОКАЧКИ У EXPERIENCED MINER - НА ВЕСЬ ЭКРАН (как престиж).
+-- В центре NPC, ветки уходят в стороны (Dir = { x, y }: {0,-1} - вверх,
+-- {1,0} - вправо). От середины ветки отходит звезда (Star) на StarOffset
+-- пикселей вбок (StarSide = 1 / -1 - в какую сторону). Вид узлов - шаблоны
+-- StarterGui/UpgradeTreeUi/Templates (см. GUIDE, раздел 6).
 Config.UpgradeTree = {
 	Enabled = true,
-	NodeSize = 46,
-	NodeGap = 22,
-	ShowLockedAhead = 3,   -- сколько закрытых тиров видно после следующего
-	-- к какой дорожке прикреплена какая звезда
+	FirstDistance = 190, -- от центра до первого тира
+	Step = 130,          -- между тирами
+	StarOffset = 170,    -- звезда в сторону от ветки
 	Rows = {
-		{ Kind = "Mine",    Title = "CAVE",     Icon = "⛰", Star = "Luck",   Color = Color3.fromRGB(255, 160, 70) },
-		{ Kind = "Cart",    Title = "BACKPACK", Icon = "🎒", Star = "Sell",   Color = Color3.fromRGB(120, 200, 255) },
-		{ Kind = "Pickaxe", Title = "PICKAXE",  Icon = "⛏", Star = "Damage", Color = Color3.fromRGB(255, 110, 110) },
-		{ Kind = "Supplies",Title = "SUPPLIES", Icon = "🧨", Star = "Speed",  Color = Color3.fromRGB(200, 140, 255) },
+		{ Kind = "Mine",     Title = "CAVE",     Icon = "⛰", Star = "Luck",   Dir = { 0, -1 }, StarSide = 1,  Color = Color3.fromRGB(255, 160, 70) },
+		{ Kind = "Cart",     Title = "BACKPACK", Icon = "🎒", Star = "Sell",   Dir = { 1, 0 },  StarSide = 1,  Color = Color3.fromRGB(120, 200, 255) },
+		{ Kind = "Pickaxe",  Title = "PICKAXE",  Icon = "⛏", Star = "Damage", Dir = { -1, 0 }, StarSide = 1,  Color = Color3.fromRGB(255, 110, 110) },
+		{ Kind = "Supplies", Title = "SUPPLIES", Icon = "🧨", Star = "Speed",  Dir = { 0, 1 },  StarSide = -1, Color = Color3.fromRGB(200, 140, 255) },
 	},
 }
 
@@ -6323,6 +6328,7 @@ Config.UI = {
 	ShopMenuIconId = 0,
 	SkinsMenuIconId = 0,
 	SettingsMenuIconId = 0,
+	CodesMenuIconId = 0, -- v20.143: иконка пункта CODES (0 - как у строки-образца)
 	MutationsMenuIconId = 0,
 }
 

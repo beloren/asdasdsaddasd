@@ -22,8 +22,10 @@
 -- экраны в StarterGui не трогаются (ни пересборка, ни удаление старых,
 -- ни скрытие шаблонов). Чтобы собрать всё, сделай ONLY = {}.
 local ONLY = {
-	"UpgradeShopUi",        -- Experienced Miner: дерево прокачки, звёзды, окно звезды
-	"IslandUi",             -- Island Keeper: острова, деревья островов, кнопка UPGRADES
+	"UpgradeTreeUi",        -- Experienced Miner: дерево прокачки на весь экран (узлы, звёзды, карточка)
+	"UpgradeShopUi",        -- Experienced Miner: окно ветки (DETAILS) поверх дерева
+	"IslandTreeUi",         -- Island Keeper: дерево островов на весь экран
+	"IslandUi",             -- Island Keeper: старое окно островов (запасное)
 	"PerkUi",               -- дерево престижа (сундук престижа)
 	"RebirthDialogButtons", -- окно престижа у Prestige Mayor
 }

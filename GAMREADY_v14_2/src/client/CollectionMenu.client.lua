@@ -369,6 +369,30 @@ end
 
 for order, item in ITEMS do
 	local row = list:FindFirstChild(item.Key .. "Row")
+	-- v20.143: строки, которой нет в твоём меню из StarterGui (например CODES),
+	-- копируем с соседней строки - тот же стиль, своя подпись. Само меню
+	-- (кнопка, иконка, остальные строки) не пересобирается.
+	if not (row and row:IsA("GuiButton")) then
+		local source = list:FindFirstChild("SettingsRow") or list:FindFirstChild("ShopRow") or list:FindFirstChild("InventoryRow")
+		if source and source:IsA("GuiButton") then
+			row = source:Clone()
+			row.Name = item.Key .. "Row"
+			row.LayoutOrder = (source.LayoutOrder or order) + 1
+			for _, d in row:GetDescendants() do
+				if d:IsA("TextLabel") and (d.Name == "Label" or d.Name == "Caption" or d.Name == "Text" or d.Name == "Title") then
+					d.Text = item.Label
+				end
+			end
+			local icon = row:FindFirstChild("Icon", true)
+			local iconId = Config.UI[item.Icon]
+			if icon and (icon:IsA("ImageLabel") or icon:IsA("ImageButton")) and iconId and iconId ~= 0 then
+				icon.Image = imageUri(iconId)
+			end
+			local emoji = row:FindFirstChild("Emoji", true)
+			if emoji and emoji:IsA("TextLabel") and item.Key == "Codes" then emoji.Text = "🎟" end
+			row.Parent = list
+		end
+	end
 	if not (row and row:IsA("GuiButton")) then
 		row = Instance.new("TextButton")
 		row.Name = item.Key .. "Row"
@@ -427,6 +451,26 @@ for order, item in ITEMS do
 		end
 	end)
 end
+
+-- v20.143: добавленная строка (CODES) не должна вылезать за меню из StarterGui -
+-- если строки не влезают, окно меню подрастает на недостающую высоту.
+task.defer(function()
+	local layout = list:FindFirstChildOfClass("UIListLayout")
+	if not layout then return end
+	local function fit()
+		local need = layout.AbsoluteContentSize.Y - list.AbsoluteSize.Y
+		if need > 1 and submenu.Size.Y.Scale == 0 then
+			local uiScale = 1
+			for _, d in submenu:GetChildren() do
+				if d:IsA("UIScale") then uiScale *= math.max(d.Scale, 0.01) end
+			end
+			submenu.Size = UDim2.new(submenu.Size.X.Scale, submenu.Size.X.Offset, 0, submenu.Size.Y.Offset + math.ceil(need / uiScale))
+		end
+	end
+	submenu:GetPropertyChangedSignal("Visible"):Connect(function()
+		if submenu.Visible then task.defer(fit) end
+	end)
+end)
 
 bookButton.Activated:Connect(function()
 	local ok, err = pcall(function()

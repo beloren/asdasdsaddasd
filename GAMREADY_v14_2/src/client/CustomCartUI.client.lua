@@ -3430,6 +3430,14 @@ end
 	local gridCards = {}
 	local function showDetail(kind)
 		selectedKind = kind
+		-- v20.143: в режиме полноэкранного дерева экран ветки - окно поверх дерева
+		if (Config.UpgradeTree or {}).Enabled ~= false and dialogOpen then
+			local camera = workspace.CurrentCamera
+			local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
+			panelScale.Scale = math.min(1.15, (viewport.X - 40) / PANEL_SIZE.X, (viewport.Y - 80) / PANEL_SIZE.Y)
+			panel.Visible = true
+			gui.Enabled = true
+		end
 		-- v20.121: обучение показывает курсором кнопку покупки нужной ветки
 		require(ReplicatedStorage.Shared.TutorialTarget).Mark(actionButton, "UpgradeBuy:" .. tostring(kind))
 		playUiClick()
@@ -3445,6 +3453,12 @@ end
 		selectedKind = nil
 		detailView.Visible = false
 		gridView.Visible = true
+		-- v20.143: дерево на весь экран - окно ветки просто прячется
+		if (Config.UpgradeTree or {}).Enabled ~= false then
+			panel.Visible = false
+			gui.Enabled = false
+			return
+		end
 		if animated then
 			gridView.Position = UDim2.fromOffset(-40, 0)
 			TweenService:Create(gridView, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -3476,414 +3490,325 @@ end
 		applyCard(visual, kind, nil)
 	end
 
-	-- v20.140: ДЕРЕВО ПРОКАЧКИ (Config.UpgradeTree) вместо сетки карточек.
-	-- Каждая строка - дорожка тиров одной ветки (пещера, рюкзак, кирка,
-	-- динамит): кружки слева направо, купленные - цветные, следующий -
-	-- пульсирует с ценой. В конце строки - «звезда» мелкого улучшения
-	-- (Config.UpgradeStats: урон, удача, скорость, продажа) с окном покупки.
-	-- Канвас тянется мышкой/пальцем, колесо и щипок - зум.
+	-- v20.143: ПОЛНОЭКРАННОЕ ДЕРЕВО ПРОКАЧКИ (Config.UpgradeTree), как дерево
+	-- престижа: StarterGui/UpgradeTreeUi (билдер UiBuilders/SkillTreeUi) +
+	-- Shared.SkillTreeView. В центре - Experienced Miner, ветки тиров уходят
+	-- в разные стороны (пещера вверх, рюкзак вправо, кирка влево, динамит
+	-- вниз), от середины каждой ветки отходит «звезда» мелкого улучшения
+	-- (Config.UpgradeStats). Клик по узлу - карточка: купить сразу или
+	-- DETAILS (прежний экран ветки поверх дерева).
 	local treeCfg = Config.UpgradeTree or {}
 	local statCfg = Config.UpgradeStats or { Order = {}, Types = {} }
 	local statRemote = ReplicatedStorage.Shared:WaitForChild("UpgradeStatRequest", 10)
 	local treeEnabled = treeCfg.Enabled ~= false
-	local treeTargets = {}   -- [kind] = кружок, на который показывает обучение
+	local treeTargets = {}   -- [kind] = узел, на который показывает обучение
 	local statState = {}
 	local refreshTree = function() end
 	local requestStats = function() end
-	local openStarPopup
+	local treeView = nil
+	local requestCloseDialog = nil
 	if treeEnabled then
+		local SkillTreeView = require(ReplicatedStorage.Shared.SkillTreeView)
 		local TutorialTargetMod = require(ReplicatedStorage.Shared.TutorialTarget)
 		local CollectionService = game:GetService("CollectionService")
-		local UserInputService = game:GetService("UserInputService")
+		local treeGui = UiRegistry.Get("UpgradeTreeUi")
+		treeGui.ResetOnSpawn = false
+		treeGui.Enabled = false
+		treeView = SkillTreeView.new(treeGui, {
+			LockName = "UpgradeTree",
+			OnClose = function() if requestCloseDialog then requestCloseDialog() end end,
+		})
 		local CHAINS = { Mine = Config.MineChain or {}, Cart = Config.CartChain or {}, Pickaxe = Config.PickaxeChain or {} }
-		local NODE = treeCfg.NodeSize or 46
-		local GAP = treeCfg.NodeGap or 22
-		local ROW_H = NODE + 40
-		local LABEL_W = 116
-		local PAD = 14
+		local STEP = treeCfg.Step or 130
+		local FIRST = treeCfg.FirstDistance or 190
+		local STAR_OFFSET = treeCfg.StarOffset or 170
+		local DIRS = { Mine = { 0, -1 }, Cart = { 1, 0 }, Pickaxe = { -1, 0 }, Supplies = { 0, 1 } }
+		local GREY = Color3.fromRGB(70, 74, 88)
+		local nodeInfo = {}  -- [id] = { Kind, Value, Row, StarId, Index }
+		local rowLinks = {}  -- [kind] = { [index] = line }
+		local cardBusy = false
 
-		row.Visible = false
-		gridHint.Visible = false
-
-		-- v20.141: всё дерево - из билдера UpgradeShopUi (GridView/TreeView,
-		-- StarPopup, Templates/TreeTag|TreeNode|TreeStar|TreeLine). Форма узла -
-		-- ImageLabel "Shape" (см. TreeParts): есть Image - красим ImageColor3.
-		local function paintShape(holder, color)
-			local shape = holder:FindFirstChild("Shape")
-			if not shape then return end
-			if shape.Image ~= "" then shape.ImageColor3 = color else shape.BackgroundColor3 = color end
-		end
-		local function shapeStroke(holder)
-			local shape = holder:FindFirstChild("Shape")
-			return shape and shape:FindFirstChildWhichIsA("UIStroke")
-		end
-		local function cloneTemplate(name)
-			local clone = templates:WaitForChild(name):Clone()
-			clone.Visible = true
-			return clone
-		end
-		local function textOf(holder, name)
-			return holder:FindFirstChild(name) or Instance.new("TextLabel")
-		end
-
-		local viewport = gridView:WaitForChild("TreeView")
-		local canvas = viewport:WaitForChild("Canvas")
-		local zoom = canvas:FindFirstChildWhichIsA("UIScale") or Instance.new("UIScale", canvas)
-		local NODE_W = templates:WaitForChild("TreeNode").Size.X.Offset
-		if NODE_W > 0 then NODE = NODE_W ROW_H = NODE + 40 end
-
-		local rowsCfg = treeCfg.Rows or {}
-		local rowsUi = {}
-		local maxWidth = 0
-		for rowIndex, rowCfg in rowsCfg do
-			local kind = rowCfg.Kind
-			local y = PAD + (rowIndex - 1) * ROW_H
-			local entry = { Kind = kind, Nodes = {}, Lines = {} }
-			-- плашка ветки слева (клик - подробности ветки)
-			local tag = cloneTemplate("TreeTag")
-			tag.Name = "Tag_" .. kind
-			tag.Position = UDim2.fromOffset(PAD, y)
-			tag.Size = UDim2.fromOffset(tag.Size.X.Offset > 0 and tag.Size.X.Offset or LABEL_W, NODE)
-			tag.Parent = canvas
-			LABEL_W = tag.Size.X.Offset
-			paintShape(tag, rowCfg.Color or COLORS.Panel)
-			textOf(tag, "Title").Text = rowCfg.Icon .. " " .. tr(rowCfg.Title)
-			entry.TagSub = textOf(tag, "Sub")
-			tag.Activated:Connect(function()
-				if not dialogOpen then return end
-				if kind == "Supplies" then selectedSupply = selectedSupply or "Dynamite" end
-				showDetail(kind)
-			end)
-			entry.Tag = tag
-
-			-- кружки тиров (или виды динамита)
-			local list = {}
-			if kind == "Supplies" then
-				for _, key in Config.Dynamite.Order do table.insert(list, key) end
-			elseif CHAINS[kind] then
-				for tier = 1, 1 + #CHAINS[kind] do table.insert(list, tier) end
+		local function unmark(guiObject)
+			if guiObject and guiObject:GetAttribute(TutorialTargetMod.ATTR) then
+				guiObject:SetAttribute(TutorialTargetMod.ATTR, nil)
+				CollectionService:RemoveTag(guiObject, TutorialTargetMod.TAG)
 			end
-			local x = PAD + LABEL_W + GAP
-			for index, value in list do
-				if index > 1 then
-					local line = cloneTemplate("TreeLine")
-					line.Name = "Line" .. index
-					line.AnchorPoint = Vector2.new(0, 0.5)
-					line.Position = UDim2.fromOffset(x - GAP - 2, y + NODE / 2)
-					line.Size = UDim2.fromOffset(GAP + 4, line.Size.Y.Offset > 0 and line.Size.Y.Offset or 6)
-					line.Parent = canvas
-					entry.Lines[index] = line
-				end
-				local node = cloneTemplate("TreeNode")
-				node.Name = "Node_" .. tostring(value)
-				node.Position = UDim2.fromOffset(x, y)
-				node.Size = UDim2.fromOffset(NODE, NODE)
-				node.Parent = canvas
-				local caption = textOf(node, "Caption")
-				caption.Text = kind == "Supplies"
-					and ((Config.Dynamite.Types[value] or {}).ShortName or tostring(value))
-					or tostring(value)
-				local price = textOf(node, "Price")
-				price.Text = ""
-				node.Activated:Connect(function()
-					if not dialogOpen then return end
-					if kind == "Supplies" then selectedSupply = value end
-					showDetail(kind)
-				end)
-				local nodeX = x
-				node.MouseEnter:Connect(function() TweenService:Create(node, TweenInfo.new(0.1), { Size = UDim2.fromOffset(NODE + 6, NODE + 6), Position = UDim2.fromOffset(nodeX - 3, y - 3) }):Play() end)
-				node.MouseLeave:Connect(function() TweenService:Create(node, TweenInfo.new(0.1), { Size = UDim2.fromOffset(NODE, NODE), Position = UDim2.fromOffset(nodeX, y) }):Play() end)
-				entry.Nodes[index] = { Value = value, Button = node, Stroke = shapeStroke(node) or Instance.new("UIStroke"), Caption = caption, Price = price, X = x }
-				x += NODE + GAP
-			end
-
-			-- звезда мелкого улучшения
-			local starId = rowCfg.Star
-			local starDef = starId and statCfg.Types[starId]
-			if starDef then
-				local dash = cloneTemplate("TreeLine")
-				dash.Name = "StarLine"
-				dash.AnchorPoint = Vector2.new(0, 0.5)
-				dash.BackgroundColor3 = starDef.Color or COLORS.Gold
-				dash.BackgroundTransparency = 0.35
-				dash.Position = UDim2.fromOffset(x - GAP, y + NODE / 2)
-				dash.Size = UDim2.fromOffset(GAP * 1.6, 4)
-				dash.Parent = canvas
-				x += GAP * 0.6
-				local star = cloneTemplate("TreeStar")
-				star.Name = "Star_" .. starId
-				local starSize = star.Size.X.Offset > 0 and star.Size.X.Offset or (NODE + 22)
-				star.Position = UDim2.fromOffset(x, y + NODE / 2 - starSize / 2)
-				star.Parent = canvas
-				paintShape(star, starDef.Color or COLORS.Gold)
-				textOf(star, "Icon").Text = starDef.Icon or "★"
-				local level = textOf(star, "Level")
-				star.Activated:Connect(function()
-					if dialogOpen then openStarPopup(starId) end
-				end)
-				local shape = star:FindFirstChild("Shape")
-				entry.Star = { Id = starId, Button = star, Level = level, Shape = shape, BaseRotation = shape and shape.Rotation or 0 }
-				x += starSize + PAD
-			end
-			maxWidth = math.max(maxWidth, x + PAD)
-			rowsUi[rowIndex] = entry
-		end
-		local canvasHeight = PAD * 2 + #rowsCfg * ROW_H
-		canvas.Size = UDim2.fromOffset(maxWidth, canvasHeight)
-
-		-- ОКНО ЗВЕЗДЫ (билдер: GridView/StarPopup)
-		local popup = gridView:WaitForChild("StarPopup")
-		popup.Visible = false
-		local popupOpenSize = popup:GetAttribute("OpenSize")
-		popupOpenSize = typeof(popupOpenSize) == "Vector2" and popupOpenSize or Vector2.new(popup.Size.X.Offset, popup.Size.Y.Offset)
-		local popupStroke = popup:FindFirstChildWhichIsA("UIStroke") or Instance.new("UIStroke")
-		local popupTitle = popup:WaitForChild("Title")
-		local popupLevel = popup:WaitForChild("Level")
-		local popupText = popup:WaitForChild("Text")
-		local buyButton = popup:WaitForChild("Buy")
-		local buyCaption = buyButton:FindFirstChild("Caption") or Instance.new("TextLabel")
-		local closeStar = popup:WaitForChild("Close")
-
-		local popupId = nil
-		local buying = false
-		local treeToastToken = 0
-		local function treeToast(text, good)
-			if not toast then return end
-			treeToastToken += 1
-			local token = treeToastToken
-			toast.Text = text
-			toast.TextColor3 = good and Color3.fromRGB(120, 255, 160) or Color3.fromRGB(255, 120, 120)
-			toast.TextTransparency = 0
-			task.delay(2.2, function()
-				if treeToastToken == token then
-					TweenService:Create(toast, TweenInfo.new(0.3), { TextTransparency = 1 }):Play()
-				end
-			end)
 		end
 		local function pct(v) return tostring(math.floor((v or 0) * 1000 + 0.5) / 10) end
-		local function renderPopup()
-			local def = popupId and statCfg.Types[popupId]
-			if not def then popup.Visible = false return end
-			local st = statState[popupId] or { Level = 0, MaxLevel = def.MaxLevel or 25, Bonus = 0, NextBonus = def.PerLevel }
-			popupStroke.Color = def.Color or COLORS.Gold
-			popupTitle.Text = (def.Icon or "") .. " " .. tr(def.Title or popupId)
-			popupLevel.Text = tr("Level") .. " " .. st.Level .. " / " .. st.MaxLevel
-			local maxed = st.Level >= st.MaxLevel
-			local now = (def.Text or "+{v}%"):gsub("{v}", pct(st.Bonus))
-			if maxed then
-				popupText.Text = now
-			else
-				local nextText = ("+%s%%"):format(pct(st.NextBonus))
-				popupText.Text = now .. '  <font color="#6CFF7E">→ ' .. nextText .. "</font>"
-			end
-			if maxed then
-				paintButton(buyButton, "Dark")
-				buyCaption.Text = tr("MAX")
-			elseif buying then
-				buyCaption.Text = "..."
-			else
-				paintButton(buyButton, st.CanAfford and "Green" or "Red")
-				buyCaption.Text = tr("BUY") .. "  " .. money(st.Cost or 0)
-			end
-		end
-		openStarPopup = function(id)
-			popupId = id
-			playUiClick()
-			popup.Visible = true
-			popup.Size = UDim2.fromOffset(popupOpenSize.X * 0.9, popupOpenSize.Y * 0.9)
-			TweenService:Create(popup, TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(popupOpenSize.X, popupOpenSize.Y) }):Play()
-			renderPopup()
-		end
-		local function closePopup()
-			popupId = nil
-			popup.Visible = false
-		end
-		closeStar.Activated:Connect(function() playUiClick("UiMenuClose") closePopup() end)
 
-		local function applyStats(state)
-			if type(state) == "table" then statState = state end
-			refreshTree()
+		-- короткое сообщение об ошибке прямо в карточке (вместо тоста окна)
+		local function cardMessage(text)
+			local level = treeView.Card:FindFirstChild("Level")
+			if level and level:IsA("TextLabel") then level.Text = '<font color="#FF6A6A">' .. text .. "</font>" end
 		end
+
+		local showNodeCard
+		local function onNodeClick(id)
+			playUiClick()
+			showNodeCard(id)
+		end
+
+		local function buildTree()
+			treeView:Clear()
+			table.clear(nodeInfo)
+			table.clear(rowLinks)
+			treeView:Node("Root", "Root", Vector2.zero, onNodeClick)
+			nodeInfo.Root = { Kind = "Root" }
+			for _, rowCfg in treeCfg.Rows or {} do
+				local kind = rowCfg.Kind
+				local d = rowCfg.Dir or DIRS[kind] or { 1, 0 }
+				local dir = Vector2.new(d[1], d[2]).Unit
+				local perp = Vector2.new(-dir.Y, dir.X)
+				local list = {}
+				if kind == "Supplies" then
+					for _, key in Config.Dynamite.Order do table.insert(list, key) end
+				elseif CHAINS[kind] then
+					for tier = 1, 1 + #CHAINS[kind] do table.insert(list, tier) end
+				end
+				rowLinks[kind] = {}
+				local prev = Vector2.zero
+				for index, value in list do
+					local pos = dir * (FIRST + (index - 1) * STEP)
+					rowLinks[kind][index] = treeView:Link(prev, pos, GREY)
+					prev = pos
+					local id = kind .. "_" .. tostring(value)
+					treeView:Node(id, "Tier", pos, onNodeClick)
+					nodeInfo[id] = { Kind = kind, Value = value, Row = rowCfg, Index = index }
+				end
+				local starId = rowCfg.Star
+				if starId and statCfg.Types[starId] and #list > 0 then
+					local anchorIndex = math.max(1, math.ceil(#list / 2))
+					local anchor = dir * (FIRST + (anchorIndex - 1) * STEP)
+					local side = (rowCfg.StarSide or 1)
+					local pos = anchor + perp * STAR_OFFSET * side
+					treeView:Link(anchor, pos, statCfg.Types[starId].Color)
+					local id = "Star_" .. starId
+					treeView:Node(id, "Star", pos, onNodeClick)
+					nodeInfo[id] = { Kind = "Star", StarId = starId, Row = rowCfg }
+				end
+			end
+		end
+
+		local function tierState(kind, tier)
+			local status = latestStatuses[kind]
+			local current = status and tonumber(status.Tier) or 1
+			local maxedAll = status and status.State == "Maxed"
+			if tier <= current then return "Owned", status end
+			if tier == current + 1 and not maxedAll then return "Next", status end
+			return "Locked", status
+		end
+
+		showNodeCard = function(id)
+			local info = nodeInfo[id]
+			if not info then return end
+			if info.Kind == "Root" then
+				treeView:ShowCard(id, {
+					Title = "⛏ " .. tr("EXPERIENCED MINER"),
+					Level = tr("Everything resets on prestige"),
+					Text = tr("Tiers unlock new ore and power. Stars give small bonuses. Tap any circle."),
+				})
+				return
+			end
+			if info.Kind == "Star" then
+				local def = statCfg.Types[info.StarId]
+				local st = statState[info.StarId] or { Level = 0, MaxLevel = def.MaxLevel or 25, Bonus = 0, NextBonus = def.PerLevel }
+				local maxed = st.Level >= st.MaxLevel
+				local now = (tr(def.Text or "+{v}%")):gsub("{v}", pct(st.Bonus))
+				treeView:ShowCard(id, {
+					Title = (def.Icon or "") .. " " .. tr(def.Title or info.StarId),
+					Level = tr("Level") .. " " .. st.Level .. " / " .. st.MaxLevel,
+					Text = maxed and now or (now .. '\n<font color="#6CFF7E">' .. tr("Next") .. ": +" .. pct(st.NextBonus) .. "%</font>"),
+					Buy = maxed and { Text = tr("MAX"), Variant = "Dark" } or {
+						Text = cardBusy and "..." or (tr("BUY") .. "  " .. money(st.Cost or 0)),
+						Variant = st.CanAfford and "Green" or "Red",
+						OnClick = function()
+							if cardBusy or not statRemote then return end
+							cardBusy = true
+							showNodeCard(id)
+							task.spawn(function()
+								local okCall, ok, reason, state = pcall(statRemote.InvokeServer, statRemote, "Buy", info.StarId)
+								cardBusy = false
+								if okCall then
+									if type(state) == "table" then statState = state end
+									playUiClick(ok and "Upgrade" or "UiError")
+								end
+								refreshTree()
+								if okCall and not ok and reason then cardMessage(tr(reason)) end
+							end)
+						end,
+					},
+				})
+				return
+			end
+			local kind, view = info.Kind, KIND_VIEW[info.Kind] or {}
+			local title = (view.Icon or "") .. " " .. tr(info.Row.Title or view.Title or kind)
+			local buyButton = treeView.Card:FindFirstChild("Buy")
+			if kind == "Supplies" then
+				local key = info.Value
+				local dyn = Config.Dynamite.Types[key] or {}
+				local locked = supplyLockedCave(key)
+				local gearState = gearStates[key] or {}
+				treeView:ShowCard(id, {
+					Title = "🧨 " .. tr(dyn.DisplayName or key),
+					Level = locked and (tr("Unlocks at cave") .. " " .. locked) or (tr("You have") .. " x" .. (gearState.Count or 0)),
+					Text = tr(dyn.Description or "Blows up boulders."),
+					Buy = not locked and {
+						Text = tr("BUY 1") .. "  " .. money(gearState.Price or 0),
+						Variant = "Green",
+						OnClick = function()
+							if gearRemote then
+								playUiClick()
+								gearRemote:FireServer("BuyDynamite", 1, key)
+							end
+						end,
+					} or nil,
+					More = { Text = tr("DETAILS"), Variant = "Blue", OnClick = function()
+						selectedSupply = key
+						showDetail("Supplies")
+					end },
+				})
+				unmark(buyButton)
+				return
+			end
+			local tier = info.Value
+			local state, status = tierState(kind, tier)
+			local cardInfo = {
+				Title = title .. "  " .. tr("TIER") .. " " .. tier,
+				More = { Text = tr("DETAILS"), Variant = "Blue", OnClick = function() showDetail(kind) end },
+			}
+			if state == "Owned" then
+				cardInfo.Level = '<font color="#6CFF7E">' .. tr("OWNED") .. "</font>"
+				cardInfo.Text = tr("Already yours.")
+			elseif state == "Locked" then
+				cardInfo.Level = tr("LOCKED")
+				cardInfo.Text = tr("Buy tier {n} first.", { n = tier - 1 })
+			else
+				cardInfo.Level = tr("NEXT UPGRADE")
+				if status and status.State == "NeedRebirth" then
+					cardInfo.Text = tr("Cave limit reached - talk to the Prestige Mayor to go deeper!")
+				else
+					cardInfo.Text = status and cardHint(kind, status) or ""
+					if status and status.State == "Buyable" and status.Cost then
+						cardInfo.Buy = {
+							Text = (pendingBuy and "..." or (tr("UPGRADE") .. "  " .. money(status.Cost))),
+							Variant = status.CanAfford and "Green" or "Red",
+							OnClick = function()
+								if pendingBuy then return end
+								if requestUpgradePurchase(shopRemoteEvent, kind) then
+									pendingBuy = true
+									showNodeCard(id)
+									task.delay(3, function()
+										if pendingBuy then
+											pendingBuy = false
+											if treeView:CardShownFor() == id then showNodeCard(id) end
+										end
+									end)
+								else
+									playUiClick("UiError")
+								end
+							end,
+						}
+					end
+				end
+			end
+			treeView:ShowCard(id, cardInfo)
+			if cardInfo.Buy then
+				TutorialTargetMod.Mark(buyButton, "UpgradeBuy:" .. kind)
+			else
+				unmark(buyButton)
+			end
+		end
+
 		requestStats = function()
 			if not statRemote then return end
 			task.spawn(function()
 				local okCall, _, _, state = pcall(statRemote.InvokeServer, statRemote, "Get")
-				if okCall then applyStats(state) end
-			end)
-		end
-		buyButton.Activated:Connect(function()
-			if not (popupId and statRemote) or buying then return end
-			local st = statState[popupId]
-			if st and st.Level >= st.MaxLevel then return end
-			buying = true
-			renderPopup()
-			local id = popupId
-			task.spawn(function()
-				local okCall, ok, reason, state = pcall(statRemote.InvokeServer, statRemote, "Buy", id)
-				buying = false
-				if okCall then
-					applyStats(state)
-					if ok then
-						playUiClick("Upgrade")
-						treeToast(tr(statCfg.Types[id].Title or id) .. " +1", true)
-					else
-						playUiClick("UiError")
-						treeToast(tr(reason or "Can't buy"), false)
-					end
+				if okCall and type(state) == "table" then
+					statState = state
+					refreshTree()
 				end
-				renderPopup()
 			end)
-		end)
+		end
 
-		-- ПЕРЕТАСКИВАНИЕ И ЗУМ
-		local pan = Vector2.new(0, 0)
-		local function clampPan()
-			local scale = zoom.Scale
-			local vs = viewport.AbsoluteSize / math.max(panelScale.Scale, 0.01)
-			local cs = Vector2.new(maxWidth, canvasHeight) * scale
-			local minX = math.min(0, vs.X - cs.X)
-			local minY = math.min(0, vs.Y - cs.Y)
-			local cx = cs.X < vs.X and (vs.X - cs.X) / 2 or math.clamp(pan.X, minX, 0)
-			local cy = cs.Y < vs.Y and (vs.Y - cs.Y) / 2 or math.clamp(pan.Y, minY, 0)
-			pan = Vector2.new(cx, cy)
-			canvas.Position = UDim2.fromOffset(pan.X, pan.Y)
-		end
-		local dragging, dragStart, panStart, dragInput = false, nil, nil, nil
-		viewport.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				if dragging then return end
-				dragging, dragStart, panStart, dragInput = true, input.Position, pan, input
-			end
-		end)
-		UserInputService.InputChanged:Connect(function(input)
-			if dragging and (input == dragInput or input.UserInputType == Enum.UserInputType.MouseMovement) then
-				local delta = Vector2.new(input.Position.X - dragStart.X, input.Position.Y - dragStart.Y) / math.max(panelScale.Scale, 0.01)
-				pan = panStart + delta
-				clampPan()
-			end
-		end)
-		UserInputService.InputEnded:Connect(function(input)
-			if input == dragInput or input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-		end)
-		local function setZoom(value)
-			zoom.Scale = math.clamp(value, 0.6, 1.4)
-			clampPan()
-		end
-		viewport.InputChanged:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseWheel then
-				setZoom(zoom.Scale + input.Position.Z * 0.08)
-			end
-		end)
-		UserInputService.TouchPinch:Connect(function(_, scale, _, state)
-			if not (dialogOpen and gridView.Visible) then return end
-			if state == Enum.UserInputState.Begin then viewport:SetAttribute("PinchBase", zoom.Scale) end
-			setZoom((viewport:GetAttribute("PinchBase") or zoom.Scale) * scale)
-		end)
-		viewport:GetPropertyChangedSignal("AbsoluteSize"):Connect(clampPan)
-
-		-- ПЕРЕКРАСКА ПО СТАТУСАМ
-		local function unmark(gui)
-			if gui:GetAttribute(TutorialTargetMod.ATTR) then
-				gui:SetAttribute(TutorialTargetMod.ATTR, nil)
-				CollectionService:RemoveTag(gui, TutorialTargetMod.TAG)
-			end
-		end
-		local pulseT = 0
 		refreshTree = function()
-			for _, entry in rowsUi do
-				local kind = entry.Kind
-				local status = latestStatuses[kind]
-				local target = nil
-				if kind == "Supplies" then
-					entry.TagSub.Text = tr("Explosives")
-					for _, n in entry.Nodes do
-						local locked = supplyLockedCave(n.Value)
-						local info = Config.Dynamite.Types[n.Value] or {}
-						local count = gearStates[n.Value] and gearStates[n.Value].Count or 0
-						paintShape(n.Button, locked and COLORS.Grey or (info.Color or COLORS.Gold))
-						n.Stroke.Color = COLORS.Outline
-						n.Price.Text = locked and ('<font color="#AAB0C4">' .. tr("Cave") .. " " .. locked .. "</font>") or ("x" .. count)
-						if not locked then target = target or n.Button end
-					end
-				else
-					local tier = status and tonumber(status.Tier) or 1
-					local cap = status and status.State == "NeedRebirth"
-					local maxedAll = status and status.State == "Maxed"
-					entry.TagSub.Text = tr("Tier") .. " " .. tier .. " / " .. #entry.Nodes
-					for index, n in entry.Nodes do
-						local t = n.Value
-						local owned = t <= tier
-						local isNext = t == tier + 1 and not maxedAll
-						local line = entry.Lines[index]
-						if line then line.BackgroundColor3 = owned and COLORS.Gold or COLORS.Grey end
-						if owned then
-							paintShape(n.Button, KIND_VIEW[kind] and KIND_VIEW[kind].Color or COLORS.Gold)
-							n.Stroke.Color = COLORS.Outline
-							n.Caption.Text = tostring(t)
-							n.Price.Text = ""
-						elseif isNext then
-							n.Stroke.Color = COLORS.Gold
-							n.Caption.Text = tostring(t)
-							if cap then
-								paintShape(n.Button, Color3.fromRGB(70, 110, 170))
-								n.Price.Text = '<font color="#8CD2FF">' .. tr("PRESTIGE") .. "</font>"
-							elseif status and status.Cost then
-								paintShape(n.Button, status.CanAfford and COLORS.Buy or Color3.fromRGB(120, 60, 60))
-								n.Price.Text = highlightCost(status.Cost, status.CanAfford == true)
-							else
-								paintShape(n.Button, COLORS.Buy)
-								n.Price.Text = ""
-							end
-							target = n.Button
+			if not next(nodeInfo) then buildTree() end
+			treeView:SetMoney("")
+			treeView:Paint("Root", { Color = Color3.fromRGB(255, 190, 70), Icon = "⛏", Name = tr("EXPERIENCED MINER") })
+			for id, info in nodeInfo do
+				if info.Kind == "Supplies" then
+					local key = info.Value
+					local dyn = Config.Dynamite.Types[key] or {}
+					local locked = supplyLockedCave(key)
+					local count = gearStates[key] and gearStates[key].Count or 0
+					treeView:Paint(id, {
+						Color = locked and GREY or (dyn.Color or COLORS.Gold),
+						Caption = dyn.ShortName or tostring(key),
+						Price = locked and ('<font color="#AAB0C4">' .. tr("Cave") .. " " .. locked .. "</font>") or ("x" .. count),
+						Name = info.Index == 1 and (info.Row.Icon .. " " .. tr(info.Row.Title)) or "",
+					})
+				elseif CHAINS[info.Kind] then
+					local kind, tier = info.Kind, info.Value
+					local state, status = tierState(kind, tier)
+					local line = rowLinks[kind] and rowLinks[kind][info.Index]
+					if line then line.BackgroundColor3 = state == "Owned" and COLORS.Gold or GREY end
+					local props = { Caption = tostring(tier), Name = info.Index == 1 and (info.Row.Icon .. " " .. tr(info.Row.Title)) or "" }
+					if state == "Owned" then
+						props.Color = (KIND_VIEW[kind] and KIND_VIEW[kind].Color) or COLORS.Gold
+						props.Price = ""
+					elseif state == "Next" then
+						if status and status.State == "NeedRebirth" then
+							props.Color = Color3.fromRGB(70, 110, 170)
+							props.Price = '<font color="#8CD2FF">' .. tr("PRESTIGE") .. "</font>"
+						elseif status and status.Cost then
+							props.Color = status.CanAfford and COLORS.Buy or Color3.fromRGB(140, 60, 60)
+							props.Price = highlightCost(status.Cost, status.CanAfford == true)
+							props.Pulse = status.State == "Buyable" and status.CanAfford == true
 						else
-							paintShape(n.Button, Color3.fromRGB(48, 52, 66))
-							n.Stroke.Color = COLORS.Outline
-							n.Caption.Text = '<font color="#7A8096">' .. tostring(t) .. "</font>"
-							n.Price.Text = ""
+							props.Color = COLORS.Buy
+							props.Price = ""
 						end
+					else
+						props.Color = Color3.fromRGB(44, 48, 62)
+						props.Caption = '<font color="#7A8096">' .. tostring(tier) .. "</font>"
+						props.Price = ""
 					end
-				end
-				-- метка обучения ровно на следующем кружке
-				target = target or entry.Tag
-				for _, n in entry.Nodes do if n.Button ~= target then unmark(n.Button) end end
-				if entry.Tag ~= target then unmark(entry.Tag) end
-				TutorialTargetMod.Mark(target, "UpgradeCard:" .. kind)
-				treeTargets[kind] = target
-				if entry.Star then
-					local st = statState[entry.Star.Id]
-					local def = statCfg.Types[entry.Star.Id]
+					treeView:Paint(id, props)
+				elseif info.Kind == "Star" then
+					local def = statCfg.Types[info.StarId]
+					local st = statState[info.StarId]
 					local lvl = st and st.Level or 0
-					local maxL = st and st.MaxLevel or (def and def.MaxLevel) or 25
-					entry.Star.Level.Text = lvl >= maxL and '<font color="#FFD75A">MAX</font>'
-						or ((st and st.CanAfford) and ('<font color="#6CFF7E">' .. lvl .. "/" .. maxL .. "</font>") or (lvl .. "/" .. maxL))
+					local maxL = st and st.MaxLevel or def.MaxLevel or 25
+					treeView:Paint(id, {
+						Color = def.Color or COLORS.Gold,
+						Icon = def.Icon or "★",
+						Name = tr(def.Title or info.StarId),
+						Level = lvl >= maxL and '<font color="#FFD75A">MAX</font>' or (lvl .. "/" .. maxL),
+						Pulse = st and st.CanAfford and lvl < maxL or false,
+					})
 				end
 			end
-			-- старые карточки сетки больше не цели обучения
-			for _, visual in gridCards do unmark(visual.Card) end
-			renderPopup()
-			clampPan()
-		end
-		RunService.Heartbeat:Connect(function(dt)
-			if not (dialogOpen and gridView.Visible) then return end
-			pulseT += dt
-			local s = 1 + math.sin(pulseT * 5) * 0.06
-			for kind, target in treeTargets do
-				local status = latestStatuses[kind]
-				if target:IsA("TextButton") and target.Name:sub(1, 5) == "Node_" and kind ~= "Supplies" and status and status.State == "Buyable" then
-					local stroke = shapeStroke(target)
-					if stroke then stroke.Thickness = 3 + (s - 1) * 30 end
-				end
-			end
-			for _, entry in rowsUi do
-				if entry.Star then
-					local st = statState[entry.Star.Id]
-					if entry.Star.Shape then
-						entry.Star.Shape.Rotation = entry.Star.BaseRotation + ((st and st.CanAfford and st.Level < st.MaxLevel) and math.sin(pulseT * 4) * 6 or 0)
+			-- метка обучения: следующий тир каждой ветки
+			for kind in CHAINS do
+				local target = nil
+				for id, info in nodeInfo do
+					local node = treeView.Nodes[id]
+					if info.Kind == kind and node then
+						if tierState(kind, info.Value) == "Next" then target = node.Holder else unmark(node.Holder) end
 					end
 				end
+				if target then
+					TutorialTargetMod.Mark(target, "UpgradeCard:" .. kind)
+					treeTargets[kind] = target
+				end
 			end
+			for _, visual in gridCards do unmark(visual.Card) end
+			local shown = treeView:CardShownFor()
+			if shown then showNodeCard(shown) end
+		end
+
+		RunService.Heartbeat:Connect(function()
+			if treeView:IsOpen() then treeView:Step(os.clock()) end
 		end)
-		clampPan()
 	end
 
 	local function renderAll()
@@ -3990,6 +3915,7 @@ end
 		if not dialogOpen then
 			return
 		end
+		if treeView then treeView:Close() end -- v20.143
 		dialogOpen = false
 		pendingBuy = false
 		pollToken += 1
@@ -4025,6 +3951,7 @@ end
 		TweenService:Create(workspace.CurrentCamera, TweenInfo.new(0.4, Enum.EasingStyle.Quad), { FieldOfView = 70 }):Play()
 	end
 	registerDialogCloser(closeDialog)
+	requestCloseDialog = closeDialog -- v20.143: CLOSE на дереве
 
 	local function openDialog(npc)
 		local npcRoot = npc and npc.PrimaryPart
@@ -4051,12 +3978,18 @@ end
 		requestStats()
 		renderAll()
 		fitScale()
-		local target = panelScale.Scale
-		panelScale.Scale = target * 0.85
-		panel.Visible = true
-		gui.Enabled = true
-		playUiClick("UiMenuOpen")
-		TweenService:Create(panelScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = target }):Play()
+		if treeView then
+			-- v20.143: полноэкранное дерево вместо окна с карточками
+			treeView:Open()
+			playUiClick("UiMenuOpen")
+		else
+			local target = panelScale.Scale
+			panelScale.Scale = target * 0.85
+			panel.Visible = true
+			gui.Enabled = true
+			playUiClick("UiMenuOpen")
+			TweenService:Create(panelScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = target }):Play()
+		end
 		TweenService:Create(workspace.CurrentCamera, TweenInfo.new(0.4, Enum.EasingStyle.Quad), { FieldOfView = 65 }):Play()
 		if npcDialog then
 			task.spawn(function()
@@ -4202,6 +4135,7 @@ end
 				cancelPendingUpgradeReveal(kind)
 				if reason then showToast(tr(reason), false) end
 				if dialogOpen then renderDetail() end
+				if treeView and treeView:IsOpen() then refreshTree() end
 			end
 		end
 	end)

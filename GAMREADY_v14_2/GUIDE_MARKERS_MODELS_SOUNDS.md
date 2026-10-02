@@ -127,23 +127,23 @@
 
 ---
 
-## 6. Деревья прокачки — где менять форму узлов (v20.141)
+## 6. Деревья прокачки — где менять форму узлов (v20.143)
 
-Все детали деревьев собираются билдерами (Command Bar → `BuildAllUI`, или игра соберёт сама). Меняешь в `StarterGui` - игра берёт твою версию.
+Оба дерева теперь **на весь экран**, как дерево престижа: в центре NPC, ветки расходятся во все стороны, поле таскается мышкой/пальцем, колесо и щипок - масштаб, карточка узла всплывает рядом, внизу CLOSE. Собираются `tools/BuildAllUI.lua` (он трогает только окна прокачки и престижа).
 
-**Experienced Miner** - `StarterGui/UpgradeShopUi`
-- `Templates/TreeNode` - кружок тира (внутри `Shape`, `Caption` - номер, `Price` - цена)
-- `Templates/TreeStar` - звезда мелкого улучшения (`Shape` повёрнут на 45 = ромб, `Icon`, `Level`)
-- `Templates/TreeTag` - плашка ветки слева (`Shape`, `Title`, `Sub`)
-- `Templates/TreeLine` - линия между кружками
-- `Panel/.../Content/GridView/StarPopup` - окно покупки звезды (`Title`, `Level`, `Text`, `Buy`, `Close`)
-- `Panel/.../Content/GridView/TreeView/Canvas` - поле, куда кладутся узлы
+**Experienced Miner** - `StarterGui/UpgradeTreeUi`, **Island Keeper** - `StarterGui/IslandTreeUi` (у обоих одинаковое устройство):
+- `Templates/RootNode` - центральный узел (NPC)
+- `Templates/TierNode` - тир / остров / уровень печи (`Shape`, `Caption` - номер или значок, `Price`, `Name` над узлом)
+- `Templates/StarNode` - звезда-улучшение (`Shape` повёрнут на 45 = ромб, `Icon`, `Level`, `Name`)
+- `Templates/FinalNode` - финальный узел острова
+- `Templates/Link` - линия между узлами (толщина = высота шаблона)
+- `Card` - карточка узла (`Title`, `Level`, `Text`, кнопки `Buy`, `More` = DETAILS, `Close`)
+- `BigClose`, `Title`, `Hint`, `Backdrop` (затемнение)
 
-**Острова** - `StarterGui/IslandUi`
-- `Panel/Templates/PerkStar` - звезда острова, `Panel/Templates/PerkFinal` - финальный узел, `Panel/Templates/PerkLine` - линия
-- `Panel/Content/PerkTree` - окно дерева (`Back`, `Title`, `Nodes`, `Card` → `Title`, `Level`, `Text`, `Buy`)
-- `Panel/Content/DetailView/PerksButton` - кнопка UPGRADES
+Кнопка DETAILS у тира открывает прежнее окно ветки (`StarterGui/UpgradeShopUi`) поверх дерева.
 
-**Как поставить свою форму (пятиугольник и т.п.):** в узле выбери `Shape` → `Image = rbxassetid://...`, удали `SkinCorner` (скругление) и, если обводка уже на картинке, `Stroke`. У звезды поставь `Shape.Rotation = 0`. Красить картинку игра будет сама (через ImageColor3), так что рисуй её **белой**. Размер узла = `Size` самого шаблона (`TreeNode` задаёт размер всех кружков и шаг строк).
+**Как поставить свою форму (пятиугольник и т.п.):** в шаблоне выбери `Shape` → `Image = rbxassetid://...`, удали `SkinCorner` (скругление) и, если обводка на картинке, `Stroke`. У звезды поставь `Shape.Rotation = 0`. Картинку рисуй **белой** - игра красит её сама (куплен / следующий / закрыт). Размер шаблона = размер узла на экране.
 
-**Промокоды** - `StarterGui/SettingsMenu` → `RedeemRow` (`CodeInput`, `RedeemButton`, `ResultText`); пункт CODES в меню - `StarterGui/CollectionMenu`.
+**Расположение веток:** `Config.UpgradeTree` (`Dir` у каждой строки, `FirstDistance`, `Step`, `StarOffset`, `StarSide`) и `Config.IslandPerks.Dirs`.
+
+**Промокоды** - `StarterGui/SettingsMenu` → `RedeemRow` (`CodeInput`, `RedeemButton`, `ResultText`). Пункт CODES в меню: если в твоём `CollectionMenu` его нет, игра скопирует соседнюю строку (стиль твой), само меню не пересобирается. Иконка пункта - `Config.UI.CodesMenuIconId`.

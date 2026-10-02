@@ -72,6 +72,8 @@ local COLORS = {
 local DARK_CARD = UiKit.Theme.Skins.Card.Color
 
 local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("IslandUi")
+-- v20.143: хуки полноэкранного дерева островов (заполняются в конце файла)
+local treeHooks = {}
 gui.Enabled = false
 local dimmer = gui:WaitForChild("Dimmer")
 local panel = gui:WaitForChild("Panel")
@@ -335,6 +337,7 @@ local function render(state)
 		or ('<font color="#FF9E3C">%s</font>'):format(tr("PRESTIGE LOCKED - unlock every island first."))
 	refreshArrows()
 	if detailView.Visible then renderDetail() end
+	if treeHooks.Refresh then treeHooks.Refresh() end
 end
 
 local closePerksView = nil
@@ -575,7 +578,7 @@ end)
 task.spawn(function()
 	while true do
 		task.wait(2)
-		if perkView.Visible and gui.Enabled then fetchPerks() end
+		if (perkView.Visible and gui.Enabled) or (treeHooks.IsOpen and treeHooks.IsOpen()) then fetchPerks() end
 	end
 end)
 
@@ -609,6 +612,11 @@ local function close()
 	if not isOpen then return end
 	isOpen = false
 	playSfx("UiMenuClose")
+	if treeHooks.Close then
+		treeHooks.Close()
+		gui.Enabled = false
+		return
+	end
 	local tween = TweenService:Create(panelScale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = panelScale.Scale * 0.85 })
 	tween:Play()
 	tween.Completed:Wait()
@@ -619,13 +627,18 @@ local function open(state)
 	render(state)
 	if isOpen then return end
 	isOpen = true
-	showGrid(false)
-	fitScale()
-	local target = panelScale.Scale
-	panelScale.Scale = target * 0.85
-	gui.Enabled = true
 	playSfx("UiMenuOpen")
-	TweenService:Create(panelScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = target }):Play()
+	if treeHooks.Open then
+		-- v20.143: полноэкранное дерево вместо окна с карточками
+		treeHooks.Open()
+	else
+		showGrid(false)
+		fitScale()
+		local target = panelScale.Scale
+		panelScale.Scale = target * 0.85
+		gui.Enabled = true
+		TweenService:Create(panelScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = target }):Play()
+	end
 	task.spawn(function()
 		while isOpen do
 			task.wait(2)
@@ -1060,6 +1073,321 @@ end
 --------------------------------------------------------------------------------
 -- СЕТЬ
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- v20.143: ПОЛНОЭКРАННОЕ ДЕРЕВО ОСТРОВОВ (как дерево престижа).
+-- StarterGui/IslandTreeUi (билдер UiBuilders/SkillTreeUi) + Shared.SkillTreeView.
+-- В центре - Island Keeper, три ветки расходятся в разные стороны: первый
+-- узел ветки - сам остров (покупка), у плавильни дальше идут уровни печи,
+-- в конце ветки - две звезды-перка острова и финальный узел между ними.
+--------------------------------------------------------------------------------
+do
+	local ISLAND_TREE = Config.IslandPerks and Config.IslandPerks.FullScreen ~= false
+	if ISLAND_TREE then
+		local SkillTreeView = require(ReplicatedStorage.Shared.SkillTreeView)
+		local TutorialTarget = require(ReplicatedStorage.Shared.TutorialTarget)
+		local CollectionService = game:GetService("CollectionService")
+		local treeGui = require(ReplicatedStorage.Shared.UiRegistry).Get("IslandTreeUi")
+		treeGui.ResetOnSpawn = false
+		treeGui.Enabled = false
+		local view = SkillTreeView.new(treeGui, { LockName = "IslandTree", OnClose = function() close() end })
+		local GREY = Color3.fromRGB(70, 74, 88)
+		local DIM = Color3.fromRGB(44, 48, 62)
+		local FIRST = 210
+		local STEP = 135
+		local DIRS = Config.IslandPerks.Dirs or { Anvil = { 0, -1 }, Income = { 0.87, 0.5 }, Smelter = { -0.87, 0.5 } }
+		local nodeInfo = {}
+		local links = {}   -- { Line, From } - красим, когда From куплен
+		local built = false
+		local busy = false
+
+		local function unmark(guiObject)
+			if guiObject and guiObject:GetAttribute(TutorialTarget.ATTR) then
+				guiObject:SetAttribute(TutorialTarget.ATTR, nil)
+				CollectionService:RemoveTag(guiObject, TutorialTarget.TAG)
+			end
+		end
+		local function pctText(v) return tostring(math.floor((v or 0) * 1000 + 0.5) / 10) end
+
+		local showCard
+		local function onClick(id)
+			playSfx("UiButtonClick")
+			showCard(id)
+		end
+
+		local function link(fromId, a, b)
+			table.insert(links, { Line = view:Link(a, b, GREY), From = fromId })
+		end
+
+		local function build()
+			view:Clear()
+			table.clear(nodeInfo)
+			table.clear(links)
+			view:Node("Root", "Root", Vector2.zero, onClick)
+			nodeInfo.Root = { Kind = "Root" }
+			for _, islandId in Config.Islands.Order do
+				local d = DIRS[islandId] or { 1, 0 }
+				local dir = Vector2.new(d[1], d[2]).Unit
+				local perp = Vector2.new(-dir.Y, dir.X)
+				local pos = dir * FIRST
+				link("Root", Vector2.zero, pos)
+				local islandNode = "Island_" .. islandId
+				view:Node(islandNode, "Tier", pos, onClick)
+				nodeInfo[islandNode] = { Kind = "Island", Island = islandId }
+				local prevId, prevPos = islandNode, pos
+				if islandId == "Smelter" then
+					for level = 2, #(Config.Islands.Smelter.Levels or {}) do
+						local p = prevPos + dir * STEP
+						link(prevId, prevPos, p)
+						local id = "Furnace_" .. level
+						view:Node(id, "Tier", p, onClick)
+						nodeInfo[id] = { Kind = "Furnace", Level = level, Island = islandId }
+						prevId, prevPos = id, p
+					end
+				end
+				local perks = Config.IslandPerks.Islands[islandId]
+				if perks then
+					local stars = perks.Stars or {}
+					local starIds = {}
+					for index, def in stars do
+						local side = (#stars == 1) and 0 or (index == 1 and 1 or -1)
+						local p = prevPos + dir * STEP * 1.15 + perp * 105 * side
+						link(prevId, prevPos, p)
+						view:Node(def.Id, "Star", p, onClick)
+						nodeInfo[def.Id] = { Kind = "Perk", Island = islandId, Def = def, Pos = p }
+						table.insert(starIds, def.Id)
+					end
+					if perks.Final then
+						local p = prevPos + dir * STEP * 2.3
+						for _, starId in starIds do link(starId, nodeInfo[starId].Pos, p) end
+						view:Node(perks.Final.Id, "Final", p, onClick)
+						nodeInfo[perks.Final.Id] = { Kind = "Perk", Island = islandId, Def = perks.Final, Final = true }
+					end
+				end
+			end
+			built = true
+		end
+
+		local function perkInfo(id, def, final)
+			return perkState[id] or { Level = 0, MaxLevel = final and 1 or (def.MaxLevel or 10), Value = 0, Locked = true }
+		end
+		local function isDone(id)
+			local info = nodeInfo[id]
+			if not info then return false end
+			if info.Kind == "Root" then return true end
+			if info.Kind == "Island" then
+				local entry = islandInfo(info.Island)
+				return entry and entry.Owned == true
+			end
+			if info.Kind == "Furnace" then
+				local sm = currentState and currentState.Smelter
+				return sm ~= nil and info.Level <= sm.Level
+			end
+			local st = perkInfo(id, info.Def, info.Final)
+			return st.Level >= st.MaxLevel
+		end
+
+		local function refresh()
+			if not built then build() end
+			view:Paint("Root", { Color = Color3.fromRGB(120, 220, 255), Icon = "🏝", Name = tr(currentState and currentState.KeeperName or "Island Keeper") })
+			local sm = currentState and currentState.Smelter
+			for id, info in nodeInfo do
+				if info.Kind == "Island" then
+					local entry = islandInfo(info.Island) or {}
+					local color = entry.Color or Color3.fromRGB(120, 170, 255)
+					local props = { Caption = entry.Icon or "?", Name = tr(entry.DisplayName or info.Island) }
+					if entry.Owned then
+						props.Color = color
+						props.Price = '<font color="#9CFFB4">' .. tr("OWNED") .. "</font>"
+					elseif entry.RequiresMet then
+						props.Color = entry.CanAfford and Color3.fromRGB(70, 200, 95) or Color3.fromRGB(140, 60, 60)
+						props.Price = '<font color="' .. (entry.CanAfford and "#6CFF7E" or "#FF5A5A") .. '">' .. tostring(entry.CostText or "") .. "</font>"
+						props.Pulse = entry.CanAfford == true
+					else
+						props.Color = DIM
+						props.Price = '<font color="#AAB0C4">' .. tr("Needs {name}", { name = tr(entry.RequiresName or "") }) .. "</font>"
+					end
+					view:Paint(id, props)
+					local node = view.Nodes[id]
+					if node then TutorialTarget.Mark(node.Holder, "IslandCard:" .. info.Island) end
+				elseif info.Kind == "Furnace" then
+					local levelDef = Config.Islands.Smelter.Levels[info.Level] or {}
+					local props = { Caption = "x" .. tostring(levelDef.Slots or info.Level), Name = tr(levelDef.Name or "") }
+					if sm and info.Level <= sm.Level then
+						props.Color = Color3.fromRGB(255, 140, 60)
+						props.Price = ""
+					elseif sm and info.Level == sm.Level + 1 then
+						props.Color = sm.CanAfford and Color3.fromRGB(70, 200, 95) or Color3.fromRGB(140, 60, 60)
+						props.Price = '<font color="' .. (sm.CanAfford and "#6CFF7E" or "#FF5A5A") .. '">' .. tostring(sm.NextCostText or "") .. "</font>"
+						props.Pulse = sm.CanAfford == true
+					else
+						props.Color = DIM
+						props.Price = ""
+					end
+					view:Paint(id, props)
+				elseif info.Kind == "Perk" then
+					local st = perkInfo(id, info.Def, info.Final)
+					local maxed = st.Level >= st.MaxLevel
+					local base = info.Final and UiKit.Theme.Accents.Gold.Main or Color3.fromRGB(110, 190, 255)
+					view:Paint(id, {
+						Color = st.Locked and DIM or (maxed and base or base:Lerp(Color3.fromRGB(30, 34, 48), 0.4)),
+						Icon = info.Def.Icon or "★",
+						Name = tr(info.Def.Title or id),
+						Level = st.Locked and (info.Final and tr("LOCKED") or "") or (maxed and "MAX" or (st.Level .. "/" .. st.MaxLevel)),
+						Pulse = not st.Locked and not maxed and st.CanAfford == true,
+					})
+				end
+			end
+			for _, entry in links do
+				entry.Line.BackgroundColor3 = isDone(entry.From) and UiKit.Theme.Accents.Gold.Main or GREY
+			end
+			view:SetMoney("")
+			local shown = view:CardShownFor()
+			if shown then showCard(shown) end
+		end
+
+		showCard = function(id)
+			local info = nodeInfo[id]
+			if not info then return end
+			local buyButton = view.Card:FindFirstChild("Buy")
+			unmark(buyButton)
+			if info.Kind == "Root" then
+				view:ShowCard(id, {
+					Title = "🏝 " .. tr(currentState and currentState.KeeperName or "Island Keeper"),
+					Level = (currentState and currentState.RebirthUnlocked) and ('<font color="#6CFF9A">' .. tr("PRESTIGE UNLOCKED") .. "</font>")
+						or ('<font color="#FF9E3C">' .. tr("PRESTIGE LOCKED - unlock every island first.") .. "</font>"),
+					Text = tr("Unlock islands behind your base, then upgrade each island."),
+				})
+			elseif info.Kind == "Island" then
+				local entry = islandInfo(info.Island) or {}
+				local card = {
+					Title = (entry.Icon or "") .. " " .. tr(entry.DisplayName or info.Island),
+					Text = tr(entry.Description or ""),
+				}
+				if entry.Owned then
+					card.Level = '<font color="#9CFFB4">' .. tr("OWNED") .. "</font>"
+				elseif not entry.RequiresMet then
+					card.Level = tr("Needs {name}", { name = tr(entry.RequiresName or "") })
+				else
+					card.Level = tostring(entry.CostText or "")
+					card.Buy = {
+						Text = pendingAction and "..." or (tr("BUY") .. "  " .. tostring(entry.CostText or "")),
+						Variant = entry.CanAfford and "Green" or "Red",
+						OnClick = function()
+							if pendingAction then return end
+							pendingAction = true
+							playSfx("UiConfirm")
+							remote:FireServer("Buy", info.Island)
+							showCard(id)
+							task.delay(3, function()
+								if pendingAction then pendingAction = false; refresh() end
+							end)
+						end,
+					}
+				end
+				view:ShowCard(id, card)
+				if card.Buy then TutorialTarget.Mark(buyButton, "IslandBuy") end
+			elseif info.Kind == "Furnace" then
+				local sm = currentState and currentState.Smelter
+				local levelDef = Config.Islands.Smelter.Levels[info.Level] or {}
+				local card = {
+					Title = "🔥 " .. tr(levelDef.Name or ("Furnace " .. info.Level)),
+					Text = tr("Smelts {slots} ores at once, a bit faster. Ingot price x{mult}.", {
+						slots = levelDef.Slots or info.Level, mult = sm and sm.Multiplier or Config.Islands.Smelter.ValueMultiplier,
+					}),
+				}
+				if not sm then
+					card.Level = tr("Buy the Smelter Island first")
+				elseif info.Level <= sm.Level then
+					card.Level = '<font color="#9CFFB4">' .. tr("OWNED") .. "</font>"
+				elseif info.Level == sm.Level + 1 then
+					card.Level = tr("NEXT UPGRADE")
+					card.Buy = {
+						Text = pendingAction and "..." or (tr("UPGRADE") .. "  " .. tostring(sm.NextCostText or "")),
+						Variant = sm.CanAfford and "Green" or "Red",
+						OnClick = function()
+							if pendingAction then return end
+							pendingAction = true
+							playSfx("UiConfirm")
+							if captureSmelterSnapshot then captureSmelterSnapshot() end
+							remote:FireServer("UpgradeSmelter")
+							showCard(id)
+							task.delay(3, function()
+								if pendingAction then pendingAction = false; refresh() end
+							end)
+						end,
+					}
+				else
+					card.Level = tr("LOCKED")
+				end
+				view:ShowCard(id, card)
+			else
+				local def = info.Def
+				local st = perkInfo(id, def, info.Final)
+				local maxed = st.Level >= st.MaxLevel
+				local text
+				if info.Final then
+					text = tr(def.Text or "")
+				else
+					text = (tr(def.Text or "")):gsub("{v}", pctText(st.Value))
+					if not maxed then text = text .. '\n<font color="#6CFF7E">' .. tr("Next") .. ": +" .. pctText(st.NextValue) .. "%</font>" end
+				end
+				local card = {
+					Title = (def.Icon or "") .. " " .. tr(def.Title or id),
+					Level = info.Final and (maxed and tr("OWNED") or tr("FINAL UPGRADE")) or (tr("Level") .. " " .. st.Level .. " / " .. st.MaxLevel),
+					Text = text,
+				}
+				if maxed then
+					card.Buy = { Text = tr("MAX"), Variant = "Dark" }
+				elseif st.Locked then
+					card.Buy = { Text = (not st.Owned) and tr("Buy the island") or tr("Max both stars"), Variant = "Dark" }
+				else
+					card.Buy = {
+						Text = busy and "..." or (tr("BUY") .. "  $" .. NumberFormatMod.abbreviate(st.Cost or 0)),
+						Variant = st.CanAfford and "Green" or "Red",
+						OnClick = function()
+							if busy or not perkRemote then return end
+							busy = true
+							showCard(id)
+							task.spawn(function()
+								local okCall, ok, reason, state = pcall(perkRemote.InvokeServer, perkRemote, "Buy", id)
+								busy = false
+								if okCall and type(state) == "table" then perkState = state end
+								playSfx((okCall and ok) and "Upgrade" or "UiError")
+								refresh()
+								if okCall and not ok and reason then
+									local level = view.Card:FindFirstChild("Level")
+									if level then level.Text = '<font color="#FF6A6A">' .. tr(reason) .. "</font>" end
+								end
+							end)
+						end,
+					}
+				end
+				view:ShowCard(id, card)
+			end
+		end
+
+		-- перки приходят отдельно (IslandPerkRequest) - после ответа перерисовать
+		local baseRender = renderPerks
+		renderPerks = function()
+			baseRender()
+			if view:IsOpen() then refresh() end
+		end
+
+		treeHooks.Open = function()
+			view:Open()
+			refresh()
+			fetchPerks()
+		end
+		treeHooks.Close = function() view:Close() end
+		treeHooks.IsOpen = function() return view:IsOpen() end
+		treeHooks.Refresh = function() if view:IsOpen() then refresh() end end
+		RunService.Heartbeat:Connect(function()
+			if view:IsOpen() then view:Step(os.clock()) end
+		end)
+	end
+end
+
 remote.OnClientEvent:Connect(function(command, a, b, c, d)
 	if command == "Open" then
 		open(a)
