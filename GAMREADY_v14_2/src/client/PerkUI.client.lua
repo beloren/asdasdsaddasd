@@ -1156,7 +1156,35 @@ if cfg.TreeStyle ~= false and cfg.TreeLayout then
 		treeGui.ResetOnSpawn = false
 		treeGui.Enabled = false
 		local view = SkillTreeView.new(treeGui, { LockName = "PrestigeTree", OnClose = function() close() end })
-		if view.Money then view.Money.TextXAlignment = Enum.TextXAlignment.Left end -- очки: иконка слева, число рядом
+		-- v20.151: очки справа сверху - число прижато к правому краю, иконка
+		-- стоит ВПЛОТНУЮ слева от фактической ширины числа (TextBounds) и
+		-- не залезает на него ни при каком размере/масштабе
+		local function placeTopIcon()
+			local label = view.Money
+			local icon = label and label:FindFirstChild("PointIcon")
+			if not icon then return end
+			local h = math.max(12, label.AbsoluteSize.Y * 0.85)
+			local ratio = icon:FindFirstChildOfClass("UIAspectRatioConstraint")
+			if ratio then ratio:Destroy() end
+			icon.AnchorPoint = Vector2.new(1, 0.5)
+			icon.Size = UDim2.fromOffset(h, h)
+			icon.Position = UDim2.new(1, -(label.TextBounds.X + 8), 0.5, 0)
+		end
+		local function setTopPoints(value)
+			local label = view.Money
+			if not label then return end
+			label.TextXAlignment = Enum.TextXAlignment.Right
+			label.Text = tostring(value)
+			Points.Icon(label)
+			local pad = label:FindFirstChildOfClass("UIPadding")
+			if pad then pad.PaddingLeft = UDim.new(0, 0) end
+			label.PointIcon.Visible = true
+			placeTopIcon()
+		end
+		if view.Money then
+			view.Money:GetPropertyChangedSignal("TextBounds"):Connect(placeTopIcon)
+			view.Money:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeTopIcon)
+		end
 		local layout = cfg.TreeLayout
 		local startPos = layout.Start or { 0.5, 0.5 }
 		local canvasSize = CANVAS * (tonumber(cfg.TreeSpread) or 1.1)
@@ -1210,7 +1238,7 @@ if cfg.TreeStyle ~= false and cfg.TreeLayout then
 
 		local function refresh()
 			if not built then build() end
-			Points.Set(view.Money, state.Points)
+			setTopPoints(state.Points)
 			-- центр
 			local rootPerk = nodeInfo.Root.PerkId and PERK_BY_ID[nodeInfo.Root.PerkId]
 			if rootPerk then
