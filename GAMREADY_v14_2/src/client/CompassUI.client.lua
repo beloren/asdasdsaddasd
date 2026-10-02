@@ -43,16 +43,30 @@ end
 if buttonIcon and buttonIcon:FindFirstChild("Emoji") then buttonIcon.Emoji.Visible = buttonIcon.Image == "" end
 TutorialTarget.Mark(button, "Compass")
 
+-- v20.131: на ПК кнопка стоит ровно так, как в StarterGui (размер/место не
+-- трогаем). На телефоне - размером с кнопку MENU и прямо под ней.
+local pcSize, pcPos, pcAnchor = button.Size, button.Position, button.AnchorPoint
 local function placeButton()
-	if isPhone() then
-		button.Size = UDim2.fromOffset(46, 46)
-		button.Position = UDim2.new(0, 24, 0.5, 34)
-	else
-		button.Size = UDim2.fromOffset(58, 58)
-		button.Position = UDim2.new(0, 34, 0.5, 26)
+	if not isPhone() then
+		button.Size, button.Position, button.AnchorPoint = pcSize, pcPos, pcAnchor
+		return
 	end
+	local menuGui = playerGui:FindFirstChild("CollectionMenu")
+	local book = menuGui and menuGui:FindFirstChild("BookButton")
+	local side = 50
+	local bookX, bookBottom = 12, 25
+	if book and book.AbsoluteSize.X > 0 then
+		side = math.floor(math.max(book.AbsoluteSize.X, book.AbsoluteSize.Y))
+		bookX = book.Position.X.Offset
+		bookBottom = math.floor(book.AbsoluteSize.Y / 2)
+	end
+	button.AnchorPoint = Vector2.zero
+	button.Size = UDim2.fromOffset(side, side)
+	-- под книгой с запасом под подпись MENU
+	button.Position = UDim2.new(0, bookX, 0.5, bookBottom + 22)
 end
 placeButton()
+task.delay(1, placeButton) -- книга MENU могла ещё не получить телефонный масштаб
 
 local dimmer = gui:WaitForChild("Dimmer")
 local panel = gui:WaitForChild("Panel")

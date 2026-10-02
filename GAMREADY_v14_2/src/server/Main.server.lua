@@ -112,6 +112,7 @@ local ORDER = {
 	"SellMoleService", -- v20.108: крот-скупщик на зоне продажи (Config.SellMole)
 	"OreUnlockService", -- v20.109: руды шахты за покупку (Config.MineRework)
 	"CompassService", -- v20.110: компас-телепорт (Config.Compass)
+	"GamepassNpcService", -- v20.131: НПС магазина геймпассов на маркере (Config.GamepassNpc)
 	-- Торговец банка и биржа руды (см. Config.Merchant) — ПОСЛЕ WorldService
 	-- (ставится в зону банка в Start) и BankService (тот спрашивает у него
 	-- курс на каждой продаже, но только в рантайме).

@@ -75,6 +75,7 @@ UiRegistry.Entries = {
 	{ Name = "PlacementUi", Module = "UiBuilders.PlacementUi", MinVersion = 21, What = "подсказки установки" },
 	{ Name = "MoneyGainFx", Module = "UiBuilders.MoneyFxUi", MinVersion = 20, What = "«+$X» при начислении денег" },
 	{ Name = "RevealCards", Module = "UiBuilders.RevealCardsUi", MinVersion = 21, What = "карточки открытия жеод/сундуков" },
+	{ Name = "OreRandomReelUi", Module = "UiBuilders.OreRandomReelUi", MinVersion = 20, What = "лента рандом-бокса руды" },
 	{ Name = "MobBillboardTemplates", Module = "UiBuilders.MobBillboardsUi", MinVersion = 20, What = "таблички гоблинов и валунов" },
 	{ Name = "WorldUiTemplates", Module = "UiBuilders.WorldUi", MinVersion = 21, What = "шаблоны билбордов (мобы, валуны, промпты)" },
 }

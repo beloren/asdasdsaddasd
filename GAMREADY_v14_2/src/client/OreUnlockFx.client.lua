@@ -78,10 +78,12 @@ remote.OnClientEvent:Connect(function(action, payload)
 		local position = box and box:GetPivot().Position
 		if position then
 			local ore = Config.OreByKey[payload.Ore]
+			local isRandom = typeof(payload.Ore) == "string" and payload.Ore:match("^Random:") ~= nil
+			local woodColor = isRandom and ((Config.OreRandomBox or {}).Color or Color3.fromRGB(150, 70, 210)) or Color3.fromRGB(150, 98, 52)
 			for i = 1, 10 do
 				local chip = Instance.new("Part")
 				chip.Size = Vector3.new(0.3, 0.3, 0.3)
-				chip.Color = i % 3 == 0 and (ore and ore.Color or Color3.new(1, 1, 1)) or Color3.fromRGB(150, 98, 52)
+				chip.Color = i % 3 == 0 and (ore and ore.Color or Color3.new(1, 1, 1)) or woodColor
 				chip.Material = Enum.Material.SmoothPlastic
 				chip.TopSurface = Enum.SurfaceType.Studs
 				chip.CanCollide = false

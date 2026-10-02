@@ -46,6 +46,7 @@ template.Visible = false
 
 local open = false
 local typeToken = 0
+local MENU_SCALE = cfg.MenuScale or 0.85 -- v20.131: окно крота на 15% меньше
 
 local function close(silent)
 	if not open then return end
@@ -117,8 +118,8 @@ local function openMenu(payload)
 	gui.Enabled = true
 	open = true
 	if pop then
-		pop.Scale = 0.3
-		TweenService:Create(pop, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		pop.Scale = 0.3 * MENU_SCALE
+		TweenService:Create(pop, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = MENU_SCALE }):Play()
 	end
 	local count = tonumber(payload.Count) or 0
 	local capacity = tonumber(payload.Capacity) or -1

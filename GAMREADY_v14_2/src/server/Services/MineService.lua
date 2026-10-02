@@ -879,6 +879,8 @@ function MineService:_beginExpedition(player)
 	humanoid.WalkSpeed = 0
 	humanoid.JumpPower = 0
 	humanoid.AutoRotate = false
+	-- v20.131: кирку из рук - иначе клики по мини-игре махали ею у всех на виду
+	pcall(function() humanoid:UnequipTools() end)
 	setModelVisible(character, false)
 
 	-- 3) Камера СРАЗУ встаёт на верхнюю точку мини-игры. Залёта внутрь

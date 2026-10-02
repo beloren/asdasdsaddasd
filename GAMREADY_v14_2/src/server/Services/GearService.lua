@@ -290,14 +290,14 @@ function GearService:Equip(player, key)
 		return
 	end
 	if player:GetAttribute("OreBoxOpening") == true then return end -- v20.114: коробка открывается
-	if not key:match("^OreBox_") then player:SetAttribute("HeldOreBox", nil) end
+	if not (key:match("^OreBox_") or key:match("^OreRandom_")) then player:SetAttribute("HeldOreBox", nil) end
 	if player:GetAttribute("CarryingCart") then
 		Services.NotifyService:Show(player, "Put your cart down first!", { Icon = "Cart" })
 		return
 	end
 	-- v20.114: КОРОБКА С РУДОЙ (торговец, вкладка ORE) - над головой, как
 	-- зелье (рисует OreCarryPose по атрибуту HeldOreBox); клик - открыть.
-	if key:match("^OreBox_") then
+	if key:match("^OreBox_") or key:match("^OreRandom_") then
 		if player:GetAttribute("OreBoxOpening") == true then return end
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -310,7 +310,9 @@ function GearService:Equip(player, key)
 		player:SetAttribute("HeldCartPackage", nil)
 		player:SetAttribute("HeldPotion", nil)
 		player:SetAttribute("HeldGear", key)
-		player:SetAttribute("HeldOreBox", key:sub(#"OreBox_" + 1))
+		-- v20.131: рандом-бокс - "Random:<n>" (OreBoxModel/OreCarryPose понимают)
+		local randomIndex = key:match("^OreRandom_(%d+)$")
+		player:SetAttribute("HeldOreBox", randomIndex and ("Random:" .. randomIndex) or key:sub(#"OreBox_" + 1))
 		return
 	end
 
@@ -1156,7 +1158,7 @@ function GearService:Init(services)
 				self:_placeChest(player, b)
 			elseif Config.Potions and Config.Potions.Types[held] then
 				self:_drinkPotion(player, held)
-			elseif held:match("^OreBox_") and Services.OreUnlockService then
+			elseif (held:match("^OreBox_") or held:match("^OreRandom_")) and Services.OreUnlockService then
 				Services.OreUnlockService:BeginOpen(player, held) -- v20.114
 			elseif DropTables.EssenceMutation(held) then
 				-- v18: эссенцию наносят у подиума, а не кликом.

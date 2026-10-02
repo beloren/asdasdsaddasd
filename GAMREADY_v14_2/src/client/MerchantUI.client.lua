@@ -537,6 +537,8 @@ function Preview3D.Build(data)
 		return require(ReplicatedStorage.Shared.PlaceableFactory).BuildItem(data.PlaceableId)
 	elseif kind == "OreUnlock" and data.OreKey then
 		return require(ReplicatedStorage.Shared.OreBoxModel).Build(data.OreKey)
+	elseif kind == "OreRandomBox" and data.RandomGroup then
+		return require(ReplicatedStorage.Shared.OreBoxModel).BuildRandom(data.RandomGroup) -- v20.131
 	elseif kind == "Chest" and data.ChestRarity then
 		return require(ReplicatedStorage.Shared.PlaceableFactory).BuildChest(data.ChestRarity)
 	end

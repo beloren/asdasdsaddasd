@@ -1899,6 +1899,9 @@ function CombatService:_swing(player)
 	if player:GetAttribute("Ragdolled") == true then
 		return -- PvP v2: лежащий в рагдолле не бьёт
 	end
+	if player:GetAttribute("MineExpeditionActive") == true then
+		return -- v20.131: клики в мини-игре шахты - не удары киркой (без анимации и VFX)
+	end
 	if player:GetAttribute("HeldGear") and player:GetAttribute("HeldGear") ~= "" then
 		return -- v8: в руке динамит/сундук — киркой не машем
 	end
@@ -2009,6 +2012,7 @@ end
 -- v20.95: kind = "Boulder" — удар по валуну: случайная из двух вариаций
 -- BoulderSwingA/B (только они). Остальные взмахи — обычный Left/Right.
 function CombatService:PlaySwingVisual(player, kind)
+	if player:GetAttribute("MineExpeditionActive") == true then return end -- v20.131
 	local character = player.Character
 	local tracks = animTracks[player.UserId]
 	local track

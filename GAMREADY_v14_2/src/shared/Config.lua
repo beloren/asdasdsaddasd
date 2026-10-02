@@ -1952,6 +1952,8 @@ Config.MineRework = {
 	OpenShake = 0.35,          -- сила тряски экрана
 	OreBoxImages = {},         -- рисунок на коробке: { Coal = 1234567, ... }; нет - пиксельный самоцвет
 	OreBoxOreOnTop = false,    -- true - ещё и руда сверху на коробке (как раньше)
+	OreBoxPreviewYaw = 25,     -- v20.131: поворот коробки в превью магазина/инвентаря (градусы вокруг вертикали)
+	OreBoxPreviewPitch = 0,    -- v20.131: наклон вперёд/назад (если своя модель лежит на боку - поставь 90 или -90)
 	WipeVersion = 1,
 	StarterOres = { "Coal", "Copper" },
 	RarityWeights = { Common = 60, Uncommon = 28, Rare = 9, Epic = 2.5, Legendary = 0.5, Mythic = 0.2 },
@@ -1995,6 +1997,81 @@ function Config.OreShopPrice(oreKey)
 	if not ore then return math.huge end
 	local shop = Config.OreShop
 	return niceNumber(shop.PriceBase * shop.PriceGrowth ^ math.max(0, (ore.Index or 3) - 3))
+end
+
+-- v20.131: РАНДОМ-БОКСЫ РУДЫ. На каждые 3 покупные руды (по порядку
+-- Config.OreChain) в стоке вкладки ORE есть «коробка-сюрприз»: при открытии
+-- крутится лента из этих руд (все 4 вариации каждой), какая выпала - та и
+-- добавляется в шахту (как обычная коробка этой руды). Дешёвая руда выпадает
+-- чаще (шанс ~ 1/цена в степени ChancePower).
+Config.OreRandomBox = {
+	Enabled = true,
+	GroupSize = 3,              -- сколько руд в одной коробке
+	PriceMultiplier = 1,        -- цена = «справедливая» (матожидание по шансам) × это
+	ChancePower = 0.6,          -- 0 - все руды поровну, 1 - строго обратно цене
+	Chance = 0.6,               -- шанс, что коробка есть в стоке этого цикла
+	Stock = { 1, 2 },
+	Color = Color3.fromRGB(150, 70, 210),   -- цвет коробки
+	MarkColor = Color3.fromRGB(255, 225, 90), -- цвет знака «?»
+	Icon = "🎁",
+	ReelSeconds = 3.6,          -- прокрутка ленты
+	ReelCards = 22,             -- карточек в ленте
+	HoldSeconds = 1.6,          -- выпавшая руда висит в центре
+}
+
+function Config.OreRandomGroups()
+	if Config._oreRandomGroups then return Config._oreRandomGroups end
+	local groups, current = {}, {}
+	local size = (Config.OreRandomBox and Config.OreRandomBox.GroupSize) or 3
+	for _, ore in Config.OreChain do
+		if not Config.IsStarterOre(ore.Key) then
+			table.insert(current, ore.Key)
+			if #current >= size then
+				table.insert(groups, current)
+				current = {}
+			end
+		end
+	end
+	if #current >= 2 then table.insert(groups, current) end
+	Config._oreRandomGroups = groups
+	return groups
+end
+
+-- { [oreKey] = доля 0..1 } для коробки №index (only - только эти руды).
+function Config.OreRandomBoxChances(index, only)
+	local group = Config.OreRandomGroups()[index]
+	if not group then return {} end
+	local power = (Config.OreRandomBox and Config.OreRandomBox.ChancePower) or 0.6
+	local weights, total = {}, 0
+	for _, key in group do
+		if not only or only[key] then
+			local w = 1 / math.max(1, Config.OreShopPrice(key)) ^ power
+			weights[key] = w
+			total += w
+		end
+	end
+	for key, w in weights do weights[key] = w / math.max(total, 1e-12) end
+	return weights
+end
+
+function Config.OreRandomBoxPrice(index)
+	local chances = Config.OreRandomBoxChances(index)
+	local expected = 0
+	for key, p in chances do expected += p * Config.OreShopPrice(key) end
+	if expected <= 0 then return math.huge end
+	return niceNumber(expected * ((Config.OreRandomBox and Config.OreRandomBox.PriceMultiplier) or 1))
+end
+
+-- самая высокая редкость в коробке (цвет подписи/рамки)
+function Config.OreRandomBoxRarity(index)
+	local group = Config.OreRandomGroups()[index]
+	local best, bestRank = "Common", 0
+	for _, key in group or {} do
+		local rarity = Config.OreBaseRarity(key)
+		local rank = table.find(Config.RarityOrder or {}, rarity) or 0
+		if rank > bestRank then best, bestRank = rarity, rank end
+	end
+	return best
 end
 
 function Config.IsStarterOre(oreKey)
@@ -4159,6 +4236,25 @@ Config.Compass = {
 	CenterOffset = Vector3.new(0, 0, 18),
 }
 
+-- v20.131: чёрная обводка (Highlight) на каждом игроке
+Config.PlayerOutline = {
+	Enabled = true,
+	Color = Color3.fromRGB(0, 0, 0),
+	Transparency = 0,
+}
+
+-- v20.131: НПС МАГАЗИНА ГЕЙМПАССОВ (один на карту). Ставится маркером:
+-- деталь Workspace.GamepassNpcMarker (+ необязательная GamepassNpcMarkerLook -
+-- куда смотрит). Модель - ReplicatedStorage.Assets.GamepassNPC (нет - плейсхолдер).
+Config.GamepassNpc = {
+	Enabled = true,
+	MarkerName = "GamepassNpcMarker",
+	ModelName = "GamepassNPC",
+	Name = "Gamepass Shop",  -- подпись над НПС и в промпте
+	ActionText = "SHOP",
+	PromptDistance = 10,
+}
+
 -- v20.108: КРОТ-СКУПЩИК на зоне продажи. Зашёл в зону с рудой - перед
 -- тобой из земли (в пределах зоны) вылезает крот и спрашивает:
 -- SELL ALL (весь рюкзак, комбо за заполнение до x3) / SELL HAND (стопка в
@@ -4168,7 +4264,7 @@ Config.Compass = {
 Config.SellMole = {
 	Enabled = true,
 	ModelName = "SellMole",
-	Distance = 10.5,     -- насколько перед игроком вылезает (v20.121: +3.5 стада)
+	Distance = 15,       -- насколько перед игроком вылезает (v20.131: дальше от игрока)
 	EdgeMargin = 3,      -- отступ от края зоны
 	Scale = 1,           -- масштаб модели
 	RiseSeconds = 0.8,   -- v20.118: из-под земли глубже - вылезает чуть дольше
@@ -4180,6 +4276,7 @@ Config.SellMole = {
 	SellSeconds = 2.5,   -- вся продажа не дольше этого
 	DirtColor = Color3.fromRGB(110, 72, 40),
 	DirtCount = 10,
+	MenuScale = 0.85,    -- v20.131: размер окна диалога крота (1 = как у шахтёра)
 	CrystalDeposit = true, -- v20.121: кристалл в руках сдаётся кроту кнопкой (а не пропадает сам на входе в зону)
 	CrystalLine = "Ooh, a crystal! I'll keep it safe in the bank.",
 	Lines = {

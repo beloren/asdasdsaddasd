@@ -100,6 +100,11 @@ local function gearInfo(key)
 	if boxInfo then
 		return { Name = boxInfo.DisplayName .. " Box", Icon = "📦", Color = boxInfo.Color }
 	end
+	local randomIndex = tonumber(key:match("^OreRandom_(%d+)$")) -- v20.131: рандом-бокс
+	if randomIndex and Config.OreRandomGroups and Config.OreRandomGroups()[randomIndex] then
+		local randomCfg = Config.OreRandomBox or {}
+		return { Name = "Mystery Ore Box", Icon = randomCfg.Icon or "🎁", Color = randomCfg.Color or Color3.fromRGB(150, 70, 210) }
+	end
 	local placeable = PlaceableCatalog.Info(key)
 	if placeable then
 		return { Name = placeable.DisplayName, Icon = placeable.Icon, Color = placeable.TierColor or placeable.Color }
@@ -130,6 +135,8 @@ local function gearRarity(key)
 	if typeof(key) ~= "string" then return nil end
 	local boxOre = key:match("^OreBox_(.+)$")
 	if boxOre then return Config.OreBaseRarity(boxOre) end
+	local randomIndex = tonumber(key:match("^OreRandom_(%d+)$"))
+	if randomIndex and Config.OreRandomBoxRarity then return Config.OreRandomBoxRarity(randomIndex) end
 	local chest = key:match("^Chest_(%a+)$")
 	if chest then return chest end
 	local placeable = PlaceableCatalog.Info(key)
@@ -387,6 +394,8 @@ function GearModel.Build(key)
 	if relicId then return PlaceableFactory.BuildRelic(relicId) end
 	local boxOre = key:match("^OreBox_(.+)$")
 	if boxOre then return require(ReplicatedStorage.Shared.OreBoxModel).Build(boxOre) end
+	local randomIndex = key:match("^OreRandom_(%d+)$")
+	if randomIndex then return require(ReplicatedStorage.Shared.OreBoxModel).BuildRandom(tonumber(randomIndex)) end
 	local chest = key:match("^Chest_(.+)$")
 	if chest then return PlaceableFactory.BuildChest(chest) end
 	local potion = Config.Potions and Config.Potions.Types[key]

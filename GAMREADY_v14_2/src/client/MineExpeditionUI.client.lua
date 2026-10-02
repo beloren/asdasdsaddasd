@@ -1722,6 +1722,34 @@ end
 
 -- v20.130: экспедиция закончилась любым путём (ошибка, выход, смерть) -
 -- HUD гарантированно возвращается, даже если пакет «Done» не пришёл.
+-- v20.131: пока идёт мини-игра шахты, свой персонаж стоит (джойстик не
+-- выключается - см. MovementLock), инструмент в руку не берётся.
+local MovementLock = require(ReplicatedStorage.Shared.MovementLock)
+local function syncMineLock()
+	if player:GetAttribute("MineExpeditionActive") == true then
+		MovementLock.Lock("MineGame", 600)
+		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if humanoid then pcall(function() humanoid:UnequipTools() end) end
+	else
+		MovementLock.Unlock("MineGame")
+	end
+end
+syncMineLock()
+player:GetAttributeChangedSignal("MineExpeditionActive"):Connect(syncMineLock)
+local function hookMineCharacter(character)
+	-- кирку взяли в руку посреди мини-игры (хотбар) - убираем
+	character.ChildAdded:Connect(function(child)
+		if child:IsA("Tool") and player:GetAttribute("MineExpeditionActive") == true then
+			task.defer(function()
+				local humanoid = character:FindFirstChildOfClass("Humanoid")
+				if humanoid then pcall(function() humanoid:UnequipTools() end) end
+			end)
+		end
+	end)
+end
+if player.Character then hookMineCharacter(player.Character) end
+player.CharacterAdded:Connect(hookMineCharacter)
+
 player:GetAttributeChangedSignal("MineExpeditionActive"):Connect(function()
 	if player:GetAttribute("MineExpeditionActive") ~= true and cinematicMode then
 		task.delay(1.5, function()

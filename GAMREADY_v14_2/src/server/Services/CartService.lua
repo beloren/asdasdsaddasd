@@ -407,6 +407,12 @@ local function recomputeWalkSpeed(player)
 		humanoid.WalkSpeed = 0
 		return
 	end
+	-- v20.131: в мини-игре шахты игрок стоит (раньше любой пересчёт - бафф,
+	-- смена кирки, зелье - возвращал скорость, и невидимый игрок ходил)
+	if player:GetAttribute("MineExpeditionActive") == true then
+		humanoid.WalkSpeed = 0
+		return
+	end
 
 	local cfg = Config.Cart
 	local baseWithGamepass = cfg.BaseWalkSpeed

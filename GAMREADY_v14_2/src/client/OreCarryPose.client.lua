@@ -153,7 +153,13 @@ end
 -- открыть. Атрибут HeldOreBox = ключ руды.
 local function heldOreBox(plr)
 	local key = plr:GetAttribute("HeldOreBox")
-	if typeof(key) ~= "string" or key == "" or not Config.OreByKey[key] then return nil end
+	if typeof(key) ~= "string" or key == "" then return nil end
+	-- v20.131: рандом-бокс "Random:<n>"
+	local randomIndex = tonumber(key:match("^Random:(%d+)$"))
+	if randomIndex then
+		return (Config.OreRandomGroups and Config.OreRandomGroups()[randomIndex]) and key or nil
+	end
+	if not Config.OreByKey[key] then return nil end
 	return key
 end
 
@@ -322,7 +328,14 @@ local function buildOreBoxModel(plr, oreKey)
 		pcall(function() model:ScaleTo(model:GetScale() * MAX_ORE_SIZE / biggest) end)
 	end
 	local ore = Config.OreByKey[oreKey]
-	local rarity = Config.OreBaseRarity and Config.OreBaseRarity(oreKey) or ore.Rarity or "Common"
+	local randomIndex = tonumber(tostring(oreKey):match("^Random:(%d+)$"))
+	local rarity
+	if randomIndex then
+		rarity = Config.OreRandomBoxRarity(randomIndex)
+		ore = { DisplayName = "Mystery Ore" }
+	else
+		rarity = Config.OreBaseRarity and Config.OreBaseRarity(oreKey) or ore.Rarity or "Common"
+	end
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "HeldOreBox"
 	billboard.Size = UDim2.new(4.6, 0, 1.3, 0)

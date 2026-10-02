@@ -176,13 +176,14 @@ local function gearStacks(data)
 	for key, value in gear do
 		local count = math.max(0, math.floor(tonumber(value) or 0))
 		if count > 0 and typeof(key) == "string"
-			and (key:match("^Relic:") or key:match("^Totem_") or key:match("^Decor_") or key:match("^OreBox_"))
+			and (key:match("^Relic:") or key:match("^Totem_") or key:match("^Decor_") or key:match("^OreBox_") or key:match("^OreRandom_"))
 		then
 			table.insert(extra, { Uid = GEAR_PREFIX .. key, Gear = key, Count = count })
 		end
 	end
 	local function rank(key)
 		if key:match("^OreBox_") then return -10 end -- v20.109: коробки руды - первыми
+		if key:match("^OreRandom_") then return -9 end -- v20.131: рандом-боксы руды
 		if key:match("^Relic:") then return 0 end
 		if key:match("^Totem_Shrine_") then return 50 end -- v4: святилища — сразу после реликвий
 		if key:match("^Totem_") then return 100 - (tonumber(key:match("_T(%d+)$")) or 0) end

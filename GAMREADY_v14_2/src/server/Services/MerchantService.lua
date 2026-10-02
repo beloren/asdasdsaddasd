@@ -202,6 +202,23 @@ local function rollOffers(rng)
 				})
 			end
 		end
+		-- v20.131: рандом-бокс на каждые 3 руды (Config.OreRandomBox)
+		local randomCfg = Config.OreRandomBox
+		if randomCfg and randomCfg.Enabled ~= false then
+			for index, group in Config.OreRandomGroups() do
+				local rarity = Config.OreRandomBoxRarity(index)
+				local names = {}
+				for _, key in group do table.insert(names, Config.OreByKey[key].DisplayName) end
+				table.insert(offers, {
+					Id = "OreRandom_" .. index, Kind = "OreRandomBox", RandomGroup = index, Tab = "Ore",
+					Rarity = rarity, DisplayName = "Mystery Ore Box", Icon = randomCfg.Icon or "🎁",
+					Price = Config.OreRandomBoxPrice(index),
+					Chance = randomCfg.Chance or 0.6,
+					Stock = randomCfg.Stock or { 1, 1 },
+					OreNames = names,
+				})
+			end
+		end
 	end
 	-- v20.29: СУНДУК ЦИКЛА — верхняя выделенная карточка SHOP.
 	local featured = CFG.FeaturedChest
@@ -368,6 +385,11 @@ end
 
 -- Почему товар сейчас нельзя купить (кроме денег/стока) — или nil.
 local function lockReason(player, item)
+	if item.Kind == "OreRandomBox" and Services.OreUnlockService then
+		-- все руды коробки уже на максимуме - покупать незачем
+		if not next(Services.OreUnlockService:RandomCandidates(player, item.RandomGroup)) then return "MAX" end
+		return nil
+	end
 	if item.Kind == "OreUnlock" and Services.OreUnlockService then
 		-- v20.118: руду можно покупать снова (падает чаще) до MaxBuys
 		local unlock = Services.OreUnlockService
@@ -433,6 +455,14 @@ local function describe(item, player)
 		end
 		return (ore and ore.DisplayName or item.OreKey) .. " Ore", icon or "📦", nil,
 			("Unlocks %s in your mine. Worth $%s each!"):format(ore and ore.DisplayName or "it", ore and tostring(ore.CrystalValue) or "?")
+	elseif item.Kind == "OreRandomBox" then
+		local chances = Config.OreRandomBoxChances(item.RandomGroup)
+		local parts = {}
+		for _, key in Config.OreRandomGroups()[item.RandomGroup] or {} do
+			local ore = Config.OreByKey[key]
+			table.insert(parts, ("%s %d%%"):format(ore and ore.DisplayName or key, math.floor((chances[key] or 0) * 100 + 0.5)))
+		end
+		return "Mystery Ore Box", icon or "🎁", nil, "Random ore for your mine: " .. table.concat(parts, " / ")
 	elseif item.Kind == "Chest" then
 		local info = Config.Chests.Types[item.ChestRarity]
 		return name, icon, image, ("Place it on your base - %d rewards inside!"):format(info and info.Rolls or 2)
@@ -513,6 +543,7 @@ function MerchantService:BuildState(player)
 			PlaceableId = item.PlaceableId,
 			GeodeType = item.Kind == "Geode" and geodeTypeFor(player, item.GeodeOffset) or nil,
 			OreKey = item.OreKey, -- v20.109
+			RandomGroup = item.RandomGroup, -- v20.131
 		})
 	end
 	for _, offer in cycleOffers do
@@ -588,6 +619,9 @@ local function grant(player, item)
 	elseif item.Kind == "OreUnlock" then
 		-- v20.109: коробка ложится в снаряжение; открывается кликом
 		return Services.GearService:AddGear(player, "OreBox_" .. item.OreKey, 1) > 0
+	elseif item.Kind == "OreRandomBox" then
+		-- v20.131: рандом-бокс - тоже в снаряжение, открывается кликом
+		return Services.GearService:AddGear(player, "OreRandom_" .. tostring(item.RandomGroup), 1) > 0
 	end
 	return false
 end
@@ -698,7 +732,7 @@ function MerchantService:Buy(player, itemId)
 	if Services.QuestService and Services.QuestService.RecordMetric then
 		pcall(function() Services.QuestService:RecordMetric(player, "MerchantBuys", 1) end)
 	end
-	if item.Kind == "OreUnlock" and Services.TutorialService then
+	if (item.Kind == "OreUnlock" or item.Kind == "OreRandomBox") and Services.TutorialService then
 		pcall(Services.TutorialService.Count, Services.TutorialService, player, "OreBoxBought", 1) -- v20.110
 	end
 	local buyerRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")

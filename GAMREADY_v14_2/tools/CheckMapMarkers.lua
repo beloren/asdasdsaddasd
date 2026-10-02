@@ -136,6 +136,10 @@ local keeper = workspace:FindFirstChild("IslandKeeperMarker", true)
 if keeper and keeper:IsA("BasePart") then markPart(keeper) ok("Смотритель островов: IslandKeeperMarker есть") else print("[--]  Нет IslandKeeperMarker - смотритель островов встанет у банка") end
 local keeperLook = workspace:FindFirstChild("IslandKeeperMarkerLook", true)
 if keeperLook and keeperLook:IsA("BasePart") then markPart(keeperLook) end
+local gpMarker = workspace:FindFirstChild("GamepassNpcMarker", true)
+if gpMarker and gpMarker:IsA("BasePart") then markPart(gpMarker) ok("НПС геймпассов: GamepassNpcMarker есть") else print("[--]  Нет GamepassNpcMarker - НПС магазина геймпассов не появится") end
+local gpLook = workspace:FindFirstChild("GamepassNpcMarkerLook", true)
+if gpLook and gpLook:IsA("BasePart") then markPart(gpLook) end
 if workspace:FindFirstChild("LikeGoalBoard") then ok("Табло лайков: LikeGoalBoard есть") else print("[--]  Нет LikeGoalBoard - табло лайков встанет у точки спавна") end
 local spans = workspace:FindFirstChild("BridgeSpans", true)
 if spans then for _, p in spans:GetChildren() do markPart(p) end ok("Рамки под мосты: " .. #spans:GetChildren()) end
