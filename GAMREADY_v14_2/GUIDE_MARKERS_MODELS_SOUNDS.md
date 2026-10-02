@@ -131,7 +131,7 @@
 
 Оба дерева теперь **на весь экран**, как дерево престижа: в центре NPC, ветки расходятся во все стороны, поле таскается мышкой/пальцем, колесо и щипок - масштаб, карточка узла всплывает рядом, внизу CLOSE. Собираются `tools/BuildAllUI.lua` (он трогает только окна прокачки и престижа).
 
-**Experienced Miner** - `StarterGui/UpgradeTreeUi`, **Island Keeper** - `StarterGui/IslandTreeUi` (у обоих одинаковое устройство):
+**Experienced Miner** - `StarterGui/UpgradeTreeUi`, **Island Keeper** - `StarterGui/IslandTreeUi`, **престиж** - `StarterGui/PrestigeTreeUi` (у всех трёх одинаковое устройство; у престижа ещё `Tabs` → `PerksTab`, `ShrinesTab`, а `Money` показывает очки престижа):
 - `Templates/RootNode` - центральный узел (NPC)
 - `Templates/TierNode` - тир / остров / уровень печи (`Shape`, `Caption` - номер или значок, `Price`, `Name` над узлом)
 - `Templates/StarNode` - звезда-улучшение (`Shape` повёрнут на 45 = ромб, `Icon`, `Level`, `Name`)

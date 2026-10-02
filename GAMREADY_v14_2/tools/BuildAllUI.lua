@@ -26,7 +26,8 @@ local ONLY = {
 	"UpgradeShopUi",        -- Experienced Miner: окно ветки (DETAILS) поверх дерева
 	"IslandTreeUi",         -- Island Keeper: дерево островов на весь экран
 	"IslandUi",             -- Island Keeper: старое окно островов (запасное)
-	"PerkUi",               -- дерево престижа (сундук престижа)
+	"PrestigeTreeUi",       -- дерево престижа на весь экран (узлы, карточка, PERKS/SHRINES)
+	"PerkUi",               -- окно престижа: вкладка SHRINES (святилища)
 	"RebirthDialogButtons", -- окно престижа у Prestige Mayor
 }
 

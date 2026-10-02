@@ -213,6 +213,8 @@ local function infoOf(perkId)
 end
 
 local renderDetail
+-- v20.147: хуки нового дерева в стиле остальных деревьев (заполняются ниже)
+local treeStyle = {}
 
 --------------------------------------------------------------------------------
 -- v20.118: ПОЛНОЭКРАННОЕ ДЕРЕВО КАК НА РЕФЕРЕНСЕ (Config.Prestige.FullScreen):
@@ -941,6 +943,7 @@ local function applyState(payload)
 		renderTree()
 	end
 	renderDetail()
+	if treeStyle.Refresh then treeStyle.Refresh() end
 end
 
 -- v20.120: пока открыто окно престижа - камера мира стоит (колесо и
@@ -983,6 +986,13 @@ local function open()
 	end
 	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	openedAt = hrp and hrp.Position or nil
+	-- v20.147: перки - в новом полноэкранном дереве (PrestigeTreeUi)
+	if treeStyle.Open and mode ~= "Shrines" then
+		MovementLock.Unlock("Prestige")
+		treeStyle.Open()
+		UiSfx.play("UiMenuOpen")
+		return
+	end
 	gui.Enabled = true
 	-- v20.144: анимация открытия дерева (узлы по очереди)
 	if FULL and cfg.TreeLayout and mode ~= "Shrines" then
@@ -1004,6 +1014,7 @@ local function close()
 	isOpen = false
 	freezeCamera(false)
 	MovementLock.Unlock("Prestige")
+	if treeStyle.Close then treeStyle.Close() end
 	hideDetail()
 	UiSfx.play("UiMenuClose")
 	gui.Enabled = false
@@ -1013,7 +1024,7 @@ closeButton.Activated:Connect(close)
 -- v20.146: окно спрятал кто-то другой (экран загрузки, фокус) - честно
 -- закрываемся: иначе игрок стоял бы с замороженной камерой перед пустотой.
 gui:GetPropertyChangedSignal("Enabled"):Connect(function()
-	if isOpen and not gui.Enabled then close() end
+	if isOpen and not gui.Enabled and not (treeStyle.IsOpen and treeStyle.IsOpen()) then close() end
 end)
 if fullClose then fullClose.Activated:Connect(close) end
 
@@ -1099,6 +1110,12 @@ end)
 perksTab.Activated:Connect(function()
 	UiSfx.play("UiButtonClick")
 	setMode("Perks")
+	-- v20.147: перки живут в новом дереве - переключаемся туда
+	if treeStyle.Open and isOpen then
+		treeStyle.Open()
+		gui.Enabled = false
+		MovementLock.Unlock("Prestige")
+	end
 end)
 shrinesTab.Activated:Connect(function()
 	UiSfx.play("UiButtonClick")
@@ -1122,6 +1139,198 @@ tree:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 	if isOpen and mode ~= "Shrines" and cfg.TreeLayout then renderTree() end
 end)
 
+
+--------------------------------------------------------------------------------
+-- v20.147: ДЕРЕВО ПРЕСТИЖА В СТИЛЕ ОСТАЛЬНЫХ ДЕРЕВЬЕВ (Experienced Miner,
+-- Island Keeper): StarterGui/PrestigeTreeUi (билдер UiBuilders/SkillTreeUi)
+-- + Shared.SkillTreeView - те же узлы, рамки, цифры, карточка, анимации
+-- появления. Узлы стоят по Config.Prestige.TreeLayout (доли полотна
+-- TreeCanvas, центр - Start). Вкладка SHRINES открывает прежнее окно
+-- святилищ. Config.Prestige.TreeStyle = false вернёт старое дерево.
+--------------------------------------------------------------------------------
+if cfg.TreeStyle ~= false and cfg.TreeLayout then
+	local SkillTreeView = require(ReplicatedStorage.Shared.SkillTreeView)
+	local TutorialTarget = require(ReplicatedStorage.Shared.TutorialTarget)
+	local treeGui = require(ReplicatedStorage.Shared.UiRegistry).Get("PrestigeTreeUi")
+	if treeGui then
+		treeGui.ResetOnSpawn = false
+		treeGui.Enabled = false
+		local view = SkillTreeView.new(treeGui, { LockName = "PrestigeTree", OnClose = function() close() end })
+		if view.Money then view.Money.TextXAlignment = Enum.TextXAlignment.Left end -- очки: иконка слева, число рядом
+		local layout = cfg.TreeLayout
+		local startPos = layout.Start or { 0.5, 0.5 }
+		local canvasSize = CANVAS * (tonumber(cfg.TreeSpread) or 1.1)
+		local ROOT_ID = (ROOT_PERK and PERK_BY_ID[ROOT_PERK]) and ROOT_PERK or "__Start"
+		local nodeInfo = {}
+		local links = {}
+		local built = false
+		local function toPx(pos)
+			return Vector2.new((pos[1] - startPos[1]) * canvasSize.X, (pos[2] - startPos[2]) * canvasSize.Y)
+		end
+
+		local showCard
+		local function onClick(id)
+			UiSfx.play("UiButtonClick")
+			selected = id
+			showCard(id)
+		end
+
+		local function build()
+			view:Clear()
+			table.clear(nodeInfo)
+			table.clear(links)
+			view:Node("Root", "Root", Vector2.zero, onClick)
+			nodeInfo.Root = { Root = true, PerkId = ROOT_ID ~= "__Start" and ROOT_ID or nil }
+			for _, branch in cfg.Branches or {} do
+				local prevId, prevPos = "Root", Vector2.zero
+				for _, perkId in branch.Perks do
+					local perk = PERK_BY_ID[perkId]
+					local pos = layout[perkId]
+					if perk and pos then
+						local px = toPx(pos)
+						table.insert(links, { Line = view:Link(prevPos, px, COLOR_LOCKED, nil, prevId, perkId), From = prevId, Branch = branch })
+						view:Node(perkId, "Star", px, onClick)
+						nodeInfo[perkId] = { PerkId = perkId, Branch = branch }
+						prevId, prevPos = perkId, px
+					end
+				end
+			end
+			-- метки обучения (как в старом дереве)
+			for id in nodeInfo do
+				local node = view.Nodes[id]
+				if node then TutorialTarget.Mark(node.Holder, "PerkNode:" .. (id == "Root" and (ROOT_PERK or "__Start") or id)) end
+			end
+			built = true
+		end
+
+		local function levelText(info, perk)
+			if info.Level >= perk.MaxLevel then return '<font color="#9CFFB4">MAX</font>' end
+			return ("%d/%d"):format(info.Level, perk.MaxLevel)
+		end
+
+		local function refresh()
+			if not built then build() end
+			Points.Set(view.Money, state.Points)
+			-- центр
+			local rootPerk = nodeInfo.Root.PerkId and PERK_BY_ID[nodeInfo.Root.PerkId]
+			if rootPerk then
+				local info = infoOf(rootPerk.Id)
+				local maxed = info.Level >= rootPerk.MaxLevel
+				view:Paint("Root", {
+					Color = maxed and Color3.fromRGB(190, 120, 255) or Color3.fromRGB(150, 90, 230),
+					Icon = rootPerk.Icon or "⛏", Name = tr(rootPerk.Title),
+					Level = maxed and "" or levelText(info, rootPerk),
+					Pulse = not maxed and state.Points >= (info.Cost or math.huge),
+				})
+			else
+				view:Paint("Root", { Color = Color3.fromRGB(150, 90, 230), Icon = "✦", Name = tr("START"), Level = "" })
+			end
+			for id, entry in nodeInfo do
+				if not entry.Root then
+					local perk = PERK_BY_ID[id]
+					local info = infoOf(id)
+					local maxed = info.Level >= perk.MaxLevel
+					local color = entry.Branch.Color
+					view:Paint(id, {
+						Color = maxed and color or (info.Level > 0 and color:Lerp(COLOR_STAR, 0.35) or color:Lerp(COLOR_INK, 0.55)),
+						Icon = perk.Icon or "★",
+						Name = tr(perk.Title),
+						Level = levelText(info, perk),
+						Pulse = not info.Locked and not maxed and state.Points >= (info.Cost or math.huge),
+						-- закрытые узлы не видны, пока не куплен предыдущий
+						Hidden = info.Locked == true and cfg.HideLocked ~= false,
+						Late = info.Level == 0,
+					})
+				end
+			end
+			for _, link in links do
+				local fromPerk = link.From == "Root" and nodeInfo.Root.PerkId or link.From
+				local done = fromPerk == nil or infoOf(fromPerk).Level > 0
+				link.Line.BackgroundColor3 = done and link.Branch.Color or COLOR_LOCKED
+			end
+			local shown = view:CardShownFor()
+			if shown then showCard(shown) end
+		end
+
+		showCard = function(id)
+			local entry = nodeInfo[id]
+			if not entry then return end
+			local buyButton = view.Card:FindFirstChild("Buy")
+			TutorialTarget.Mark(buyButton, "PerkUpgrade")
+			local perkId = entry.PerkId
+			local perk = perkId and PERK_BY_ID[perkId]
+			if not perk then
+				view:ShowCard(id, {
+					Title = "✦ " .. tr("Start"),
+					Level = "",
+					Text = tr(cfg.StartText or "Your journey begins here."),
+				})
+				return
+			end
+			selected = perkId
+			local info = infoOf(perkId)
+			local maxed = info.Level >= perk.MaxLevel
+			local text
+			if maxed then
+				text = effectText(perk, info.Level)
+			else
+				text = (info.Level > 0 and (effectText(perk, info.Level) .. "\n") or "")
+					.. '<font color="#6CFF7E">' .. tr("Next") .. ": " .. effectText(perk, info.Level + 1) .. "</font>"
+			end
+			local card = {
+				Title = (perk.Icon or "") .. " " .. tr(perk.Title),
+				Level = "LV " .. info.Level .. "/" .. perk.MaxLevel,
+				Text = text,
+			}
+			if maxed then
+				card.Buy = { Text = "MAX", Variant = "Dark" }
+			elseif info.Locked then
+				local required = info.Requires and PERK_BY_ID[info.Requires]
+				card.Buy = { Text = "🔒 " .. tr("Needs {p}", { p = required and tr(required.Title) or "?" }), Variant = "Dark" }
+			else
+				local affordable = state.Points >= (info.Cost or math.huge)
+				card.Buy = {
+					Text = tr("UPGRADE") .. "  " .. tostring(info.Cost or 0) .. " " .. tr("PTS"),
+					Variant = affordable and "Green" or "Red",
+					OnClick = function()
+						UiSfx.play("UiButtonClick")
+						remote:FireServer("Buy", perkId)
+					end,
+				}
+			end
+			view:ShowCard(id, card)
+		end
+
+		local tabs = treeGui:FindFirstChild("Tabs")
+		local shrinesTabNew = tabs and tabs:FindFirstChild("ShrinesTab")
+		if shrinesTabNew then
+			shrinesTabNew.Activated:Connect(function()
+				UiSfx.play("UiButtonClick")
+				-- святилища - в прежнем окне
+				setMode("Shrines")
+				gui.Enabled = true
+				MovementLock.Lock("Prestige", 600, gui)
+				view:Close()
+			end)
+		end
+
+		treeStyle.Open = function()
+			refresh()
+			view:Open()
+		end
+		treeStyle.Close = function() view:Close() end
+		treeStyle.IsOpen = function() return view:IsOpen() end
+		treeStyle.Refresh = function() if built or view:IsOpen() then refresh() end end
+		treeStyle.Message = function(text)
+			local level = view.Card:FindFirstChild("Level")
+			if level then level.Text = '<font color="#FF6A6A">' .. text .. "</font>" end
+		end
+		RunService.Heartbeat:Connect(function()
+			if view:IsOpen() then view:Step(os.clock()) end
+		end)
+	end
+end
+
 remote.OnClientEvent:Connect(function(command, payload)
 	if command == "Open" then
 		applyState(payload)
@@ -1136,6 +1345,8 @@ remote.OnClientEvent:Connect(function(command, payload)
 			-- святилище легло в инвентарь (вкладка TOTEMS)
 		elseif payload.Ok then
 			task.defer(bounceNode, payload.PerkId)
+		elseif payload.Reason and isOpen and treeStyle.Message and treeStyle.IsOpen() then
+			treeStyle.Message(tr(payload.Reason))
 		elseif payload.Reason and isOpen then
 			local hint = detail.Hint
 			hint.Visible = true

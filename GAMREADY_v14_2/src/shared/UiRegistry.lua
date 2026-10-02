@@ -60,6 +60,7 @@ UiRegistry.Entries = {
 	{ Name = "IslandUi", Module = "UiBuilders.IslandUi", MinVersion = 23, What = "острова и путешествия" },
 	{ Name = "UpgradeTreeUi", Module = "UiBuilders.SkillTreeUi", Fn = "BuildUpgrade", MinVersion = 20, What = "дерево прокачки Experienced Miner (на весь экран)" },
 	{ Name = "IslandTreeUi", Module = "UiBuilders.SkillTreeUi", Fn = "BuildIsland", MinVersion = 20, What = "дерево островов Island Keeper (на весь экран)" },
+	{ Name = "PrestigeTreeUi", Module = "UiBuilders.SkillTreeUi", Fn = "BuildPrestige", MinVersion = 20, What = "дерево престижа (на весь экран, как остальные деревья)" },
 	{ Name = "GearUi", Module = "GearUiBuilder", MinVersion = 22, What = "снаряжение, лут сундуков" },
 	{ Name = "OfferUi", Module = "OfferUiBuilder", MinVersion = 21, What = "предложения" },
 	{ Name = "GroupRewardUi", Module = "SocialRewardCard", Fn = "BuildGroup", MinVersion = 20, What = "награда за группу" },

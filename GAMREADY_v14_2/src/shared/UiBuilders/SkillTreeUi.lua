@@ -5,6 +5,8 @@
 -- щипок - масштаб, карточка узла всплывает рядом, внизу большая CLOSE.
 --   StarterGui/UpgradeTreeUi - Experienced Miner (тиры, звёзды-улучшения)
 --   StarterGui/IslandTreeUi  - Island Keeper (острова, печь, перки островов)
+--   StarterGui/PrestigeTreeUi - дерево престижа (+ Frame "Tabs" → PerksTab,
+--                               ShrinesTab; "Money" показывает очки престижа)
 -- Логика: CustomCartUI.client.lua / IslandUI.client.lua через
 -- Shared.SkillTreeView.
 --
@@ -35,7 +37,7 @@ local Theme = UiKit.Theme
 local Builder = {}
 Builder.VERSION = 20
 
-local function build(name, title, accentColor)
+local function build(name, title, accentColor, withTabs)
 	local gui = UiKit.Screen(name, { DisplayOrder = 29, Enabled = false })
 	gui:SetAttribute("UiKitVersion", Builder.VERSION)
 	gui.IgnoreGuiInset = true
@@ -99,6 +101,19 @@ local function build(name, title, accentColor)
 		ZIndex = card.ZIndex + 2,
 	})
 
+	if withTabs then
+		local tabs = Instance.new("Frame")
+		tabs.Name = "Tabs"
+		tabs.BackgroundTransparency = 1
+		tabs.AnchorPoint = Vector2.new(0.5, 0)
+		tabs.Position = UDim2.new(0.5, 0, 0, 70)
+		tabs.Size = UDim2.fromOffset(340, 50)
+		tabs.ZIndex = 10
+		tabs.Parent = gui
+		UiKit.Button(tabs, "PerksTab", "PERKS", "Yellow", { Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(164, 50), ZIndex = 11 })
+		UiKit.Button(tabs, "ShrinesTab", "🗿 SHRINES", "Dark", { Position = UDim2.fromOffset(176, 0), Size = UDim2.fromOffset(164, 50), ZIndex = 11 })
+	end
+
 	UiKit.Button(gui, "BigClose", "CLOSE", "Red", {
 		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -18), Size = UDim2.fromOffset(240, 62), ZIndex = 25,
 	})
@@ -127,6 +142,10 @@ end
 
 function Builder.BuildIsland()
 	return build("IslandTreeUi", "ISLANDS", Color3.fromRGB(120, 220, 255))
+end
+
+function Builder.BuildPrestige()
+	return build("PrestigeTreeUi", "PRESTIGE", Color3.fromRGB(255, 150, 215), true)
 end
 
 Builder.Build = Builder.BuildUpgrade

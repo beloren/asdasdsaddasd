@@ -25,7 +25,7 @@ for _, name in UI.FocusGuis or {
 	"MerchantUi", "GeodeUi", "DropPreviewUi", "DecorStorageUi", "CartInventoryUi", "IslandUi", "GearUi",
 	"OfferUi", "ReturnScreenUi", "StarterPackOffer", "GroupRewardUi", "LikeRewardUi", "SatchelInventory",
 	"CompassUi", -- v20.122: карта мира тоже прячет весь остальной интерфейс
-	"UpgradeTreeUi", "IslandTreeUi", -- v20.143: полноэкранные деревья прокачки
+	"UpgradeTreeUi", "IslandTreeUi", "PrestigeTreeUi", -- v20.143: полноэкранные деревья прокачки
 } do FULLSCREEN[name] = true end
 
 local HIDE = {}
