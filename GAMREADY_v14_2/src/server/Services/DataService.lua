@@ -1291,6 +1291,12 @@ function DataService:RedeemCode(player, code)
 	if reward.Chest and Services and Services.GearService then
 		pcall(Services.GearService.GrantChest, Services.GearService, player, reward.Chest, 1)
 	end
+	-- v20.139: код-бафф (WELCOME - x2 деньги на 10 минут)
+	if reward.Buff and Services and Services.BuffService then
+		local buffInfo = Config.Buffs and Config.Buffs[reward.Buff]
+		pcall(Services.BuffService.Grant, Services.BuffService, player, reward.Buff,
+			reward.BuffAmount or (buffInfo and buffInfo.Amount) or 1, reward.Seconds or 600, "Code")
+	end
 	return "Ok", reward.Money or 0
 end
 

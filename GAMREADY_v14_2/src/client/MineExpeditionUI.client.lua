@@ -1763,6 +1763,69 @@ player:GetAttributeChangedSignal("MineExpeditionActive"):Connect(function()
 	end
 end)
 
+-- v20.139: SKIP КАТСЦЕНЫ ЛЕНТЫ/ВЫБРОСА РУДЫ - надпись справа снизу, клик
+-- (или тап) - сервер разом доигрывает выброс и завершает заход.
+local skipRemote = ReplicatedStorage.Shared:WaitForChild("MineCutsceneSkip", 10)
+local skipGui = Instance.new("ScreenGui")
+skipGui.Name = "MineSkipUi"
+skipGui.ResetOnSpawn = false
+skipGui.IgnoreGuiInset = true
+skipGui.DisplayOrder = 150
+skipGui:SetAttribute("CinematicKeep", true)
+skipGui.Enabled = false
+skipGui.Parent = playerGui
+local skipButton = Instance.new("TextButton")
+skipButton.Name = "Skip"
+skipButton.AnchorPoint = Vector2.new(1, 1)
+skipButton.Position = UDim2.new(1, -28, 1, -28)
+skipButton.Size = UDim2.fromOffset(150, 44)
+skipButton.BackgroundTransparency = 1
+skipButton.Text = "SKIP ▶"
+skipButton.TextScaled = true
+skipButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+skipButton.AutoButtonColor = false
+require(ReplicatedStorage.Shared.UiKit).StyleText(skipButton, "Heading")
+skipButton.Parent = skipGui
+local skipPulse = Instance.new("UIScale")
+skipPulse.Parent = skipButton
+local skipShownAt = 0
+local function showSkip(on)
+	if on and not skipGui.Enabled then
+		skipShownAt = os.clock()
+		skipGui.Enabled = true
+		skipButton.TextTransparency = 1
+		TweenService:Create(skipButton, TweenInfo.new(0.3), { TextTransparency = 0.15 }):Play()
+	elseif not on then
+		skipGui.Enabled = false
+	end
+end
+skipButton.MouseEnter:Connect(function() skipButton.TextTransparency = 0 end)
+skipButton.MouseLeave:Connect(function() skipButton.TextTransparency = 0.15 end)
+skipButton.Activated:Connect(function()
+	if os.clock() - skipShownAt < 0.3 then return end -- случайный двойной тап
+	UiSfx.play("UiButtonClick")
+	showSkip(false)
+	if skipRemote then skipRemote:FireServer() end
+	-- лента/карточка редкости - убрать сразу
+	if activeCard then
+		pcall(function() activeCard:Destroy() end)
+		activeCard = nil
+	end
+end)
+RunService.RenderStepped:Connect(function()
+	if skipGui.Enabled then skipPulse.Scale = 1 + 0.04 * math.sin(os.clock() * 4) end
+end)
+player:GetAttributeChangedSignal("MineExpeditionActive"):Connect(function()
+	if player:GetAttribute("MineExpeditionActive") ~= true then showSkip(false) end
+end)
+stateRemote.OnClientEvent:Connect(function(stage)
+	if stage == "RarityCard" or stage == "Eject" then
+		showSkip(true)
+	elseif stage == "WalkOut" or stage == "Done" or stage == "Cancelled" then
+		showSkip(false)
+	end
+end)
+
 stateRemote.OnClientEvent:Connect(function(stage, data)
 	data = data or {}
 	if stage == "WalkIn" then

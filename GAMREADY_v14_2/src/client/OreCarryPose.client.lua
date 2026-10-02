@@ -142,10 +142,18 @@ end
 -- ЗЕЛЬЕ (Config.Potions) держится ровно как руда и коробка тележки —
 -- над головой поднятыми руками. Сервер (GearService:Equip) ставит на игрока
 -- атрибут HeldPotion = ключ зелья.
+local function essenceInfo(key)
+	-- v20.139: эссенция мутации ("Essence_<Мутация>") - тоже над головой
+	local id = typeof(key) == "string" and key:match("^Essence_(%a+)$")
+	local mutation = id and Config.Mutations and Config.Mutations[id]
+	if not mutation then return nil end
+	return { DisplayName = (mutation.DisplayName or id) .. " Essence", Color = mutation.Color, Icon = "🧪", Essence = true }
+end
+
 local function heldPotion(plr)
 	local key = plr:GetAttribute("HeldPotion")
 	if not key or key == "" then return nil end
-	if not (Config.Potions and Config.Potions.Types[key]) then return nil end
+	if not (Config.Potions and Config.Potions.Types[key]) and not essenceInfo(key) then return nil end
 	return key
 end
 
@@ -258,10 +266,13 @@ end
 -- (PlaceholderFactory.PotionModel / CharmModel, общие с превью в инвентаре).
 -- Корень (корпус / рамка) - опора для позы рук.
 local function buildPotionModel(plr, key)
-	local info = Config.Potions.Types[key]
+	local info = (Config.Potions and Config.Potions.Types[key]) or essenceInfo(key)
 	local color = info.Color or Color3.fromRGB(200, 120, 255)
 	local model, root, liquid
-	if info.Charm then
+	if info.Essence then
+		model, root = PlaceholderFactory.EssenceModel(key, color)
+		liquid = root
+	elseif info.Charm then
 		model, root = PlaceholderFactory.CharmModel(key, color)
 		liquid = model:FindFirstChild("Gem") or root
 	else

@@ -624,6 +624,17 @@ function MineService:Init(services)
 	arcHitRemote.Name = "MineArcHit"
 	arcHitRemote.Parent = ReplicatedStorage.Shared
 
+	-- v20.139: SKIP катсцены ленты/выброса руды (кнопка справа снизу)
+	local skipRemote = Instance.new("RemoteEvent")
+	skipRemote.Name = "MineCutsceneSkip"
+	skipRemote.Parent = ReplicatedStorage.Shared
+	skipRemote.OnServerEvent:Connect(function(player)
+		local expedition = expeditions[player]
+		if expedition and expedition.CutscenePhase then
+			expedition.SkipRequested = true
+		end
+	end)
+
 	groundOreFolder = workspace:FindFirstChild("MineGroundOre")
 	if not groundOreFolder then
 		groundOreFolder = Instance.new("Folder")
@@ -1950,7 +1961,18 @@ end
 -- мини-игры подменяется вход (Config.AverageRarityForTier с учётом удачи).
 -- Клиент рисует пролёт (MineExpeditionUI → RarityCard), сервер просто ждёт,
 -- пока он доиграет, и только потом начинает вылет руды.
+-- v20.139: ожидание, которое прерывается кнопкой SKIP. true - скипнули.
+local function skippableWait(expedition, seconds)
+	local waited = 0
+	while waited < seconds do
+		if expedition.SkipRequested then return true end
+		waited += task.wait(math.min(0.05, seconds - waited))
+	end
+	return expedition.SkipRequested == true
+end
+
 function MineService:_showRarityCard(player, expedition)
+	expedition.CutscenePhase = true
 	local card = Config.MineExpedition.RarityCard or {}
 	local rarity = Config.AverageRarityForTier(expedition.Tier, expedition.LuckBonus)
 	local reel = Config.MineExpedition.RarityReel
@@ -1989,11 +2011,11 @@ function MineService:_showRarityCard(player, expedition)
 	local extra = (card.Effects and card.Effects[rarity] and card.Effects[rarity].HoldExtra) or 0
 	if reelSeconds > 0 and reel.Mode ~= "2D" then
 		-- v20.118: 3D-лента = вылет карточки (прокрутка + доводка 0.45 с)
-		task.wait((reel.Seconds or 3.4) + 0.45 + (card.HoldSeconds or 0.42) + extra + (card.OutSeconds or 0.3) + 0.05)
+		skippableWait(expedition, (reel.Seconds or 3.4) + 0.45 + (card.HoldSeconds or 0.42) + extra + (card.OutSeconds or 0.3) + 0.05)
 		return
 	end
-	task.wait(reelSeconds)
-	task.wait((card.InSeconds or 0.34) + (card.HoldSeconds or 0.42) + extra + (card.OutSeconds or 0.3) + 0.05)
+	skippableWait(expedition, reelSeconds)
+	skippableWait(expedition, (card.InSeconds or 0.34) + (card.HoldSeconds or 0.42) + extra + (card.OutSeconds or 0.3) + 0.05)
 end
 
 --------------------------------------------------------------------------------
@@ -3217,7 +3239,9 @@ function MineService:_ejectOre(player, expedition)
 			return x.OreInfo.Index < y.OreInfo.Index
 		end)
 		task.spawn(function()
-			task.wait((cfg.MineBurstSeconds or 0.45) + 0.1)
+			-- v20.139: SKIP - все ожидания обрываются, оставшаяся руда вылетает
+			-- разом, раскрывается без «моментов», заход завершается
+			skippableWait(expedition, (cfg.MineBurstSeconds or 0.45) + 0.1)
 			local released = {}
 			for _, entry in quick do
 				if expeditions[player] ~= expedition then
@@ -3226,29 +3250,44 @@ function MineService:_ejectOre(player, expedition)
 				end
 				local piece = ejectPiece(entry)
 				if piece then table.insert(released, piece) end
-				task.wait(cfg.QuickStaggerSeconds or 0.12)
+				skippableWait(expedition, cfg.QuickStaggerSeconds or 0.12)
 			end
 			if #released > 0 then
-				task.wait(cfg.EjectFlightSeconds + 0.25)
+				skippableWait(expedition, cfg.EjectFlightSeconds + 0.25)
 				for _, piece in released do
 					revealPiece(piece)
-					task.wait(0.04)
+					if not expedition.SkipRequested then task.wait(0.04) end
 				end
 			end
+			local skippedDrama = {}
 			for _, entry in drama do
 				if expeditions[player] ~= expedition then
 					if entry.Crystal and entry.Crystal.Parent then entry.Crystal:Destroy() end
 					continue
 				end
-				task.wait(cfg.DramaPauseSeconds or 0.9)
+				skippableWait(expedition, cfg.DramaPauseSeconds or 0.9)
 				local piece = ejectPiece(entry)
-				task.wait(cfg.EjectFlightSeconds + 0.35)
-				if piece then
-					revealPiece(piece)
-					pcall(self._dramaReveal, self, player, piece.Crystal)
+				if expedition.SkipRequested then
+					table.insert(skippedDrama, piece)
+				else
+					skippableWait(expedition, cfg.EjectFlightSeconds + 0.35)
+					if piece then
+						revealPiece(piece)
+						if not expedition.SkipRequested then
+							pcall(self._dramaReveal, self, player, piece.Crystal)
+						end
+					end
 				end
 			end
-			task.wait(cfg.RevealTweenSeconds + 0.9)
+			if #skippedDrama > 0 then
+				task.wait(cfg.EjectFlightSeconds + 0.1)
+				for _, piece in skippedDrama do revealPiece(piece) end
+			end
+			if expedition.SkipRequested then
+				task.wait(0.4)
+			else
+				skippableWait(expedition, cfg.RevealTweenSeconds + 0.9)
+			end
 			if expeditions[player] == expedition then
 				self:_finishExpedition(player, expedition)
 			end

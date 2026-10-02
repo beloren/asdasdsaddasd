@@ -582,7 +582,12 @@ local function renderVault()
 		if backgroundImage ~= "" then slotBackground.Image = backgroundImage end
 		slotBackground.ImageColor3 = rarityColor
 		slotBackground.BackgroundColor3 = rarityColor
-		slotBackground.BackgroundTransparency = slotBackground.Image == "" and 0 or 1
+		-- v20.139: у жеод и кристаллов нет цветного круга сзади
+		slotBackground.BackgroundTransparency = 1
+		slotBackground.ImageTransparency = 1
+		for _, child in slotBackground:GetChildren() do
+			if child:IsA("UIStroke") then child.Enabled = false end
+		end
 		local icon = card:FindFirstChild("Icon", true)
 		local configuredImage = imageUri(Config.Geodes.Images[geodeType])
 		card:FindFirstChild("Name").Text = geodeInfo.DisplayName:upper()
@@ -658,7 +663,12 @@ if buyOpenButton and buyGeodesPanel and buyGeodesGrid and buyGeodeTemplate then
 				if backgroundImage ~= "" then slotBackground.Image = backgroundImage end
 				slotBackground.ImageColor3 = rarityColor
 				slotBackground.BackgroundColor3 = rarityColor
-				slotBackground.BackgroundTransparency = slotBackground.Image == "" and 0 or 1
+				-- v20.139: у жеод и кристаллов нет цветного круга сзади
+				slotBackground.BackgroundTransparency = 1
+				slotBackground.ImageTransparency = 1
+				for _, child in slotBackground:GetChildren() do
+					if child:IsA("UIStroke") then child.Enabled = false end
+				end
 				-- Тут показываем иконку самого Developer Product'а (ту, что
 				-- задаётся в Creator Dashboard) — а не декоративную картинку
 				-- жеоды. Пока иконка не подгрузилась (или продукт ещё не

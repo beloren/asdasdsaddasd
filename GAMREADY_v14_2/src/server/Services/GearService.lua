@@ -357,7 +357,8 @@ function GearService:Equip(player, key)
 		end
 		clearHeldVisual(player)
 		player:SetAttribute("HeldCartPackage", nil)
-		player:SetAttribute("HeldPotion", nil)
+		-- v20.139: эссенция парит над головой, как зелье (рисует OreCarryPose)
+		player:SetAttribute("HeldPotion", key)
 		player:SetAttribute("HeldGear", key)
 		if Services.PassiveIncomeService and Services.PassiveIncomeService.RefreshEssencePrompt then
 			pcall(Services.PassiveIncomeService.RefreshEssencePrompt, Services.PassiveIncomeService, player)

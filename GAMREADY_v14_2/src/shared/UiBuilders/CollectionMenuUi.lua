@@ -17,6 +17,7 @@ local CollectionBookUiBuilder = require(Shared.CollectionBookUiBuilder)
 local Theme = UiKit.Theme
 
 local Builder = {}
+Builder.VERSION = 30 -- v20.139: пункт CODES
 
 Builder.ITEMS = {
 	{ Key = "Inventory", Label = "INVENTORY", Icon = "Inventory", Emoji = "🎒", Accent = "Peach" },
@@ -24,11 +25,13 @@ Builder.ITEMS = {
 	{ Key = "Shop", Label = "SHOP", Icon = "Shop", Emoji = "🛒", Accent = "Purple" },
 	{ Key = "Skins", Label = "SKINS", Icon = "Skins", Emoji = "🎨", Accent = "Pink" },
 	{ Key = "Settings", Label = "SETTINGS", Icon = "Settings", Emoji = "⚙", Accent = "Teal" },
+	{ Key = "Codes", Label = "CODES", Icon = "Gift", Emoji = "🎟", Accent = "Blue" }, -- v20.139: промокоды
 	{ Key = "Mutations", Label = "MUTATIONS", Icon = "Book", Emoji = "📖", Accent = "Green" },
 }
 
 function Builder.Build()
 	local gui = UiKit.Screen("CollectionMenu", { DisplayOrder = 95 })
+	gui:SetAttribute("UiKitVersion", math.max(UiKit.VERSION, Builder.VERSION))
 	pcall(function()
 		gui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
 		gui.ClipToDeviceSafeArea = true
@@ -47,7 +50,7 @@ function Builder.Build()
 	local submenu, parts = UiKit.Window(gui, "Submenu", {
 		Title = "Menu",
 		Accent = "Blue",
-		Size = UDim2.fromOffset(380, 520), -- v20.20: +пункт QUESTS
+		Size = UDim2.fromOffset(380, 592), -- v20.20: +пункт QUESTS; v20.139: +CODES
 		ZIndex = 6,
 	})
 	UiKit.Scale(submenu, "MobileSubmenuScale", 1)

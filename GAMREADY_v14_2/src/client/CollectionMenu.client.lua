@@ -288,7 +288,7 @@ local function resizeSubmenu()
 		return
 	end
 	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(390, 844)
-	submenuScale.Scale = math.min(0.7, (viewport.X - 24) / 360, (viewport.Y - 80) / 340)
+	submenuScale.Scale = math.min(0.7, (viewport.X - 24) / 360, (viewport.Y - 60) / 600) -- v20.139: меню выше (+CODES)
 end
 resizeSubmenu()
 if workspace.CurrentCamera then
@@ -348,6 +348,7 @@ local ITEMS = {
 	{ Key = "Shop", Label = "SHOP", Icon = "ShopMenuIconId" },
 	{ Key = "Skins", Label = "SKINS", Icon = "SkinsMenuIconId" },
 	{ Key = "Settings", Label = "SETTINGS", Icon = "SettingsMenuIconId" },
+	{ Key = "Codes", Label = "CODES", Icon = "CodesMenuIconId" }, -- v20.139: ввод промокодов
 	{ Key = "Mutations", Label = "MUTATIONS", Icon = "MutationsMenuIconId" },
 }
 

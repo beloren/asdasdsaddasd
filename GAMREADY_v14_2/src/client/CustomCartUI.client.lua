@@ -759,8 +759,13 @@ if not collectionMenuOpenRequest then
 	collectionMenuOpenRequest.Parent = ReplicatedStorage.Shared
 end
 collectionMenuOpenRequest.Event:Connect(function(target)
-	if target == "Settings" and Config.UI.SettingsMenuEnabled ~= false then
+	if (target == "Settings" or target == "Codes") and Config.UI.SettingsMenuEnabled ~= false then
+		settingsGui.Enabled = true
 		UiMotion.Open(settingsPanel)
+		-- v20.139: CODES - сразу курсор в поле промокода
+		if target == "Codes" and codeInput and codeInput:IsA("TextBox") then
+			task.delay(0.25, function() pcall(function() codeInput:CaptureFocus() end) end)
+		end
 	end
 end)
 
@@ -1004,7 +1009,12 @@ task.spawn(function()
 		if result == "Ok" then
 			playUiClick("UiSuccess")
 			resultText.TextColor3 = Color3.fromRGB(120, 255, 150)
-			resultText.Text = tr("Success! +${amount}", { amount = reward })
+			-- v20.139: код без денег (бафф WELCOME и т.п.) - без «+$0»
+			if (tonumber(reward) or 0) > 0 then
+				resultText.Text = tr("Success! +${amount}", { amount = reward })
+			else
+				resultText.Text = tr("Code redeemed! Reward is active")
+			end
 			codeInput.Text = ""
 		elseif result == "AlreadyRedeemed" then
 			resultText.TextColor3 = Color3.fromRGB(255, 190, 90)

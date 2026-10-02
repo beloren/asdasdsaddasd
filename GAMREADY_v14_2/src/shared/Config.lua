@@ -617,6 +617,8 @@ Config.PromoCodes = {
 	-- Chest — вместо/вместе с деньгами выдаёт сундук этой редкости.
 	LIKES100 = { Money = 0, Chest = "Rare", RequiresLikes = 100, Enabled = true, ExpiresAt = nil }, -- v20.122: было LIKES50
 	OLDLAUNCH = { Money = 150, Enabled = false, ExpiresAt = nil },
+	-- v20.139: Buff = бафф из Config.Buffs на Seconds секунд
+	WELCOME = { Money = 0, Buff = "Money", Seconds = 600, Enabled = true, ExpiresAt = nil },
 }
 
 --------------------------------------------------------------------------------
@@ -6237,7 +6239,7 @@ Config.UI = {
 	-- НАСТРОЙКИ УБРАНЫ С ЭКРАНА (по прямому запросу): ни шестерёнки
 	-- GearButton, ни окна SettingsMenu, ни пункта SETTINGS в книге-меню.
 	-- true вернёт всё как было (см. CustomCartUI/CollectionMenu).
-	SettingsMenuEnabled = false,
+	SettingsMenuEnabled = true, -- v20.139: окно настроек и промокодов открывается из MENU (SETTINGS / CODES); шестерёнки на экране нет
 	-- ПРОМПТЫ НА ОБЪЕКТАХ (client/WorldPrompts.client.lua): кружок с
 	-- клавишей и подписью действия висит прямо на том, с чем
 	-- взаимодействуешь (NPC, тележка, сейф…), а не плашкой на экране.

@@ -27,11 +27,22 @@ player.CharacterAdded:Connect(function()
 	if not busy() then ProximityPromptService.Enabled = true end
 end)
 
+-- v20.139: жёсткий предел - даже если флаг «занят» завис (сцена оборвалась),
+-- дольше HARD_MAX секунд промпты выключенными не остаются
+local HARD_MAX = 60
+local hardSince = nil
+
 while true do
 	task.wait(1)
 	if ProximityPromptService.Enabled then
 		offSince = nil
+		hardSince = nil
+	elseif busy() and player:GetAttribute("MineExpeditionActive") ~= true and os.clock() - (hardSince or os.clock()) >= HARD_MAX then
+		ProximityPromptService.Enabled = true
+		hardSince = nil
+		offSince = nil
 	elseif busy() then
+		hardSince = hardSince or os.clock()
 		offSince = os.clock()
 	else
 		offSince = offSince or os.clock()

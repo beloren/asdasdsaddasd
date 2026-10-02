@@ -643,7 +643,7 @@ local function show(prompt, inputType, fresh)
 	if fresh then animateIn() end
 end
 
-local function refresh()
+local function refreshUnsafe()
 	local character = player.Character
 	local hrp = character and character:FindFirstChild("HumanoidRootPart")
 	local best, bestInput, bestPriority, bestDistance = nil, nil, -math.huge, math.huge
@@ -698,6 +698,23 @@ local function refresh()
 	end
 	active = best
 	activeInput = bestInput
+end
+
+-- v20.139: ОШИБКА В ОДНОМ ПРОМПТЕ БОЛЬШЕ НЕ ЛОМАЕТ ВСЕ. Раньше любая ошибка
+-- внутри пересчёта (необычный промпт, удалённая деталь) убивала фоновый
+-- цикл навсегда - кружки переставали рисоваться «через время».
+local lastRefreshWarn = 0
+local function refresh()
+	local ok, err = pcall(refreshUnsafe)
+	if not ok then
+		if os.clock() - lastRefreshWarn > 10 then
+			lastRefreshWarn = os.clock()
+			warn("[WorldPrompts] пересчёт промптов: " .. tostring(err))
+		end
+		-- состояние могло остаться полуразобранным - начать с чистого листа
+		active = nil
+		activeInput = nil
+	end
 end
 
 local attributeConnections = {}
@@ -883,6 +900,11 @@ task.spawn(function()
 			if not prompt.Parent or not prompt:IsDescendantOf(game) then shown[prompt] = nil end
 		end
 		if next(shown) or active or player:GetAttribute("CarryingCart") == true then refresh() end
+		-- v20.139: кружок «включён», но прозрачный/сжатый (анимации наложились) -
+		-- проявить заново
+		if active and billboard.Enabled and (alpha.Value < 0.05 or scale.Scale < 0.2) then
+			pcall(animateIn)
+		end
 	end
 end)
 
