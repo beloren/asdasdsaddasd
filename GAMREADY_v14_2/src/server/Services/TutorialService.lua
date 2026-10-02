@@ -764,6 +764,24 @@ function TutorialService:_resolveTarget(player, kind)
 
 	if kind == "Bank" then
 		return Services.WorldService and Services.WorldService:GetSellZone() or nil
+	elseif kind == "GroundOre" then
+		-- v20.149: ближайшая СВОЯ выпавшая из шахты руда; нет - шахтёр
+		local folder = workspace:FindFirstChild("MineGroundOre")
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local best, bestDistance = nil, math.huge
+		if folder and root then
+			for _, ore in folder:GetChildren() do
+				if ore:GetAttribute("GroundOreOwner") == player.UserId then
+					local ok, pivot = pcall(function() return ore:GetPivot() end)
+					if ok then
+						local distance = (pivot.Position - root.Position).Magnitude
+						if distance < bestDistance then best, bestDistance = ore, distance end
+					end
+				end
+			end
+		end
+		return best or (content and content:FindFirstChild("MinerNPC", true)) or nil
 	elseif kind == "BaseBoulder" then
 		if Services.RockService and Services.RockService.GetNearestPlotBoulder then
 			local ok, model = pcall(Services.RockService.GetNearestPlotBoulder, Services.RockService, player)
@@ -1122,8 +1140,31 @@ function TutorialService:_tickChapters(player)
 	-- игрок получает плашку «NEW: ... SHOW ME» на 10 с, а глава ложится в
 	-- журнал квестов (раздел GUIDES) - запускается кнопкой, когда захочет.
 	local offered = self:_guidesOffered(player)
+	-- v20.149: главы с Near стартуют сами, когда игрок подошёл (или прошёл
+	-- рядом) к нужному месту - магазину, НПС, постройке. Их не надо искать в
+	-- журнале: подошёл к Island Keeper - началось обучение островам.
 	for _, chapter in Config.Tutorial.Chapters or {} do
-		if not done[chapter.Id] and not (offered and offered[chapter.Id]) then
+		if not chapter.Required and chapter.Near and not done[chapter.Id] then
+			local after = true
+			for _, id in chapter.After or {} do
+				if not done[id] then after = false break end
+			end
+			if after and self:_isNear(player, chapter.Near) then
+				if chapter.SkipIf and self:_check(player, chapter.SkipIf) then
+					done[chapter.Id] = true
+					self:_publishGuides(player)
+				elseif self:_check(player, chapter.When) then
+					if offered then offered[chapter.Id] = true end
+					self:_publishGuides(player)
+					self:_startChapter(player, chapter, 1)
+					return
+				end
+			end
+		end
+	end
+	for _, chapter in Config.Tutorial.Chapters or {} do
+		-- главы с Near ждут, пока игрок подойдёт (выше), плашкой не предлагаются
+		if not done[chapter.Id] and not (offered and offered[chapter.Id]) and not (chapter.Near and not chapter.Required) then
 			local after = true
 			for _, id in chapter.After or {} do
 				if not done[id] and not (offered and offered[id]) then after = false break end
@@ -1155,6 +1196,29 @@ function TutorialService:_tickChapters(player)
 			end
 		end
 	end
+end
+
+-- v20.149: игрок рядом с местом главы? near = { Target = "...", Radius = N }
+function TutorialService:_isNear(player, near)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then return false end
+	local targets = type(near.Targets) == "table" and near.Targets or { near.Target }
+	for _, kind in targets do
+		local target = self:_resolveTarget(player, kind)
+		local position
+		if target and target:IsA("BasePart") then
+			position = target.Position
+		elseif target and (target:IsA("Model") or target:IsA("Folder")) then
+			local ok, pivot = pcall(function() return target:GetPivot() end)
+			if ok then position = pivot.Position end
+		end
+		if position then
+			local flat = Vector3.new(position.X - root.Position.X, 0, position.Z - root.Position.Z)
+			if flat.Magnitude <= (near.Radius or 25) then return true end
+		end
+	end
+	return false
 end
 
 -- v20.140: предложенные, но ещё не пройденные главы

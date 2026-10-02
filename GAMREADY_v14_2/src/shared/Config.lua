@@ -204,7 +204,7 @@ Config.Tutorial = {
 			Goal = { Kind = "Counter", Key = "OrePickedUp", Target = 1 },
 			KeepEarlyProgress = true,
 			CompleteWhenBagFull = true,
-			Target = "MinerNPC", -- v20.118: руда лежит у шахтёра - на него и показываем
+			Target = "GroundOre", -- v20.149: стрелка на саму выпавшую руду (нет руды - на шахтёра)
 			Done = { "Ore goes to your backpack" },
 		},
 		{
@@ -300,7 +300,7 @@ Config.Tutorial = {
 			},
 		},
 		{
-			Id = "NewOre", Title = "New Ore", RewardMoney = 100, After = { "PrestigeIntro" },
+			Id = "NewOre", Title = "New Ore", RewardMoney = 100, After = { "PrestigeIntro" }, Required = true, -- v20.149: обязательная, сразу после престижа
 			When = { Check = "CanAffordOre" }, SkipIf = { Check = "OreUnlockedAny" },
 			Steps = {
 				-- v20.133: TRAVEL учим здесь - когда реально надо в центр к торговцу
@@ -338,7 +338,7 @@ Config.Tutorial = {
 			},
 		},
 		{
-			Id = "AnvilIsland", Title = "Anvil Island", RewardMoney = 150, After = { "NewOre" },
+			Id = "AnvilIsland", Title = "Anvil Island", RewardMoney = 150, After = { "NewOre" }, Near = { Target = "World:IslandKeeper", Radius = 30 }, -- v20.149: стартует, когда игрок рядом
 			When = { Check = "CanAffordIsland", Arg = "Anvil" }, SkipIf = { Check = "IslandOwned", Arg = "Anvil" },
 			Steps = {
 				{
@@ -366,7 +366,7 @@ Config.Tutorial = {
 			},
 		},
 		{
-			Id = "IncomeIsland", Title = "Income Island", RewardMoney = 300, After = { "AnvilIsland" },
+			Id = "IncomeIsland", Title = "Income Island", RewardMoney = 300, After = { "AnvilIsland" }, Near = { Target = "World:IslandKeeper", Radius = 30 }, -- v20.149: стартует, когда игрок рядом
 			When = { Check = "CanAffordIsland", Arg = "Income" }, SkipIf = { Check = "IslandOwned", Arg = "Income" },
 			Steps = {
 				{
@@ -395,7 +395,7 @@ Config.Tutorial = {
 			},
 		},
 		{
-			Id = "SmelterIsland", Title = "Smelter", RewardMoney = 500, After = { "IncomeIsland" },
+			Id = "SmelterIsland", Title = "Smelter", RewardMoney = 500, After = { "IncomeIsland" }, Near = { Target = "World:IslandKeeper", Radius = 30 }, -- v20.149: стартует, когда игрок рядом
 			When = { Check = "CanAffordIsland", Arg = "Smelter" }, SkipIf = { Check = "IslandOwned", Arg = "Smelter" },
 			Steps = {
 				{
@@ -438,7 +438,7 @@ Config.Tutorial = {
 			},
 		},
 		{
-			Id = "IncomeSafe", Title = "Income Safe", RewardMoney = 100, After = { "IncomeIsland" },
+			Id = "IncomeSafe", Title = "Income Safe", RewardMoney = 100, After = { "IncomeIsland" }, Near = { Target = "GeodeSafe", Radius = 22 }, -- v20.149: стартует, когда игрок рядом
 			When = { Check = "SafeHasMoney" },
 			Steps = {
 				{
