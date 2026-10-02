@@ -13,6 +13,9 @@ local RunService = game:GetService("RunService")
 
 local MovementLock = {}
 local locks = {} -- [имя] = момент истечения
+-- v20.146: окно, ради которого стоим. Если оно не видно дольше 2 с (его
+-- спрятал экран загрузки, его закрыли без Unlock) - блокировка снимается.
+local guards = {} -- [имя] = { Gui, HiddenSince }
 local saved = nil -- { Humanoid, WalkSpeed, JumpPower, JumpHeight }
 local connection = nil
 local player = Players.LocalPlayer
@@ -22,10 +25,33 @@ local function humanoidOf()
 	return character and character:FindFirstChildOfClass("Humanoid")
 end
 
+local function guardVisible(gui)
+	if not (gui and gui.Parent) then return false end
+	if gui:IsA("LayerCollector") then return gui.Enabled end
+	if gui:IsA("GuiObject") then return gui.Visible end
+	return true
+end
+
 local function anyLock()
 	local now = os.clock()
 	for name, untilAt in locks do
-		if now > untilAt then locks[name] = nil end
+		if now > untilAt then
+			locks[name] = nil
+			guards[name] = nil
+		else
+			local guard = guards[name]
+			if guard then
+				if guardVisible(guard.Gui) then
+					guard.HiddenSince = nil
+				else
+					guard.HiddenSince = guard.HiddenSince or now
+					if now - guard.HiddenSince > 2 then
+						locks[name] = nil
+						guards[name] = nil
+					end
+				end
+			end
+		end
 	end
 	return next(locks) ~= nil
 end
@@ -62,14 +88,18 @@ local function step()
 	humanoid:Move(Vector3.zero)
 end
 
-function MovementLock.Lock(name, maxSeconds)
+-- guardGui (необязательно): ScreenGui/GuiObject окна - пока оно не видно,
+-- блокировка не держит игрока (см. guards выше).
+function MovementLock.Lock(name, maxSeconds, guardGui)
 	locks[tostring(name)] = os.clock() + (tonumber(maxSeconds) or 60)
+	guards[tostring(name)] = guardGui and { Gui = guardGui } or nil
 	if not connection then connection = RunService.Heartbeat:Connect(step) end
 	step()
 end
 
 function MovementLock.Unlock(name)
 	locks[tostring(name)] = nil
+	guards[tostring(name)] = nil
 	if not anyLock() then release() end
 end
 
@@ -80,6 +110,7 @@ end
 if player then
 	player.CharacterAdded:Connect(function()
 		table.clear(locks)
+		table.clear(guards)
 		release()
 	end)
 end

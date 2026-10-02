@@ -161,6 +161,8 @@ local KEEP_DISABLED = {
 	DropPreviewUi = true, DecorStorageUi = true, CartInventoryUi = true, SatchelInventory = true,
 	SettingsMenu = true, ShopEntry = true, SkinEntry = true, RebirthDialogButtons = true,
 	MinerDialogUi = true, MineArcUi = true, UpgradeShopUi = true, InventoryUi = true,
+	-- v20.146: полноэкранные деревья никогда не включаются сами после загрузки
+	UpgradeTreeUi = true, IslandTreeUi = true,
 }
 local CONTROL_GUIS = { TouchGui = true, ControlGui = true }
 local tracked = {} -- [gui] = { Initial = bool, Wanted = bool, Connection }

@@ -972,7 +972,7 @@ local function open()
 	local tutorialRemote = ReplicatedStorage.Shared:FindFirstChild("TutorialActionEvent")
 	if tutorialRemote then tutorialRemote:FireServer("UiFlag", "PrestigeOpened") end
 	-- v20.130: пока выбираешь перк - персонаж стоит (не убегает случайно)
-	MovementLock.Lock("Prestige", 600)
+	MovementLock.Lock("Prestige", 600, gui)
 	-- на телефоне дерево сразу чуть мельче, чтобы влезало
 	if FULL and UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled and zoom == 1 then
 		zoom = tonumber(cfg.PhoneZoom) or 0.75
@@ -1010,6 +1010,11 @@ local function close()
 end
 
 closeButton.Activated:Connect(close)
+-- v20.146: окно спрятал кто-то другой (экран загрузки, фокус) - честно
+-- закрываемся: иначе игрок стоял бы с замороженной камерой перед пустотой.
+gui:GetPropertyChangedSignal("Enabled"):Connect(function()
+	if isOpen and not gui.Enabled then close() end
+end)
 if fullClose then fullClose.Activated:Connect(close) end
 
 -- v20.118: ТАСКАНИЕ ДЕРЕВА (мышь/палец) и масштаб колесом.
@@ -1120,6 +1125,8 @@ end)
 remote.OnClientEvent:Connect(function(command, payload)
 	if command == "Open" then
 		applyState(payload)
+		-- v20.146: во время экрана загрузки окно не открываем (он бы его спрятал)
+		if player:GetAttribute("AssetsLoaded") == false then return end
 		open()
 	elseif command == "State" then
 		applyState(payload)

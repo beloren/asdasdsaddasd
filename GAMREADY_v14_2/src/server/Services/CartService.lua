@@ -806,8 +806,30 @@ function CartService:RecomputeWalkSpeed(player)
 	recomputeWalkSpeed(player)
 end
 
+-- v20.146: КЛИЕНТ ПРОСИТ ПЕРЕСЧИТАТЬ СКОРОСТЬ (MovementWatchdog): персонаж
+-- долго стоит со скоростью 0 без видимой причины (например, после пропуска
+-- экрана загрузки). Пересчёт сам учитывает стан и мини-игру шахты.
+local resyncAt = {}
+function CartService:_initSpeedResync()
+	local remote = game:GetService("ReplicatedStorage").Shared:FindFirstChild("SpeedResync") or Instance.new("RemoteEvent")
+	remote.Name = "SpeedResync"
+	remote.Parent = game:GetService("ReplicatedStorage").Shared
+	remote.OnServerEvent:Connect(function(player)
+		local now = os.clock()
+		if now - (resyncAt[player] or 0) < 2 then return end
+		resyncAt[player] = now
+		pcall(recomputeWalkSpeed, player)
+		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if humanoid and humanoid.JumpPower <= 0 and player:GetAttribute("MineExpeditionActive") ~= true then
+			humanoid.JumpPower = 50
+		end
+	end)
+	game:GetService("Players").PlayerRemoving:Connect(function(player) resyncAt[player] = nil end)
+end
+
 function CartService:Init(services)
 	Services = services
+	self:_initSpeedResync() -- v20.146
 
 	-- v20.105: окно тележки (client/CartInventoryUI)
 	inventoryRemote = ReplicatedStorage.Shared:FindFirstChild("CartInventoryRequest")

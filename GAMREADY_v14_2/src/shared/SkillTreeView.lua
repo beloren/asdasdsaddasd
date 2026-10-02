@@ -97,6 +97,12 @@ function SkillTreeView.new(gui, opts)
 	end
 	self:_bindInput()
 	self:_applyPan()
+	-- v20.146: дерево спрятал кто-то другой (экран загрузки) - закрываемся
+	-- целиком, чтобы не держать игрока на месте
+	self.Opened = false
+	gui:GetPropertyChangedSignal("Enabled"):Connect(function()
+		if self.Opened and not gui.Enabled then self:Close(true) end
+	end)
 	return self
 end
 
@@ -504,17 +510,19 @@ end
 
 -- ОТКРЫТЬ / ЗАКРЫТЬ ----------------------------------------------------------------
 function SkillTreeView:Open()
-	if self.Gui.Enabled then return end
+	if self.Opened and self.Gui.Enabled then return end
 	if isPhone() and self.ZoomValue == 1 then self.ZoomValue = 0.6 end
 	self.Pan = Vector2.zero
 	self:_applyPan()
 	self.Gui.Enabled = true
+	self.Opened = true
 	self:_playOpening()
-	pcall(function() require(ReplicatedStorage.Shared.MovementLock).Lock(self.LockName, 600) end)
+	pcall(function() require(ReplicatedStorage.Shared.MovementLock).Lock(self.LockName, 600, self.Gui) end)
 end
 
 function SkillTreeView:Close(fromButton)
-	if not self.Gui.Enabled then return end
+	if not self.Opened then return end
+	self.Opened = false
 	self.Gui.Enabled = false
 	self.SeqToken += 1
 	self.Sequencing = false
@@ -524,7 +532,7 @@ function SkillTreeView:Close(fromButton)
 end
 
 function SkillTreeView:IsOpen()
-	return self.Gui.Enabled
+	return self.Opened == true and self.Gui.Enabled
 end
 
 function SkillTreeView:SetMoney(text)
