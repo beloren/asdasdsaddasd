@@ -141,6 +141,10 @@ function PrestigeService:AddPoints(player, amount)
 	data.PrestigePoints = math.max(0, math.floor(tonumber(data.PrestigePoints) or 0)) + amount
 	publish(player)
 	self:SendState(player)
+	-- v20.135: на экране очко престижа (иконка) вылетает и падает в счётчик HUD
+	if Services.DataService.CurrencyFxRemote then
+		pcall(function() Services.DataService.CurrencyFxRemote():FireClient(player, "Prestige", amount) end)
+	end
 end
 
 -- Очки за престиж с этой пещеры.

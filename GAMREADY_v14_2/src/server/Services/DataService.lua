@@ -1051,6 +1051,19 @@ local pendingCoinBurst = {} -- [player] = true — дебаунс монеток
 -- то есть начисление крупной награды тихо не происходило вообще. Теперь
 -- принимается и то, и другое, а в дальнейшую логику (порог для монеток,
 -- знак суммы) уходит уже нормализованный BigNum.
+local pendingHudGain = {}
+local function currencyFxRemote()
+	local shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+	local remote = shared:FindFirstChild("CurrencyFx")
+	if not remote then
+		remote = Instance.new("RemoteEvent")
+		remote.Name = "CurrencyFx"
+		remote.Parent = shared
+	end
+	return remote
+end
+DataService.CurrencyFxRemote = currencyFxRemote
+
 function DataService:AddMoney(player, amount, coinOrigin, suppressCoinBurst)
 	local profile = activeProfile(player)
 	if not profile then
@@ -1096,6 +1109,25 @@ function DataService:AddMoney(player, amount, coinOrigin, suppressCoinBurst)
 	-- `amount > 0` здесь НЕЛЬЗЯ: amount теперь BigNum, а Luau не сравнивает
 	-- table с number (см. шапку Shared/BigNum.lua). isPositive() — та же
 	-- проверка, но без падения.
+	-- v20.135: ЭКРАННАЯ АНИМАЦИЯ НАЧИСЛЕНИЯ (клиент HudCurrencyFx): счётчик
+	-- денег подпрыгивает, рядом всплывает «+$X». Начисления за 0.2 с
+	-- складываются в одно, чтобы продажа пачки руды не мигала 20 раз.
+	if delta:isPositive() and player.Parent then
+		local gain = pendingHudGain[player]
+		local value = delta:toNumberClamped(0, 1e300)
+		if gain then
+			gain.Amount += value
+		else
+			pendingHudGain[player] = { Amount = value }
+			task.delay(0.2, function()
+				local pending = pendingHudGain[player]
+				pendingHudGain[player] = nil
+				if pending and player.Parent then
+					currencyFxRemote():FireClient(player, "Money", pending.Amount)
+				end
+			end)
+		end
+	end
 	if not suppressCoinBurst and delta:isPositive() and player.Parent and Services.BankService and not pendingCoinBurst[player] then
 		-- Weight — сколько начислений пришло в окне дебаунса: клиент по нему
 		-- решает, сколько монет высыпать (одна продажа — горстка, целая

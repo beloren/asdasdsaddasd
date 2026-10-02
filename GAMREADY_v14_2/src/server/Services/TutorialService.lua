@@ -1020,9 +1020,7 @@ TutorialService.OnEnter = {
 		if Services.PrestigeService then
 			Services.PrestigeService:AddPoints(player, (Config.Tutorial and Config.Tutorial.PrestigeGiftPoints) or 1)
 		end
-		if Services.NotifyService then
-			Services.NotifyService:Show(player, "+1 Prestige Point", { Icon = "Reward", Duration = 3 })
-		end
+		-- v20.135: тост не нужен - очко само вылетает и падает в счётчик HUD (HudCurrencyFx)
 	end,
 	-- в стоке у торговца гарантированно есть хотя бы одна недорогая руда
 	EnsureOreStock = function(_, player)

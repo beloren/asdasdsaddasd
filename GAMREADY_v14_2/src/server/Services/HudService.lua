@@ -85,7 +85,10 @@ function HudService:SetupPlayer(player)
 			-- v20.112: у HUD-картинки свой префикс (атрибут Prefix у RebirthPill, обычно пусто).
 			local prefix = parts.RebirthPill:GetAttribute("Prefix")
 			if typeof(prefix) ~= "string" then prefix = "PRESTIGE: " end
-			parts.RebirthLabel.Text = prefix .. NumberFormat.abbreviate(rebirths.Value)
+			-- v20.135: в HUD - ОЧКИ престижа (то, что тратится на перки; сюда
+			-- же «падает» иконка очка при начислении), а не число престижей
+			local points = tonumber(player:GetAttribute("PrestigePoints")) or 0
+			parts.RebirthLabel.Text = prefix .. NumberFormat.abbreviate(points)
 		end
 		refreshMoney()
 		refreshRebirths()
@@ -95,6 +98,9 @@ function HudService:SetupPlayer(player)
 				refreshMoney()
 			end),
 			rebirths.Changed:Connect(function()
+				refreshRebirths()
+			end),
+			player:GetAttributeChangedSignal("PrestigePoints"):Connect(function()
 				refreshRebirths()
 			end),
 		}

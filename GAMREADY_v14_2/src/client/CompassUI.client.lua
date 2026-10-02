@@ -46,9 +46,11 @@ TutorialTarget.Mark(button, "Compass")
 -- v20.131: на ПК кнопка стоит ровно так, как в StarterGui (размер/место не
 -- трогаем). На телефоне - размером с кнопку MENU и прямо под ней.
 local pcSize, pcPos, pcAnchor = button.Size, button.Position, button.AnchorPoint
+local baseButtonSize = pcSize -- v20.135: размер без «дыхания»
 local function placeButton()
 	if not isPhone() then
 		button.Size, button.Position, button.AnchorPoint = pcSize, pcPos, pcAnchor
+		baseButtonSize = pcSize
 		return
 	end
 	local menuGui = playerGui:FindFirstChild("CollectionMenu")
@@ -62,6 +64,7 @@ local function placeButton()
 	end
 	button.AnchorPoint = Vector2.zero
 	button.Size = UDim2.fromOffset(side, side)
+	baseButtonSize = button.Size
 	-- под книгой с запасом под подпись MENU
 	button.Position = UDim2.new(0, bookX, 0.5, bookBottom + 22)
 end
@@ -211,24 +214,19 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	if input.KeyCode == Enum.KeyCode.Escape and panel.Visible then setOpen(false) end
 end)
 
--- v20.133: кнопка TRAVEL «дышит» синхронно с кнопкой MENU (IconBounce.ApplyPulse
--- у книги): берём её текущий размер относительно базового
-local pulseScale = button:FindFirstChild("SyncPulse") or Instance.new("UIScale")
-pulseScale.Name = "SyncPulse"
-pulseScale.Parent = button
-local function bookPulseRatio()
-	local menuGui = playerGui:FindFirstChild("CollectionMenu")
-	local book = menuGui and menuGui:FindFirstChild("BookButton")
-	local base = book and book:GetAttribute("PulseBaseSize")
-	if typeof(base) ~= "UDim2" then return 1 end
-	if base.X.Offset > 0 then return book.Size.X.Offset / base.X.Offset end
-	if base.X.Scale > 0 then return book.Size.X.Scale / base.X.Scale end
-	return 1
-end
+-- v20.135: кнопка TRAVEL всё время плавно «дышит» (увеличивается/уменьшается),
+-- как кнопка MENU (IconBounce.ApplyPulse: x1.08, 1.3 с туда и 1.3 с обратно).
+-- Через Size (как у книги): второй UIScale Roblox не применяет - на кнопке
+-- уже есть GlobalHoverScale (эффект наведения).
+local oldPulse = button:FindFirstChild("SyncPulse")
+if oldPulse then oldPulse:Destroy() end
+local PULSE_PERIOD, PULSE_AMOUNT = 2.6, 0.08
 
 -- отсчёт отката на кнопке и в окне
 RunService.RenderStepped:Connect(function()
-	pulseScale.Scale = math.clamp(bookPulseRatio(), 0.8, 1.3)
+	local k = 1 + PULSE_AMOUNT * (1 - math.cos(os.clock() / PULSE_PERIOD * math.pi * 2)) / 2
+	local base = baseButtonSize
+	button.Size = UDim2.new(base.X.Scale * k, base.X.Offset * k, base.Y.Scale * k, base.Y.Offset * k)
 	local left = cooldownUntil - os.clock()
 	if left > 0 then
 		button.BackgroundColor3 = Color3.fromRGB(70, 60, 80)
