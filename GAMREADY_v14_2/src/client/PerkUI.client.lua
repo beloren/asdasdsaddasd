@@ -414,6 +414,23 @@ end
 -- стартовый узел в центре, ветки расходятся линиями, закрытые узлы - «?».
 local Free = {}
 local renderTree
+-- v20.130: клик по узлу больше не пересобирает всё дерево (это и были
+-- лаги) - только перекрашивает рамку выделения.
+local function updateSelection()
+	local holder = tree:FindFirstChild("FreeTree")
+	if not holder then
+		if renderTree then renderTree() end
+		return
+	end
+	for _, node in holder:GetChildren() do
+		local id = node.Name:match("^Node_(.+)$") or (node.Name == "StartNode" and "__Start" or nil)
+		local outline = id and node:FindFirstChild("Outline")
+		if outline then
+			outline.Color = (selected == id) and Color3.new(1, 1, 1) or COLOR_INK
+			outline.Thickness = (selected == id) and 5 or 4
+		end
+	end
+end
 function Free.Link(parent, size, a, b, color)
 	local ax, ay = a[1] * size.X, a[2] * size.Y
 	local bx, by = b[1] * size.X, b[2] * size.Y
@@ -485,13 +502,7 @@ function Free.Render()
 		UiSfx.play("UiButtonClick")
 		selected = "__Start"
 		showDetail()
-		renderTree()
-		renderDetail()
-	end)
-	start.MouseEnter:Connect(function()
-		if dragging or not FULL then return end
-		selected = "__Start"
-		showDetail()
+		updateSelection()
 		renderDetail()
 	end)
 	start.Parent = holder
@@ -541,16 +552,7 @@ function Free.Render()
 					UiSfx.play("UiButtonClick")
 					selected = perkId
 					showDetail()
-					renderTree()
-					renderDetail()
-				end)
-				node.MouseEnter:Connect(function()
-					if dragging or not FULL then return end
-					if selected ~= perkId then
-						selected = perkId
-						renderDetail()
-					end
-					showDetail()
+					updateSelection()
 					renderDetail()
 				end)
 				node.Parent = holder
@@ -842,19 +844,30 @@ local function freezeCamera(on)
 	local camera = workspace.CurrentCamera
 	if not (camera and FULL) then return end
 	if on then
+		playerGui:SetAttribute("CameraHold", "Prestige") -- сторож камеры не трогает
 		if savedCameraType == nil then
 			savedCameraType = camera.CameraType
 			camera.CameraType = Enum.CameraType.Scriptable
 		end
-	elseif savedCameraType ~= nil then
-		camera.CameraType = savedCameraType
-		savedCameraType = nil
+	else
+		playerGui:SetAttribute("CameraHold", nil)
+		if savedCameraType ~= nil then
+			camera.CameraType = savedCameraType == Enum.CameraType.Scriptable and Enum.CameraType.Custom or savedCameraType
+			savedCameraType = nil
+		end
 	end
 end
 
+local MovementLock = require(ReplicatedStorage.Shared.MovementLock)
 local function open()
 	isOpen = true
 	freezeCamera(true)
+	-- v20.130: пока выбираешь перк - персонаж стоит (не убегает случайно)
+	MovementLock.Lock("Prestige", 600)
+	-- на телефоне дерево сразу чуть мельче, чтобы влезало
+	if FULL and UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled and zoom == 1 then
+		zoom = tonumber(cfg.PhoneZoom) or 0.75
+	end
 	if FULL then
 		detailShown = false
 		detail.Visible = false
@@ -876,6 +889,7 @@ local function close()
 	if not isOpen then return end
 	isOpen = false
 	freezeCamera(false)
+	MovementLock.Unlock("Prestige")
 	hideDetail()
 	UiSfx.play("UiMenuClose")
 	gui.Enabled = false
@@ -885,6 +899,7 @@ closeButton.Activated:Connect(close)
 if fullClose then fullClose.Activated:Connect(close) end
 
 -- v20.118: ТАСКАНИЕ ДЕРЕВА (мышь/палец) и масштаб колесом.
+local pinching, pinchZoomStart = false, 1
 local function applyPan()
 	local holder = tree:FindFirstChild("FreeTree")
 	if not (holder and FULL) then return end
@@ -908,13 +923,30 @@ UserInputService.InputBegan:Connect(function(input)
 			if p.X >= a.X and p.Y >= a.Y and p.X <= a.X + sz.X and p.Y <= a.Y + sz.Y then return end
 		end
 	end
+	if pinching then return end
 	dragging, dragMoved, dragStart, panStart = true, false, p, pan
+end)
+-- v20.130: ЩИПОК ДВУМЯ ПАЛЬЦАМИ - масштаб дерева на телефоне (раньше на
+-- телефоне масштаба не было вовсе, а второй палец сбивал перетаскивание).
+UserInputService.TouchPinch:Connect(function(_positions, scale, _velocity, inputState)
+	if not (FULL and isOpen and mode == "Perks") then return end
+	if inputState == Enum.UserInputState.Begin then
+		pinching, pinchZoomStart = true, zoom
+		dragging = false
+		dragMoved = true -- отпускание после щипка - не клик по узлу
+	elseif inputState == Enum.UserInputState.Change and pinching then
+		zoom = math.clamp(pinchZoomStart * scale, 0.45, 1.6)
+		applyPan()
+	else
+		pinching = false
+		task.delay(0.1, function() dragMoved = false end)
+	end
 end)
 UserInputService.InputChanged:Connect(function(input)
 	if not (FULL and isOpen) then return end
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+	if dragging and not pinching and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
 		local delta = Vector2.new(input.Position.X, input.Position.Y) - dragStart
-		if delta.Magnitude > 8 then dragMoved = true end
+		if delta.Magnitude > (input.UserInputType == Enum.UserInputType.Touch and 14 or 8) then dragMoved = true end
 		if dragMoved then
 			pan = panStart + delta
 			applyPan()

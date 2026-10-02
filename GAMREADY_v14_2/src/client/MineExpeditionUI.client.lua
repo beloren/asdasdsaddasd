@@ -1720,6 +1720,20 @@ local function stopEjectFit()
 	ejectFit.Active = false
 end
 
+-- v20.130: экспедиция закончилась любым путём (ошибка, выход, смерть) -
+-- HUD гарантированно возвращается, даже если пакет «Done» не пришёл.
+player:GetAttributeChangedSignal("MineExpeditionActive"):Connect(function()
+	if player:GetAttribute("MineExpeditionActive") ~= true and cinematicMode then
+		task.delay(1.5, function()
+			if player:GetAttribute("MineExpeditionActive") ~= true then
+				cinematicMode:Fire(false, "Mine")
+				-- v20.130: промпты точно возвращаются после шахты
+				game:GetService("ProximityPromptService").Enabled = true
+			end
+		end)
+	end
+end)
+
 stateRemote.OnClientEvent:Connect(function(stage, data)
 	data = data or {}
 	if stage == "WalkIn" then
@@ -1727,7 +1741,7 @@ stateRemote.OnClientEvent:Connect(function(stage, data)
 		dollyToStage(data, 3, 5, math.max(0.4, (data.WalkSeconds or 2) * 0.6), data.EntryCFrame and data.EntryCFrame.Position)
 
 	elseif stage == "Minigame" then
-		cinematicMode:Fire(true) -- прячем HUD на всю катсцену
+		cinematicMode:Fire(true, "Mine") -- прячем HUD на всю катсцену
 		-- РАЗГОВОР С ШАХТЁРОМ + МИНИ-ИГРА: камера отходит от шахты в
 		-- сторону банка и ВВЕРХ, глядя на шахту сверху. Если банк почему-то
 		-- не нашёлся (или ось отключена в конфиге), откатываемся на старый
@@ -1845,7 +1859,7 @@ stateRemote.OnClientEvent:Connect(function(stage, data)
 
 	elseif stage == "Done" then
 		stopEjectFit()
-		cinematicMode:Fire(false) -- катсцена кончилась — возвращаем HUD
+		cinematicMode:Fire(false, "Mine") -- катсцена кончилась — возвращаем HUD
 		fovTo(BASE_FOV, 0.5)
 		task.delay(0.5, function()
 			endCameraControl()

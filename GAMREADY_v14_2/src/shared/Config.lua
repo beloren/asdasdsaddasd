@@ -145,7 +145,10 @@ Config.Tutorial = {
 	-- окне улучшений крутит лучи (Mine / Cheapest), HighlightColor — цвет.
 	-- ResetCounters — счётчики, которые обнуляются при входе в шаг.
 	-- v20.40: реплики, где надо жать «Далее», листаются сами через N секунд (0 — выкл).
-	AutoAdvanceSeconds = 5,
+	AutoAdvanceSeconds = 5.5,      -- v20.130: МАКСИМУМ на реплику; реальное время = Base + PerChar × длина текста
+	AutoAdvanceBase = 1.4,         -- сек на любую реплику
+	AutoAdvancePerChar = 0.045,    -- сек на каждую букву (короткая реплика листается быстрее)
+	DialogHudFocus = false,        -- v20.130: true - HUD уезжает к краям, пока говорит НПС
 	Steps = {
 		-- v20.110: тексты - что сделать и зачем, коротко. UiTargets - какие
 		-- кнопки подсветить (Shared.TutorialTarget): экран вокруг темнеет,
@@ -3000,11 +3003,14 @@ Config.RocketPickaxe = {
 	-- игроку подкидывает его ВВЕРХ с кувырками и рагдоллом.
 	Cooldown = 18,              -- сек между «ракетными» ударами
 	KnockbackSpeed = 25,        -- в сторону (было 120 - улетал вдаль)
-	KnockbackUp = 115,          -- вверх (обычный: 30)
+	KnockbackUp = 165,          -- вверх (обычный: 30); v20.130: было 115 - выше
 	Spin = 16,                  -- кувырки в полёте
 	HitStop = 0.08,             -- миг «замирания» перед взлётом
 	RagdollSeconds = 3.5,
-	DropCount = 1,
+	DropCount = 0,              -- v20.130: ракетный удар только подбрасывает, руда не выпадает
+	Trail = true,               -- v20.130: трейл за улетающим игроком
+	TrailColor = Color3.fromRGB(255, 170, 60),
+	TrailSeconds = 2.5,
 	-- Дебаффы, пока режим включён:
 	MineYieldMultiplier = 0.5,  -- руды из шахты за раскопку
 	BoulderHitsMultiplier = 1.8, -- ударов на валун больше
@@ -7511,7 +7517,8 @@ Config.Prestige = {
 	TreeCanvas = Vector2.new(1500, 1000),
 	FullNodeSize = 96,
 	DetailScale = 0.72,      -- v20.122: размер карточки перка (доля)
-	DetailHideSeconds = 3,   -- v20.120: карточка перка (по клику/наведению) прячется через N с
+	PhoneZoom = 0.75,        -- v20.130: стартовый масштаб дерева на телефоне (щипком меняется)
+	DetailHideSeconds = 2.5, -- v20.120: карточка перка (по клику/наведению) прячется через N с
 	HideDeepLocked = true,   -- v20.120: за первым закрытым узлом ветки остальные не показываются
 	PointIconId = 0, -- иконка очков престижа у чисел; 0 - нарисованный ромб
 	StartText = "Your journey begins here.",
@@ -8450,6 +8457,33 @@ end
 -- Chance каждой мутации ниже ПЕРЕСЧИТАН = итоговый шанс получить именно
 -- её (BaseChance × вес / сумма весов) - это и показывается игроку.
 Config.Mutations.Roll = { BaseChance = 0.06, ExtraChance = 0.08, MaxMutations = 3, MaxChance = 0.5 }
+-- v20.130: ПРИЯТНЫЕ ЦИФРЫ. Базовый шанс каждой мутации задан круглым «1 из N»
+-- (так он и показывается игроку: 1/80, 1/500, 1/10,000). Веса и общий
+-- шанс мутации (Roll.BaseChance = сумма) считаются из этих чисел, поэтому
+-- реальные шансы совпадают с показанными. Убери строку - мутация вернётся
+-- к старому весу.
+Config.Mutations.OneIn = {
+	Mossy = 80, Rusty = 100, Cracked = 125, Frozen = 200, Soaked = 225, Tiny = 250, Toxic = 300,
+	Gigantic = 400, Void = 500, Electric = 500, Molten = 600, Sanguine = 700, Golden = 850,
+	Radiant = 1250, Glitched = 1750, Prismatic = 3000, Celestial = 5000, Eclipsed = 10000,
+}
+do
+	local oneIn = Config.Mutations.OneIn or {}
+	local nice, total = 0, 0
+	for _, mutationId in Config.Mutations.Order do
+		if Config.Mutations[mutationId] and tonumber(oneIn[mutationId]) then
+			nice += 1
+			total += 1 / tonumber(oneIn[mutationId])
+		end
+	end
+	-- все мутации заданы круглыми числами - вес = шанс, общий шанс = сумма
+	if nice == #Config.Mutations.Order then
+		for _, mutationId in Config.Mutations.Order do
+			Config.Mutations[mutationId].Weight = 1 / tonumber(oneIn[mutationId])
+		end
+		Config.Mutations.Roll.BaseChance = total
+	end
+end
 do
 	local totalWeight = 0
 	for _, mutationId in Config.Mutations.Order do

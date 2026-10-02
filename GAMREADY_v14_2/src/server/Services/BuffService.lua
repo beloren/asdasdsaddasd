@@ -39,8 +39,10 @@ function BuffService:Init(services)
 end
 
 local function reapply(player, kind)
-	if kind == "Speed" and Services.CartService and Services.CartService.RecomputeWalkSpeed then
-		Services.CartService:RecomputeWalkSpeed(player)
+	-- v20.130: функция называется RefreshSpeed (RecomputeWalkSpeed не
+	-- существовало - зелье скорости не включалось/не выключалось сразу)
+	if kind == "Speed" and Services.CartService and Services.CartService.RefreshSpeed then
+		pcall(Services.CartService.RefreshSpeed, Services.CartService, player)
 	end
 	-- Money/Luck/Damage читаются "на лету" в их собственной точке расчёта
 	-- (см. шапку файла) — пересчитывать сразу нечего, следующая продажа/

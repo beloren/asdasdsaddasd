@@ -225,5 +225,26 @@ while true do
 		end
 	elseif focusedBy then
 		release()
+	else
+		-- v20.130: СТОРОЖ. Окон нет, а что-то осталось спрятанным/уехавшим -
+		-- вернуть. Кнопки больше не могут «закатиться и не вернуться».
+		for _, gui in playerGui:GetChildren() do
+			if gui:IsA("ScreenGui") then
+				if gui:GetAttribute("FocusHidden") == true then
+					gui:SetAttribute("FocusHidden", nil)
+					gui.Enabled = true
+				end
+				for _, child in gui:GetChildren() do
+					local home = child:IsA("GuiObject") and child:GetAttribute("FocusHome")
+					if typeof(home) == "UDim2" then
+						child:SetAttribute("FocusHome", nil)
+						homes[child] = nil
+						if typeof(child:GetAttribute("CinematicHome")) ~= "UDim2" then
+							TweenService:Create(child, SLIDE_BACK, { Position = home }):Play()
+						end
+					end
+				end
+			end
+		end
 	end
 end

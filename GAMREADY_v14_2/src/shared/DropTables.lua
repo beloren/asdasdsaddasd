@@ -242,10 +242,30 @@ function DropTables.ChanceText(chance)
 	return ("%.3f%%"):format(percent)
 end
 
+-- v20.130: ПРИЯТНЫЕ ЦИФРЫ - «1 из N» округляется до круглого числа
+-- (2 значащие цифры от 100, шаг 5 до 100) и пишется с разделителями:
+-- 1337 → 1,300; 48211 → 48,000; 83.6 → 85.
+function DropTables.NiceNumber(n)
+	n = math.max(1, tonumber(n) or 1)
+	local rounded
+	if n < 20 then
+		rounded = math.floor(n + 0.5)
+	elseif n < 100 then
+		rounded = math.floor(n / 5 + 0.5) * 5
+	else
+		local magnitude = 10 ^ (math.floor(math.log10(n)) - 1)
+		rounded = math.floor(n / magnitude + 0.5) * magnitude
+	end
+	local text = tostring(math.floor(rounded))
+	local formatted = text:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+	if formatted:sub(1, 1) == "," then formatted = formatted:sub(2) end
+	return formatted
+end
+
 function DropTables.OneIn(chance)
 	chance = tonumber(chance) or 0
 	if chance <= 0 then return "" end
-	return ("1 in %d"):format(math.max(1, math.floor(1 / chance + 0.5)))
+	return "1 in " .. DropTables.NiceNumber(1 / chance)
 end
 
 return DropTables

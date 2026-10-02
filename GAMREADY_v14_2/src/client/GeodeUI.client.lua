@@ -64,11 +64,15 @@ local function lockCameraForOpening()
 	geodeCameraRestoreType = camera.CameraType
 	camera.CameraType = Enum.CameraType.Scriptable
 	geodeCameraLocked = true
+	local pg = game:GetService("Players").LocalPlayer:FindFirstChildOfClass("PlayerGui")
+	if pg then pg:SetAttribute("CameraHold", "Geode") end -- v20.130: сторож камеры не трогает
 end
 
 local function unlockCameraForOpening()
 	if not geodeCameraLocked then return end
 	geodeCameraLocked = false
+	local pg = game:GetService("Players").LocalPlayer:FindFirstChildOfClass("PlayerGui")
+	if pg and pg:GetAttribute("CameraHold") == "Geode" then pg:SetAttribute("CameraHold", nil) end
 	local camera = workspace.CurrentCamera
 	if camera then
 		pcall(function() camera.CameraType = geodeCameraRestoreType end)
@@ -755,9 +759,6 @@ local propResults = {} -- [Part] = соответствующий result (см. 
 local showDropNotification -- forward-declared: определена ниже, после resultDetail (см. там)
 local orbitConnection = nil
 local orbitAngle = 0
-local lockedHumanoid = nil
-local lockedWalkSpeed = 16
-local lockedJumpPower = 50
 local geodeShakeAmp, geodeShakeUntil, geodeShakeTotal = 0, 0, 0.3 -- v14: тряска кадра катсцены
 -- v20.80: состояние удара/комбо/автоудара одной таблицей (лимит 200 локальных в файле).
 local Hit = { StopUntil = 0, Combo = 0, AutoOn = false } -- v20.121: AUTO никогда не включается сам - только кнопкой
@@ -784,25 +785,15 @@ local function fovKickGeode()
 	end)
 end
 
+-- v20.130: блокировка ходьбы через общий MovementLock (снимается сама по
+-- пределу и на респавне - игрок больше не может «застрять» без ходьбы).
+local MovementLock = require(ReplicatedStorage.Shared.MovementLock)
 local function lockPlayerMovement()
-	local character = player.Character
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not humanoid then return end
-	lockedHumanoid = humanoid
-	lockedWalkSpeed = humanoid.WalkSpeed
-	lockedJumpPower = humanoid.JumpPower
-	humanoid.WalkSpeed = 0
-	humanoid.JumpPower = 0
-	humanoid.JumpHeight = 0
+	MovementLock.Lock("Geode", 90)
 end
 
 local function unlockPlayerMovement()
-	if lockedHumanoid and lockedHumanoid.Parent then
-		lockedHumanoid.WalkSpeed = lockedWalkSpeed
-		lockedHumanoid.JumpPower = lockedJumpPower
-		lockedHumanoid.JumpHeight = 7.2
-	end
-	lockedHumanoid = nil
+	MovementLock.Unlock("Geode")
 end
 
 local function stopOrbitCamera()
@@ -965,23 +956,27 @@ local function attachHammer()
 		end
 	end
 	local model, handle, toolGrip = buildHammer()
-	-- v20.106: молот растёт вместе с игроком (Config.GeodeCutscene.PlayerScale)
-	if Hit.PlayerScale and model:IsA("Model") and model.ScaleTo then
-		pcall(model.ScaleTo, model, CUT.PlayerScale or 2)
-	end
+	-- v20.130: СВОЙ МОЛОТ - КАК ЕСТЬ. Не масштабируем и не двигаем детали
+	-- относительно ручки: модель уже настроена в Studio. Крепим к руке ровно
+	-- так, как Roblox крепит инструмент (weld RightGrip: C0 - точка хвата
+	-- руки, C1 - Tool.Grip). Без Tool: Attachment "Grip"/"RightGripAttachment"
+	-- в ручке, иначе стандартный хват.
 	local gripAttachment = hand:FindFirstChild("RightGripAttachment")
-	local handCFrame = gripAttachment and gripAttachment.WorldCFrame or (hand.CFrame * CFrame.new(0, -hand.Size.Y / 2, 0))
-	local defaultGrip = CFrame.new(0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -1, 0)
-	local handleCFrame
-	local gripInHandle = handle:FindFirstChild("Grip")
-	if gripInHandle and gripInHandle:IsA("Attachment") then
-		handleCFrame = handCFrame * gripInHandle.CFrame:Inverse()
-	elseif toolGrip then
-		handleCFrame = handCFrame * toolGrip:Inverse()
+	local handGripC0 = gripAttachment and gripAttachment.CFrame
+		or CFrame.new(0, -hand.Size.Y / 2, 0) * CFrame.Angles(-math.pi / 2, 0, 0) -- как у R6
+	local gripC1
+	if toolGrip then
+		gripC1 = toolGrip
 	else
-		handleCFrame = handCFrame * defaultGrip:Inverse() * CFrame.new(0, 0.7, 0)
+		local gripInHandle = handle:FindFirstChild("Grip") or handle:FindFirstChild("RightGripAttachment")
+		if gripInHandle and gripInHandle:IsA("Attachment") then
+			gripC1 = gripInHandle.CFrame
+		else
+			gripC1 = CFrame.new(0, -0.7, 0) * CFrame.Angles(-math.pi / 2, 0, 0)
+		end
 	end
-	-- Остальные детали сохраняют положение относительно ручки.
+	local handleCFrame = hand.CFrame * handGripC0 * gripC1:Inverse()
+	-- детали едут вместе с ручкой, их взаимное положение НЕ меняется
 	local offsets = {}
 	for _, part in model:GetDescendants() do
 		if part:IsA("BasePart") and part ~= handle then
@@ -998,7 +993,8 @@ local function attachHammer()
 			part.CanQuery = false
 			part.CanTouch = false
 			part.Massless = true
-			if part ~= handle then
+			-- уже приваренные в модели детали не трогаем, свободные - к ручке
+			if part ~= handle and #part:GetJoints() == 0 then
 				local weld = Instance.new("WeldConstraint")
 				weld.Part0 = handle
 				weld.Part1 = part
@@ -1012,7 +1008,9 @@ local function attachHammer()
 	weld.Name = "HammerGrip"
 	weld.Part0 = hand
 	weld.Part1 = handle
-	weld.C0 = hand.CFrame:ToObjectSpace(handleCFrame)
+	-- то же, что RightGrip у инструментов (C0 * C1⁻¹), одним C0 - анимация
+	-- замаха ниже работает с C0 как «рука → ручка»
+	weld.C0 = handGripC0 * gripC1:Inverse()
 	weld.Parent = handle
 	hammerWeld = weld
 	hammerRestC0 = weld.C0
@@ -1378,7 +1376,7 @@ end
 local function returnCrackCamera()
 	releaseCutscene()
 	crackSequenceActive = false
-	cinematicMode:Fire(false) -- раскол кончился — возвращаем HUD
+	cinematicMode:Fire(false, "Geode") -- раскол кончился — возвращаем HUD
 	fovTo(Config.Geodes.CameraFOVDefault, 0.4)
 	unlockPlayerMovement()
 	task.delay(0.4, function()
@@ -1639,7 +1637,7 @@ local function spawnScatterDrop(origin, landPos, flightSeconds, arcHeight, resul
 		require(game:GetService("ReplicatedStorage").Shared.UiKit).StyleText(label, "Heading") -- v20: шрифт темы
 		label.TextScaled = true
 		label.TextColor3 = Color3.fromRGB(255, 225, 130)
-		label.Text = ("1/%d"):format(math.max(1, math.round(1 / chance)))
+		label.Text = "1/" .. DropTables.NiceNumber(1 / chance) -- v20.130
 		label.Parent = billboard
 	end
 
@@ -2307,7 +2305,7 @@ beginCrack = function()
 	-- кружит уже вокруг НЕЁ, а не вокруг игрока — иначе наковальня то и
 	-- дело уходила бы из кадра.
 	activeGeodeProp, activeAnvil = spawnGeodePropOnAnvil(pendingGeodeType)
-	cinematicMode:Fire(true) -- прячем HUD на время раскола
+	cinematicMode:Fire(true, "Geode") -- прячем HUD на время раскола
 	-- v14: игрок у наковальни, молот в руке, кадр из-за плеча.
 	standAtAnvil(activeAnvil)
 	attachHammer()
@@ -2836,7 +2834,7 @@ function closeAll()
 	-- v10 ФИКС: возвращаем HUD. Раньше катсценный режим снимался только в
 	-- returnCrackCamera, и при выходе через closeAll (скип, OpenFailed,
 	-- сторож) интерфейс оставался скрытым — «пропало уи после жеоды».
-	cinematicMode:Fire(false)
+	cinematicMode:Fire(false, "Geode")
 	closeCollectionContext()
 	dimmer.Visible = false
 	openCountMenu.Visible = false

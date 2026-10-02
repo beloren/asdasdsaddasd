@@ -514,7 +514,7 @@ local function playRiseCinematic(islandId, topPosition, seconds, radius)
 	cinematicBusy = true
 	seconds = tonumber(seconds) or 3
 	close()
-	cinematicMode:Fire(true)
+	cinematicMode:Fire(true, "Island")
 
 	local restoreType = camera.CameraType
 	local startCFrame = camera.CFrame
@@ -565,7 +565,7 @@ local function playRiseCinematic(islandId, topPosition, seconds, radius)
 	if not ok then warn("[IslandUI] Катсцена острова упала, возвращаю камеру:", err) end
 	camera.CameraType = restoreType == Enum.CameraType.Scriptable and Enum.CameraType.Custom or restoreType
 	camera.FieldOfView = startFov
-	cinematicMode:Fire(false)
+	cinematicMode:Fire(false, "Island")
 	cinematicBusy = false
 end
 
@@ -723,7 +723,7 @@ local function playSmelterUpgradeCinematic(level)
 	end
 	cinematicBusy = true
 	close()
-	cinematicMode:Fire(true)
+	cinematicMode:Fire(true, "IslandTravel")
 	local promptsWere = ProximityPromptService.Enabled
 	ProximityPromptService.Enabled = false
 	local restoreType = camera.CameraType
@@ -823,7 +823,7 @@ local function playSmelterUpgradeCinematic(level)
 	camera.CameraType = restoreType == Enum.CameraType.Scriptable and Enum.CameraType.Custom or restoreType
 	camera.FieldOfView = startFov
 	ProximityPromptService.Enabled = promptsWere
-	cinematicMode:Fire(false)
+	cinematicMode:Fire(false, "IslandTravel")
 	cinematicBusy = false
 end
 

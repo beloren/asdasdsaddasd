@@ -47,7 +47,26 @@ local CONTROL_GUI_NAMES = {
 	ControlGui = true,
 }
 
+local GuiService = game:GetService("GuiService")
+
+-- v20.130: кроме Enabled, возвращаем джойстик НА МЕСТО (если какой-то
+-- скрипт увёз его к краю: атрибуты CinematicHome/FocusHome), снимаем
+-- невидимость и держим включённым TouchControlsEnabled.
+local function restoreChild(child)
+	if not child:IsA("GuiObject") then return end
+	for _, attribute in { "CinematicHome", "FocusHome" } do
+		local home = child:GetAttribute(attribute)
+		if typeof(home) == "UDim2" then
+			child.Position = home
+			child:SetAttribute(attribute, nil)
+		end
+	end
+end
+
 local function enableControlGuis()
+	pcall(function()
+		if GuiService.TouchControlsEnabled == false then GuiService.TouchControlsEnabled = true end
+	end)
 	local found = false
 	for _, gui in playerGui:GetChildren() do
 		if gui:IsA("ScreenGui") and CONTROL_GUI_NAMES[gui.Name] then
@@ -55,6 +74,10 @@ local function enableControlGuis()
 			if not gui.Enabled then
 				gui.Enabled = true
 			end
+			gui:SetAttribute("FocusHidden", nil)
+			for _, child in gui:GetChildren() do restoreChild(child) end
+			local frame = gui:FindFirstChild("TouchControlFrame")
+			if frame and frame:IsA("GuiObject") and not frame.Visible then frame.Visible = true end
 		end
 	end
 	return found
@@ -79,7 +102,7 @@ end
 -- а «управление всегда доступно».
 task.spawn(function()
 	while true do
-		task.wait(1)
+		task.wait(0.5)
 		if not enableControlGuis() then
 			-- Самого ScreenGui нет вовсе (Enable() ещё не успел его
 			-- создать, либо что-то его уничтожило) — поднимаем через

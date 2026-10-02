@@ -132,7 +132,7 @@ local function attachPriceGui(crystal, oreInfo, value, chanceFraction, mutationN
 	-- вводит в заблуждение. Теперь при нулевом шансе строка с шансом
 	-- просто не выводится, остаются имя и цена.
 	local oddsSegment = oneInN > 0
-		and ('<font color="#%s">1/%d</font>  '):format(colorHex(oddsColor), oneInN)
+		and ('<font color="#%s">1/%s</font>  '):format(colorHex(oddsColor), require(ReplicatedStorage.Shared.DropTables).NiceNumber(oneInN)) -- v20.130: круглые цифры
 		or ""
 	local text = (mutationLine and (mutationLine .. "\n") or "") .. ('<font color="#%s">%s</font>\n%s<font color="#%s">$%s</font>'):format(
 		colorHex(nameColor),

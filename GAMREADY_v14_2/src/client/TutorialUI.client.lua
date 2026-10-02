@@ -357,10 +357,13 @@ end
 local FOCUS_KEEP = Config.Tutorial.DialogFocusKeep or { "HotbarUi", "TutorialUi", "TutorialCursor" }
 local focusOn = false
 local function setHudFocus(on)
+	-- v20.130: по умолчанию HUD во время реплик НЕ разъезжается к краям
+	-- (элементы уезжали вверх, выглядело странно). Config.Tutorial.DialogHudFocus = true - вернуть.
+	if Config.Tutorial.DialogHudFocus ~= true and on then return end
 	if on == focusOn then return end
 	focusOn = on
 	local signal = ReplicatedStorage.Shared:FindFirstChild("HudFocus")
-	if signal then signal:Fire(on, FOCUS_KEEP) end
+	if signal then signal:Fire(on, FOCUS_KEEP, "Tutorial") end
 end
 
 -- v20.118: персонаж выпрыгивает слева с наклоном, табличка «вспухает».
@@ -448,19 +451,58 @@ local lastStepIndex = nil
 -- CinematicActive), загрузка и мини-игра его ставят на паузу.
 local advance
 local autoToken = 0
+-- v20.130: время чтения зависит от длины реплики (Config.Tutorial.AutoAdvance*),
+-- под табличкой полоска заполняется до автоперехода - видно, что дальше само.
+local autoBar = dialog:FindFirstChild("AutoBar", true)
+if not autoBar then
+	local holder = boardImage or dialog
+	autoBar = Instance.new("Frame")
+	autoBar.Name = "AutoBar"
+	autoBar.AnchorPoint = Vector2.new(0.5, 1)
+	autoBar.Position = UDim2.new(0.5, 0, 1, -6)
+	autoBar.Size = UDim2.new(0.86, 0, 0, 5)
+	autoBar.BackgroundColor3 = Color3.fromRGB(20, 16, 30)
+	autoBar.BackgroundTransparency = 0.35
+	autoBar.BorderSizePixel = 0
+	autoBar.ZIndex = 7
+	autoBar.Parent = holder
+	Instance.new("UICorner", autoBar).CornerRadius = UDim.new(1, 0)
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.Size = UDim2.fromScale(0, 1)
+	fill.BackgroundColor3 = Color3.fromRGB(255, 215, 70)
+	fill.BorderSizePixel = 0
+	fill.ZIndex = 8
+	fill.Parent = autoBar
+	Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+end
+local autoFill = autoBar:FindFirstChild("Fill")
+autoBar.Visible = false
+
+local function readSeconds()
+	local text = body.ContentText or body.Text or ""
+	local perChar = tonumber(Config.Tutorial.AutoAdvancePerChar) or 0.045
+	local base = tonumber(Config.Tutorial.AutoAdvanceBase) or 1.4
+	local maxSeconds = tonumber(Config.Tutorial.AutoAdvanceSeconds) or 5
+	return math.clamp(base + #text * perChar, math.min(2.2, maxSeconds), maxSeconds)
+end
+
 local function startAutoAdvance()
 	autoToken += 1
 	local token = autoToken
-	local total = tonumber(Config.Tutorial.AutoAdvanceSeconds) or 0
-	if total <= 0 then return end
+	if (tonumber(Config.Tutorial.AutoAdvanceSeconds) or 0) <= 0 then return end
+	local total = readSeconds()
+	autoBar.Visible = true
+	if autoFill then autoFill.Size = UDim2.fromScale(0, 1) end
 	task.spawn(function()
 		local waited = 0
 		while token == autoToken do
-			local dt = task.wait(0.1)
+			local dt = task.wait(0.05)
 			local playerGui = player:FindFirstChild("PlayerGui")
 			local cinematic = playerGui and playerGui:GetAttribute("CinematicActive") == true
 			if dialog.Visible and gateOpen() and not cinematic then
 				waited += dt
+				if autoFill then autoFill.Size = UDim2.fromScale(math.clamp(waited / total, 0, 1), 1) end
 				if waited >= total then
 					if token == autoToken and advance then advance() end
 					return
@@ -474,6 +516,7 @@ local function showDialog(payload)
 	if not gateOpen() then pendingPayload = payload; return end
 	pendingPayload = nil
 	autoToken += 1 -- новая реплика: старый авто-отсчёт больше не действует
+	if autoBar then autoBar.Visible = false end
 	gui.Enabled = true
 	slideOut(task_)
 	slideIn(dialog)
@@ -885,6 +928,7 @@ local lastChangeAt = os.clock()
 local lastSignature = nil
 local nudgeBoost = 0
 local uiTarget, uiCheckAt = nil, 0
+local cursorSwitchAt = 0
 local pausedUntil = 0
 local lastCycle = -1
 
@@ -1101,9 +1145,21 @@ RunService.RenderStepped:Connect(function(dt)
 	end
 	-- цель интерфейса (переискиваем 4 раза в секунду)
 	if os.clock() >= uiCheckAt then
-		uiCheckAt = os.clock() + 0.25
-		uiTarget = current.UiTargets and TutorialTarget.Find(current.UiTargets) or nil
+		uiCheckAt = os.clock() + 0.1
+		local found = current.UiTargets and TutorialTarget.Find(current.UiTargets) or nil
+		if found ~= uiTarget then
+			-- v20.130: цель сменилась - курсор не «прыгает», а мягко
+			-- появляется на новом месте
+			uiTarget = found
+			cursorSwitchAt = os.clock()
+		end
 	end
+	local sinceSwitch = os.clock() - cursorSwitchAt
+	if sinceSwitch < 0.12 then
+		hideCursor()
+		return
+	end
+	cursorImage.ImageTransparency = math.clamp(1 - (sinceSwitch - 0.12) / 0.18, 0, 1)
 	if uiTarget and uiTarget.Parent and TutorialTarget.Shown(uiTarget) then
 		local okPoint, point = pcall(uiPoint, uiTarget)
 		if okPoint and point then
@@ -1195,6 +1251,7 @@ end)
 -- HUD) или под её местом оказалась чужая кнопка (меню крота, подсказки
 -- установки, мобильные кнопки) - ничего не перекрывает.
 local taskHiddenForUi = false
+local clearSince = nil
 local plateRect = nil -- { Pos, Size } плашки в покое
 local blockedByButton, blockCheckAt = false, 0
 local OWN_GUIS = { TutorialUi = true, TutorialCursor = true, HotbarUi = true }
@@ -1237,7 +1294,6 @@ RunService.RenderStepped:Connect(function()
 		blockCheckAt = os.clock() + 0.3
 		local okBlock, blocked = pcall(buttonUnderPlate)
 		blockedByButton = okBlock and blocked == true
-		if not blockedByButton and fullscreenOpen() then blockedByButton = true end
 	end
 	if task_.Visible and not taskHiddenForUi and task_:GetAttribute("_Shown") == true then
 		local rest = restingPosition(task_)
@@ -1245,18 +1301,34 @@ RunService.RenderStepped:Connect(function()
 			plateRect = { Pos = task_.AbsolutePosition, Size = task_.AbsoluteSize }
 		end
 	end
-	if uiPointerActive or blockedByButton then
-		if task_.Visible then
-			task_.Visible = false
+	-- v20.130: большое окно - прячем В ЭТОТ ЖЕ кадр (раньше с задержкой до
+	-- 0.3 с: плашка мелькала поверх открывающегося окна); показываем снова
+	-- только когда помеха ушла хотя бы на 0.35 с (не мигает при переключениях).
+	local hideNow = uiPointerActive or blockedByButton or fullscreenOpen()
+	if hideNow then
+		clearSince = nil
+		if task_.Visible and not taskHiddenForUi then
 			taskHiddenForUi = true
+			local rest = restingPosition(task_)
+			local out = TweenService:Create(task_, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Position = UDim2.new(rest.X.Scale, rest.X.Offset, 1, 90),
+			})
+			out:Play()
+			out.Completed:Connect(function()
+				if taskHiddenForUi then task_.Visible = false end
+			end)
 		end
 	elseif taskHiddenForUi then
-		taskHiddenForUi = false
-		if task_:GetAttribute("_Shown") == true then
-			local rest = restingPosition(task_)
-			task_.Position = UDim2.new(rest.X.Scale, rest.X.Offset, 1, 90)
-			task_.Visible = true
-			TweenService:Create(task_, ANIM_IN, { Position = rest }):Play()
+		clearSince = clearSince or os.clock()
+		if os.clock() - clearSince >= 0.35 then
+			taskHiddenForUi = false
+			clearSince = nil
+			if task_:GetAttribute("_Shown") == true then
+				local rest = restingPosition(task_)
+				task_.Position = UDim2.new(rest.X.Scale, rest.X.Offset, 1, 90)
+				task_.Visible = true
+				TweenService:Create(task_, ANIM_IN, { Position = rest }):Play()
+			end
 		end
 	end
 end)

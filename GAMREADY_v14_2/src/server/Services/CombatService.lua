@@ -1456,6 +1456,33 @@ function CombatService:_ragdoll(attacker, victimPlayer, victimHrp, attackerHrp, 
 
 	local direction = horizontalDirection(attackerHrp.Position, victimHrp.Position, -victimHrp.CFrame.LookVector)
 	local impulse = direction * cfg.KnockbackSpeed + Vector3.new(0, cfg.KnockbackUp, 0)
+	-- v20.130: ракетный удар - яркий трейл за улетающим игроком
+	if rawget(cfg, "Trail") and victimHrp then
+		pcall(function()
+			local top = Instance.new("Attachment")
+			top.Name = "RocketTrailTop"
+			top.Position = Vector3.new(0, 1.2, 0)
+			top.Parent = victimHrp
+			local bottom = Instance.new("Attachment")
+			bottom.Name = "RocketTrailBottom"
+			bottom.Position = Vector3.new(0, -1.2, 0)
+			bottom.Parent = victimHrp
+			local trail = Instance.new("Trail")
+			trail.Name = "RocketTrail"
+			trail.Attachment0 = top
+			trail.Attachment1 = bottom
+			trail.Lifetime = 0.6
+			trail.LightEmission = 1
+			trail.FaceCamera = true
+			local color = rawget(cfg, "TrailColor") or Color3.fromRGB(255, 170, 60)
+			trail.Color = ColorSequence.new(color, Color3.fromRGB(255, 255, 255))
+			trail.Transparency = NumberSequence.new(0.1, 1)
+			trail.WidthScale = NumberSequence.new(1, 0)
+			trail.Parent = victimHrp
+			local Debris = game:GetService("Debris")
+			for _, item in { top, bottom, trail } do Debris:AddItem(item, rawget(cfg, "TrailSeconds") or 2.5) end
+		end)
+	end
 
 	local dropped = {}
 	for _ = 1, math.max(0, cfg.DropCount or 1) do
@@ -1590,7 +1617,10 @@ function CombatService:_staggerHit(attacker, victim)
 				KnockbackSpeed = rocket.KnockbackSpeed,
 				KnockbackUp = rocket.KnockbackUp,
 				RagdollSeconds = rocket.RagdollSeconds,
-				DropCount = rocket.DropCount,
+				DropCount = rocket.DropCount or 0, -- v20.130: руда не выпадает
+				Trail = rocket.Trail ~= false,
+				TrailColor = rocket.TrailColor,
+				TrailSeconds = rocket.TrailSeconds,
 				-- v20.65: смешной полёт вверх - кувырки и миг «замирания».
 				Blast = true,
 				Spin = rocket.Spin,

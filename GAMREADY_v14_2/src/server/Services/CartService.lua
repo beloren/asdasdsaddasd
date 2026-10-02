@@ -875,6 +875,30 @@ function CartService:Init(services)
 end
 
 function CartService:Start()
+	-- v20.130: СТОРОЖ ХОДЬБЫ. Если у игрока скорость/прыжок застряли на нуле
+	-- без причины (не оглушён, не в шахте, не в рагдолле) - пересчитываем.
+	-- Раньше любой оборванный путь (ошибка посреди экспедиции и т.п.)
+	-- оставлял игрока стоять навсегда.
+	task.spawn(function()
+		while true do
+			task.wait(1.5)
+			for _, player in Players:GetPlayers() do
+				local character = player.Character
+				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				if humanoid and humanoid.Health > 0 then
+					local busy = player:GetAttribute("MineExpeditionActive") == true
+						or player:GetAttribute("Ragdolled") == true
+						or (Services.CombatService and Services.CombatService:IsStunned(player))
+					if not busy then
+						if humanoid.WalkSpeed < 0.5 then pcall(recomputeWalkSpeed, player) end
+						if humanoid.UseJumpPower and humanoid.JumpPower < 1 then humanoid.JumpPower = 50 end
+						if not humanoid.UseJumpPower and humanoid.JumpHeight < 0.5 then humanoid.JumpHeight = 7.2 end
+						if humanoid.PlatformStand and player:GetAttribute("Ragdolled") ~= true then humanoid.PlatformStand = false end
+					end
+				end
+			end
+		end
+	end)
 	-- Тележка упала в бездну → пересоздать пустую на участке владельца
 	-- РАЗГОН ПРИ ДОЛГОЙ ХОДЬБЕ (см. Config.Sprint и sprintFactor выше).
 	-- Отдельный Heartbeat, а не общий с limitTurning: тот работает по

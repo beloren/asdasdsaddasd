@@ -2246,6 +2246,7 @@ local function setupUpgradeRevealCinematic()
 	local function skipActiveCinematic()
 	if not cinematicActive then return end
 	cinematicActive = false
+	if playerGui:GetAttribute("CameraHold") == "Upgrade" then playerGui:SetAttribute("CameraHold", nil) end
 	cinematicToken += 1
 	workspace.CurrentCamera.CameraType = cinematicRestoreCameraType
 	-- Промпты обратно — иначе прерванная катсцена оставила бы игрока
@@ -2341,6 +2342,7 @@ local function setupUpgradeRevealCinematic()
 	cinematicToken += 1
 	local token = cinematicToken
 	cinematicActive = true
+	playerGui:SetAttribute("CameraHold", "Upgrade") -- v20.130: сторож камеры не обрывает сцену
 	cinematicRestoreCameraType = camera.CameraType
 	local startCFrame = camera.CFrame
 	camera.CameraType = Enum.CameraType.Scriptable
@@ -2736,6 +2738,7 @@ local function setupUpgradeRevealCinematic()
 			restoreTween.Completed:Wait()
 			if cinematicToken == token then
 				cinematicActive = false
+	if playerGui:GetAttribute("CameraHold") == "Upgrade" then playerGui:SetAttribute("CameraHold", nil) end
 				camera.CameraType = cinematicRestoreCameraType
 				setCinematicPromptsBlocked(false) -- сцена доиграла штатно — возвращаем "E"
 			end
@@ -2757,6 +2760,7 @@ local function setupUpgradeRevealCinematic()
 		end
 		if cinematicToken == token and cinematicActive then
 			cinematicActive = false
+	if playerGui:GetAttribute("CameraHold") == "Upgrade" then playerGui:SetAttribute("CameraHold", nil) end
 			pcall(function() camera.CameraType = cinematicRestoreCameraType end)
 		end
 		-- Промпты возвращаем БЕЗУСЛОВНО, вне зависимости от токена: даже

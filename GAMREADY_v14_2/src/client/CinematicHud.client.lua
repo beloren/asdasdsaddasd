@@ -37,6 +37,15 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- обязано быть видно поверх неё (затемнения, переходы, модальные окна).
 -- Прятать их означало бы спрятать то, ради чего HUD и убирается.
 local KEEP_VISIBLE = {
+	-- v20.130: УПРАВЛЕНИЕ И ЭКРАНЫ ROBLOX НЕ ТРОГАЕМ НИКОГДА (джойстик пропадал)
+	TouchGui = true,
+	ControlGui = true,
+	Freecam = true,
+	Chat = true,
+	BubbleChat = true,
+	PlayerList = true,
+	LoadingScreen = true,
+	TutorialCursor = true,
 	MineArcUi = true,          -- мини-игра шахты
 	MineDialogUi = true,       -- реплики шахтёра
 	GeodeUi = true,            -- окно жеоды и раскол
@@ -169,7 +178,7 @@ end
 local StarterGui = game:GetService("StarterGui")
 local okConfig, Config = pcall(require, ReplicatedStorage.Shared.Config)
 local HIDE_CORE = not (okConfig and Config.UI and Config.UI.CinematicHideCoreGui == false)
-local CORE_TYPES = { Enum.CoreGuiType.Chat, Enum.CoreGuiType.PlayerList, Enum.CoreGuiType.Backpack, Enum.CoreGuiType.EmotesMenu, Enum.CoreGuiType.Health }
+local CORE_TYPES = { Enum.CoreGuiType.Chat, Enum.CoreGuiType.EmotesMenu, Enum.CoreGuiType.Health }
 local coreWasEnabled = nil
 
 local function hideCore()
@@ -185,47 +194,149 @@ end
 local function restoreCore()
 	if not coreWasEnabled then return end
 	for kind, enabled in coreWasEnabled do
-		if enabled then pcall(StarterGui.SetCoreGuiEnabled, StarterGui, kind, true) end
+		-- v20.130: рюкзак и список игроков игра выключает сама - не возвращаем
+		if enabled and kind ~= Enum.CoreGuiType.Backpack and kind ~= Enum.CoreGuiType.PlayerList then
+			pcall(StarterGui.SetCoreGuiEnabled, StarterGui, kind, true)
+		end
 	end
 	coreWasEnabled = nil
 end
 
+-- v20.130: ВЛАДЕЛЬЦЫ ВМЕСТО СЧЁТЧИКА. Раньше Fire(true)/Fire(false)
+-- считались счётчиком: лишний Fire(true) (повторный пакет «Minigame»,
+-- ошибка, выход посреди сцены) навсегда оставлял HUD за краем экрана - у
+-- игроков пропадали все кнопки. Теперь у каждой катсцены своё имя:
+--   CinematicMode:Fire(true, "Mine") / Fire(false, "Mine")
+-- повторный Fire(true) того же имени ничего не добавляет; у каждого
+-- владельца лимит MAX_OWNER_SECONDS - потом HUD возвращается сам.
+local MAX_OWNER_SECONDS = 120
+local cameraHoldName, cameraHoldSince = nil, 0
+local scriptableSince = nil
+local owners = {} -- [имя] = { Since, NoCore, Focus, Keep }
+
+local function anyOwner(filter)
+	for _, info in owners do
+		if filter == nil or filter(info) then return true end
+	end
+	return false
+end
+
+local function refresh()
+	local active = next(owners) ~= nil
+	-- закреплённые экраны (HudFocus keep) - объединение по всем фокус-владельцам
+	table.clear(dynamicKeep)
+	for _, info in owners do
+		for _, name in info.Keep or {} do dynamicKeep[name] = true end
+	end
+	-- если хоть один НЕ фокусный владелец - keep фокуса не действует
+	if anyOwner(function(info) return not info.Focus end) then table.clear(dynamicKeep) end
+	if active then
+		depth = 1
+		-- экраны, которые больше не надо прятать (стали keep) - вернуть
+		for element, originalPosition in hiddenElements do
+			local gui = element:FindFirstAncestorWhichIsA("ScreenGui")
+			if gui and dynamicKeep[gui.Name] then
+				hiddenElements[element] = nil
+				element:SetAttribute("CinematicHome", nil)
+				TweenService:Create(element, EASING_IN, { Position = originalPosition }):Play()
+			end
+		end
+		pcall(hideHud)
+		if anyOwner(function(info) return not info.NoCore end) then hideCore() else restoreCore() end
+	else
+		depth = 0
+		showHud()
+		restoreCore()
+	end
+	playerGui:SetAttribute("CinematicActive", anyOwner(function(info) return not info.Focus end))
+end
+
+local function setOwner(name, active, info)
+	name = tostring(name or "Default")
+	if active then
+		local existing = owners[name]
+		owners[name] = info or {}
+		owners[name].Since = existing and existing.Since or os.clock()
+	else
+		owners[name] = nil
+	end
+	refresh()
+end
+
+-- досдвигаем то, что появилось уже после начала катсцены; снимаем
+-- «забытых» владельцев; гарантированно возвращаем всё, если владельцев нет.
 task.spawn(function()
 	while true do
 		task.wait(0.25)
-		if depth > 0 then pcall(hideHud) end
+		local now = os.clock()
+		local expired = false
+		for name, info in owners do
+			if now - (info.Since or now) > (info.MaxSeconds or MAX_OWNER_SECONDS) then
+				warn(("[CinematicHud] «%s» держал HUD спрятанным дольше %d с - возвращаю"):format(name, info.MaxSeconds or MAX_OWNER_SECONDS))
+				owners[name] = nil
+				expired = true
+			end
+		end
+		if expired then refresh() end
+		-- v20.130: СТОРОЖ КАМЕРЫ. Камера в Scriptable дольше 4 с, а никто её
+		-- не держит (нет катсцен, загрузки, шахты, окна престижа - атрибут
+		-- PlayerGui.CameraHold) - возвращаем обычную камеру за игроком.
+		-- CameraHold тоже не вечный: зависший атрибут (сцена упала) снимаем
+		local hold = playerGui:GetAttribute("CameraHold")
+		if hold ~= nil then
+			if hold ~= cameraHoldName then cameraHoldName, cameraHoldSince = hold, now end
+			if now - cameraHoldSince > (hold == "Prestige" and 900 or 120) then
+				warn(("[CinematicHud] CameraHold «%s» завис - снимаю"):format(tostring(hold)))
+				playerGui:SetAttribute("CameraHold", nil)
+				cameraHoldName = nil
+			end
+		else
+			cameraHoldName = nil
+		end
+		local camera = workspace.CurrentCamera
+		local held = next(owners) ~= nil
+			or player:GetAttribute("IntroActive") == true
+			or player:GetAttribute("MineExpeditionActive") == true
+			or playerGui:GetAttribute("CameraHold") ~= nil
+		if camera and camera.CameraType == Enum.CameraType.Scriptable and not held then
+			scriptableSince = scriptableSince or now
+			if now - scriptableSince > 4 then
+				scriptableSince = nil
+				local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+				if humanoid then camera.CameraSubject = humanoid end
+				camera.CameraType = Enum.CameraType.Custom
+				warn("[CinematicHud] камера застряла в Scriptable - вернул обычную")
+			end
+		else
+			scriptableSince = nil
+		end
+		if next(owners) then
+			pcall(hideHud)
+		else
+			-- СТОРОЖ: владельцев нет, а что-то осталось за краем - вернуть
+			if next(hiddenElements) then showHud() end
+			for _, gui in playerGui:GetChildren() do
+				if gui:IsA("ScreenGui") then
+					for _, child in gui:GetChildren() do
+						local home = child:IsA("GuiObject") and child:GetAttribute("CinematicHome")
+						if typeof(home) == "UDim2" then
+							child:SetAttribute("CinematicHome", nil)
+							if typeof(child:GetAttribute("FocusHome")) ~= "UDim2" then
+								TweenService:Create(child, EASING_IN, { Position = home }):Play()
+							end
+						end
+					end
+				end
+			end
+		end
 	end
 end)
 
-local realDepth = 0 -- v20.118: только настоящие катсцены (без HudFocus) - для атрибута CinematicActive
-local function setCinematic(active, noCore, isFocus)
-	if not isFocus then realDepth = math.max(0, realDepth + (active and 1 or -1)) end
-	if active then
-		depth += 1
-		if depth == 1 then
-			hideHud()
-			if not noCore then hideCore() end
-		end
-	else
-		depth = math.max(0, depth - 1)
-		if depth == 0 then
-			showHud()
-			restoreCore()
-		end
-	end
-	playerGui:SetAttribute("CinematicActive", realDepth > 0)
-end
-
--- Страховка: если персонаж умер/переродился посреди катсцены, счётчик мог
--- остаться ненулевым, и HUD не вернулся бы никогда. Респавн сбрасывает всё.
+-- Страховка: персонаж умер/переродился посреди катсцены - всё сбрасываем.
 player.CharacterAdded:Connect(function()
-	if depth > 0 then
-		depth = 0
-		realDepth = 0
-		table.clear(dynamicKeep)
-		playerGui:SetAttribute("CinematicActive", false)
-		showHud()
-		restoreCore()
+	if next(owners) then
+		table.clear(owners)
+		refresh()
 	end
 end)
 
@@ -237,29 +348,21 @@ if not signal then
 	signal.Name = "CinematicMode"
 	signal.Parent = ReplicatedStorage.Shared
 end
-signal.Event:Connect(function(active)
-	setCinematic(active == true)
+signal.Event:Connect(function(active, ownerName, maxSeconds)
+	setOwner(ownerName or "Default", active == true, { MaxSeconds = tonumber(maxSeconds) })
 end)
 
--- v20.118: «ФОКУС» ДЛЯ ДИАЛОГОВ (обучение и т.п.): всё уезжает к краям,
--- кроме перечисленных экранов (например хотбар). Fire(true, {"HotbarUi"}) /
--- Fire(false, {"HotbarUi"}) - тот же список при снятии. Интерфейс Roblox не трогает.
+-- «ФОКУС» ДЛЯ ДИАЛОГОВ (обучение и т.п.): всё уезжает к краям, кроме
+-- перечисленных экранов. Fire(true, {"HotbarUi"}, "Имя") / Fire(false, nil, "Имя").
+-- Интерфейс Roblox не трогает.
 local focus = ReplicatedStorage.Shared:FindFirstChild("HudFocus")
 if not focus then
 	focus = Instance.new("BindableEvent")
 	focus.Name = "HudFocus"
 	focus.Parent = ReplicatedStorage.Shared
 end
-focus.Event:Connect(function(active, keep)
-	keep = type(keep) == "table" and keep or {}
-	if active == true then
-		for _, name in keep do dynamicKeep[name] = (dynamicKeep[name] or 0) + 1 end
-		setCinematic(true, true, true)
-	else
-		for _, name in keep do
-			dynamicKeep[name] = (dynamicKeep[name] or 1) - 1
-			if dynamicKeep[name] <= 0 then dynamicKeep[name] = nil end
-		end
-		setCinematic(false, nil, true)
-	end
+focus.Event:Connect(function(active, keep, ownerName)
+	setOwner("Focus:" .. tostring(ownerName or "Default"), active == true, {
+		Focus = true, NoCore = true, Keep = type(keep) == "table" and keep or {}, MaxSeconds = 90,
+	})
 end)
