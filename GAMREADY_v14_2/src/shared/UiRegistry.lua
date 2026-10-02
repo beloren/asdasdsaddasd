@@ -43,7 +43,7 @@ UiRegistry.Entries = {
 
 	-- ОКНА
 	{ Name = "ShopUi", Module = "UiBuilders.ShopUi", MinVersion = 25, What = "магазин за Robux" },
-	{ Name = "UpgradeShopUi", Module = "UiBuilders.UpgradeShopUi", MinVersion = 21, What = "прокачка (Upgrade Mole)" },
+	{ Name = "UpgradeShopUi", Module = "UiBuilders.UpgradeShopUi", MinVersion = 22, What = "прокачка (Upgrade Mole)" },
 	{ Name = "SettingsMenu", Module = "UiBuilders.SettingsUi", MinVersion = 20, What = "настройки и промокоды" },
 	{ Name = "DailyRewardUi", Module = "UiBuilders.DailyRewardUi", MinVersion = 22, What = "награды за вход / время" },
 	{ Name = "ReturnScreenUi", Module = "UiBuilders.ReturnScreenUi", MinVersion = 20, What = "экран возвращения" },
@@ -57,7 +57,7 @@ UiRegistry.Entries = {
 	{ Name = "DropPreviewUi", Module = "UiBuilders.DropPreviewUi", MinVersion = 21, What = "окно шансов" },
 	{ Name = "DecorStorageUi", Module = "UiBuilders.DecorStorageUi", MinVersion = 22, What = "сундук-хранилище на базе" },
 	{ Name = "CompassUi", Module = "UiBuilders.CompassUi", MinVersion = 26, What = "кнопка TRAVEL и окно телепорта" },
-	{ Name = "IslandUi", Module = "UiBuilders.IslandUi", MinVersion = 22, What = "острова и путешествия" },
+	{ Name = "IslandUi", Module = "UiBuilders.IslandUi", MinVersion = 23, What = "острова и путешествия" },
 	{ Name = "GearUi", Module = "GearUiBuilder", MinVersion = 22, What = "снаряжение, лут сундуков" },
 	{ Name = "OfferUi", Module = "OfferUiBuilder", MinVersion = 21, What = "предложения" },
 	{ Name = "GroupRewardUi", Module = "SocialRewardCard", Fn = "BuildGroup", MinVersion = 20, What = "награда за группу" },

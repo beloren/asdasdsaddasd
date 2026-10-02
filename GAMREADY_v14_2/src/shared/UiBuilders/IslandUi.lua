@@ -15,7 +15,12 @@
 --        │        Frame "Info" (UIListLayout) → "Title", "Desc", "PerksHeader",
 --        │        Frame "Perks", ImageLabel "Upgrade" [Card] → "Title", "Pips", "Text";
 --        │        TextLabel "Price", ImageButton "Action" [Button_Green]
---        └─ Folder "Templates"
+--        │   v20.141: DetailView → ImageButton "PerksButton"; Content → ImageLabel
+--        │   "PerkTree" → "Back", "Title", Frame "Nodes", ImageLabel "Card" →
+--        │   Title, Level, Text, Buy
+--        └─ Folder "Templates" (+ v20.141: "PerkStar", "PerkFinal" - узлы дерева
+--             острова, у каждого ImageLabel "Shape" - форма, см. TreeParts;
+--             Frame "PerkLine" - связь)
 --             ├─ ImageButton "Card" [Card] → "Shine", ImageLabel "Image", "Icon",
 --             │    "Title", ImageLabel "Chip" [Pill] → "Text", "Lock", UIScale "Pop"
 --             ├─ TextLabel "PerkLine"
@@ -25,8 +30,10 @@
 local UiKit = require(script.Parent.Parent.UiKit)
 local Theme = UiKit.Theme
 
+local TreeParts = require(script.Parent.TreeParts)
+
 local Builder = {}
-Builder.VERSION = 22
+Builder.VERSION = 23 -- v20.141: мини-деревья островов (PerkTree, PerksButton, шаблоны Perk*)
 Builder.PANEL_SIZE = Vector2.new(640, 470)
 Builder.CARD_W = 140
 Builder.CARD_H = 212
@@ -308,6 +315,24 @@ function Builder.Build()
 		ZIndex = 4,
 	})
 
+	-- v20.141: кнопка и окно мини-дерева купленного острова
+	UiKit.Button(detail, "PerksButton", "UPGRADES", "Yellow", {
+		Position = UDim2.new(0, 8, 1, -56),
+		Size = UDim2.fromOffset(196, 48),
+		Visible = false,
+		ZIndex = 5,
+	})
+	local perkTree = UiKit.Plate(content, "PerkTree", "Card", { Visible = false, Active = true, ZIndex = 20 })
+	UiKit.Button(perkTree, "Back", "BACK", "Blue", { Position = UDim2.fromOffset(4, 4), Size = UDim2.fromOffset(110, 38), ZIndex = 21 })
+	UiKit.Text(perkTree, "Title", "ANVIL ISLAND UPGRADES", {
+		_Style = "Title", _MaxTextSize = 26,
+		Position = UDim2.fromOffset(124, 6), Size = UDim2.new(1, -360, 0, 34), ZIndex = 21,
+	})
+	UiKit.Group(perkTree, "Nodes", { Position = UDim2.fromOffset(10, 50), Size = UDim2.new(1, -250, 1, -60), ZIndex = 21 })
+	TreeParts.InfoCard(perkTree, "Card", {
+		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 50), Size = UDim2.new(0, 226, 1, -60), ZIndex = 21,
+	}, false)
+
 	-- ШАБЛОНЫ
 	local templates = Instance.new("Folder")
 	templates.Name = "Templates"
@@ -328,6 +353,9 @@ function Builder.Build()
 		ZIndex = 6,
 	})
 	Builder.BuildLabel().Parent = templates
+	TreeParts.Star(templates, "PerkStar", 82, { WithName = true, Color = Color3.fromRGB(110, 190, 255) })
+	TreeParts.Star(templates, "PerkFinal", 84, { WithName = true, Round = true })
+	TreeParts.Line(templates, "PerkLine", 6)
 	UiKit.HideTemplates(gui) -- шаблоны выключены с рождения
 	return gui
 end

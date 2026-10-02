@@ -18,12 +18,22 @@
 --                  └─ ImageButton "Action", ImageButton "Action2"
 --   Folder "Templates": ImageButton "Card" (Icon, Title, Level, Hint, Chip→Text, Lock, Shine),
 --                       TextLabel "StatLine", ImageButton "SupplyTab"
+-- v20.141: ДЕРЕВО ПРОКАЧКИ (см. TreeParts - как заменить форму узлов):
+--   GridView → Frame "TreeView" → Frame "Canvas" (UIScale "Zoom"),
+--              ImageLabel "StarPopup" → Title, Level, Text, Buy, Close
+--   Templates → "TreeTag" (плашка ветки), "TreeNode" (кружок тира: Shape,
+--              Caption, Price), "TreeStar" (звезда: Shape, Icon, Level),
+--              Frame "TreeLine" (связь)
 --------------------------------------------------------------------------------
 local Shared = script.Parent.Parent
 local UiKit = require(Shared.UiKit)
 local Theme = UiKit.Theme
 
+local TreeParts = require(script.Parent.TreeParts)
+
 local Builder = {}
+Builder.VERSION = 22 -- v20.141: шаблоны дерева прокачки
+Builder.TREE_NODE = 46
 
 Builder.PANEL_SIZE = Vector2.new(740, 470)
 Builder.MAIN_CARD = Vector2.new(210, 300)
@@ -93,6 +103,7 @@ end
 
 function Builder.Build()
 	local gui = UiKit.Screen("UpgradeShopUi", { DisplayOrder = 30, Enabled = false })
+	gui:SetAttribute("UiKitVersion", Builder.VERSION)
 	local size = Builder.PANEL_SIZE
 	local panel, parts = UiKit.Window(gui, "Panel", {
 		Title = "Upgrades",
@@ -156,6 +167,20 @@ function Builder.Build()
 		Size = UDim2.new(1, -20, 0, 22),
 		_MaxTextSize = 17,
 	})
+
+	-- v20.141: ДЕРЕВО ПРОКАЧКИ (узлы клиент клонирует из Templates)
+	local treeView = UiKit.Group(gridView, "TreeView", {
+		Size = UDim2.new(1, 0, 1, -30), ClipsDescendants = true, Active = true, ZIndex = 4,
+	})
+	local treeCanvas = UiKit.Group(treeView, "Canvas", { Size = UDim2.fromOffset(700, 380), ZIndex = 4 })
+	local zoom = Instance.new("UIScale")
+	zoom.Name = "Zoom"
+	zoom.Parent = treeCanvas
+	local popup = TreeParts.InfoCard(gridView, "StarPopup", {
+		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(300, 196), Visible = false, ZIndex = 20,
+	}, true)
+	popup:SetAttribute("OpenSize", Vector2.new(300, 196))
 
 	-- ЭКРАН 2: ВЫБРАННАЯ ВЕТКА
 	local detail = UiKit.Group(content, "DetailView", { Visible = false, ZIndex = 3 })
@@ -249,6 +274,10 @@ function Builder.Build()
 		Size = UDim2.new(0.333, -6, 1, 0),
 		Visible = false,
 	})
+	TreeParts.Tag(templates, "TreeTag", 116, Builder.TREE_NODE)
+	TreeParts.Node(templates, "TreeNode", Builder.TREE_NODE)
+	TreeParts.Star(templates, "TreeStar", Builder.TREE_NODE + 22)
+	TreeParts.Line(templates, "TreeLine", 6)
 	UiKit.HideTemplates(gui) -- шаблоны выключены с рождения
 	return gui
 end

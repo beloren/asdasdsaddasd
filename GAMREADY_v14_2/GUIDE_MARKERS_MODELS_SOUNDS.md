@@ -124,3 +124,26 @@
 - `Config.StudTexture.Id` — текстура стадов на всех заглушках
 - `Config.Tutorial.CharacterImageId`, `BoardImageId` — персонаж и табличка в диалоге обучения
 - `Config.Badges.*` — ID бейджей (0 — бейдж выключен)
+
+---
+
+## 6. Деревья прокачки — где менять форму узлов (v20.141)
+
+Все детали деревьев собираются билдерами (Command Bar → `BuildAllUI`, или игра соберёт сама). Меняешь в `StarterGui` - игра берёт твою версию.
+
+**Experienced Miner** - `StarterGui/UpgradeShopUi`
+- `Templates/TreeNode` - кружок тира (внутри `Shape`, `Caption` - номер, `Price` - цена)
+- `Templates/TreeStar` - звезда мелкого улучшения (`Shape` повёрнут на 45 = ромб, `Icon`, `Level`)
+- `Templates/TreeTag` - плашка ветки слева (`Shape`, `Title`, `Sub`)
+- `Templates/TreeLine` - линия между кружками
+- `Panel/.../Content/GridView/StarPopup` - окно покупки звезды (`Title`, `Level`, `Text`, `Buy`, `Close`)
+- `Panel/.../Content/GridView/TreeView/Canvas` - поле, куда кладутся узлы
+
+**Острова** - `StarterGui/IslandUi`
+- `Panel/Templates/PerkStar` - звезда острова, `Panel/Templates/PerkFinal` - финальный узел, `Panel/Templates/PerkLine` - линия
+- `Panel/Content/PerkTree` - окно дерева (`Back`, `Title`, `Nodes`, `Card` → `Title`, `Level`, `Text`, `Buy`)
+- `Panel/Content/DetailView/PerksButton` - кнопка UPGRADES
+
+**Как поставить свою форму (пятиугольник и т.п.):** в узле выбери `Shape` → `Image = rbxassetid://...`, удали `SkinCorner` (скругление) и, если обводка уже на картинке, `Stroke`. У звезды поставь `Shape.Rotation = 0`. Красить картинку игра будет сама (через ImageColor3), так что рисуй её **белой**. Размер узла = `Size` самого шаблона (`TreeNode` задаёт размер всех кружков и шаг строк).
+
+**Промокоды** - `StarterGui/SettingsMenu` → `RedeemRow` (`CodeInput`, `RedeemButton`, `ResultText`); пункт CODES в меню - `StarterGui/CollectionMenu`.

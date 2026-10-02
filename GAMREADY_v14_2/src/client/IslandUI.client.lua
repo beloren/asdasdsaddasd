@@ -220,11 +220,8 @@ local function setAction(text, variant, enabled)
 end
 
 -- v20.140: кнопка мини-дерева купленного острова (Config.IslandPerks)
-local perksButton = UiKit.Button(detailView, "PerksButton", "UPGRADES", "Yellow", {
-	Position = UDim2.new(0, 8, 1, -56),
-	Size = UDim2.fromOffset(196, 48),
-	ZIndex = 5,
-})
+-- (билдер IslandUi: DetailView/PerksButton, Content/PerkTree, Templates/Perk*)
+local perksButton = detailView:WaitForChild("PerksButton")
 perksButton.Visible = false
 require(ReplicatedStorage.Shared.TutorialTarget).Mark(perksButton, "IslandPerks")
 
@@ -375,54 +372,27 @@ local perkIsland = nil
 local perkSelected = nil
 local perkBusy = false
 
-local perkView = Instance.new("Frame")
-perkView.Name = "PerkTree"
-perkView.BackgroundColor3 = DARK_CARD
-perkView.BackgroundTransparency = 0
-perkView.Size = UDim2.fromScale(1, 1)
+local perkView = content:WaitForChild("PerkTree")
 perkView.Visible = false
-perkView.ZIndex = 20
-perkView.Active = true
-perkView.Parent = content
-do
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, 12)
-	c.Parent = perkView
+local perkBack = perkView:WaitForChild("Back")
+local perkTitle = perkView:WaitForChild("Title")
+local nodeArea = perkView:WaitForChild("Nodes")
+local card = perkView:WaitForChild("Card")
+local cardStroke = card:FindFirstChildWhichIsA("UIStroke")
+local cardTitle = card:WaitForChild("Title")
+local cardLevel = card:WaitForChild("Level")
+local cardText = card:WaitForChild("Text")
+local cardBuy = card:WaitForChild("Buy")
+
+-- Форма узла (Shape) красится картинкой, если ей задали Image, иначе фоном.
+local function paintShape(shape, color)
+	if not shape then return end
+	if shape.Image ~= "" then
+		shape.ImageColor3 = color
+	else
+		shape.BackgroundColor3 = color
+	end
 end
-local perkBack = UiKit.Button(perkView, "Back", "BACK", "Blue", { Position = UDim2.fromOffset(4, 4), Size = UDim2.fromOffset(110, 38), ZIndex = 21 })
-local perkTitle = UiKit.Text(perkView, "Title", "", {
-	_Style = "Title", _MaxTextSize = 26,
-	Position = UDim2.fromOffset(124, 6), Size = UDim2.new(1, -360, 0, 34), ZIndex = 21,
-})
-local nodeArea = Instance.new("Frame")
-nodeArea.Name = "Nodes"
-nodeArea.BackgroundTransparency = 1
-nodeArea.Position = UDim2.fromOffset(10, 50)
-nodeArea.Size = UDim2.new(1, -250, 1, -60)
-nodeArea.ZIndex = 21
-nodeArea.Parent = perkView
-local card = Instance.new("Frame")
-card.Name = "Card"
-card.BackgroundColor3 = Color3.fromRGB(22, 26, 40)
-card.AnchorPoint = Vector2.new(1, 0)
-card.Position = UDim2.new(1, -10, 0, 50)
-card.Size = UDim2.new(0, 226, 1, -60)
-card.ZIndex = 21
-card.Parent = perkView
-do
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, 12)
-	c.Parent = card
-end
-local cardStroke = Instance.new("UIStroke")
-cardStroke.Thickness = 3
-cardStroke.Color = UiKit.Theme.Accents.Gold.Main
-cardStroke.Parent = card
-local cardTitle = UiKit.Text(card, "Title", "", { _Style = "Heading", _MaxTextSize = 24, Position = UDim2.fromOffset(10, 10), Size = UDim2.new(1, -20, 0, 30), ZIndex = 22 })
-local cardLevel = UiKit.Text(card, "Level", "", { _Style = "Number", _MaxTextSize = 18, Position = UDim2.fromOffset(10, 44), Size = UDim2.new(1, -20, 0, 22), ZIndex = 22 })
-local cardText = UiKit.Text(card, "Text", "", { _Style = "Body", _MaxTextSize = 20, Position = UDim2.fromOffset(10, 72), Size = UDim2.new(1, -20, 0, 90), ZIndex = 22 })
-cardText.TextWrapped = true
-local cardBuy = UiKit.Button(card, "Buy", "BUY", "Green", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -10), Size = UDim2.new(1, -20, 0, 50), ZIndex = 22 })
 
 local perkNodes = {} -- [perkId] = { Button, Icon, Level, Def, IsFinal }
 local perkLines = {}
@@ -440,9 +410,11 @@ local function renderPerks()
 		local st = perkState[perkId] or { Level = 0, MaxLevel = node.IsFinal and 1 or (node.Def.MaxLevel or 10), Locked = true }
 		local maxed = st.Level >= st.MaxLevel
 		local color = node.IsFinal and UiKit.Theme.Accents.Gold.Main or Color3.fromRGB(110, 190, 255)
-		node.Button.BackgroundColor3 = st.Locked and Color3.fromRGB(60, 62, 74) or (maxed and color or color:Lerp(Color3.fromRGB(30, 34, 48), 0.45))
-		node.Stroke.Color = perkSelected == perkId and Color3.new(1, 1, 1) or Color3.fromRGB(12, 14, 22)
-		node.Stroke.Thickness = perkSelected == perkId and 4 or 3
+		paintShape(node.Shape, st.Locked and Color3.fromRGB(60, 62, 74) or (maxed and color or color:Lerp(Color3.fromRGB(30, 34, 48), 0.45)))
+		if node.Stroke then
+			node.Stroke.Color = perkSelected == perkId and Color3.new(1, 1, 1) or Color3.fromRGB(12, 14, 22)
+			node.Stroke.Thickness = perkSelected == perkId and 4 or 3
+		end
 		node.Level.Text = st.Locked and (node.IsFinal and tr("LOCKED") or "") or (maxed and "MAX" or (st.Level .. "/" .. st.MaxLevel))
 		node.Level.TextColor3 = (not st.Locked and not maxed and st.CanAfford) and Color3.fromRGB(108, 255, 126) or Color3.fromRGB(240, 240, 245)
 	end
@@ -454,6 +426,7 @@ local function renderPerks()
 	local node = perkSelected and perkNodes[perkSelected]
 	if not node then return end
 	local def = node.Def
+	if cardStroke then cardStroke.Color = node.IsFinal and UiKit.Theme.Accents.Gold.Main or Color3.fromRGB(110, 190, 255) end
 	local st = perkState[perkSelected] or { Level = 0, MaxLevel = node.IsFinal and 1 or (def.MaxLevel or 10), Value = 0, Locked = true }
 	local maxed = st.Level >= st.MaxLevel
 	cardTitle.Text = (def.Icon or "") .. " " .. tr(def.Title or perkSelected)
@@ -491,54 +464,38 @@ local function fetchPerks()
 	end)
 end
 
-local function makePerkNode(perkId, def, isFinal, center, size)
-	local button = Instance.new("TextButton")
+local function makePerkNode(perkId, def, isFinal, center)
+	local button = templates:WaitForChild(isFinal and "PerkFinal" or "PerkStar"):Clone()
 	button.Name = "Perk_" .. perkId
-	button.Text = ""
-	button.AutoButtonColor = false
+	button.Visible = true
 	button.AnchorPoint = Vector2.new(0.5, 0.5)
 	button.Position = center
-	button.Size = UDim2.fromOffset(size, size)
-	button.Rotation = isFinal and 0 or 45
 	button.ZIndex = 23
 	button.Parent = nodeArea
-	local c = Instance.new("UICorner")
-	c.CornerRadius = isFinal and UDim.new(1, 0) or UDim.new(0, 12)
-	c.Parent = button
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 3
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = button
-	local icon = UiKit.Text(nodeArea, "Icon_" .. perkId, def.Icon or "★", {
-		_Style = "Heading", AnchorPoint = Vector2.new(0.5, 0.5), Position = center,
-		Size = UDim2.fromOffset(size * 0.6, size * 0.6), ZIndex = 25,
-	})
-	icon.Active = false
-	local level = UiKit.Text(nodeArea, "Level_" .. perkId, "", {
-		_Style = "Number", _MaxTextSize = 18, AnchorPoint = Vector2.new(0.5, 0),
-		Position = center + UDim2.fromOffset(0, size * 0.72 + 4), Size = UDim2.fromOffset(110, 20), ZIndex = 25,
-	})
-	local name = UiKit.Text(nodeArea, "Name_" .. perkId, tr(def.Title or perkId), {
-		_Style = "Small", _MaxTextSize = 15, AnchorPoint = Vector2.new(0.5, 1),
-		Position = center - UDim2.fromOffset(0, size * 0.72 + 2), Size = UDim2.fromOffset(140, 18), ZIndex = 25,
-	})
-	name.TextColor3 = Color3.fromRGB(200, 205, 220)
+	local shape = button:FindFirstChild("Shape")
+	local icon = button:FindFirstChild("Icon")
+	if icon then icon.Text = def.Icon or "★" end
+	local name = button:FindFirstChild("Name")
+	if name then name.Text = tr(def.Title or perkId) end
 	button.Activated:Connect(function()
 		perkSelected = perkId
 		playSfx("UiButtonClick")
 		renderPerks()
 	end)
-	perkNodes[perkId] = { Button = button, Stroke = stroke, Level = level, Def = def, IsFinal = isFinal }
+	perkNodes[perkId] = {
+		Button = button, Shape = shape, Stroke = shape and shape:FindFirstChildWhichIsA("UIStroke"),
+		Level = button:FindFirstChild("Level") or Instance.new("TextLabel"), Def = def, IsFinal = isFinal,
+	}
 end
 
 local function connect(fromId, a, b)
 	local delta = b - a
-	local line = Instance.new("Frame")
+	local line = templates:WaitForChild("PerkLine"):Clone()
 	line.Name = "Line_" .. fromId
-	line.BorderSizePixel = 0
+	line.Visible = true
 	line.AnchorPoint = Vector2.new(0.5, 0.5)
 	line.Position = UDim2.fromOffset((a.X + b.X) / 2, (a.Y + b.Y) / 2)
-	line.Size = UDim2.fromOffset(delta.Magnitude, 6)
+	line.Size = UDim2.fromOffset(delta.Magnitude, line.Size.Y.Offset > 0 and line.Size.Y.Offset or 6)
 	line.Rotation = math.deg(math.atan2(delta.Y, delta.X))
 	line.ZIndex = 22
 	line.Parent = nodeArea
@@ -558,10 +515,10 @@ local function buildPerkTree(islandId)
 	for index, def in stars do
 		local pos = Vector2.new(w * 0.26, h * (#stars == 1 and 0.5 or (index == 1 and 0.27 or 0.73)))
 		if island.Final then connect(def.Id, pos, finalPos) end
-		makePerkNode(def.Id, def, false, UDim2.fromOffset(pos.X, pos.Y), 58)
+		makePerkNode(def.Id, def, false, UDim2.fromOffset(pos.X, pos.Y))
 	end
 	if island.Final then
-		makePerkNode(island.Final.Id, island.Final, true, UDim2.fromOffset(finalPos.X, finalPos.Y), 84)
+		makePerkNode(island.Final.Id, island.Final, true, UDim2.fromOffset(finalPos.X, finalPos.Y))
 	end
 	perkSelected = stars[1] and stars[1].Id or (island.Final and island.Final.Id)
 end

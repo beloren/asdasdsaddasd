@@ -3495,8 +3495,6 @@ end
 		local TutorialTargetMod = require(ReplicatedStorage.Shared.TutorialTarget)
 		local CollectionService = game:GetService("CollectionService")
 		local UserInputService = game:GetService("UserInputService")
-		local FONT_H = UiKit.Theme.Fonts.Heading
-		local FONT_N = UiKit.Theme.Fonts.Number
 		local CHAINS = { Mine = Config.MineChain or {}, Cart = Config.CartChain or {}, Pickaxe = Config.PickaxeChain or {} }
 		local NODE = treeCfg.NodeSize or 46
 		local GAP = treeCfg.NodeGap or 22
@@ -3507,55 +3505,32 @@ end
 		row.Visible = false
 		gridHint.Visible = false
 
-		local function corner(parent, radius)
-			local c = Instance.new("UICorner")
-			c.CornerRadius = radius or UDim.new(1, 0)
-			c.Parent = parent
-			return c
+		-- v20.141: всё дерево - из билдера UpgradeShopUi (GridView/TreeView,
+		-- StarPopup, Templates/TreeTag|TreeNode|TreeStar|TreeLine). Форма узла -
+		-- ImageLabel "Shape" (см. TreeParts): есть Image - красим ImageColor3.
+		local function paintShape(holder, color)
+			local shape = holder:FindFirstChild("Shape")
+			if not shape then return end
+			if shape.Image ~= "" then shape.ImageColor3 = color else shape.BackgroundColor3 = color end
 		end
-		local function stroke(parent, color, thickness)
-			local s = Instance.new("UIStroke")
-			s.Color = color or COLORS.Outline
-			s.Thickness = thickness or 2.5
-			s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			s.Parent = parent
-			return s
+		local function shapeStroke(holder)
+			local shape = holder:FindFirstChild("Shape")
+			return shape and shape:FindFirstChildWhichIsA("UIStroke")
 		end
-		local function label(parent, name, text, font, size, color)
-			local t = Instance.new("TextLabel")
-			t.Name = name
-			t.BackgroundTransparency = 1
-			t.FontFace = font or FONT_H
-			t.TextScaled = true
-			t.RichText = true
-			t.Text = text or ""
-			t.TextColor3 = color or COLORS.Text
-			t.Size = size or UDim2.fromScale(1, 1)
-			t.ZIndex = (parent:IsA("GuiObject") and parent.ZIndex or 5) + 1
-			local ts = Instance.new("UIStroke")
-			ts.Name = "TextStroke"
-			ts.Color = COLORS.Outline
-			ts.Thickness = 1.6
-			ts.Parent = t
-			t.Parent = parent
-			return t
+		local function cloneTemplate(name)
+			local clone = templates:WaitForChild(name):Clone()
+			clone.Visible = true
+			return clone
+		end
+		local function textOf(holder, name)
+			return holder:FindFirstChild(name) or Instance.new("TextLabel")
 		end
 
-		local viewport = Instance.new("Frame")
-		viewport.Name = "TreeView"
-		viewport.BackgroundTransparency = 1
-		viewport.Size = UDim2.new(1, 0, 1, -30)
-		viewport.ClipsDescendants = true
-		viewport.Active = true
-		viewport.ZIndex = 4
-		viewport.Parent = gridView
-		local canvas = Instance.new("Frame")
-		canvas.Name = "Canvas"
-		canvas.BackgroundTransparency = 1
-		canvas.ZIndex = 4
-		canvas.Parent = viewport
-		local zoom = Instance.new("UIScale")
-		zoom.Parent = canvas
+		local viewport = gridView:WaitForChild("TreeView")
+		local canvas = viewport:WaitForChild("Canvas")
+		local zoom = canvas:FindFirstChildWhichIsA("UIScale") or Instance.new("UIScale", canvas)
+		local NODE_W = templates:WaitForChild("TreeNode").Size.X.Offset
+		if NODE_W > 0 then NODE = NODE_W ROW_H = NODE + 40 end
 
 		local rowsCfg = treeCfg.Rows or {}
 		local rowsUi = {}
@@ -3565,22 +3540,15 @@ end
 			local y = PAD + (rowIndex - 1) * ROW_H
 			local entry = { Kind = kind, Nodes = {}, Lines = {} }
 			-- плашка ветки слева (клик - подробности ветки)
-			local tag = Instance.new("TextButton")
+			local tag = cloneTemplate("TreeTag")
 			tag.Name = "Tag_" .. kind
-			tag.Text = ""
-			tag.AutoButtonColor = false
-			tag.BackgroundColor3 = rowCfg.Color or COLORS.Panel
 			tag.Position = UDim2.fromOffset(PAD, y)
-			tag.Size = UDim2.fromOffset(LABEL_W, NODE)
-			tag.ZIndex = 6
-			corner(tag, UDim.new(0, 10))
-			stroke(tag)
+			tag.Size = UDim2.fromOffset(tag.Size.X.Offset > 0 and tag.Size.X.Offset or LABEL_W, NODE)
 			tag.Parent = canvas
-			local tagText = label(tag, "Title", rowCfg.Icon .. " " .. tr(rowCfg.Title), FONT_H)
-			tagText.Size = UDim2.new(1, -10, 0.6, 0)
-			tagText.Position = UDim2.fromOffset(5, 3)
-			entry.TagSub = label(tag, "Sub", "", FONT_N, UDim2.new(1, -10, 0.34, 0), Color3.fromRGB(255, 245, 210))
-			entry.TagSub.Position = UDim2.new(0, 5, 0.62, -2)
+			LABEL_W = tag.Size.X.Offset
+			paintShape(tag, rowCfg.Color or COLORS.Panel)
+			textOf(tag, "Title").Text = rowCfg.Icon .. " " .. tr(rowCfg.Title)
+			entry.TagSub = textOf(tag, "Sub")
 			tag.Activated:Connect(function()
 				if not dialogOpen then return end
 				if kind == "Supplies" then selectedSupply = selectedSupply or "Dynamite" end
@@ -3598,43 +3566,34 @@ end
 			local x = PAD + LABEL_W + GAP
 			for index, value in list do
 				if index > 1 then
-					local line = Instance.new("Frame")
+					local line = cloneTemplate("TreeLine")
 					line.Name = "Line" .. index
-					line.BorderSizePixel = 0
-					line.BackgroundColor3 = COLORS.Grey
-					line.Position = UDim2.fromOffset(x - GAP - 2, y + NODE / 2 - 3)
-					line.Size = UDim2.fromOffset(GAP + 4, 6)
-					line.ZIndex = 5
+					line.AnchorPoint = Vector2.new(0, 0.5)
+					line.Position = UDim2.fromOffset(x - GAP - 2, y + NODE / 2)
+					line.Size = UDim2.fromOffset(GAP + 4, line.Size.Y.Offset > 0 and line.Size.Y.Offset or 6)
 					line.Parent = canvas
 					entry.Lines[index] = line
 				end
-				local node = Instance.new("TextButton")
+				local node = cloneTemplate("TreeNode")
 				node.Name = "Node_" .. tostring(value)
-				node.Text = ""
-				node.AutoButtonColor = false
-				node.BackgroundColor3 = COLORS.Grey
 				node.Position = UDim2.fromOffset(x, y)
 				node.Size = UDim2.fromOffset(NODE, NODE)
-				node.ZIndex = 6
-				corner(node)
-				local nodeStroke = stroke(node, COLORS.Outline, 3)
 				node.Parent = canvas
-				local caption = label(node, "Caption", kind == "Supplies"
+				local caption = textOf(node, "Caption")
+				caption.Text = kind == "Supplies"
 					and ((Config.Dynamite.Types[value] or {}).ShortName or tostring(value))
-					or tostring(value), FONT_N, UDim2.new(0.8, 0, 0.5, 0))
-				caption.AnchorPoint = Vector2.new(0.5, 0.5)
-				caption.Position = UDim2.fromScale(0.5, 0.5)
-				local price = label(canvas, "Price_" .. kind .. "_" .. tostring(value), "", FONT_N, UDim2.fromOffset(NODE + GAP, 16))
-				price.Position = UDim2.fromOffset(x - GAP / 2, y + NODE + 3)
-				price.ZIndex = 7
+					or tostring(value)
+				local price = textOf(node, "Price")
+				price.Text = ""
 				node.Activated:Connect(function()
 					if not dialogOpen then return end
 					if kind == "Supplies" then selectedSupply = value end
 					showDetail(kind)
 				end)
-				node.MouseEnter:Connect(function() TweenService:Create(node, TweenInfo.new(0.1), { Size = UDim2.fromOffset(NODE + 6, NODE + 6), Position = UDim2.fromOffset(node.Position.X.Offset - 3, y - 3) }):Play() end)
-				node.MouseLeave:Connect(function() TweenService:Create(node, TweenInfo.new(0.1), { Size = UDim2.fromOffset(NODE, NODE), Position = UDim2.fromOffset(entry.Nodes[index].X, y) }):Play() end)
-				entry.Nodes[index] = { Value = value, Button = node, Stroke = nodeStroke, Caption = caption, Price = price, X = x }
+				local nodeX = x
+				node.MouseEnter:Connect(function() TweenService:Create(node, TweenInfo.new(0.1), { Size = UDim2.fromOffset(NODE + 6, NODE + 6), Position = UDim2.fromOffset(nodeX - 3, y - 3) }):Play() end)
+				node.MouseLeave:Connect(function() TweenService:Create(node, TweenInfo.new(0.1), { Size = UDim2.fromOffset(NODE, NODE), Position = UDim2.fromOffset(nodeX, y) }):Play() end)
+				entry.Nodes[index] = { Value = value, Button = node, Stroke = shapeStroke(node) or Instance.new("UIStroke"), Caption = caption, Price = price, X = x }
 				x += NODE + GAP
 			end
 
@@ -3642,39 +3601,29 @@ end
 			local starId = rowCfg.Star
 			local starDef = starId and statCfg.Types[starId]
 			if starDef then
-				local dash = Instance.new("Frame")
+				local dash = cloneTemplate("TreeLine")
 				dash.Name = "StarLine"
-				dash.BorderSizePixel = 0
+				dash.AnchorPoint = Vector2.new(0, 0.5)
 				dash.BackgroundColor3 = starDef.Color or COLORS.Gold
 				dash.BackgroundTransparency = 0.35
-				dash.Position = UDim2.fromOffset(x - GAP, y + NODE / 2 - 2)
+				dash.Position = UDim2.fromOffset(x - GAP, y + NODE / 2)
 				dash.Size = UDim2.fromOffset(GAP * 1.6, 4)
-				dash.ZIndex = 5
 				dash.Parent = canvas
 				x += GAP * 0.6
-				local star = Instance.new("TextButton")
+				local star = cloneTemplate("TreeStar")
 				star.Name = "Star_" .. starId
-				star.Text = ""
-				star.AutoButtonColor = false
-				star.BackgroundColor3 = starDef.Color or COLORS.Gold
-				star.Position = UDim2.fromOffset(x, y - 4)
-				star.Size = UDim2.fromOffset(NODE + 8, NODE + 8)
-				star.Rotation = 45
-				star.ZIndex = 6
-				corner(star, UDim.new(0, 10))
-				stroke(star, COLORS.Outline, 3)
+				local starSize = star.Size.X.Offset > 0 and star.Size.X.Offset or (NODE + 22)
+				star.Position = UDim2.fromOffset(x, y + NODE / 2 - starSize / 2)
 				star.Parent = canvas
-				local icon = label(canvas, "StarIcon_" .. starId, starDef.Icon or "★", FONT_H, UDim2.fromOffset(NODE - 8, NODE - 8))
-				icon.Position = UDim2.fromOffset(x + 8, y)
-				icon.ZIndex = 8
-				local level = label(canvas, "StarLevel_" .. starId, "", FONT_N, UDim2.fromOffset(NODE + 30, 16))
-				level.Position = UDim2.fromOffset(x - 11, y + NODE + 3)
-				level.ZIndex = 8
+				paintShape(star, starDef.Color or COLORS.Gold)
+				textOf(star, "Icon").Text = starDef.Icon or "★"
+				local level = textOf(star, "Level")
 				star.Activated:Connect(function()
 					if dialogOpen then openStarPopup(starId) end
 				end)
-				entry.Star = { Id = starId, Button = star, Level = level }
-				x += NODE + 8 + PAD
+				local shape = star:FindFirstChild("Shape")
+				entry.Star = { Id = starId, Button = star, Level = level, Shape = shape, BaseRotation = shape and shape.Rotation or 0 }
+				x += starSize + PAD
 			end
 			maxWidth = math.max(maxWidth, x + PAD)
 			rowsUi[rowIndex] = entry
@@ -3682,61 +3631,18 @@ end
 		local canvasHeight = PAD * 2 + #rowsCfg * ROW_H
 		canvas.Size = UDim2.fromOffset(maxWidth, canvasHeight)
 
-		-- ОКНО ЗВЕЗДЫ
-		local popup = Instance.new("Frame")
-		popup.Name = "StarPopup"
-		popup.AnchorPoint = Vector2.new(0.5, 0.5)
-		popup.Position = UDim2.fromScale(0.5, 0.5)
-		popup.Size = UDim2.fromOffset(300, 196)
-		popup.BackgroundColor3 = COLORS.Panel
+		-- ОКНО ЗВЕЗДЫ (билдер: GridView/StarPopup)
+		local popup = gridView:WaitForChild("StarPopup")
 		popup.Visible = false
-		popup.ZIndex = 20
-		corner(popup, UDim.new(0, 14))
-		local popupStroke = stroke(popup, COLORS.Gold, 3)
-		popup.Parent = gridView
-		local popupTitle = label(popup, "Title", "", FONT_H, UDim2.new(1, -60, 0, 30))
-		popupTitle.Position = UDim2.fromOffset(14, 10)
-		popupTitle.TextXAlignment = Enum.TextXAlignment.Left
-		popupTitle.ZIndex = 22
-		local popupLevel = label(popup, "Level", "", FONT_N, UDim2.new(1, -28, 0, 20), COLORS.Muted)
-		popupLevel.Position = UDim2.fromOffset(14, 44)
-		popupLevel.TextXAlignment = Enum.TextXAlignment.Left
-		popupLevel.ZIndex = 22
-		local popupText = label(popup, "Text", "", FONT_H, UDim2.new(1, -28, 0, 44))
-		popupText.Position = UDim2.fromOffset(14, 68)
-		popupText.TextXAlignment = Enum.TextXAlignment.Left
-		popupText.ZIndex = 22
-		local buyButton = Instance.new("TextButton")
-		buyButton.Name = "Buy"
-		buyButton.Text = ""
-		buyButton.AutoButtonColor = true
-		buyButton.AnchorPoint = Vector2.new(0.5, 1)
-		buyButton.Position = UDim2.new(0.5, 0, 1, -12)
-		buyButton.Size = UDim2.new(1, -28, 0, 46)
-		buyButton.BackgroundColor3 = COLORS.Buy
-		buyButton.ZIndex = 22
-		corner(buyButton, UDim.new(0, 10))
-		stroke(buyButton)
-		buyButton.Parent = popup
-		local buyCaption = label(buyButton, "Caption", "", FONT_N, UDim2.new(1, -16, 0.7, 0))
-		buyCaption.AnchorPoint = Vector2.new(0.5, 0.5)
-		buyCaption.Position = UDim2.fromScale(0.5, 0.5)
-		buyCaption.ZIndex = 23
-		local closeStar = Instance.new("TextButton")
-		closeStar.Name = "Close"
-		closeStar.Text = ""
-		closeStar.AnchorPoint = Vector2.new(1, 0)
-		closeStar.Position = UDim2.new(1, -10, 0, 10)
-		closeStar.Size = UDim2.fromOffset(34, 34)
-		closeStar.BackgroundColor3 = COLORS.Close
-		closeStar.ZIndex = 22
-		corner(closeStar, UDim.new(0, 8))
-		stroke(closeStar)
-		closeStar.Parent = popup
-		local closeX = label(closeStar, "X", "X", FONT_H, UDim2.fromScale(0.7, 0.7))
-		closeX.AnchorPoint = Vector2.new(0.5, 0.5)
-		closeX.Position = UDim2.fromScale(0.5, 0.5)
-		closeX.ZIndex = 23
+		local popupOpenSize = popup:GetAttribute("OpenSize")
+		popupOpenSize = typeof(popupOpenSize) == "Vector2" and popupOpenSize or Vector2.new(popup.Size.X.Offset, popup.Size.Y.Offset)
+		local popupStroke = popup:FindFirstChildWhichIsA("UIStroke") or Instance.new("UIStroke")
+		local popupTitle = popup:WaitForChild("Title")
+		local popupLevel = popup:WaitForChild("Level")
+		local popupText = popup:WaitForChild("Text")
+		local buyButton = popup:WaitForChild("Buy")
+		local buyCaption = buyButton:FindFirstChild("Caption") or Instance.new("TextLabel")
+		local closeStar = popup:WaitForChild("Close")
 
 		local popupId = nil
 		local buying = false
@@ -3771,12 +3677,12 @@ end
 				popupText.Text = now .. '  <font color="#6CFF7E">→ ' .. nextText .. "</font>"
 			end
 			if maxed then
-				buyButton.BackgroundColor3 = COLORS.Grey
+				paintButton(buyButton, "Dark")
 				buyCaption.Text = tr("MAX")
 			elseif buying then
 				buyCaption.Text = "..."
 			else
-				buyButton.BackgroundColor3 = st.CanAfford and COLORS.Buy or COLORS.Poor
+				paintButton(buyButton, st.CanAfford and "Green" or "Red")
 				buyCaption.Text = tr("BUY") .. "  " .. money(st.Cost or 0)
 			end
 		end
@@ -3784,8 +3690,8 @@ end
 			popupId = id
 			playUiClick()
 			popup.Visible = true
-			popup.Size = UDim2.fromOffset(270, 176)
-			TweenService:Create(popup, TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(300, 196) }):Play()
+			popup.Size = UDim2.fromOffset(popupOpenSize.X * 0.9, popupOpenSize.Y * 0.9)
+			TweenService:Create(popup, TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(popupOpenSize.X, popupOpenSize.Y) }):Play()
 			renderPopup()
 		end
 		local function closePopup()
@@ -3894,7 +3800,7 @@ end
 						local locked = supplyLockedCave(n.Value)
 						local info = Config.Dynamite.Types[n.Value] or {}
 						local count = gearStates[n.Value] and gearStates[n.Value].Count or 0
-						n.Button.BackgroundColor3 = locked and COLORS.Grey or (info.Color or COLORS.Gold)
+						paintShape(n.Button, locked and COLORS.Grey or (info.Color or COLORS.Gold))
 						n.Stroke.Color = COLORS.Outline
 						n.Price.Text = locked and ('<font color="#AAB0C4">' .. tr("Cave") .. " " .. locked .. "</font>") or ("x" .. count)
 						if not locked then target = target or n.Button end
@@ -3911,7 +3817,7 @@ end
 						local line = entry.Lines[index]
 						if line then line.BackgroundColor3 = owned and COLORS.Gold or COLORS.Grey end
 						if owned then
-							n.Button.BackgroundColor3 = KIND_VIEW[kind] and KIND_VIEW[kind].Color or COLORS.Gold
+							paintShape(n.Button, KIND_VIEW[kind] and KIND_VIEW[kind].Color or COLORS.Gold)
 							n.Stroke.Color = COLORS.Outline
 							n.Caption.Text = tostring(t)
 							n.Price.Text = ""
@@ -3919,18 +3825,18 @@ end
 							n.Stroke.Color = COLORS.Gold
 							n.Caption.Text = tostring(t)
 							if cap then
-								n.Button.BackgroundColor3 = Color3.fromRGB(70, 110, 170)
+								paintShape(n.Button, Color3.fromRGB(70, 110, 170))
 								n.Price.Text = '<font color="#8CD2FF">' .. tr("PRESTIGE") .. "</font>"
 							elseif status and status.Cost then
-								n.Button.BackgroundColor3 = status.CanAfford and COLORS.Buy or Color3.fromRGB(120, 60, 60)
+								paintShape(n.Button, status.CanAfford and COLORS.Buy or Color3.fromRGB(120, 60, 60))
 								n.Price.Text = highlightCost(status.Cost, status.CanAfford == true)
 							else
-								n.Button.BackgroundColor3 = COLORS.Buy
+								paintShape(n.Button, COLORS.Buy)
 								n.Price.Text = ""
 							end
 							target = n.Button
 						else
-							n.Button.BackgroundColor3 = Color3.fromRGB(48, 52, 66)
+							paintShape(n.Button, Color3.fromRGB(48, 52, 66))
 							n.Stroke.Color = COLORS.Outline
 							n.Caption.Text = '<font color="#7A8096">' .. tostring(t) .. "</font>"
 							n.Price.Text = ""
@@ -3964,14 +3870,16 @@ end
 			for kind, target in treeTargets do
 				local status = latestStatuses[kind]
 				if target:IsA("TextButton") and target.Name:sub(1, 5) == "Node_" and kind ~= "Supplies" and status and status.State == "Buyable" then
-					local stroke = target:FindFirstChildOfClass("UIStroke")
+					local stroke = shapeStroke(target)
 					if stroke then stroke.Thickness = 3 + (s - 1) * 30 end
 				end
 			end
 			for _, entry in rowsUi do
 				if entry.Star then
 					local st = statState[entry.Star.Id]
-					entry.Star.Button.Rotation = 45 + ((st and st.CanAfford and st.Level < st.MaxLevel) and math.sin(pulseT * 4) * 6 or 0)
+					if entry.Star.Shape then
+						entry.Star.Shape.Rotation = entry.Star.BaseRotation + ((st and st.CanAfford and st.Level < st.MaxLevel) and math.sin(pulseT * 4) * 6 or 0)
+					end
 				end
 			end
 		end)
