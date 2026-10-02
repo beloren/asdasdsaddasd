@@ -33,6 +33,21 @@ end
 -- к нему, на Config.Compass.MerchantDistance стадов. Нет торговца - маркер
 -- CompassCenterMarker или зона продажи, как раньше.
 function CompassService:_centerCFrame()
+	-- v20.134: МАРКЕР ГЛАВНЕЕ ВСЕГО. Деталь Workspace.CompassCenterMarker -
+	-- игрок встаёт на её верх, лицом туда же, куда смотрит её передняя грань
+	-- (или на деталь CompassCenterMarkerLook, если она есть).
+	local markerName = cfg().CenterMarkerName or "CompassCenterMarker"
+	local marker = workspace:FindFirstChild(markerName, true)
+	if marker and marker:IsA("BasePart") then
+		local top = marker.Position + Vector3.new(0, marker.Size.Y / 2, 0)
+		local forward = Vector3.new(marker.CFrame.LookVector.X, 0, marker.CFrame.LookVector.Z)
+		local look = workspace:FindFirstChild(markerName .. "Look", true)
+		if look and look:IsA("BasePart") then
+			forward = Vector3.new(look.Position.X - top.X, 0, look.Position.Z - top.Z)
+		end
+		if forward.Magnitude < 0.05 then forward = Vector3.new(0, 0, -1) end
+		return CFrame.lookAt(top, top + forward.Unit)
+	end
 	local merchant = workspace:FindFirstChild("BankMerchant")
 	if merchant and merchant:IsA("Model") then
 		local pivot = merchant:GetPivot()
@@ -41,8 +56,6 @@ function CompassService:_centerCFrame()
 		local spot = pivot.Position + forward.Unit * (tonumber(cfg().MerchantDistance) or 9)
 		return CFrame.lookAt(spot, Vector3.new(pivot.Position.X, spot.Y, pivot.Position.Z))
 	end
-	local marker = workspace:FindFirstChild(cfg().CenterMarkerName or "CompassCenterMarker", true)
-	if marker and marker:IsA("BasePart") then return marker.CFrame end
 	local zone = Services.WorldService and Services.WorldService:GetSellZone()
 	local position = partPosition(zone)
 	if not position then return nil end
@@ -141,6 +154,21 @@ function CompassService:Init(services)
 	Players.PlayerRemoving:Connect(function(player) lastTeleport[player] = nil end)
 end
 
-function CompassService:Start() end
+function CompassService:Start()
+	-- маркер в игре невидим и не мешает ходить
+	task.defer(function()
+		local markerName = cfg().CenterMarkerName or "CompassCenterMarker"
+		for _, name in { markerName, markerName .. "Look" } do
+			local part = workspace:FindFirstChild(name, true)
+			if part and part:IsA("BasePart") then
+				part.Transparency = 1
+				part.CanCollide = false
+				part.CanTouch = false
+				part.CanQuery = false
+				part.Anchored = true
+			end
+		end
+	end)
+end
 
 return CompassService

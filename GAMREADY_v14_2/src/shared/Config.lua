@@ -4254,7 +4254,7 @@ Config.Compass = {
 	-- картинки карточек (0 - эмодзи): Center, Raft, Anvil, Income, Smelter
 	PlaceImages = { Center = 0, Raft = 0, Anvil = 0, Income = 0, Smelter = 0 },
 	MerchantDistance = 9,    -- на сколько стадов перед торговцем руды встаёт игрок
-	CenterMarkerName = "CompassCenterMarker", -- запасной вариант, если торговца нет
+	CenterMarkerName = "CompassCenterMarker", -- v20.134: деталь-маркер точки телепорта «в город» (главнее торговца); + ...Look - куда смотреть
 	CenterOffset = Vector3.new(0, 0, 18),
 }
 

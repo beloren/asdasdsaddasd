@@ -94,19 +94,44 @@ local homes = {}  -- [GuiObject] = исходная позиция
 local expectFalse -- см. guard ниже
 local token = 0
 
-local function offscreen(element)
+-- v20.134: КУДА УЕЗЖАТЬ - считается от ДОМА элемента, а не от текущей
+-- позиции: при спаме кнопок элемент мог быть на полпути, и раньше он уезжал
+-- (и возвращался) не туда.
+local function offscreen(element, home)
 	local camera = workspace.CurrentCamera
 	local view = camera and camera.ViewportSize or Vector2.new(1280, 720)
-	local size, centre = element.AbsoluteSize, element.AbsolutePosition + element.AbsoluteSize / 2
+	local current = element.Position
+	home = typeof(home) == "UDim2" and home or current
+	local parentSize = (element.Parent and element.Parent:IsA("GuiBase2d")) and element.Parent.AbsoluteSize or view
+	local shift = Vector2.new(
+		(home.X.Scale - current.X.Scale) * parentSize.X + (home.X.Offset - current.X.Offset),
+		(home.Y.Scale - current.Y.Scale) * parentSize.Y + (home.Y.Offset - current.Y.Offset)
+	)
+	local size = element.AbsoluteSize
+	local centre = element.AbsolutePosition + shift + size / 2
 	local best, edge = math.huge, "Bottom"
 	for name, value in { Left = centre.X, Right = view.X - centre.X, Top = centre.Y, Bottom = view.Y - centre.Y } do
 		if value < best then best, edge = value, name end
 	end
-	local current = element.Position
-	if edge == "Left" then return current - UDim2.fromOffset(size.X + 40, 0) end
-	if edge == "Right" then return current + UDim2.fromOffset(size.X + 40, 0) end
-	if edge == "Top" then return current - UDim2.fromOffset(0, size.Y + 40) end
-	return current + UDim2.fromOffset(0, size.Y + 40)
+	if edge == "Left" then return home - UDim2.fromOffset(size.X + 40, 0) end
+	if edge == "Right" then return home + UDim2.fromOffset(size.X + 40, 0) end
+	if edge == "Top" then return home - UDim2.fromOffset(0, size.Y + 40) end
+	return home + UDim2.fromOffset(0, size.Y + 40)
+end
+
+-- v20.134: одна анимация на элемент - новая отменяет предыдущую
+local moving = {} -- [GuiObject] = Tween
+local function move(element, info, position, onDone)
+	local old = moving[element]
+	if old then old:Cancel() end
+	local tween = TweenService:Create(element, info, { Position = position })
+	moving[element] = tween
+	tween.Completed:Connect(function(state)
+		if moving[element] == tween then moving[element] = nil end
+		if state == Enum.PlaybackState.Completed and onDone then onDone() end
+	end)
+	tween:Play()
+	return tween
 end
 
 -- v20.128: НАМЕРЕНИЯ СКРИПТОВ, пока экран спрятан под окном. Скрипт сам
@@ -139,12 +164,17 @@ local function slideOut(gui)
 		if child:IsA("GuiObject") and child.Visible then
 			if homes[child] == nil then
 				-- v20.128: элемент мог уже уехать по диалогу обучения (CinematicHud) -
-				-- его настоящий дом лежит в атрибуте CinematicHome
+				-- его настоящий дом лежит в атрибуте CinematicHome.
+				-- v20.134: ещё едет домой после прошлого окна (спам кнопок) - дом
+				-- всё ещё лежит в FocusHome, а не в текущей (промежуточной) позиции
 				local cinematicHome = child:GetAttribute("CinematicHome")
-				homes[child] = typeof(cinematicHome) == "UDim2" and cinematicHome or child.Position
+				local focusHome = child:GetAttribute("FocusHome")
+				homes[child] = (typeof(cinematicHome) == "UDim2" and cinematicHome)
+					or (typeof(focusHome) == "UDim2" and focusHome)
+					or child.Position
 				child:SetAttribute("FocusHome", homes[child])
 			end
-			TweenService:Create(child, SLIDE, { Position = offscreen(child) }):Play()
+			move(child, SLIDE, offscreen(child, homes[child]))
 		end
 	end
 	task.delay(SLIDE.Time, function()
@@ -162,11 +192,16 @@ local function slideIn(gui)
 		local home = homes[child]
 		if home then
 			homes[child] = nil
-			child:SetAttribute("FocusHome", nil)
 			-- диалог обучения ещё держит HUD у краёв - вернёт его сам CinematicHud
 			if typeof(child:GetAttribute("CinematicHome")) ~= "UDim2" then
 				local layoutPosition = child:GetAttribute("LayoutPosition")
-				TweenService:Create(child, SLIDE_BACK, { Position = typeof(layoutPosition) == "UDim2" and layoutPosition or home }):Play()
+				local target = typeof(layoutPosition) == "UDim2" and layoutPosition or home
+				-- v20.134: FocusHome снимаем только когда элемент ДОЕХАЛ домой
+				move(child, SLIDE_BACK, target, function()
+					if homes[child] == nil then child:SetAttribute("FocusHome", nil) end
+				end)
+			else
+				child:SetAttribute("FocusHome", nil)
 			end
 		end
 	end
@@ -185,6 +220,7 @@ local function release()
 				if home then
 					homes[child] = nil
 					child:SetAttribute("FocusHome", nil)
+					if moving[child] then moving[child]:Cancel() moving[child] = nil end
 					child.Position = home
 				end
 			end
@@ -236,11 +272,13 @@ while true do
 				end
 				for _, child in gui:GetChildren() do
 					local home = child:IsA("GuiObject") and child:GetAttribute("FocusHome")
-					if typeof(home) == "UDim2" then
+					-- v20.134: элемент ещё едет домой - не мешаем
+					if typeof(home) == "UDim2" and not moving[child] then
 						child:SetAttribute("FocusHome", nil)
 						homes[child] = nil
 						if typeof(child:GetAttribute("CinematicHome")) ~= "UDim2" then
-							TweenService:Create(child, SLIDE_BACK, { Position = home }):Play()
+							local layoutPosition = child:GetAttribute("LayoutPosition")
+							move(child, SLIDE_BACK, typeof(layoutPosition) == "UDim2" and layoutPosition or home)
 						end
 					end
 				end
