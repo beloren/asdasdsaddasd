@@ -597,7 +597,8 @@ local function showTask(payload)
 		text = ("%s  (%d/%d)"):format(text, payload.Progress or 0, payload.ProgressTarget or 1)
 	end
 	taskBody.Text = text
-	skipButton.Visible = payload.CanSkip ~= false
+	-- v20.150: SKIP только после первого шага - на первом его жмут случайно
+	skipButton.Visible = payload.CanSkip ~= false and (tonumber(payload.StepIndex) or 1) > 1
 	-- Сервер переотправляет плашку каждые 2 сек (живая цель стрелки) —
 	-- сбрасываем "взведённый" пропуск только при смене шага, иначе
 	-- второй тап мог попасть уже в сброшенную кнопку.

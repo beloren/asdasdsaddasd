@@ -16,6 +16,14 @@ local offerRemote = ReplicatedStorage.Shared:WaitForChild("TutorialGuideOffer", 
 local actionRemote = ReplicatedStorage.Shared:WaitForChild("TutorialActionEvent", 60)
 if not (offerRemote and actionRemote) then return end
 
+-- v20.150: подписи переводятся (Localization)
+local function tr(text, args)
+	local ok, Localization = pcall(require, ReplicatedStorage.Shared.Localization)
+	if not ok then return text end
+	local okT, out = pcall(Localization.Translate, player.LocaleId, text, args)
+	return okT and out or text
+end
+
 local function sfx(name)
 	pcall(function() require(ReplicatedStorage.Shared.UiSfx).play(name) end)
 end
@@ -112,9 +120,17 @@ local function show(offer)
 	local my = token
 	current = offer
 	layout()
-	title.Text = "NEW: " .. tostring(offer.Title or ""):upper()
+	-- v20.150: короткая подсказка механики (Hint = true) - без SHOW ME,
+	-- текст на всю ширину; гайд - с кнопкой, как раньше
+	local isHint = offer.Hint == true
+	button.Visible = not isHint
+	button.Text = tr("SHOW ME")
+	icon.Text = offer.Icon or (isHint and "💡" or "📘")
+	title.Size = UDim2.new(1, isHint and -76 or -200, 0, 30)
+	subtitle.Size = UDim2.new(1, isHint and -76 or -200, 0, 22)
+	title.Text = (isHint and "" or (tr("NEW") .. ": ")) .. tr(tostring(offer.Title or "")):upper()
 	local reward = tonumber(offer.Reward) or 0
-	subtitle.Text = tostring(offer.Text or "") .. (reward > 0 and ("  ·  +$" .. reward) or "")
+	subtitle.Text = tr(tostring(offer.Text or "")) .. (reward > 0 and ("  ·  +$" .. reward) or "")
 	banner.Visible = true
 	banner.Position = UDim2.new(0.5, 0, 0, -120)
 	TweenService:Create(banner, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = UDim2.new(0.5, 0, 0, 64) }):Play()

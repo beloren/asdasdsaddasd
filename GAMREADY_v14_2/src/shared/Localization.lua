@@ -377,6 +377,24 @@ for language, entries in uiV20Translations do
 	end
 end
 
+-- v20.150: новые фишки (обучение, подсказки, деревья прокачки) - русский и
+-- испанский, Shared.LocalizationV21. Существующие переводы не перезаписывает.
+do
+	local ok, extra = pcall(function() return require(script.Parent:WaitForChild("LocalizationV21", 5)) end)
+	if ok and type(extra) == "table" then
+		for language, entries in extra do
+			local target = translations[language]
+			if not target then
+				target = {}
+				translations[language] = target
+			end
+			for key, value in entries do
+				if target[key] == nil then target[key] = value end
+			end
+		end
+	end
+end
+
 
 local questTranslations = {
 	ru = {

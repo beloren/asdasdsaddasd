@@ -424,61 +424,6 @@ Config.Tutorial = {
 		-- v20.121: НОВЫЕ МЕХАНИКИ - глава стартует в момент, когда игрок впервые
 		-- с ней столкнулся (When), курсор показывает, куда нажать / идти.
 		{
-			Id = "CrystalBank", Title = "Crystals", RewardMoney = 100,
-			When = { Check = "CarryingCrystal" },
-			Steps = {
-				{
-					Id = "BankCrystal",
-					Lines = { "A crystal! Don't lose it", "The mole keeps it in your bank" },
-					Short = "BANK THE CRYSTAL", Task = "Go to the sell zone, press DEPOSIT",
-					Goal = { Kind = "Check", Check = "NotCarryingCrystal" },
-					Target = "Bank", UiTargets = { "Mole:Crystal" },
-					Done = { "Banked crystals go on your podium" },
-				},
-			},
-		},
-		{
-			Id = "IncomeSafe", Title = "Income Safe", RewardMoney = 100, After = { "IncomeIsland" }, Near = { Target = "GeodeSafe", Radius = 22 }, -- v20.149: стартует, когда игрок рядом
-			When = { Check = "SafeHasMoney" },
-			Steps = {
-				{
-					Id = "CollectSafe",
-					Lines = { "Your crystal made money!", "Collect it from the safe" },
-					Short = "COLLECT THE SAFE", Task = "Collect money from the safe",
-					Goal = { Kind = "Counter", Key = "SafeCollected", Target = 1 },
-					Target = "GeodeSafe",
-					Done = { "Better crystals earn more" },
-				},
-			},
-		},
-		{
-			Id = "Totems", Title = "Totems", RewardMoney = 100,
-			When = { Check = "HasTotemItem" }, SkipIf = { Check = "TotemPlacedAny" },
-			Steps = {
-				{
-					Id = "PlaceTotem",
-					Lines = { "A TOTEM! It gives ore mutations", "Place it on your base" },
-					Short = "PLACE THE TOTEM", Task = "Take the totem, click your base",
-					Goal = { Kind = "Check", Check = "TotemPlacedAny" },
-					UiTargets = { "Hotbar:gear:Totem_*" },
-					Done = { "Ore near the totem can mutate!" },
-				},
-			},
-		},
-		{
-			Id = "Dynamite", Title = "Dynamite", RewardMoney = 50,
-			When = { Check = "HasDynamite" },
-			Steps = {
-				{
-					Id = "UseDynamite",
-					Lines = { "Dynamite breaks boulders at once", "Take it and click a boulder" },
-					Short = "USE DYNAMITE", Task = "Take dynamite, click a boulder",
-					Goal = { Kind = "Counter", Key = "DynamiteUsed", Target = 1 },
-					Target = "BaseBoulder", UiTargets = { "Hotbar:gear:Dynamite*" },
-				},
-			},
-		},
-		{
 			Id = "Prestige", Title = "Prestige", Required = true, -- v20.140: обязательная
 			When = { Check = "CanPrestige" }, SkipIf = { Check = "HasPrestiged" },
 			Steps = {
@@ -504,8 +449,26 @@ Config.Tutorial = {
 	-- v20.121: ПОВТОРНЫЕ ПОДСКАЗКИ КУРСОРОМ - вне глав обучения первые Times
 	-- раз курсор тапает в нужную кнопку, как только она на экране (окно
 	-- открыто). Раз засчитывается, когда кнопка пропала с экрана.
+	-- v20.150: МЕЛКИЕ МЕХАНИКИ - НЕ ГЛАВЫ, А КОРОТКИЕ ПОДСКАЗКИ (вариант C).
+	-- Сработал When (игрок впервые получил динамит, взял кристалл, поставил
+	-- кристалл на подиум...) - на 6 с сверху выезжает плашка (та же, что
+	-- «NEW: ...» у гайдов) с одной строкой, курсор подсказывает кнопку (UiHints
+	-- ниже). Один раз на профиль. DoneEvent - событие (счётчик Count) после
+	-- которого подсказка считается пройденной и выдаётся Reward.
+	MicroHints = {
+		{ Id = "Dynamite", Icon = "🧨", Title = "Dynamite", Text = "Take it from the hotbar and click a boulder", When = { Check = "HasDynamite" } },
+		{ Id = "Totems", Icon = "🗿", Title = "Totems", Text = "Take the totem and click your base to place it", When = { Check = "HasTotemItem" }, SkipIf = { Check = "TotemPlacedAny" } },
+		{ Id = "CrystalBank", Icon = "💎", Title = "Crystals", Text = "Bring the crystal to the mole at the bank", When = { Check = "CarryingCrystal" } },
+		{ Id = "IncomeSafe", Icon = "🏦", Title = "Income Safe", Text = "Your crystal fills the safe with money. Collect it!", When = { Check = "SafeHasMoney" },
+			Near = { Target = "GeodeSafe", Radius = 22 }, DoneEvent = "SafeCollected", Reward = { Geode = "Stone", Count = 1 } },
+	},
+	MicroHintSeconds = 6,
+	MicroHintGapSeconds = 8,
+
 	UiHints = {
 		{ Id = "PodiumCrystal", Targets = { "PodiumCrystal:1" }, Times = 3 },  -- окно подиума: самый доходный кристалл
+		{ Id = "HintDynamite", Targets = { "Hotbar:gear:Dynamite*" }, Times = 2 }, -- v20.150: подсказки вместо глав
+		{ Id = "HintTotem", Targets = { "Hotbar:gear:Totem_*" }, Times = 2 },
 		{ Id = "PodiumInstall", Targets = { "PodiumInstall" }, Times = 3 },    -- кнопка «поставить»
 		{ Id = "MoleCrystal", Targets = { "Mole:Crystal" }, Times = 3 },       -- крот: сдать кристалл
 		{ Id = "MoleSellAll", Targets = { "Mole:All" }, Times = 2 },           -- крот: продать всё
@@ -4282,6 +4245,27 @@ Config.Compass = {
 	MerchantDistance = 9,    -- на сколько стадов перед торговцем руды встаёт игрок
 	CenterMarkerName = "CompassCenterMarker", -- v20.134: деталь-маркер точки телепорта «в город» (главнее торговца); + ...Look - куда смотреть
 	CenterOffset = Vector3.new(0, 0, 18),
+}
+
+-- v20.150: КОНФЕТТИ НА ЭКРАНЕ (ScreenConfetti.client.lua): шаг обучения -
+-- маленький залп из центра, глава / обучение / подсказка с наградой - большой
+-- из нижних углов.
+Config.Confetti = {
+	Enabled = true,
+	SmallCount = 36,
+	BigCount = 90,
+	Gravity = 900,
+}
+
+-- v20.150: АНАЛИТИКА ОБУЧЕНИЯ И УДЕРЖАНИЯ (OnboardingAnalyticsService).
+-- Смотреть: Creator Hub → игра → Analytics → Funnels (Onboarding,
+-- Tutorial_<глава>) и Custom events (TutorialStepTime, TutorialQuit, ...).
+Config.Analytics = {
+	Enabled = true,
+	IdleSeconds = 45,   -- не двигался дольше - причина ухода «Idle»
+	StuckSeconds = 150, -- на одном шаге дольше - «Stuck» (+ событие TutorialStepStuck)
+	EarlySeconds = 120, -- вся сессия короче - «EarlyLeave»
+	Debug = false,      -- true - печатать каждое событие в Output (для проверки в Studio)
 }
 
 -- v20.140: МЕЛКИЕ УЛУЧШЕНИЯ («звёзды» в дереве прокачки у Experienced Miner).

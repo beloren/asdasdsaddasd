@@ -38,6 +38,15 @@ local states = {}        -- [player] = { Step, Phase, LineIndex, Counters, Flags
 local stateRemote = nil  -- сервер → клиент: что рисовать
 local actionRemote = nil -- клиент → сервер: "Advance" / "Skip"
 local offerRemote
+local confettiRemote
+-- v20.150: аналитика обучения (OnboardingAnalyticsService) - всё в pcall
+local function analytics(method, ...)
+	local service = Services and Services.OnboardingAnalyticsService
+	if service and service[method] then pcall(service[method], service, ...) end
+end
+local function confetti(player, size)
+	if confettiRemote and player.Parent then confettiRemote:FireClient(player, size or "Small") end
+end
 local hintRemote = nil   -- сервер → клиент: одноразовая контекстная подсказка
 
 local PHASE_LINES = "Lines"   -- печатаем реплики ДО задания
@@ -85,6 +94,12 @@ function TutorialService:Init(services)
 	hintRemote = Instance.new("RemoteEvent")
 	hintRemote.Name = "TutorialHintEvent"
 	hintRemote.Parent = ReplicatedStorage.Shared
+
+	-- v20.150: конфетти на экране (ScreenConfetti.client.lua): "Small" - шаг,
+	-- "Big" - глава/обучение/подсказка с наградой
+	confettiRemote = Instance.new("RemoteEvent")
+	confettiRemote.Name = "ScreenConfetti"
+	confettiRemote.Parent = ReplicatedStorage.Shared
 
 	-- v20.140: предложение необязательной главы (плашка на 10 с)
 	offerRemote = Instance.new("RemoteEvent")
@@ -147,6 +162,7 @@ function TutorialService:Start()
 			tick += 1
 			if tick % 2 == 0 then
 				for _, player in Players:GetPlayers() do
+					pcall(self._tickMicroHints, self, player)
 					pcall(self._tickChapters, self, player)
 				end
 			end
@@ -334,6 +350,7 @@ end
 --------------------------------------------------------------------------------
 
 function TutorialService:Count(player, key, amount)
+	pcall(self._microEvent, self, player, key) -- v20.150: подсказки с наградой (сейф)
 	local state = states[player]
 	if not state then return end
 	state.Counters[key] = (state.Counters[key] or 0) + (tonumber(amount) or 1)
@@ -432,6 +449,7 @@ function TutorialService:_enterStep(player, index, restoring)
 	end
 	state.Step = index
 	state.LineIndex = 1
+	analytics("StepEntered", player, state.Chapter, index, step.Id, #(state.Steps or steps()), "Lines")
 
 	-- СЧЁТЧИК ШАГА СТАРТУЕТ С НУЛЯ. Count копит прогресс всегда, в том
 	-- числе на чужих шагах, — и без сброса продажа руды из рюкзака на
@@ -638,6 +656,8 @@ function TutorialService:_finishStep(player)
 
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	pcall(Sfx.play, "TutorialStepComplete", root)
+	analytics("StepFinished", player)
+	confetti(player, "Small")
 
 	-- ПРОГРЕСС ФИКСИРУЕТСЯ В МОМЕНТ ВЫПОЛНЕНИЯ, а не после прощальной
 	-- реплики. Счётчики в профиль не пишутся, поэтому раньше вылет на
@@ -662,6 +682,7 @@ end
 function TutorialService:_skip(player)
 	local state = states[player]
 	if not state then return end
+	analytics("Skipped", player)
 	if state.Chapter then
 		self:_finishChapter(player, false)
 		return
@@ -697,6 +718,8 @@ function TutorialService:_finish(player, rewarded)
 	local state = states[player]
 	if not state then return end
 	states[player] = nil
+	analytics("Completed", player, nil, #steps(), rewarded)
+	if rewarded then confetti(player, "Big") end
 
 	-- v20.40: размер рюкзака зависит от обучения (Config.Inventory.TutorialSlots).
 	task.defer(function() if Services.InventoryService and player.Parent then pcall(Services.InventoryService.Sync, Services.InventoryService, player) end end)
@@ -819,6 +842,7 @@ function TutorialService:_push(player)
 	if not state then return end
 	local step = stepOf(state, state.Step)
 	if not step then return end
+	analytics("PhaseChanged", player, state.Phase)
 
 	local text
 	if state.Phase == PHASE_LINES then
@@ -1096,6 +1120,8 @@ function TutorialService:_finishChapter(player, rewarded)
 	if not (state and state.Chapter) then return end
 	local chapter = chapterById(state.Chapter)
 	states[player] = nil
+	analytics("Completed", player, state.Chapter, chapter and #chapter.Steps or 0, rewarded)
+	if rewarded then confetti(player, "Big") end
 	local done = self:_chaptersDone(player)
 	if done then done[state.Chapter] = true end
 	local data = Services.DataService:GetGeodeData(player)
@@ -1194,6 +1220,73 @@ function TutorialService:_tickChapters(player)
 					return
 				end
 			end
+		end
+	end
+end
+
+
+--------------------------------------------------------------------------------
+-- v20.150: КОРОТКИЕ ПОДСКАЗКИ МЕХАНИК (Config.Tutorial.MicroHints, вариант C).
+-- Не главы: одна строка на плашке «NEW» (TutorialGuideBanner) на 6 с, курсор
+-- на кнопке (Config.Tutorial.UiHints), один раз на профиль. data.MicroHints
+-- = { [Id] = "Shown" | "Done" }. Подсказка с DoneEvent (событие Count, напр.
+-- SafeCollected) после него выдаёт Reward и конфетти.
+--------------------------------------------------------------------------------
+local function microHints(player)
+	local data = Services.DataService:GetGeodeData(player)
+	if not data then return nil end
+	if type(data.MicroHints) ~= "table" then data.MicroHints = {} end
+	return data.MicroHints
+end
+
+function TutorialService:_tickMicroHints(player)
+	if states[player] or not player.Parent or self:IsRequired(player) then return end
+	if player:GetAttribute("MineExpeditionActive") == true then return end
+	self._nextMicroAt = self._nextMicroAt or {}
+	if (self._nextMicroAt[player] or 0) > os.clock() then return end
+	local seen = microHints(player)
+	if not seen then return end
+	for _, hint in Config.Tutorial.MicroHints or {} do
+		if seen[hint.Id] == nil then
+			if hint.SkipIf and self:_check(player, hint.SkipIf) then
+				seen[hint.Id] = "Done" -- уже умеет
+			elseif self:_check(player, hint.When) and (not hint.Near or self:_isNear(player, hint.Near)) then
+				seen[hint.Id] = hint.DoneEvent and "Shown" or "Done"
+				if offerRemote then
+					offerRemote:FireClient(player, {
+						Id = hint.Id, Hint = true, Icon = hint.Icon, Title = hint.Title or hint.Id, Text = hint.Text or "",
+						Seconds = Config.Tutorial.MicroHintSeconds or 6,
+						Reward = 0,
+					})
+				end
+				analytics("Hint", player, "HintShown", hint.Id)
+				self._nextMicroAt[player] = os.clock() + (Config.Tutorial.MicroHintGapSeconds or 8)
+				return
+			end
+		end
+	end
+end
+
+function TutorialService:_microEvent(player, key)
+	local seen = microHints(player)
+	if not seen then return end
+	for _, hint in Config.Tutorial.MicroHints or {} do
+		if hint.DoneEvent == key and seen[hint.Id] ~= "Done" then
+			seen[hint.Id] = "Done"
+			analytics("Hint", player, "HintDone", hint.Id)
+			local reward = hint.Reward
+			if reward and reward.Geode and Services.GeodeService then
+				for _ = 1, math.max(1, tonumber(reward.Count) or 1) do
+					pcall(Services.GeodeService.AddGeodeDirectly, Services.GeodeService, player, reward.Geode)
+				end
+				if Services.NotifyService then
+					local geode = Config.Geodes.Types[reward.Geode]
+					Services.NotifyService:Show(player, ("%s %s - +%d %s"):format(hint.Icon or "✅", hint.Title or hint.Id,
+						math.max(1, tonumber(reward.Count) or 1), geode and geode.DisplayName or (reward.Geode .. " Geode")), { Icon = "Reward", Duration = 4 })
+				end
+			end
+			if reward and (reward.Money or 0) > 0 then Services.DataService:AddMoney(player, reward.Money) end
+			confetti(player, "Big")
 		end
 	end
 end

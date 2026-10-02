@@ -122,6 +122,7 @@ local ORDER = {
 	"UpgradeService",
 	"UpgradeStatService", -- v20.140: мелкие улучшения-«звёзды» (Config.UpgradeStats)
 	"IslandPerkService", -- v20.140: мини-деревья островов (Config.IslandPerks)
+	"OnboardingAnalyticsService", -- v20.150: воронка обучения, время на шагах, причины ухода
 	"ShopNpcService", -- НПС магазина (Robux) — как и UpgradeService, настраивается PlotService:AssignPlot на каждом участке
 	"CombatService",
 	"HudService",
