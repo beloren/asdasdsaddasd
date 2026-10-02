@@ -18,7 +18,15 @@
 --------------------------------------------------------------------------------
 
 -- Пусто = собрать всё. Пример: local ONLY = { "ShopUi", "QuestUi" }
-local ONLY = {}
+-- v20.142: сейчас собираются ТОЛЬКО окна с ветками прокачки - остальные
+-- экраны в StarterGui не трогаются (ни пересборка, ни удаление старых,
+-- ни скрытие шаблонов). Чтобы собрать всё, сделай ONLY = {}.
+local ONLY = {
+	"UpgradeShopUi",        -- Experienced Miner: дерево прокачки, звёзды, окно звезды
+	"IslandUi",             -- Island Keeper: острова, деревья островов, кнопка UPGRADES
+	"PerkUi",               -- дерево престижа (сундук престижа)
+	"RebirthDialogButtons", -- окно престижа у Prestige Mayor
+}
 
 -- true = НЕ трогать экраны, которые уже есть в StarterGui и собраны этой
 -- версией билдера (UiKitVersion совпадает). Удобно, чтобы добавить новые
@@ -44,10 +52,12 @@ local LEGACY = {
 	"CartPlacementHud", "PlacementGhostUi", "RubbleCrystalUI", "QuestEdgeArrow",
 	"StarterPackOffer", -- v20.129: стартовый набор удалён
 }
-for _, name in LEGACY do
-	local old = StarterGui:FindFirstChild(name)
-	if old and old:IsA("ScreenGui") then
-		old:Destroy()
+if #ONLY == 0 then -- при частичной сборке чужие экраны не удаляем
+	for _, name in LEGACY do
+		local old = StarterGui:FindFirstChild(name)
+		if old and old:IsA("ScreenGui") then
+			old:Destroy()
+		end
 	end
 end
 
@@ -80,7 +90,7 @@ print("[BuildAllUI] Готово (" .. #report .. "):\n  " .. table.concat(repor
 -- старую версию UiRegistry, в которой этой функции ещё нет.
 local hidden = 0
 for _, gui in StarterGui:GetChildren() do
-	if gui:IsA("ScreenGui") then
+	if gui:IsA("ScreenGui") and (not filter or filter[gui.Name]) then
 		for _, folder in gui:GetDescendants() do
 			if folder:IsA("Folder") and folder.Name == "Templates" then
 				for _, child in folder:GetChildren() do
@@ -93,5 +103,5 @@ for _, gui in StarterGui:GetChildren() do
 		end
 	end
 end
-print(("[BuildAllUI] Шаблоны во всех экранах StarterGui скрыты (выключено сейчас: %d)."):format(hidden))
+print(("[BuildAllUI] Шаблоны в собранных экранах скрыты (выключено сейчас: %d)."):format(hidden))
 freshShared:Destroy()
