@@ -995,9 +995,35 @@ TutorialService.Checks = {
 		end
 		return false
 	end,
+	-- v20.132: куплен конкретный перк (Arg - Id)
+	PerkOwned = function(_, player, perkId)
+		local data = Services.DataService:GetGeodeData(player)
+		return data ~= nil and type(data.Perks) == "table" and (tonumber(data.Perks[perkId]) or 0) > 0
+	end,
+	-- v20.132: куплен перк из веток (не центральный Starter Miner)
+	PerkBoughtBranch = function(_, player)
+		local data = Services.DataService:GetGeodeData(player)
+		local root = Config.Prestige and Config.Prestige.RootPerk
+		for id, level in (data and data.Perks) or {} do
+			if id ~= root and (tonumber(level) or 0) > 0 then return true end
+		end
+		return false
+	end,
 }
 
 TutorialService.OnEnter = {
+	-- v20.132: глава PrestigeIntro - одно очко престижа в подарок (один раз)
+	GrantPrestigePoint = function(_, player)
+		local data = Services.DataService:GetGeodeData(player)
+		if not data or data.PrestigeIntroPoint == true then return end
+		data.PrestigeIntroPoint = true
+		if Services.PrestigeService then
+			Services.PrestigeService:AddPoints(player, (Config.Tutorial and Config.Tutorial.PrestigeGiftPoints) or 1)
+		end
+		if Services.NotifyService then
+			Services.NotifyService:Show(player, "+1 Prestige Point", { Icon = "Reward", Duration = 3 })
+		end
+	end,
 	-- в стоке у торговца гарантированно есть хотя бы одна недорогая руда
 	EnsureOreStock = function(_, player)
 		if Services.MerchantService and Services.MerchantService.EnsureTutorialOre then

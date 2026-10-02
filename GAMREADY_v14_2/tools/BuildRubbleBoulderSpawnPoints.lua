@@ -1,82 +1,85 @@
 --------------------------------------------------------------------------------
--- BuildRubbleBoulderSpawnPoints — ОДНОРАЗОВЫЙ скрипт-сборщик.
--- Ставит 16 плейсхолдер-точек спавна валунов (workspace.RubbleBoulderSpawnPoints)
--- кольцом вокруг банка — временно, пока вы сами не расставите их по карте и
--- не сделаете модели (см. Boulder_Tier1..10 в PLACEHOLDERS_GUIDE.md).
+-- BuildRubbleBoulderSpawnPoints (v20.132) — ТОЧКИ ДИКИХ ВАЛУНОВ (вне баз).
+-- Запуск: вставь в Command Bar Studio и нажми Enter.
 --
--- Просто передвиньте/удалите/добавьте части внутри этой папки в Studio,
--- когда решите, где реально должны стоять валуны — код (RockService.lua)
--- сам подхватит любые BasePart внутри этой папки при следующем старте
--- сервера, их не обязательно оставлять ровно 16 и ровно кольцом.
+-- Добавляет точки в workspace.RubbleBoulderSpawnPoints (папку создаёт, если
+-- её нет). Твои уже расставленные точки НЕ удаляются - скрипт только
+-- докладывает новые до TARGET_COUNT штук, кольцами вокруг банка, ставя их на
+-- землю. Дальше двигай/копируй/удаляй их мышкой как хочешь.
 --
--- Запускать через Command Bar (Studio): выделите этот скрипт и нажмите Run,
--- либо просто вставьте содержимое в Command Bar и выполните.
+-- ПРАВИЛА (RockService):
+--   • сколько точек - столько и валунов (Config.Boulders.MaxActive = 0);
+--   • тир каждого валуна СЛУЧАЙНЫЙ при каждом появлении (Config.Boulders.
+--     RandomTierWeights) - атрибут Tier у точки не нужен;
+--   • в игре точки невидимы (видны только в Studio).
 --------------------------------------------------------------------------------
 
-local Config = require(game:GetService("ReplicatedStorage").Shared.Config)
+local TARGET_COUNT = 36
+local RINGS = { { Radius = 75, Count = 12 }, { Radius = 115, Count = 12 }, { Radius = 155, Count = 12 } }
 
-local POINT_COUNT = 16
-local RADIUS = 70 -- студов от банка — достаточно далеко, чтобы не пересекаться с зоной продажи
-local HEIGHT = 4 -- чуть приподнято над предполагаемым уровнем пола
-
--- Банк по умолчанию — геометрический центр карты (0, 8, 0), см.
--- WorldService.lua. Если у вас уже стоит своя модель банка с атрибутом
--- IsBank = true — точки строятся вокруг НЕЁ, а не вокруг (0,0,0).
 local function findBankPosition()
 	for _, instance in workspace:GetDescendants() do
 		if instance:IsA("Model") and instance:GetAttribute("IsBank") then
 			return instance:GetPivot().Position
 		end
 	end
+	local merchant = workspace:FindFirstChild("BankMerchant")
+	if merchant and merchant:IsA("Model") then return merchant:GetPivot().Position end
 	return Vector3.new(0, 0, 0)
 end
 
-local bankPosition = findBankPosition()
-
-local existing = workspace:FindFirstChild("RubbleBoulderSpawnPoints")
-if existing then
-	existing:Destroy()
+local center = findBankPosition()
+local folder = workspace:FindFirstChild("RubbleBoulderSpawnPoints")
+if not folder then
+	folder = Instance.new("Folder")
+	folder.Name = "RubbleBoulderSpawnPoints"
+	folder.Parent = workspace
 end
 
-local folder = Instance.new("Folder")
-folder.Name = "RubbleBoulderSpawnPoints"
-folder.Parent = workspace
-
-for index = 1, POINT_COUNT do
-	local tier = ((index - 1) % 10) + 1 -- тот же цикл 1..10, что и фолбэк в RockService, если атрибут Tier не трогать
-	local angle = (index - 1) / POINT_COUNT * math.pi * 2
-	local position = bankPosition + Vector3.new(math.cos(angle) * RADIUS, HEIGHT, math.sin(angle) * RADIUS)
-
-	local point = Instance.new("Part")
-	point.Name = ("BoulderSpawn_%02d_Tier%d"):format(index, tier)
-	point.Size = Vector3.new(4, 1, 4)
-	point.CFrame = CFrame.new(position)
-	point.Anchored = true
-	point.CanCollide = false
-	point.CanTouch = false
-	point.CanQuery = false
-	point.Transparency = 0.3
-	point.Material = Enum.Material.Neon
-	point.Color = (Config.MineTiers[tier] and Config.MineTiers[tier].Color) or Color3.fromRGB(200, 200, 200)
-	point:SetAttribute("Tier", tier)
-	point.Parent = folder
-
-	local label = Instance.new("BillboardGui")
-	label.Name = "TierLabel"
-	label.Size = UDim2.fromOffset(80, 24)
-	label.StudsOffset = Vector3.new(0, 2, 0)
-	label.AlwaysOnTop = true
-	label.Parent = point
-
-	local text = Instance.new("TextLabel")
-	text.BackgroundTransparency = 1
-	text.Size = UDim2.fromScale(1, 1)
-	text.Font = Enum.Font.GothamBold
-	text.TextScaled = true
-	text.TextColor3 = Color3.new(1, 1, 1)
-	text.TextStrokeTransparency = 0
-	text.Text = "T" .. tier
-	text.Parent = label
+local existing = {}
+for _, child in folder:GetChildren() do
+	if child:IsA("BasePart") then table.insert(existing, child) end
 end
 
-print(("[BuildRubbleBoulderSpawnPoints] Done: %d placeholder points created in workspace.RubbleBoulderSpawnPoints around bank position %s. Move/replace them whenever you decide the real locations."):format(POINT_COUNT, tostring(bankPosition)))
+local params = RaycastParams.new()
+params.FilterType = Enum.RaycastFilterType.Exclude
+params.FilterDescendantsInstances = { folder }
+
+local added = 0
+local index = #existing
+for ringIndex, ring in RINGS do
+	for i = 1, ring.Count do
+		if index >= TARGET_COUNT then break end
+		local angle = (i - 1) / ring.Count * math.pi * 2 + ringIndex * 0.35
+		local flat = center + Vector3.new(math.cos(angle) * ring.Radius, 0, math.sin(angle) * ring.Radius)
+		-- не ставим вплотную к уже существующей точке
+		local tooClose = false
+		for _, part in existing do
+			if (Vector3.new(part.Position.X, 0, part.Position.Z) - Vector3.new(flat.X, 0, flat.Z)).Magnitude < 14 then
+				tooClose = true
+				break
+			end
+		end
+		if not tooClose then
+			local hit = workspace:Raycast(flat + Vector3.new(0, 200, 0), Vector3.new(0, -400, 0), params)
+			local y = hit and hit.Position.Y or center.Y
+			index += 1
+			local point = Instance.new("Part")
+			point.Name = ("BoulderSpawn_%02d"):format(index)
+			point.Size = Vector3.new(4, 1, 4)
+			point.CFrame = CFrame.new(flat.X, y + 0.5, flat.Z)
+			point.Anchored = true
+			point.CanCollide = false
+			point.CanTouch = false
+			point.CanQuery = false
+			point.Transparency = 0.3
+			point.Material = Enum.Material.Neon
+			point.Color = Color3.fromRGB(255, 170, 60)
+			point:SetAttribute("MapMarker", true)
+			point.Parent = folder
+			table.insert(existing, point)
+			added += 1
+		end
+	end
+end
+print(("[BuildRubbleBoulderSpawnPoints] добавлено точек: %d, всего: %d (сколько точек - столько валунов)"):format(added, #existing))

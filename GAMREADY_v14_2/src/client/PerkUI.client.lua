@@ -111,6 +111,7 @@ end
 
 local PERK_BY_ID = {}
 for _, perk in cfg.Perks do PERK_BY_ID[perk.Id] = perk end
+local ROOT_PERK = cfg.RootPerk -- v20.132: центральный узел «Starter Miner»
 local BRANCH_OF = {}
 for _, branch in cfg.Branches or {} do
 	for _, perkId in branch.Perks do BRANCH_OF[perkId] = branch end
@@ -482,25 +483,45 @@ function Free.Render()
 		zoomScale.Scale = zoom
 		zoomScale.Parent = holder
 	end
-	-- стартовый узел
+	-- стартовый узел (v20.132: если задан RootPerk - это покупаемый перк
+	-- «Starter Miner», без него ветки закрыты)
+	local rootPerk = ROOT_PERK and PERK_BY_ID[ROOT_PERK]
 	local start = nodeTemplate:Clone()
-	start.Name = "StartNode"
+	start.Name = rootPerk and ("Node_" .. ROOT_PERK) or "StartNode"
 	start.Visible = true
 	start.AnchorPoint = Vector2.new(0.5, 0.5)
 	start.Position = UDim2.fromScale(startPos[1], startPos[2])
 	start.Size = UDim2.fromOffset(NODE_SIZE + 12, NODE_SIZE + 12)
 	start.ZIndex = 3
 	start.BackgroundColor3 = Color3.fromRGB(150, 90, 230)
-	setIcon(start.Icon, "✦", nil, 0)
-	start.LevelChip.Level.Text = tr("START")
 	start.Lock.Visible = false
-	if start:FindFirstChild("CanBuy") then start.CanBuy.Visible = false end
+	if rootPerk then
+		local info = infoOf(ROOT_PERK)
+		local maxed = info.Level >= rootPerk.MaxLevel
+		require(ReplicatedStorage.Shared.TutorialTarget).Mark(start, "PerkNode:" .. ROOT_PERK)
+		setIcon(start.Icon, rootPerk.Icon, rootPerk.ImageId, 0)
+		start.LevelChip.Level.Text = maxed and "MAX" or ("%d/%d"):format(info.Level, rootPerk.MaxLevel)
+		start.LevelChip.Level.TextColor3 = maxed and COLOR_GREEN_TEXT or COLOR_GOLD_TEXT
+		if not maxed then start.BackgroundColor3 = Color3.fromRGB(150, 90, 230):Lerp(COLOR_STAR, 0.4) end
+		if start:FindFirstChild("CanBuy") then
+			start.CanBuy.Visible = not maxed and state.Points >= (info.Cost or math.huge)
+		end
+		local outline = start:FindFirstChild("Outline")
+		if outline then
+			outline.Color = (selected == ROOT_PERK) and Color3.new(1, 1, 1) or COLOR_INK
+			outline.Thickness = (selected == ROOT_PERK) and 5 or 4
+		end
+	else
+		setIcon(start.Icon, "✦", nil, 0)
+		start.LevelChip.Level.Text = tr("START")
+		if start:FindFirstChild("CanBuy") then start.CanBuy.Visible = false end
+	end
 	Free.Shape(start)
 	press(start)
 	start.Activated:Connect(function()
 		if dragMoved then return end
 		UiSfx.play("UiButtonClick")
-		selected = "__Start"
+		selected = rootPerk and ROOT_PERK or "__Start"
 		showDetail()
 		updateSelection()
 		renderDetail()
@@ -792,7 +813,7 @@ renderDetail = function()
 	pcall(require(ReplicatedStorage.Shared.OrePreview).Clear, detail.Icon) -- v20.94: убрать 3D святилища
 	setIcon(detail.Icon, perk.Icon, perk.ImageId)
 	detail.Title.Text = tr(perk.Title)
-	detail.Title.TextColor3 = branch and branch.Color or Color3.new(1, 1, 1)
+	detail.Title.TextColor3 = branch and branch.Color or (perk.Id == ROOT_PERK and Color3.fromRGB(200, 150, 255)) or Color3.new(1, 1, 1)
 	detail.Level.Text = ("LV %d/%d"):format(info.Level, perk.MaxLevel)
 	detail.Now.Text = info.Level > 0 and effectText(perk, info.Level) or "-"
 	local hint = detail.Hint
@@ -827,7 +848,7 @@ local function applyState(payload)
 	for _, entry in payload.Shrines or {} do shrineState[entry.Id] = entry end
 	if not selected then
 		local first = cfg.Branches and cfg.Branches[1] and cfg.Branches[1].Perks[1]
-		selected = cfg.TreeLayout and "__Start" or first
+		selected = cfg.TreeLayout and (ROOT_PERK and PERK_BY_ID[ROOT_PERK] and ROOT_PERK or "__Start") or first
 	end
 	if mode == "Shrines" then
 		renderShrines()
@@ -862,6 +883,9 @@ local MovementLock = require(ReplicatedStorage.Shared.MovementLock)
 local function open()
 	isOpen = true
 	freezeCamera(true)
+	-- v20.132: шаг обучения «открой дерево престижа»
+	local tutorialRemote = ReplicatedStorage.Shared:FindFirstChild("TutorialActionEvent")
+	if tutorialRemote then tutorialRemote:FireServer("UiFlag", "PrestigeOpened") end
 	-- v20.130: пока выбираешь перк - персонаж стоит (не убегает случайно)
 	MovementLock.Lock("Prestige", 600)
 	-- на телефоне дерево сразу чуть мельче, чтобы влезало

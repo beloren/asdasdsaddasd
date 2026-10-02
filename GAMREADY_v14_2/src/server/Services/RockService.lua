@@ -696,10 +696,30 @@ function RockService:Start()
 		end
 		table.sort(points, function(a, b) return a.Name < b.Name end)
 	end
-	if #points < Config.Boulders.MaxActive then
-		warn(("[RockService] %d RubbleBoulderSpawnPoints found; %d required for the full pool"):format(#points, Config.Boulders.MaxActive))
+	-- v20.132: MaxActive <= 0 - валун на КАЖДОЙ точке
+	local maxActive = tonumber(Config.Boulders.MaxActive) or 0
+	if maxActive > 0 and #points < maxActive then
+		warn(("[RockService] %d RubbleBoulderSpawnPoints found; %d required for the full pool"):format(#points, maxActive))
 	end
-	local activeCount = math.min(#points, Config.Boulders.MaxActive)
+	if #points == 0 then
+		warn("[RockService] Нет точек в workspace.RubbleBoulderSpawnPoints - диких валунов не будет")
+	end
+	local activeCount = maxActive > 0 and math.min(#points, maxActive) or #points
+	for _, point in points do
+		-- точки в игре невидимы и без подписи тира
+		point.Transparency = 1
+		point.CanCollide = false
+		point.CanTouch = false
+		point.CanQuery = false
+		for _, child in point:GetChildren() do
+			if child:IsA("BillboardGui") or child:IsA("SurfaceGui") or child:IsA("Decal") then child:Destroy() end
+		end
+	end
+	if Config.Boulders.RandomTierPerSpawn then
+		for index = 1, activeCount do self:SpawnAtPoint(points[index]) end
+		self:_startTierRotation()
+		return
+	end
 
 	-- Тир каждой точки: явный атрибут Tier, если проставлен в Studio,
 	-- иначе цикл 1..9 по кругу (при 16 точках это само по себе уже
@@ -877,9 +897,25 @@ function RockService:_startTierRotation()
 	end)
 end
 
+-- v20.132: случайный тир дикого валуна (Config.Boulders.RandomTierWeights)
+local function randomWildTier()
+	local weights = Config.Boulders.RandomTierWeights or {}
+	local total = 0
+	for tier = 1, 9 do total += tonumber(weights[tier]) or 1 end
+	local roll = math.random() * total
+	for tier = 1, 9 do
+		roll -= tonumber(weights[tier]) or 1
+		if roll <= 0 then return tier end
+	end
+	return 1
+end
+
 function RockService:SpawnAtPoint(point, fallbackTier)
 	if active[point] then return end
 	local tier = math.clamp(math.floor(tonumber(point:GetAttribute("Tier")) or fallbackTier or 1), 1, 9)
+	if Config.Boulders.RandomTierPerSpawn and point:GetAttribute("PlotOwnerUserId") == nil then
+		tier = randomWildTier() -- дикий валун: каждый раз новый тир
+	end
 	local elite = math.random() < Config.Boulders.EliteChance
 	local model = createBoulder(tier, elite)
 	local assetRotation = model:GetPivot().Rotation

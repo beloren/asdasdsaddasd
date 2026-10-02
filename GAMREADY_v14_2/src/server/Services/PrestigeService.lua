@@ -30,11 +30,16 @@ end
 
 -- v9: дерево — какой перк нужен, чтобы открыть этот (предыдущий в ветке).
 local REQUIRES = {}
+local ROOT = Config.Prestige.RootPerk
+if ROOT and not PERK_BY_ID[ROOT] then ROOT = nil end
 for _, branch in Config.Prestige.Branches or {} do
 	for index, perkId in branch.Perks do
 		if index > 1 then REQUIRES[perkId] = branch.Perks[index - 1] end
+		-- v20.132: первые узлы веток открываются центральным перком
+		if index == 1 and ROOT then REQUIRES[perkId] = ROOT end
 	end
 end
+PrestigeService.RootPerk = ROOT
 PrestigeService.Requires = REQUIRES
 
 local function dataOf(player)
@@ -55,9 +60,15 @@ end
 
 -- Бонус ТОЛЬКО от перка (доля или штуки — как PerLevel в конфиге).
 function PrestigeService:PerkBonus(player, perkId)
+	local data = dataOf(player)
 	local perk = PERK_BY_ID[perkId]
-	if not perk then return 0 end
-	return perkLevel(dataOf(player), perkId) * perk.PerLevel
+	local total = perk and perkLevel(data, perkId) * perk.PerLevel or 0
+	-- v20.132: перки с Adds (Starter Miner) добавляют к чужим бонусам
+	for _, other in Config.Prestige.Perks do
+		local add = other.Adds and tonumber(other.Adds[perkId])
+		if add then total += perkLevel(data, other.Id) * add end
+	end
+	return total
 end
 
 -- Бонус от надетого скина кирки (Config.SkinBuffs).
@@ -78,7 +89,7 @@ local function publish(player)
 	if not data then return end
 	player:SetAttribute("PrestigePoints", math.max(0, math.floor(tonumber(data.PrestigePoints) or 0)))
 	for _, perk in Config.Prestige.Perks do
-		player:SetAttribute("PerkBonus_" .. perk.Id, perkLevel(data, perk.Id) * perk.PerLevel)
+		player:SetAttribute("PerkBonus_" .. perk.Id, PrestigeService:PerkBonus(player, perk.Id))
 	end
 end
 
@@ -165,7 +176,7 @@ function PrestigeService:BuyPerk(player, perkId)
 	if perkId == "CartSpace" and Services.CartService and Services.CartService.RefreshCapacity then
 		pcall(Services.CartService.RefreshCapacity, Services.CartService, player)
 	end
-	if perkId == "Speed" and Services.CartService then
+	if (perkId == "Speed" or (PERK_BY_ID[perkId].Adds and PERK_BY_ID[perkId].Adds.Speed)) and Services.CartService then
 		pcall(Services.CartService.RefreshSpeed, Services.CartService, player)
 	end
 	task.spawn(function() Services.DataService:SaveProfile(player) end)
@@ -314,6 +325,15 @@ function PrestigeService:SetupPlayer(player)
 	if not data then return end
 	data.Perks = data.Perks or {}
 	data.PrestigePoints = math.max(0, math.floor(tonumber(data.PrestigePoints) or 0))
+	-- v20.132: кто уже качал перки до центрального узла - узел открыт даром
+	if ROOT and perkLevel(data, ROOT) == 0 then
+		for id, level in data.Perks do
+			if id ~= ROOT and (tonumber(level) or 0) > 0 then
+				data.Perks[ROOT] = 1
+				break
+			end
+		end
+	end
 	-- Миграция: старые ребёрты (давали множитель x1.5) → по 1 очку за каждый.
 	if data.PerksMigrated ~= true then
 		data.PerksMigrated = true

@@ -111,24 +111,20 @@ else
 	if m and m:IsA("BasePart") then markPart(m) ok("Гоблины: Marker (табличка лагеря) есть") else bad("GoblinCamp: нет Part 'Marker' - табличка лагеря не появится") end
 end
 
--- 4) ВАЛУНЫ: Workspace.RubbleBoulderSpawnPoints (16 точек, атрибут Tier 1-9)
+-- 4) ВАЛУНЫ: Workspace.RubbleBoulderSpawnPoints (v20.132: сколько точек -
+--    столько диких валунов, тир каждого случайный при появлении)
 local points = workspace:FindFirstChild("RubbleBoulderSpawnPoints")
 if not points then
-	bad("Нет Workspace.RubbleBoulderSpawnPoints - валуны не появятся")
+	bad("Нет Workspace.RubbleBoulderSpawnPoints - диких валунов не будет (tools/BuildRubbleBoulderSpawnPoints.lua поставит точки)")
 else
-	local n, tiers = 0, {}
+	local n = 0
 	for _, p in points:GetChildren() do
 		if p:IsA("BasePart") then
 			n += 1
 			markPart(p)
-			local t = tonumber(p:GetAttribute("Tier"))
-			if t then tiers[math.clamp(math.floor(t), 1, 9)] = true end
 		end
 	end
-	if n >= 16 then ok(("Валуны: точек %d"):format(n)) else bad(("Валуны: точек %d, нужно 16"):format(n)) end
-	local missing = {}
-	for t = 1, 9 do if not tiers[t] then table.insert(missing, t) end end
-	if #missing == 0 then ok("Валуны: есть точки всех тиров 1-9") else print("[--]  Валуны: нет атрибута Tier для тиров " .. table.concat(missing, ",") .. " (игра сама раздаст тиры по кругу)") end
+	if n > 0 then ok(("Дикие валуны: точек %d = валунов %d (тир случайный)"):format(n, n)) else bad("Дикие валуны: в папке нет ни одной точки") end
 end
 
 -- 5) НЕОБЯЗАТЕЛЬНОЕ

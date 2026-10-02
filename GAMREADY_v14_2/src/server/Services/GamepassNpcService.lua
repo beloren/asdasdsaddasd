@@ -18,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local PlaceholderFactory = require(ReplicatedStorage.Shared.PlaceholderFactory)
 local NpcNameTag = require(ReplicatedStorage.Shared.NpcNameTag)
+local NpcIdle = require(ReplicatedStorage.Shared.NpcIdle) -- v20.132: стойка как у продавца островов
 
 local GamepassNpcService = {}
 local remote
@@ -96,6 +97,7 @@ function GamepassNpcService:_spawn()
 	end
 	if root:IsA("BasePart") then root.Anchored = true end
 
+	task.defer(NpcIdle.Play, npc, "GamepassNPC")
 	local title = c.Name or "Gamepass Shop"
 	pcall(NpcNameTag.Ensure, npc, title)
 	local prompt = npc:FindFirstChild("GamepassPrompt", true)
