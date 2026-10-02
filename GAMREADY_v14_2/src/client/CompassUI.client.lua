@@ -172,9 +172,61 @@ local function setOpen(open)
 	end
 end
 
+-- v20.138: ты уже здесь (стоишь у этого места) - карточка серая, телепорт не нужен
+local HERE_RADIUS = cfg.HereRadius or 45
+local function isHere(destId)
+	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return false end
+	for _, dest in destinations do
+		if dest.Id == destId and typeof(dest.Position) == "Vector3" then
+			local flat = Vector3.new(dest.Position.X - hrp.Position.X, 0, dest.Position.Z - hrp.Position.Z)
+			return flat.Magnitude <= HERE_RADIUS
+		end
+	end
+	return false
+end
+local function paintHere()
+	for _, card in body:GetChildren() do
+		if card:IsA("GuiObject") then
+			local destId = card.Name:match("^Place_(.+)$")
+			local here = destId and isHere(destId) or false
+			if card:GetAttribute("Here") ~= here then
+				card:SetAttribute("Here", here)
+				local tint = card:FindFirstChild("HereTint")
+				if here and not tint then
+					tint = Instance.new("Frame")
+					tint.Name = "HereTint"
+					tint.Size = UDim2.fromScale(1, 1)
+					tint.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
+					tint.BackgroundTransparency = 0.35
+					tint.BorderSizePixel = 0
+					tint.ZIndex = 50
+					tint.Active = false
+					local corner = card:FindFirstChildOfClass("UICorner")
+					if corner then corner:Clone().Parent = tint end
+					local label = Instance.new("TextLabel")
+					label.BackgroundTransparency = 1
+					label.Size = UDim2.fromScale(1, 0.3)
+					label.Position = UDim2.fromScale(0, 0.35)
+					label.Text = "YOU ARE HERE"
+					label.TextScaled = true
+					label.TextColor3 = Color3.fromRGB(220, 220, 225)
+					label.ZIndex = 51
+					UiKit.StyleText(label, "Heading")
+					label.Parent = tint
+					tint.Parent = card
+				elseif tint then
+					tint.Visible = here
+				end
+			end
+		end
+	end
+end
+
 local busy = false
 teleport = function(destId)
 	if busy then return end
+	if isHere(destId) then sfx("UiError") return end
 	local left = cooldownUntil - os.clock()
 	if left > 0 then
 		sfx("UiError")
@@ -236,6 +288,7 @@ RunService.RenderStepped:Connect(function()
 		buttonLabel.Text = "TRAVEL"
 	end
 	if panel.Visible then
+		paintHere()
 		cooldownLabel.Text = left > 0 and ("Teleport ready in %ds"):format(math.ceil(left)) or "Pick a place to teleport"
 	end
 end)

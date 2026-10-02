@@ -1388,7 +1388,8 @@ local function playRarityCard(data)
 	local reel = nil
 	if data.Reel3D then
 		local order = Config.RarityOrder
-		local weights = reelCfg.Weights or {}
+		-- v20.138: шансы этого игрока (сервер), иначе общая таблица
+		local weights = (typeof(data.Weights) == "table" and next(data.Weights)) and data.Weights or reelCfg.Weights or {}
 		local rng = Random.new()
 		local function pick()
 			local total = 0
@@ -1858,7 +1859,7 @@ stateRemote.OnClientEvent:Connect(function(stage, data)
 		-- FOV не просто возвращаем к обычному, а РАСШИРЯЕМ: после трёх
 		-- наездов мини-игры кадр узкий, а сейчас в него должна поместиться
 		-- вся разлетающаяся пачка.
-		fovTo(BASE_FOV + (cfg.CameraEjectFOVWiden or 10), data.DiveSeconds or cfg.CameraDiveSeconds or 0.9)
+		fovTo(BASE_FOV + (cfg.CameraEjectFOVWiden or 0), data.DiveSeconds or cfg.CameraDiveSeconds or 0.9)
 		local placed = cfg.UseBankAxisCamera and dollyAlongBankAxis(
 			data.MinePosition,
 			data.BankPosition,

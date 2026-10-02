@@ -158,6 +158,38 @@ function PrestigeService.PointsForCave(cave)
 	return best
 end
 
+-- v20.138: ОЧКИ ЗА ПРЕСТИЖ ПО ПРОГРЕССУ (Config.Prestige.PointsByProgress):
+-- насколько игрок продвинулся (пещера и кирка относительно максимума) и
+-- сколько у него денег относительно цены престижа. 3..5 очков (не по 1),
+-- плюс перк «Prestige Points» (PointsBonus).
+function PrestigeService:PointsForPlayer(player)
+	local cfg = Config.Prestige.PointsByProgress
+	if not cfg then
+		return PrestigeService.PointsForCave(Services.DataService:GetTiers(player).Mine or 1)
+	end
+	local tiers = Services.DataService:GetTiers(player)
+	local caveFrac = (tiers.Mine or 1) / math.max(1, #Config.MineTiers)
+	local pickFrac = (tiers.Pickaxe or 1) / math.max(1, #Config.PickaxeTiers)
+	local progress = (caveFrac + pickFrac) / 2
+	local points = cfg.Min or 3
+	for _, step in cfg.Steps or {} do
+		if progress >= step then points += 1 end
+	end
+	-- богатство: денег в разы больше цены престижа - ещё +1
+	local okCost, cost = pcall(Services.DataService.GetRebirthCost, Services.DataService, player)
+	local okMoney, money = pcall(Services.DataService.GetMoney, Services.DataService, player)
+	if okCost and okMoney and cfg.RichMultiplier then
+		local BigNum = require(ReplicatedStorage.Shared.BigNum)
+		local ok, rich = pcall(function()
+			return not BigNum.lt(money, BigNum.new(cost) * cfg.RichMultiplier)
+		end)
+		if ok and rich then points += 1 end
+	end
+	points = math.clamp(points, cfg.Min or 3, cfg.Max or 5)
+	points += math.floor(self:PerkBonus(player, "PointsBonus") + 0.5)
+	return points
+end
+
 function PrestigeService:BuyPerk(player, perkId)
 	local perk = PERK_BY_ID[perkId]
 	local data = dataOf(player)

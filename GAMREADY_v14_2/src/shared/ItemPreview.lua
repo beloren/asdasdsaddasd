@@ -131,7 +131,11 @@ function ItemPreview.Build(item)
 		-- сундук-хранилище: модель из Assets + мутации уже наложены).
 		local mineOre = Config.OreByKey and Config.OreByKey[item.OreId]
 		local geodeOre = Config.Geodes and Config.Geodes.Ores and Config.Geodes.Ores[item.OreId]
-		local isMineOre = mineOre and not (kind == "Crystal" and geodeOre)
+		-- v20.138: кристалл ИЗ ЖЕОДЫ (есть CollectionKey/доход) - всегда модель
+		-- CollectionOre_<Id> из Assets, даже если имя совпадает с рудой шахты
+		-- (Quartz, Amethyst...) - раньше в карточке жеоды была руда шахты
+		local fromGeode = kind == "Crystal" or item.CollectionKey ~= nil or item.IncomePerMinute ~= nil
+		local isMineOre = mineOre and not (fromGeode and geodeOre)
 		if isMineOre then
 			local okT, template = pcall(OrePreview.Template, { Ore = item.OreId, Variant = item.Variant, Mutations = item.Mutations, Smelted = item.Smelted })
 			if okT and template then

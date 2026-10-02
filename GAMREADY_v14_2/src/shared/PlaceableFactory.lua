@@ -728,7 +728,7 @@ end
 -- v20.9: сундук (свой — ReplicatedStorage.Assets.Chests.<ModelName>, иначе
 -- ящик с крышкой цвета редкости). Общий для сервера (GearService) и
 -- призрака установки (PlacementGhost).
-function PlaceableFactory.BuildChest(rarity)
+function PlaceableFactory.BuildChestModel_(rarity)
 	local info = Config.Chests.Types[rarity]
 	local folder = ReplicatedStorage
 	for _, name in Config.Chests.AssetFolderPath or {} do
@@ -764,6 +764,18 @@ function PlaceableFactory.BuildChest(rarity)
 	weld.Part1 = lid
 	weld.Parent = body
 	model.PrimaryPart = body
+	return model
+end
+
+-- v20.138: в превью (магазин/инвентарь) сундук стоит ровно, передом к
+-- камере - раньше «тонкой осью» оказывалась высота и был вид сверху.
+function PlaceableFactory.BuildChest(rarity)
+	local model = PlaceableFactory.BuildChestModel_(rarity)
+	if model then
+		model:SetAttribute("PreviewUpright", true)
+		model:SetAttribute("PreviewYaw", 20)
+		model:SetAttribute("PreviewPitch", tonumber(Config.Chests and Config.Chests.PreviewPitch) or 0)
+	end
 	return model
 end
 

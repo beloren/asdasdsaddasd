@@ -1772,6 +1772,10 @@ function CombatService:ApplyHit(attacker, victim, damage, knockoutPercent, knock
 		if Services.HandCarryService then
 			Services.HandCarryService:ReturnStolenToOwner(victim.Player, attacker, Config.HandCarry.ReturnToOwnerPerHit)
 		end
+		-- v20.138: хозяин бьёт вора - выпадает обратно та самая украденная руда
+		if Services.CrystalService and Services.CrystalService.DropStolenBack then
+			pcall(Services.CrystalService.DropStolenBack, Services.CrystalService, victim.Player, attacker, victimHrp.Position)
+		end
 		local ok, err = pcall(self._staggerHit, self, attacker, victim)
 		if not ok then warn("[CombatService] stagger hit failed:", err) end
 		if not Config.Stagger.PlayerHitsDealDamage then
@@ -1799,6 +1803,9 @@ function CombatService:ApplyHit(attacker, victim, damage, knockoutPercent, knock
 			attacker,
 			Config.HandCarry.ReturnToOwnerPerHit
 		)
+	end
+	if Services.CrystalService and Services.CrystalService.DropStolenBack then
+		pcall(Services.CrystalService.DropStolenBack, Services.CrystalService, victim.Player, attacker, victimHrp.Position) -- v20.138
 	end
 
 	-- ХП тележки — от её тира (Config.CartTiers.MaxHealth), тот же урон

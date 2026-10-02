@@ -122,7 +122,7 @@ function RebirthService:_buildStatus(player)
 	-- v8: «кап» в текстах = пещера, с которой открыт престиж.
 	cap = Config.Prestige and Config.Prestige.MinCave or cap
 	local caveNow = Services.DataService:GetTiers(player).Mine
-	local pointsGain = Services.PrestigeService and Services.PrestigeService.PointsForCave(caveNow) or 0
+	local pointsGain = Services.PrestigeService and Services.PrestigeService:PointsForPlayer(player) or 0 -- v20.138
 	local intro = "I'm the Prestige Mayor."
 	local body
 	if not maxed then
@@ -131,7 +131,7 @@ function RebirthService:_buildStatus(player)
 			or ("Upgrade all 3 branches to tier %d, then come back."):format(cap)
 	else
 		-- v20.43: короче и яснее.
-		body = ("Prestige resets Cave, Cart, Pickaxe and money. You get <font color=\"#FFD75A\">%d point%s</font> for permanent perks. Deeper cave, more points."):format(pointsGain, pointsGain == 1 and "" or "s")
+		body = ("Prestige resets Cave, Cart, Pickaxe and money. You get <font color=\"#FFD75A\">%d point%s</font> for permanent perks. More progress, more points."):format(pointsGain, pointsGain == 1 and "" or "s")
 			.. (" Cost: <font color=\"#%s\">$%s</font>."):format(costColorHex, NumberFormat.abbreviate(cost))
 		if not canAfford then
 			body ..= (" Need <font color=\"#%s\">$%s</font> more."):format(costColorHex, NumberFormat.abbreviate(cost - money))
@@ -452,13 +452,26 @@ function RebirthService:_tryRebirth(player)
 		return
 	end
 
-	local caveBeforePrestige = Services.DataService:GetTiers(player).Mine
+	-- v20.138: очки считаются ДО сброса (прогресс и деньги на момент престижа)
+	local pointsGain = Services.PrestigeService and Services.PrestigeService:PointsForPlayer(player) or 0
 	if not Services.DataService:DoRebirth(player) then
 		return
 	end
-	-- v8: очки перков за престиж (чем глубже пещера — тем больше).
+	if Services.PrestigeService and pointsGain > 0 then
+		Services.PrestigeService:AddPoints(player, pointsGain)
+	end
+	-- v20.138: перк Nest Egg - стартовые деньги нового круга
 	if Services.PrestigeService then
-		Services.PrestigeService:AddPoints(player, Services.PrestigeService.PointsForCave(caveBeforePrestige))
+		local startCash = math.floor(Services.PrestigeService:PerkBonus(player, "StartCash") + 0.5)
+		if startCash > 0 then
+			task.delay(1, function()
+				if player.Parent then Services.DataService:AddMoney(player, startCash) end
+			end)
+		end
+	end
+	-- v20.138: купленные руды шахты сбрасываются (их снова покупают у торговца)
+	if Services.OreUnlockService and Services.OreUnlockService.ResetForPrestige then
+		pcall(Services.OreUnlockService.ResetForPrestige, Services.OreUnlockService, player)
 	end
 
 	-- Вся руда из инвентаря (рюкзак, хотбар, руки) пропадает — по

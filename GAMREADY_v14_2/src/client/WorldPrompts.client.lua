@@ -52,9 +52,14 @@ local CIRCLE = 46
 local CIRCLE_COLOR = Color3.fromRGB(25, 25, 25)
 local BLUE = Color3.fromRGB(45, 105, 190)
 
-local container = Instance.new("Folder")
-container.Name = "WorldPrompts"
-container.Parent = playerGui
+-- v20.138: КРИТИЧНЫЙ ФИКС «промпты перестают рисоваться». Раньше билборд
+-- лежал в Folder внутри PlayerGui. При смерти/респавне Roblox чистит PlayerGui:
+-- остаются только экраны с ResetOnSpawn = false, а Folder (вместе с билбордом)
+-- удаляется. Скрипт в PlayerScripts не перезапускается - промпты дальше
+-- работали (E жмётся), но рисовать их было уже нечем. Теперь билборд лежит
+-- прямо в PlayerGui с ResetOnSpawn = false и переживает респавн.
+local oldContainer = playerGui:FindFirstChild("WorldPrompts")
+if oldContainer and oldContainer:IsA("Folder") then oldContainer:Destroy() end
 
 --------------------------------------------------------------------------------
 -- ОДИН БИЛБОРД, ПЕРЕВЕШИВАЕТСЯ НА АКТИВНЫЙ ПРОМПТ
@@ -70,7 +75,8 @@ billboard.LightInfluence = 0
 billboard.ResetOnSpawn = false
 billboard.Active = true
 billboard.Enabled = false
-billboard.Parent = container
+billboard.Name = "WorldPromptBillboard"
+billboard.Parent = playerGui
 
 local root = Instance.new("TextButton")
 root.Name = "Root"
@@ -868,6 +874,14 @@ workspace.DescendantAdded:Connect(adopt)
 task.spawn(function()
 	while true do
 		task.wait(0.2)
+		-- v20.138: сторож - билборд выдернули из PlayerGui (чужой скрипт) - вернуть
+		if billboard.Parent ~= playerGui then
+			pcall(function() billboard.Parent = playerGui end)
+		end
+		-- промпт удалён/выключен, а Roblox не прислал PromptHidden - убрать из списка
+		for prompt in shown do
+			if not prompt.Parent or not prompt:IsDescendantOf(game) then shown[prompt] = nil end
+		end
 		if next(shown) or active or player:GetAttribute("CarryingCart") == true then refresh() end
 	end
 end)

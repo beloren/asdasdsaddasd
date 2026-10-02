@@ -1970,10 +1970,21 @@ function MineService:_showRarityCard(player, expedition)
 			reelSeconds = (reel.Seconds or 3.4) + (reel.HoldSeconds or 0.5)
 		end
 	end
+	-- v20.138: карточки ленты крутятся по ШАНСАМ ЭТОГО ИГРОКА (удача, купленные
+	-- руды), а не по общей таблице - видно, что удача и покупки работают
+	local weights
+	pcall(function()
+		local dist = Services.CrystalService:RarityWeightsFor(player, expedition.Tier, expedition.LuckBonus)
+		if dist then
+			weights = {}
+			for name, p in dist do weights[name] = math.floor(p * 1000 + 0.5) / 10 end
+		end
+	end)
 	stateRemote:FireClient(player, "RarityCard", {
 		Rarity = rarity,
 		Color = Config.RarityColors[rarity],
 		Reel = reelSeconds > 0 or nil,
+		Weights = weights,
 	})
 	local extra = (card.Effects and card.Effects[rarity] and card.Effects[rarity].HoldExtra) or 0
 	if reelSeconds > 0 and reel.Mode ~= "2D" then

@@ -331,13 +331,8 @@ if workspace.CurrentCamera then
 	end)
 end
 
-local openEvent = playerGui:FindFirstChild("OpenDropPreview")
-if not openEvent then
-	openEvent = Instance.new("BindableEvent")
-	openEvent.Name = "OpenDropPreview"
-	openEvent.Parent = playerGui
-end
-openEvent.Event:Connect(function(source, id) open(source, id) end)
+-- v20.138: событие переживает респавн (PlayerGui чистится при смерти)
+require(ReplicatedStorage.Shared.PersistentGuiEvent).Listen("OpenDropPreview", function(source, id) open(source, id) end)
 
 -- Промпт «View Drops» (атрибут DropPreview = "Chest:Epic" / "Geode:Stone").
 ProximityPromptService.PromptTriggered:Connect(function(prompt, who)

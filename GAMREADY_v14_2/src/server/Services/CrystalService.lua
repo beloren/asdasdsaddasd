@@ -262,6 +262,7 @@ function CrystalService:Init(services)
 	end
 	watchOreFolder(groundFolder, true)
 	Players.PlayerRemoving:Connect(function(player)
+		pcall(CrystalService.ClearStolen, CrystalService, player) -- v20.138
 		clearStolenVisuals(player)
 	end)
 	local function hookPlayer(player)
@@ -526,6 +527,25 @@ end
 
 -- source (v17): "Mine" (по умолчанию) | "Boulder" — откуда кусок; от этого
 -- зависит шанс мусора (Config.Junk.Chance).
+-- v20.138: ШАНСЫ РЕДКОСТЕЙ ИГРОКА для ленты после мини-игры: та же удача,
+-- что в Create (перк, скин, Robux, уровень пещеры) и те же купленные руды.
+function CrystalService:RarityWeightsFor(miner, tier, luckBonus)
+	local luck = tonumber(luckBonus) or 0
+	if Services.PrestigeService then
+		local ok, stat = pcall(Services.PrestigeService.Stat, Services.PrestigeService, miner, "Luck")
+		if ok and stat then luck += stat end
+	end
+	if Services.MonetizationService and Services.MonetizationService.GetLuckBoost then
+		local ok, oreBoost = pcall(Services.MonetizationService.GetLuckBoost, Services.MonetizationService, miner)
+		if ok and oreBoost then luck += oreBoost end
+	end
+	local rework = Config.MineRework or {}
+	luck += (rework.LuckPerCave or 0) * math.max(0, (tonumber(tier) or 1) - 1)
+	local unlock = Services.OreUnlockService
+	if not unlock then return nil end
+	return Config.RarityDistributionUnlocked(unlock:GetUnlocked(miner), math.max(0, luck), unlock:GetBuys(miner))
+end
+
 function CrystalService:Create(tier, miner, luckBonus, source)
 	local junk = Config.RollJunk and Config.RollJunk(source or "Mine")
 	if junk then
@@ -933,12 +953,23 @@ function CrystalService:MakeLoose(crystal, velocity, ownerUserId, noCollideWith,
 			return -- geodes never enter the ordinary hand inventory
 		end
 
-		if isOwnerPickup and Services.InventoryService then
+		if Services.InventoryService then
 			-- Собственная руда всегда сначала попадает в Backpack. Тележка
 			-- получает её позже отдельным односторонним переносом у игрока.
+			-- v20.138: ЧУЖАЯ выбитая руда тоже идёт в инвентарь (а не на
+			-- спину/в руки) и запоминается как украденная: ударит хозяин -
+			-- выпадет обратно именно она (CrystalService:DropStolenBack).
+			local stolenInfo = (not isOwnerPickup) and {
+				From = owner,
+				Ore = crystal:GetAttribute("CrystalOre"),
+				Variant = crystal:GetAttribute("CrystalVariant") or 1,
+				Mutations = crystal:GetAttribute("Mutations"),
+				Smelted = crystal:GetAttribute("Smelted") == true,
+			} or nil
 			if self:PickupToInventory(player, crystal) then
 				picked = true
 				connection:Disconnect()
+				if stolenInfo and stolenInfo.Ore then self:RecordStolen(player, stolenInfo) end
 				return
 			end
 		end
@@ -968,6 +999,51 @@ end
 -- затем красивое втягивание в грудь. Атрибут защищает от двойного подбора
 -- одновременно через Touched и InventoryService.HeartBeat.
 local homeToTarget
+-- v20.138: УКРАДЕННАЯ РУДА. [вор] = { {From, Ore, Variant, Mutations, Smelted, At} }
+local stolenLog = {}
+local STOLEN_MEMORY = 300 -- сек: столько хозяин может «отбить» свою руду обратно
+
+function CrystalService:RecordStolen(thief, info)
+	local list = stolenLog[thief]
+	if not list then
+		list = {}
+		stolenLog[thief] = list
+	end
+	info.At = os.clock()
+	table.insert(list, info)
+	while #list > 30 do table.remove(list, 1) end
+end
+
+-- Хозяин (attacker) ударил вора (victim): выпадает ОДИН кусок, украденный
+-- именно у него - та же руда, что вор подобрал. Возвращает true, если выпало.
+function CrystalService:ClearStolen(player)
+	stolenLog[player] = nil
+end
+
+function CrystalService:DropStolenBack(victim, attacker, position)
+	local list = stolenLog[victim]
+	if not (list and attacker and Services.InventoryService) then return false end
+	local now = os.clock()
+	for index = #list, 1, -1 do
+		local info = list[index]
+		if now - (info.At or 0) > STOLEN_MEMORY then
+			table.remove(list, index)
+		elseif info.From == attacker.UserId then
+			table.remove(list, index)
+			local crystal = Services.InventoryService:TakeMatchingOre(victim, info.Ore, info.Variant, info.Mutations, info.Smelted)
+			if crystal then
+				crystal:PivotTo(CFrame.new(position + Vector3.new(0, 2, 0)))
+				local velocity = Vector3.new(math.random(-8, 8), 22, math.random(-8, 8))
+				-- владелец руды - снова хозяин; вор не может сразу поднять её обратно
+				self:MakeLoose(crystal, velocity, attacker.UserId, victim.Character, victim.UserId)
+				return true
+			end
+			-- этого куска уже нет (продал/отдал) - смотрим следующий
+		end
+	end
+	return false
+end
+
 function CrystalService:PickupToInventory(player, crystal)
 	if not (player and crystal and crystal.Parent) then return false end
 	if crystal:GetAttribute("InventoryPickupInProgress") == true then return false end

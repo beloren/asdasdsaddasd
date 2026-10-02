@@ -1083,6 +1083,33 @@ function InventoryService:TakeRandomOreForKnockout(player)
 	return crystal, removed
 end
 
+-- v20.138: снять ОДИН кусок конкретной руды (та же руда/вариация/мутации/
+-- слиток) и создать его в мире - для возврата украденного хозяину.
+function InventoryService:TakeMatchingOre(player, oreKey, variant, mutations, smelted)
+	local backpack = backpackOf(player)
+	if not backpack then return nil end
+	local wantMut = tostring(mutations or "")
+	for index, stack in backpack do
+		if type(stack) == "table" and stack.Ore == oreKey and (stack.Count or 1) > 0
+			and (stack.Variant or 1) == (variant or 1)
+			and tostring(stack.Mutations or "") == wantMut
+			and (stack.Smelted == true) == (smelted == true)
+		then
+			local uid = stack.Uid
+			local removed = self:RemoveAt(player, index, 1, true)
+			if removed and uid and player:GetAttribute("HeldOreUid") == uid and not findByUid(backpackOf(player), uid) then
+				self:SetHeldOre(player, nil)
+			end
+			self:Sync(player)
+			if not removed or not Services.CrystalService then return nil end
+			local ok, crystal = pcall(Services.CrystalService.CreateFromStack, Services.CrystalService, removed)
+			if not ok or not crystal then return nil, removed end
+			return crystal, removed
+		end
+	end
+	return nil
+end
+
 -- v20.105: индекс стопки рюкзака по Uid (окно тележки).
 function InventoryService:IndexOfUid(player, uid)
 	local _, index = findByUid(backpackOf(player), uid)

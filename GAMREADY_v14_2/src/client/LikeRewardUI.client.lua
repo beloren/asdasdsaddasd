@@ -191,14 +191,7 @@ remote.OnClientEvent:Connect(function(action, payload)
 	end
 end)
 
-local previewEvent = playerGui:FindFirstChild("PreviewLikeReward")
-if not previewEvent then
-	previewEvent = Instance.new("BindableEvent")
-	previewEvent.Name = "PreviewLikeReward"
-	previewEvent.Parent = playerGui
-end
-if previewEvent:IsA("BindableEvent") then
-	previewEvent.Event:Connect(function() showPopup(true, true) end)
-end
+-- v20.138: событие переживает респавн (PlayerGui чистится при смерти)
+require(game:GetService("ReplicatedStorage").Shared.PersistentGuiEvent).Listen("PreviewLikeReward", function() showPopup(true, true) end)
 
 remote:FireServer("RequestState")

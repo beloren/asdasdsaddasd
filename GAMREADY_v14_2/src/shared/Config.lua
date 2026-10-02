@@ -834,7 +834,7 @@ Config.MineExpedition = {
 	CameraEjectDistance = 62,
 	CameraEjectHeight = 8,
 	CameraEjectAimHeight = 4, -- было 10: чуть наклоняем вниз, чтобы руда у самого объектива не уходила за нижний край кадра
-	CameraEjectFOVWiden = 10, -- прибавляется к обычному FOV на время выброса
+	CameraEjectFOVWiden = 0,  -- v20.138: FOV при выбросе руды больше не расширяется (было 10)
 
 	-- ШАГ 3: мини-игра "дуга". HitsRequired — сколько удачных тычков нужно
 	-- (ТЗ: ровно 3). Ширина зоны попадания ТЕПЕРЬ СЛУЧАЙНАЯ каждый раунд
@@ -1330,7 +1330,7 @@ Config.MineExpedition = {
 	-- за край кадра (отступ EjectFitMargin, доля экрана), камера выброса
 	-- плавно отъезжает назад (до EjectFitMaxBack стадов).
 	ActorStraightPath = true,   -- v20.118: вход/выход из шахты строго по прямой (без подпрыгиваний)
-	EjectFitToScreen = true,
+	EjectFitToScreen = false, -- v20.138: камера больше НЕ отъезжает назад при выпадении руды из шахты
 	EjectFitMargin = 0.08,
 	EjectFitMaxBack = 45,
 	EjectFitGrow = 30,          -- стадов/с, пока что-то вне кадра
@@ -1983,9 +1983,10 @@ Config.MineRework = {
 	UnlockBoost = 2,       -- купленная руда выпадает в 2 раза чаще своей редкости
 	-- v20.118: ПОВТОРНАЯ ПОКУПКА той же руды - она падает чаще, но мягко:
 	-- каждая следующая коробка даёт меньше (RebuyBoost × RebuyDecay^(n-2)).
-	-- 2 коробки ≈ x1.35, 3 ≈ x1.61, 5 ≈ x1.96, предел ≈ x2.4. MaxBuys - потолок.
-	RebuyBoost = 0.35,
-	RebuyDecay = 0.75,
+	-- v20.138: вторая коробка = x2 (покупка ощутима): 2 ≈ x2, 3 ≈ x2.8,
+	-- 5 ≈ x3.95, предел ≈ x6. MaxBuys - потолок.
+	RebuyBoost = 1.0,
+	RebuyDecay = 0.8,
 	MaxBuys = 10,
 	LuckPerCave = 0.15,    -- удача за уровень шахты: вес редкости × (1+удача)^(ступень редкости-1)
 	MineCostScale = 0.6,   -- цены улучшения шахты × это (шахта больше не открывает руду)
@@ -2162,6 +2163,26 @@ function Config.RollOreUnlocked(unlocked, luckBonus, forcedKey, buys)
 		if roll <= 0 then return result(index) end
 	end
 	return result(#list)
+end
+
+-- v20.138: шансы РЕДКОСТЕЙ у игрока (те же веса и наклон удачи, что в
+-- RollOreUnlocked): { Common = 0.62, Uncommon = 0.3, ... }. По ним крутится
+-- лента редкостей после мини-игры - удача и купленные руды видны в ленте.
+function Config.RarityDistributionUnlocked(unlocked, luckBonus, buys)
+	luckBonus = math.clamp(tonumber(luckBonus) or 0, 0, 10)
+	local out, total = {}, 0
+	for _, ore in Config.OreChain do
+		if (unlocked and unlocked[ore.Key]) or Config.IsStarterOre(ore.Key) then
+			local rarity = ore.BaseRarity or ore.Rarity or "Common"
+			local rarityIndex = table.find(Config.RarityOrder or {}, rarity) or 1
+			local w = Config.OreDropWeight(ore.Key) * Config.OreRebuyMultiplier(buys and buys[ore.Key])
+				* (1 + luckBonus) ^ (rarityIndex - 1)
+			out[rarity] = (out[rarity] or 0) + w
+			total += w
+		end
+	end
+	for rarity, w in out do out[rarity] = w / math.max(total, 1e-9) end
+	return out
 end
 
 --------------------------------------------------------------------------------
@@ -6206,6 +6227,7 @@ Config.SellFx = {
 -- "отпустить тележку", чтобы не мигал стандартный ProximityPrompt при ходьбе.
 --------------------------------------------------------------------------------
 Config.UI = {
+	ShowPlayerList = true, -- v20.138: список игроков по TAB (ники + статы)
 	AccentColor = Color3.fromRGB(255, 200, 90),
 	BackgroundColor = Color3.fromRGB(25, 25, 32),
 	TextColor = Color3.new(1, 1, 1),
@@ -7530,6 +7552,9 @@ end
 -- Модели: ReplicatedStorage/Assets/Chests/<ModelName>. Нет модели —
 -- цветной ящик-заглушка.
 Config.Chests = {
+	-- v20.138: поворот сундука в превью магазина/инвентаря (градусы вокруг оси X).
+	-- Сундук показывается крышкой/дном к камере - поставь 90 или -90.
+	PreviewPitch = 90,
 	Enabled = true,
 	Order = { "Common", "Rare", "Epic", "Legendary" },
 	AssetFolderPath = { "Assets", "Chests" },
@@ -7614,7 +7639,11 @@ Config.Collection = {
 Config.Prestige = {
 	Enabled = true,
 	MinCave = 8,
-	PointsByCave = { [8] = 1, [9] = 1, [10] = 2, [11] = 2, [12] = 3, [13] = 3, [14] = 4, [15] = 5 },
+	PointsByCave = { [8] = 1, [9] = 1, [10] = 2, [11] = 2, [12] = 3, [13] = 3, [14] = 4, [15] = 5 }, -- (старое, если нет PointsByProgress)
+	-- v20.138: очки за престиж по ПРОГРЕССУ: Min очков + 1 за каждый порог
+	-- прогресса (среднее «пещера/макс» и «кирка/макс») + 1, если денег в
+	-- RichMultiplier раз больше цены престижа; не больше Max. Перк PointsBonus сверху.
+	PointsByProgress = { Min = 3, Max = 5, Steps = { 0.75, 0.92 }, RichMultiplier = 3 },
 	-- v4: цена престижа ФИКСИРОВАННАЯ и растёт с числом престижей:
 	-- CostBase × CostGrowth^(престижей сделано), не выше CostMax.
 	-- 25K ≈ 10 минут дохода на пещере 8; 2.5M ≈ 35 минут на пещере 15.
@@ -7632,6 +7661,8 @@ Config.Prestige = {
 		{ Id = "Economy", Title = "ECONOMY", Color = Color3.fromRGB(255, 190, 60),  Perks = { "Money", "Passive", "CartSpace" } },
 		{ Id = "Fortune", Title = "FORTUNE", Color = Color3.fromRGB(90, 215, 110),  Perks = { "Luck", "Mutation", "GeodeLuck", "ChestLuck" } },
 		{ Id = "Utility", Title = "UTILITY", Color = Color3.fromRGB(80, 160, 255),  Perks = { "Speed", "Dynamite", "HeadStart" } },
+		-- v20.138: МАСТЕРСТВО - больше очков престижа и бонусы на новый круг
+		{ Id = "Mastery", Title = "MASTERY", Color = Color3.fromRGB(255, 120, 200), Perks = { "PointsBonus", "StartCash", "BoxDiscount" } },
 	},
 	-- v20.107: ДЕРЕВО КАК НА РЕФЕРЕНСЕ. Позиции узлов в долях окна дерева
 	-- (0..1, центр узла). Start - стартовый узел, от него линии к первому
@@ -7660,6 +7691,7 @@ Config.Prestige = {
 		Money     = { 0.36, 0.40 }, Passive  = { 0.22, 0.28 }, CartSpace = { 0.08, 0.16 },
 		Luck      = { 0.64, 0.40 }, Mutation = { 0.76, 0.26 }, GeodeLuck = { 0.90, 0.14 }, ChestLuck = { 0.92, 0.42 },
 		Speed     = { 0.50, 0.76 }, Dynamite = { 0.36, 0.88 }, HeadStart = { 0.20, 0.80 },
+		PointsBonus = { 0.64, 0.68 }, StartCash = { 0.78, 0.80 }, BoxDiscount = { 0.92, 0.68 },
 	},
 	Perks = {
 		-- v20.132: Adds - этот перк добавляет ещё и к другим бонусам (Money, Speed)
@@ -7674,6 +7706,10 @@ Config.Prestige = {
 		{ Id = "ChestLuck", Icon = "🎁", Title = "Treasure Nose",Text = "+{v}% chest drop chance",    PerLevel = 0.08, MaxLevel = 15, CostBase = 1, CostGrowth = 0.6, Percent = true },
 		{ Id = "Dynamite",  Icon = "🧨", Title = "Demolition",   Text = "+{v}% dynamite power",       PerLevel = 0.08, MaxLevel = 10, CostBase = 1, CostGrowth = 0.7, Percent = true },
 		{ Id = "HeadStart", Icon = "🚀", Title = "Head Start",   Text = "Start prestige at Cave {c}", PerLevel = 1,    MaxLevel = 4,  CostBase = 3, CostGrowth = 2 },
+		-- v20.138: ветка MASTERY
+		{ Id = "PointsBonus", Icon = "💎", Title = "Prestige Master", Text = "+{v} prestige points per prestige", PerLevel = 1, MaxLevel = 3, CostBase = 4, CostGrowth = 3 },
+		{ Id = "StartCash",   Icon = "💵", Title = "Nest Egg",       Text = "Start each prestige with ${v}",    PerLevel = 2500, MaxLevel = 8, CostBase = 1, CostGrowth = 0.6 },
+		{ Id = "BoxDiscount", Icon = "📦", Title = "Bargain Hunter", Text = "-{v}% ore box price",              PerLevel = 0.05, MaxLevel = 6, CostBase = 1, CostGrowth = 0.6, Percent = true },
 	},
 }
 

@@ -367,6 +367,11 @@ end
 -- дохода игрока, товар дня — со скидкой.
 local function priceFor(player, item)
 	local price = basePrice(player, item)
+	-- v20.138: перк престижа Bargain Hunter - коробки руды дешевле
+	if (item.Kind == "OreUnlock" or item.Kind == "OreRandomBox") and Services.PrestigeService then
+		local cut = math.clamp(Services.PrestigeService:PerkBonus(player, "BoxDiscount"), 0, 0.9)
+		if cut > 0 then price = niceRound(price * (1 - cut)) end
+	end
 	if item.Id == dailyDealId() then
 		price = niceRound(price * (1 - (CFG.DailyDeal.Discount or 0.3)))
 	end
@@ -936,7 +941,7 @@ function MerchantService:_buildSellZoneBoard(zone)
 	if not part or part:FindFirstChild("SellZonePriceBoard") then return end
 	local board = Instance.new("BillboardGui")
 	board.Name = "SellZonePriceBoard"
-	board.Size = UDim2.fromScale(18, 5)
+	board.Size = UDim2.fromScale(18, 6.2)
 	board.StudsOffsetWorldSpace = Vector3.new(0, part.Size.Y / 2 + (CFG.SellZoneBoardHeight or 12), 0)
 	board.AlwaysOnTop = false
 	board.MaxDistance = 250
@@ -955,8 +960,10 @@ function MerchantService:_buildSellZoneBoard(zone)
 		label.Parent = board
 		return label
 	end
-	line("Title", 0, 0.4, "Label", Color3.fromRGB(255, 210, 74)).Text = "SELL ORE HERE"
-	line("Market", 0.4, 0.6, "Label", Color3.fromRGB(120, 255, 120))
+	line("Title", 0, 0.32, "Label", Color3.fromRGB(255, 210, 74)).Text = "SELL ORE HERE"
+	line("Market", 0.32, 0.46, "Label", Color3.fromRGB(120, 255, 120))
+	-- v20.138: под курсом - когда он сменится (рисует клиент MerchantUI)
+	line("Timer", 0.78, 0.22, "Label", Color3.fromRGB(235, 235, 245))
 end
 
 function MerchantService:_spawnNpc()

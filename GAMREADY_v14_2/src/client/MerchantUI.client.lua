@@ -437,6 +437,12 @@ local function decorateFeatured(frame, data)
 		local world = Instance.new("WorldModel")
 		world.Parent = viewport
 		model.Parent = world
+		-- v20.138: поворот сундука для превью (Config.Chests.PreviewPitch)
+		local pitch = tonumber(model:GetAttribute("PreviewPitch")) or 0
+		if pitch ~= 0 then
+			local p = model:GetPivot()
+			model:PivotTo(CFrame.new(p.Position) * CFrame.Angles(math.rad(pitch), 0, 0) * p.Rotation)
+		end
 		local cf, size = model:GetBoundingBox()
 		local camera = Instance.new("Camera")
 		camera.FieldOfView = 40
@@ -896,6 +902,10 @@ end)
 task.spawn(function()
 	while true do
 		local seconds = secondsLeft()
+		-- v20.138: табло над зоной продажи - через сколько сменится курс
+		local zoneBoard = sellZoneBoard()
+		local zoneTimer = zoneBoard and zoneBoard:FindFirstChild("Timer")
+		if zoneTimer then zoneTimer.Text = tr("New prices in {time}", { time = formatLong(seconds) }) end
 		header.Timer.Text = tr("New stock in {time}", { time = formatLong(seconds) })
 		if tickerPill.Timer.Text ~= tr("at the bank") then
 			tickerPill.Timer.Text = formatShort(seconds)

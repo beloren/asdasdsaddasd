@@ -204,6 +204,8 @@ local function restoreGuis()
 		end
 	end
 	pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.Backpack, false)
+	-- v20.138: список игроков (TAB) после загрузки - включён
+	pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.PlayerList, true)
 end
 
 --------------------------------------------------------------------------------

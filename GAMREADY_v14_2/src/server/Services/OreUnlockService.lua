@@ -296,6 +296,20 @@ function OreUnlockService:BeginOpen(player, gearKey)
 	return true
 end
 
+-- v20.138: престиж - купленные руды и их усиления сбрасываются; в шахте
+-- снова только стартовые (Coal, Copper). Неоткрытые коробки остаются.
+function OreUnlockService:ResetForPrestige(player)
+	local data = dataOf(player)
+	if not data then return end
+	data.UnlockedOres = {}
+	data.OreBuys = {}
+	data.OreGuarantee = nil
+	self:_publish(player)
+	if Services.NotifyService then
+		Services.NotifyService:Show(player, "⛏ Your mine reset to starter ores. Buy new ores at the Ore Merchant!", { Icon = "Quest", Duration = 6 })
+	end
+end
+
 function OreUnlockService:SetupPlayer(player)
 	self:_publish(player)
 	if player:GetAttribute("MineReworkWiped") and Services.NotifyService then

@@ -1048,8 +1048,10 @@ end)
 -- если нужно оставить сам список, но убрать конкретно иконки/статы,
 -- скажи отдельно, для этого нужен другой подход (переименовать
 -- leaderstats так, чтобы Roblox не подставлял иконку).
+-- v20.138: список игроков по TAB (ники и статы leaderstats) ВКЛЮЧЁН по
+-- запросу. Config.UI.ShowPlayerList = false - снова спрятать.
 pcall(function()
-	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
+	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, not (Config.UI and Config.UI.ShowPlayerList == false))
 end)
 
 -- Config.Icons.Pickaxe — чистое число (ID картинки) или 0/пусто, если
