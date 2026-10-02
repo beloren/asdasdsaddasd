@@ -18,6 +18,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local UiKit = require(ReplicatedStorage.Shared.UiKit)
+local TreeReveal = require(ReplicatedStorage.Shared.TreeReveal)
 
 local SkillTreeView = {}
 SkillTreeView.__index = SkillTreeView
@@ -50,6 +51,11 @@ function SkillTreeView.new(gui, opts)
 	self.Money = gui:FindFirstChild("Money")
 	self.Title = gui:FindFirstChild("Title")
 	self.Nodes = {}
+	self.Links = {}
+	self.Backdrop = gui:FindFirstChild("Backdrop")
+	self.BackdropTarget = self.Backdrop and self.Backdrop.BackgroundTransparency or 0.5
+	self.Sequencing = false
+	self.SeqToken = 0
 	self.Pan = Vector2.zero
 	self.ZoomValue = 1
 	self.OnClose = opts.OnClose
@@ -167,6 +173,7 @@ function SkillTreeView:Clear()
 		if not child:IsA("UIScale") then child:Destroy() end
 	end
 	table.clear(self.Nodes)
+	table.clear(self.Links)
 	self.Bounds = { Min = Vector2.new(-300, -300), Max = Vector2.new(300, 300) }
 end
 
@@ -191,7 +198,10 @@ function SkillTreeView:Node(id, kind, pos, onClick)
 		Id = id, Kind = kind, Pos = pos, Holder = node, Shape = shape,
 		Stroke = shape and shape:FindFirstChildWhichIsA("UIStroke"),
 		BaseRotation = shape and shape.Rotation or 0, BaseSize = node.Size,
+		Hidden = false, Late = false, Revealed = false,
 	}
+	node:SetAttribute("RevealSize", node.Size)
+	node.Visible = false
 	self.Nodes[id] = entry
 	self:_grow(pos)
 	if node:IsA("GuiButton") then
@@ -209,7 +219,9 @@ function SkillTreeView:Node(id, kind, pos, onClick)
 	return node, entry
 end
 
-function SkillTreeView:Link(a, b, color, name)
+-- fromId/toId (необязательно): линия видна, только когда видны оба узла,
+-- и вырастает вместе с появлением узла toId.
+function SkillTreeView:Link(a, b, color, name, fromId, toId)
 	local delta = b - a
 	local line = self.Templates:WaitForChild("Link"):Clone()
 	line.Name = name or "Link"
@@ -220,8 +232,142 @@ function SkillTreeView:Link(a, b, color, name)
 	line.Rotation = math.deg(math.atan2(delta.Y, delta.X))
 	line.ZIndex = 3
 	if color then line.BackgroundColor3 = color end
+	line.Visible = false
 	line.Parent = self.Canvas
+	table.insert(self.Links, { Line = line, A = a, B = b, Length = delta.Magnitude, From = fromId, To = toId, Shown = false })
 	return line
+end
+
+-- ПОЯВЛЕНИЕ -------------------------------------------------------------------
+-- линия «вырастает» от узла-родителя к новому узлу
+function SkillTreeView:_growLink(link, delay)
+	local line = link.Line
+	local thickness = line.Size.Y.Offset > 0 and line.Size.Y.Offset or 8
+	local dir = link.Length > 0 and (link.B - link.A) / link.Length or Vector2.zero
+	local value = Instance.new("NumberValue")
+	local function place(len)
+		local mid = link.A + dir * (len / 2)
+		line.Position = UDim2.fromOffset(ORIGIN + mid.X, ORIGIN + mid.Y)
+		line.Size = UDim2.fromOffset(len, thickness)
+	end
+	place(0)
+	line.Visible = true
+	value.Changed:Connect(place)
+	task.delay(delay or 0, function()
+		if not line.Parent then value:Destroy() return end
+		local tween = TweenService:Create(value, TweenInfo.new(TreeReveal.Settings().LineSeconds, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Value = link.Length })
+		tween.Completed:Connect(function() value:Destroy() end)
+		tween:Play()
+	end)
+end
+
+local function nodeShown(self, id)
+	if id == nil then return true end
+	local entry = self.Nodes[id]
+	return entry ~= nil and entry.Revealed
+end
+
+-- показать узел (с анимацией - пузырёк + линии к нему вырастают)
+function SkillTreeView:_reveal(entry, delay, animate)
+	entry.Revealed = true
+	for _, link in self.Links do
+		if not link.Shown and link.To == entry.Id and nodeShown(self, link.From) then
+			link.Shown = true
+			if animate then self:_growLink(link, delay) else link.Line.Visible = true end
+		end
+	end
+	if animate then
+		TreeReveal.Pop(entry.Holder, (delay or 0) + (TreeReveal.Settings().LineSeconds * 0.6))
+	else
+		entry.Holder.Size = entry.BaseSize
+		entry.Holder.Visible = true
+	end
+end
+
+function SkillTreeView:_hide(entry)
+	entry.Revealed = false
+	entry.Holder.Visible = false
+	for _, link in self.Links do
+		if link.To == entry.Id or link.From == entry.Id then
+			link.Shown = false
+			link.Line.Visible = false
+		end
+	end
+end
+
+-- привести видимость к желаемой (после Paint); новые узлы - с анимацией
+function SkillTreeView:_syncVisibility()
+	if self.Sequencing or not self.Gui.Enabled then return end
+	local order = {}
+	for _, entry in self.Nodes do
+		if entry.Hidden and entry.Revealed then
+			self:_hide(entry)
+		elseif not entry.Hidden and not entry.Revealed then
+			table.insert(order, entry)
+		end
+	end
+	table.sort(order, function(a, b) return a.Pos.Magnitude < b.Pos.Magnitude end)
+	local s = TreeReveal.Settings()
+	for index, entry in order do
+		self:_reveal(entry, (index - 1) * s.Stagger * 2, true)
+	end
+	-- линии между уже видимыми узлами (например, к финалу от второй звезды)
+	for _, link in self.Links do
+		if not link.Shown and nodeShown(self, link.From) and nodeShown(self, link.To) then
+			link.Shown = true
+			self:_growLink(link, 0)
+		end
+	end
+end
+
+-- ОТКРЫТИЕ ПО ОЧЕРЕДИ: центр → затемнение → купленные узлы → доступные
+function SkillTreeView:_playOpening()
+	self.SeqToken += 1
+	local token = self.SeqToken
+	self.Sequencing = true
+	local s = TreeReveal.Settings()
+	for _, entry in self.Nodes do
+		entry.Revealed = false
+		entry.Holder.Visible = false
+	end
+	for _, link in self.Links do
+		link.Shown = false
+		link.Line.Visible = false
+	end
+	if self.Backdrop then TreeReveal.Darken(self.Backdrop, self.BackdropTarget, s.DarkenDelay) end
+	local root = self.Nodes.Root
+	if root then
+		root.Revealed = true
+		TreeReveal.Pop(root.Holder, 0, s.RootSeconds)
+	end
+	local early, late = {}, {}
+	for _, entry in self.Nodes do
+		if entry ~= root and not entry.Hidden then
+			table.insert(entry.Late and late or early, entry)
+		end
+	end
+	local function byDistance(a, b) return a.Pos.Magnitude < b.Pos.Magnitude end
+	table.sort(early, byDistance)
+	table.sort(late, byDistance)
+	local t = s.FirstDelay
+	local function schedule(list)
+		for _, entry in list do
+			local at = t
+			task.delay(at, function()
+				if self.SeqToken ~= token or not self.Gui.Enabled then return end
+				self:_reveal(entry, 0, true)
+			end)
+			t += s.Stagger
+		end
+	end
+	schedule(early)
+	t += s.LateGap
+	schedule(late)
+	task.delay(t + s.PopSeconds, function()
+		if self.SeqToken ~= token then return end
+		self.Sequencing = false
+		self:_syncVisibility()
+	end)
 end
 
 local function setText(holder, name, value)
@@ -230,10 +376,14 @@ local function setText(holder, name, value)
 	if label and label:IsA("TextLabel") then label.Text = value end
 end
 
--- props: Color, Caption, Price, Level, Name, Icon, Selected, Pulse
+-- props: Color, Caption, Price, Level, Name, Icon, Pulse,
+--        Hidden (узел ещё не открыт - не показывать), Late (доступен, но не
+--        куплен - при открытии появляется последним)
 function SkillTreeView:Paint(id, props)
 	local entry = self.Nodes[id]
 	if not entry then return end
+	if props.Hidden ~= nil then entry.Hidden = props.Hidden == true end
+	if props.Late ~= nil then entry.Late = props.Late == true end
 	local shape = entry.Shape
 	if shape and props.Color then
 		if shape.Image ~= "" then shape.ImageColor3 = props.Color else shape.BackgroundColor3 = props.Color end
@@ -245,6 +395,13 @@ function SkillTreeView:Paint(id, props)
 	setText(entry.Holder, "Icon", props.Icon)
 	entry.Pulse = props.Pulse == true
 	self:_paintSelection(entry)
+	if not self.SyncQueued then
+		self.SyncQueued = true
+		task.defer(function()
+			self.SyncQueued = false
+			self:_syncVisibility()
+		end)
+	end
 end
 
 function SkillTreeView:_paintSelection(entry)
@@ -346,12 +503,15 @@ function SkillTreeView:Open()
 	self.Pan = Vector2.zero
 	self:_applyPan()
 	self.Gui.Enabled = true
+	self:_playOpening()
 	pcall(function() require(ReplicatedStorage.Shared.MovementLock).Lock(self.LockName, 600) end)
 end
 
 function SkillTreeView:Close(fromButton)
 	if not self.Gui.Enabled then return end
 	self.Gui.Enabled = false
+	self.SeqToken += 1
+	self.Sequencing = false
 	self:HideCard()
 	pcall(function() require(ReplicatedStorage.Shared.MovementLock).Unlock(self.LockName) end)
 	if fromButton and self.OnClose then self.OnClose() end

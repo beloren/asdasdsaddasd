@@ -4339,21 +4339,45 @@ Config.IslandPerks = {
 }
 
 -- v20.143: ДЕРЕВО ПРОКАЧКИ У EXPERIENCED MINER - НА ВЕСЬ ЭКРАН (как престиж).
--- В центре NPC, ветки уходят в стороны (Dir = { x, y }: {0,-1} - вверх,
--- {1,0} - вправо). От середины ветки отходит звезда (Star) на StarOffset
--- пикселей вбок (StarSide = 1 / -1 - в какую сторону). Вид узлов - шаблоны
--- StarterGui/UpgradeTreeUi/Templates (см. GUIDE, раздел 6).
+-- В центре NPC. Ветки тиров уходят в стороны (Dir = { x, y }: {0,-1} - вверх,
+-- {1,0} - вправо). v20.144: НЕЗАВИСИМЫЕ улучшения (звёзды Config.UpgradeStats)
+-- выходят прямо из центрального узла по диагоналям (Stars, StarDistance).
+-- Видно только купленное и следующий доступный узел; остальное открывается
+-- после покупки предыдущего (с анимацией, Config.TreeReveal).
+-- Вид узлов - шаблоны StarterGui/UpgradeTreeUi/Templates (GUIDE, раздел 6).
 Config.UpgradeTree = {
 	Enabled = true,
 	FirstDistance = 190, -- от центра до первого тира
 	Step = 130,          -- между тирами
-	StarOffset = 170,    -- звезда в сторону от ветки
+	StarDistance = 210,  -- от центра до звезды
 	Rows = {
-		{ Kind = "Mine",     Title = "CAVE",     Icon = "⛰", Star = "Luck",   Dir = { 0, -1 }, StarSide = 1,  Color = Color3.fromRGB(255, 160, 70) },
-		{ Kind = "Cart",     Title = "BACKPACK", Icon = "🎒", Star = "Sell",   Dir = { 1, 0 },  StarSide = 1,  Color = Color3.fromRGB(120, 200, 255) },
-		{ Kind = "Pickaxe",  Title = "PICKAXE",  Icon = "⛏", Star = "Damage", Dir = { -1, 0 }, StarSide = 1,  Color = Color3.fromRGB(255, 110, 110) },
-		{ Kind = "Supplies", Title = "SUPPLIES", Icon = "🧨", Star = "Speed",  Dir = { 0, 1 },  StarSide = -1, Color = Color3.fromRGB(200, 140, 255) },
+		{ Kind = "Mine",     Title = "CAVE",     Icon = "⛰", Dir = { 0, -1 }, Color = Color3.fromRGB(255, 160, 70) },
+		{ Kind = "Cart",     Title = "BACKPACK", Icon = "🎒", Dir = { 1, 0 },  Color = Color3.fromRGB(120, 200, 255) },
+		{ Kind = "Pickaxe",  Title = "PICKAXE",  Icon = "⛏", Dir = { -1, 0 }, Color = Color3.fromRGB(255, 110, 110) },
+		{ Kind = "Supplies", Title = "SUPPLIES", Icon = "🧨", Dir = { 0, 1 },  Color = Color3.fromRGB(200, 140, 255) },
 	},
+	Stars = {
+		{ Id = "Luck",   Dir = { 0.71, -0.71 } },
+		{ Id = "Sell",   Dir = { 0.71, 0.71 } },
+		{ Id = "Damage", Dir = { -0.71, -0.71 } },
+		{ Id = "Speed",  Dir = { -0.71, 0.71 } },
+	},
+}
+
+-- v20.144: АНИМАЦИЯ ПОЯВЛЕНИЯ ДЕРЕВЬЕВ (Experienced Miner, Island Keeper,
+-- престиж): сначала центральный узел, затем затемнение, затем узлы по
+-- очереди пузырьками (купленные, потом доступные). Новый узел после покупки
+-- тоже выскакивает пузырьком, линия к нему вырастает.
+Config.TreeReveal = {
+	RootSeconds = 0.4,   -- пузырёк центрального узла
+	DarkenDelay = 0.3,   -- через сколько после центра темнеет экран
+	DarkenSeconds = 0.35,
+	FirstDelay = 0.6,    -- первый пузырёк после центра
+	Stagger = 0.07,      -- между пузырьками
+	LateGap = 0.25,      -- пауза перед доступными (ещё не купленными)
+	PopSeconds = 0.34,
+	LineSeconds = 0.22,
+	Sound = true,        -- тихий щелчок на каждый пузырёк (звук ReelTick)
 }
 
 -- v20.131: чёрная обводка (Highlight) на каждом игроке
@@ -7758,6 +7782,7 @@ Config.Prestige = {
 	PhoneZoom = 0.75,        -- v20.130: стартовый масштаб дерева на телефоне (щипком меняется)
 	DetailHideSeconds = 2.5, -- v20.120: карточка перка (по клику/наведению) прячется через N с
 	HideDeepLocked = true,   -- v20.120: за первым закрытым узлом ветки остальные не показываются
+	HideLocked = true,       -- v20.144: закрытые узлы не видны совсем - выскакивают, когда открылись
 	PointIconId = 115386518245112, -- v20.132: иконка очков престижа у чисел; 0 - нарисованный ромб
 	-- v20.132: ЦЕНТРАЛЬНЫЙ УЗЕЛ ДЕРЕВА - перк «Starter Miner». Пока он не
 	-- открыт, первые узлы всех веток закрыты. Первое очко на него игрок

@@ -3521,7 +3521,7 @@ end
 		local CHAINS = { Mine = Config.MineChain or {}, Cart = Config.CartChain or {}, Pickaxe = Config.PickaxeChain or {} }
 		local STEP = treeCfg.Step or 130
 		local FIRST = treeCfg.FirstDistance or 190
-		local STAR_OFFSET = treeCfg.StarOffset or 170
+		local STAR_DISTANCE = treeCfg.StarDistance or 210
 		local DIRS = { Mine = { 0, -1 }, Cart = { 1, 0 }, Pickaxe = { -1, 0 }, Supplies = { 0, 1 } }
 		local GREY = Color3.fromRGB(70, 74, 88)
 		local nodeInfo = {}  -- [id] = { Kind, Value, Row, StarId, Index }
@@ -3558,7 +3558,6 @@ end
 				local kind = rowCfg.Kind
 				local d = rowCfg.Dir or DIRS[kind] or { 1, 0 }
 				local dir = Vector2.new(d[1], d[2]).Unit
-				local perp = Vector2.new(-dir.Y, dir.X)
 				local list = {}
 				if kind == "Supplies" then
 					for _, key in Config.Dynamite.Order do table.insert(list, key) end
@@ -3566,25 +3565,26 @@ end
 					for tier = 1, 1 + #CHAINS[kind] do table.insert(list, tier) end
 				end
 				rowLinks[kind] = {}
-				local prev = Vector2.zero
+				local prev, prevId = Vector2.zero, "Root"
 				for index, value in list do
 					local pos = dir * (FIRST + (index - 1) * STEP)
-					rowLinks[kind][index] = treeView:Link(prev, pos, GREY)
-					prev = pos
 					local id = kind .. "_" .. tostring(value)
+					rowLinks[kind][index] = treeView:Link(prev, pos, GREY, nil, prevId, id)
+					prev, prevId = pos, id
 					treeView:Node(id, "Tier", pos, onNodeClick)
 					nodeInfo[id] = { Kind = kind, Value = value, Row = rowCfg, Index = index }
 				end
-				local starId = rowCfg.Star
-				if starId and statCfg.Types[starId] and #list > 0 then
-					local anchorIndex = math.max(1, math.ceil(#list / 2))
-					local anchor = dir * (FIRST + (anchorIndex - 1) * STEP)
-					local side = (rowCfg.StarSide or 1)
-					local pos = anchor + perp * STAR_OFFSET * side
-					treeView:Link(anchor, pos, statCfg.Types[starId].Color)
-					local id = "Star_" .. starId
+			end
+			-- v20.144: независимые улучшения - прямо из центрального узла
+			for _, starCfg in treeCfg.Stars or {} do
+				local def = statCfg.Types[starCfg.Id]
+				if def then
+					local d = starCfg.Dir or { 1, 1 }
+					local pos = Vector2.new(d[1], d[2]).Unit * STAR_DISTANCE
+					local id = "Star_" .. starCfg.Id
+					treeView:Link(Vector2.zero, pos, def.Color, nil, "Root", id)
 					treeView:Node(id, "Star", pos, onNodeClick)
-					nodeInfo[id] = { Kind = "Star", StarId = starId, Row = rowCfg }
+					nodeInfo[id] = { Kind = "Star", StarId = starCfg.Id }
 				end
 			end
 		end
@@ -3745,13 +3745,19 @@ end
 						Caption = dyn.ShortName or tostring(key),
 						Price = locked and ('<font color="#AAB0C4">' .. tr("Cave") .. " " .. locked .. "</font>") or ("x" .. count),
 						Name = info.Index == 1 and (info.Row.Icon .. " " .. tr(info.Row.Title)) or "",
+						Hidden = locked ~= nil, -- v20.144: закрытый динамит не виден, пока не откроется пещера
+						Late = count == 0,
 					})
 				elseif CHAINS[info.Kind] then
 					local kind, tier = info.Kind, info.Value
 					local state, status = tierState(kind, tier)
 					local line = rowLinks[kind] and rowLinks[kind][info.Index]
 					if line then line.BackgroundColor3 = state == "Owned" and COLORS.Gold or GREY end
-					local props = { Caption = tostring(tier), Name = info.Index == 1 and (info.Row.Icon .. " " .. tr(info.Row.Title)) or "" }
+					local props = {
+						Caption = tostring(tier), Name = info.Index == 1 and (info.Row.Icon .. " " .. tr(info.Row.Title)) or "",
+						Hidden = state == "Locked", -- v20.144: видно купленное + следующий
+						Late = state == "Next",
+					}
 					if state == "Owned" then
 						props.Color = (KIND_VIEW[kind] and KIND_VIEW[kind].Color) or COLORS.Gold
 						props.Price = ""
@@ -3784,6 +3790,8 @@ end
 						Name = tr(def.Title or info.StarId),
 						Level = lvl >= maxL and '<font color="#FFD75A">MAX</font>' or (lvl .. "/" .. maxL),
 						Pulse = st and st.CanAfford and lvl < maxL or false,
+						Hidden = false,
+						Late = lvl == 0,
 					})
 				end
 			end

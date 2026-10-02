@@ -432,7 +432,7 @@ local function updateSelection()
 		end
 	end
 end
-function Free.Link(parent, size, a, b, color)
+function Free.Link(parent, size, a, b, color, toId)
 	local ax, ay = a[1] * size.X, a[2] * size.Y
 	local bx, by = b[1] * size.X, b[2] * size.Y
 	local dx, dy = bx - ax, by - ay
@@ -446,6 +446,7 @@ function Free.Link(parent, size, a, b, color)
 	line.Rotation = math.deg(math.atan2(dy, dx))
 	line.BackgroundColor3 = color
 	line.ZIndex = 2
+	if toId then line:SetAttribute("RevealTo", toId) end -- v20.144: проявляется вместе с узлом
 	line.Parent = parent
 end
 function Free.Shape(node)
@@ -488,6 +489,7 @@ function Free.Render()
 	local rootPerk = ROOT_PERK and PERK_BY_ID[ROOT_PERK]
 	local start = nodeTemplate:Clone()
 	start.Name = rootPerk and ("Node_" .. ROOT_PERK) or "StartNode"
+	start:SetAttribute("TreeRoot", true)
 	start.Visible = true
 	start.AnchorPoint = Vector2.new(0.5, 0.5)
 	start.Position = UDim2.fromScale(startPos[1], startPos[2])
@@ -533,15 +535,21 @@ function Free.Render()
 		for _, perkId in branch.Perks do
 			local perk = PERK_BY_ID[perkId]
 			local pos = layout[perkId]
+			-- v20.144: закрытые узлы (не куплен предыдущий) не видны совсем -
+			-- появляются пузырьком, когда открываются (Config.Prestige.HideLocked)
+			local lockedNow = perk and pos and (infoOf(perkId).Locked == true)
+			if lockedNow and cfg.HideLocked ~= false then hideRest = true end
 			if perk and pos and not hideRest then
 				local info = infoOf(perkId)
 				local locked = info.Locked == true
 				if locked and cfg.HideDeepLocked ~= false then hideRest = true end
 				local maxed = info.Level >= perk.MaxLevel
-				Free.Link(holder, size, prev, pos, locked and COLOR_LOCKED or branch.Color)
-				prev = pos
+				Free.Link(holder, size, prev, pos, locked and COLOR_LOCKED or branch.Color, perkId)
 				local node = nodeTemplate:Clone()
 				node.Name = "Node_" .. perkId
+				node:SetAttribute("Bought", info.Level > 0)
+				node:SetAttribute("RevealDist", math.sqrt((pos[1] - startPos[1]) ^ 2 + (pos[2] - startPos[2]) ^ 2))
+				prev = pos
 				node.Visible = true
 				require(ReplicatedStorage.Shared.TutorialTarget).Mark(node, locked and "PerkNode-" or ("PerkNode:" .. perkId)) -- v20.110
 				node.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -586,6 +594,70 @@ function Free.Find(perkId)
 	return holder and holder:FindFirstChild("Node_" .. perkId)
 end
 
+-- v20.144: АНИМАЦИЯ ПОЯВЛЕНИЯ (Config.TreeReveal): при открытии - сначала
+-- стартовый узел, потом темнеет экран, потом узлы пузырьками по очереди
+-- (купленные, затем доступные). Узел, открывшийся после покупки, выскакивает
+-- пузырьком, линия к нему проявляется. Дерево перерисовывается целиком,
+-- поэтому для каждого узла запоминается момент, когда он должен появиться.
+local TreeReveal = require(ReplicatedStorage.Shared.TreeReveal)
+local revealAt = {}
+local revealPending = false
+local revealEnd = 0
+function Free.Reveal()
+	local holder = tree:FindFirstChild("FreeTree")
+	if not (holder and FULL) then return end
+	local s = TreeReveal.Settings()
+	local now = os.clock()
+	local nodes = {}
+	for _, child in holder:GetChildren() do
+		if child:IsA("GuiButton") and (child.Name:match("^Node_") or child.Name == "StartNode") then
+			table.insert(nodes, child)
+		end
+	end
+	if revealPending then
+		revealPending = false
+		table.clear(revealAt)
+		local root, early, late = nil, {}, {}
+		for _, node in nodes do
+			if node:GetAttribute("TreeRoot") then
+				root = node
+			elseif node:GetAttribute("Bought") then
+				table.insert(early, node)
+			else
+				table.insert(late, node)
+			end
+		end
+		local function byDist(a, b) return (a:GetAttribute("RevealDist") or 0) < (b:GetAttribute("RevealDist") or 0) end
+		table.sort(early, byDist)
+		table.sort(late, byDist)
+		if root then revealAt[root.Name] = now end
+		local t = now + s.FirstDelay
+		for _, node in early do revealAt[node.Name] = t; t += s.Stagger end
+		t += s.LateGap
+		for _, node in late do revealAt[node.Name] = t; t += s.Stagger end
+		revealEnd = t
+		local backdrop = gui:FindFirstChild("FullBackdrop")
+		if backdrop then TreeReveal.Darken(backdrop, 0.55, s.DarkenDelay) end
+	end
+	for _, node in nodes do
+		local at = revealAt[node.Name]
+		if at == nil then
+			at = math.max(now, revealEnd) + 0.05 -- открылся после покупки
+			revealAt[node.Name] = at
+		end
+		if at > now - 0.02 then
+			local delay = math.max(0, at - now)
+			TreeReveal.Pop(node, delay, node:GetAttribute("TreeRoot") and s.RootSeconds or nil)
+			local id = node.Name:match("^Node_(.+)$")
+			if id then
+				for _, line in holder:GetChildren() do
+					if line:GetAttribute("RevealTo") == id then TreeReveal.FadeIn(line, math.max(0, delay - 0.05)) end
+				end
+			end
+		end
+	end
+end
+
 renderTree = function()
 	Points.Set(pointsLabel, state.Points)
 	for _, child in tree:GetChildren() do
@@ -593,6 +665,7 @@ renderTree = function()
 	end
 	if cfg.TreeLayout then
 		Free.Render()
+		Free.Reveal()
 		return
 	end
 	for branchIndex, branch in cfg.Branches or {} do
@@ -899,6 +972,11 @@ local function open()
 	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	openedAt = hrp and hrp.Position or nil
 	gui.Enabled = true
+	-- v20.144: анимация открытия дерева (узлы по очереди)
+	if FULL and cfg.TreeLayout and mode ~= "Shrines" then
+		revealPending = true
+		pcall(renderTree)
+	end
 	UiSfx.play("UiMenuOpen")
 	if autoScale and not FULL then
 		local camera = workspace.CurrentCamera

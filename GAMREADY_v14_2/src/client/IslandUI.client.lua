@@ -1115,8 +1115,8 @@ do
 			showCard(id)
 		end
 
-		local function link(fromId, a, b)
-			table.insert(links, { Line = view:Link(a, b, GREY), From = fromId })
+		local function link(fromId, a, b, toId)
+			table.insert(links, { Line = view:Link(a, b, GREY, nil, fromId, toId), From = fromId })
 		end
 
 		local function build()
@@ -1130,16 +1130,16 @@ do
 				local dir = Vector2.new(d[1], d[2]).Unit
 				local perp = Vector2.new(-dir.Y, dir.X)
 				local pos = dir * FIRST
-				link("Root", Vector2.zero, pos)
 				local islandNode = "Island_" .. islandId
+				link("Root", Vector2.zero, pos, islandNode)
 				view:Node(islandNode, "Tier", pos, onClick)
 				nodeInfo[islandNode] = { Kind = "Island", Island = islandId }
 				local prevId, prevPos = islandNode, pos
 				if islandId == "Smelter" then
 					for level = 2, #(Config.Islands.Smelter.Levels or {}) do
 						local p = prevPos + dir * STEP
-						link(prevId, prevPos, p)
 						local id = "Furnace_" .. level
+						link(prevId, prevPos, p, id)
 						view:Node(id, "Tier", p, onClick)
 						nodeInfo[id] = { Kind = "Furnace", Level = level, Island = islandId }
 						prevId, prevPos = id, p
@@ -1152,14 +1152,14 @@ do
 					for index, def in stars do
 						local side = (#stars == 1) and 0 or (index == 1 and 1 or -1)
 						local p = prevPos + dir * STEP * 1.15 + perp * 105 * side
-						link(prevId, prevPos, p)
+						link(prevId, prevPos, p, def.Id)
 						view:Node(def.Id, "Star", p, onClick)
 						nodeInfo[def.Id] = { Kind = "Perk", Island = islandId, Def = def, Pos = p }
 						table.insert(starIds, def.Id)
 					end
 					if perks.Final then
 						local p = prevPos + dir * STEP * 2.3
-						for _, starId in starIds do link(starId, nodeInfo[starId].Pos, p) end
+						for _, starId in starIds do link(starId, nodeInfo[starId].Pos, p, perks.Final.Id) end
 						view:Node(perks.Final.Id, "Final", p, onClick)
 						nodeInfo[perks.Final.Id] = { Kind = "Perk", Island = islandId, Def = perks.Final, Final = true }
 					end
@@ -1196,6 +1196,9 @@ do
 					local entry = islandInfo(info.Island) or {}
 					local color = entry.Color or Color3.fromRGB(120, 170, 255)
 					local props = { Caption = entry.Icon or "?", Name = tr(entry.DisplayName or info.Island) }
+					-- v20.144: видно купленное и доступное к покупке, остальное скрыто
+					props.Hidden = not (entry.Owned or entry.RequiresMet)
+					props.Late = not entry.Owned
 					if entry.Owned then
 						props.Color = color
 						props.Price = '<font color="#9CFFB4">' .. tr("OWNED") .. "</font>"
@@ -1212,7 +1215,11 @@ do
 					if node then TutorialTarget.Mark(node.Holder, "IslandCard:" .. info.Island) end
 				elseif info.Kind == "Furnace" then
 					local levelDef = Config.Islands.Smelter.Levels[info.Level] or {}
-					local props = { Caption = "x" .. tostring(levelDef.Slots or info.Level), Name = tr(levelDef.Name or "") }
+					local props = {
+						Caption = "x" .. tostring(levelDef.Slots or info.Level), Name = tr(levelDef.Name or ""),
+						Hidden = not (sm and info.Level <= sm.Level + 1),
+						Late = not (sm and info.Level <= sm.Level),
+					}
 					if sm and info.Level <= sm.Level then
 						props.Color = Color3.fromRGB(255, 140, 60)
 						props.Price = ""
@@ -1235,6 +1242,9 @@ do
 						Name = tr(info.Def.Title or id),
 						Level = st.Locked and (info.Final and tr("LOCKED") or "") or (maxed and "MAX" or (st.Level .. "/" .. st.MaxLevel)),
 						Pulse = not st.Locked and not maxed and st.CanAfford == true,
+						-- звёзды видны, когда куплен остров; финал - когда обе звезды на максимуме
+						Hidden = info.Final and st.Locked or not st.Owned,
+						Late = st.Level == 0,
 					})
 				end
 			end
@@ -1375,8 +1385,8 @@ do
 		end
 
 		treeHooks.Open = function()
+			refresh() -- сначала решить, какие узлы видны, потом анимация открытия
 			view:Open()
-			refresh()
 			fetchPerks()
 		end
 		treeHooks.Close = function() view:Close() end
