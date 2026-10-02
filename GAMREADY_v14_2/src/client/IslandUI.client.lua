@@ -219,9 +219,21 @@ local function setAction(text, variant, enabled)
 	actionButton.Active = enabled
 end
 
+-- v20.140: кнопка мини-дерева купленного острова (Config.IslandPerks)
+local perksButton = UiKit.Button(detailView, "PerksButton", "UPGRADES", "Yellow", {
+	Position = UDim2.new(0, 8, 1, -56),
+	Size = UDim2.fromOffset(196, 48),
+	ZIndex = 5,
+})
+perksButton.Visible = false
+require(ReplicatedStorage.Shared.TutorialTarget).Mark(perksButton, "IslandPerks")
+
 local function renderDetail()
 	local entry = selectedId and islandInfo(selectedId)
 	if not entry then return end
+	local hasPerks = entry.Owned and Config.IslandPerks and Config.IslandPerks.Islands[entry.Id] ~= nil
+	perksButton.Visible = hasPerks == true
+	priceLabel.Visible = not hasPerks
 	entry = decorated(entry)
 	applyCard(preview, entry)
 	detailTitle.Text = tr(entry.DisplayName):upper()
@@ -328,8 +340,10 @@ local function render(state)
 	if detailView.Visible then renderDetail() end
 end
 
+local closePerksView = nil
 local function showGrid(animated)
 	selectedId = nil
+	if closePerksView then closePerksView() end
 	detailView.Visible = false
 	gridView.Visible = true
 	if animated then
@@ -347,6 +361,265 @@ end
 backButton.Activated:Connect(function()
 	playSfx("UiCancel")
 	showGrid(true)
+end)
+
+--------------------------------------------------------------------------------
+-- v20.140: МИНИ-ДЕРЕВО ОСТРОВА. Две звезды слева (уровни) → финальный узел
+-- справа (открывается, когда обе звезды на максимуме). Справа - карточка
+-- выбранного узла с кнопкой покупки. Сервер - IslandPerkService.
+--------------------------------------------------------------------------------
+local perkRemote = ReplicatedStorage.Shared:WaitForChild("IslandPerkRequest", 10)
+local NumberFormatMod = require(ReplicatedStorage.Shared.NumberFormat)
+local perkState = {}
+local perkIsland = nil
+local perkSelected = nil
+local perkBusy = false
+
+local perkView = Instance.new("Frame")
+perkView.Name = "PerkTree"
+perkView.BackgroundColor3 = DARK_CARD
+perkView.BackgroundTransparency = 0
+perkView.Size = UDim2.fromScale(1, 1)
+perkView.Visible = false
+perkView.ZIndex = 20
+perkView.Active = true
+perkView.Parent = content
+do
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 12)
+	c.Parent = perkView
+end
+local perkBack = UiKit.Button(perkView, "Back", "BACK", "Blue", { Position = UDim2.fromOffset(4, 4), Size = UDim2.fromOffset(110, 38), ZIndex = 21 })
+local perkTitle = UiKit.Text(perkView, "Title", "", {
+	_Style = "Title", _MaxTextSize = 26,
+	Position = UDim2.fromOffset(124, 6), Size = UDim2.new(1, -360, 0, 34), ZIndex = 21,
+})
+local nodeArea = Instance.new("Frame")
+nodeArea.Name = "Nodes"
+nodeArea.BackgroundTransparency = 1
+nodeArea.Position = UDim2.fromOffset(10, 50)
+nodeArea.Size = UDim2.new(1, -250, 1, -60)
+nodeArea.ZIndex = 21
+nodeArea.Parent = perkView
+local card = Instance.new("Frame")
+card.Name = "Card"
+card.BackgroundColor3 = Color3.fromRGB(22, 26, 40)
+card.AnchorPoint = Vector2.new(1, 0)
+card.Position = UDim2.new(1, -10, 0, 50)
+card.Size = UDim2.new(0, 226, 1, -60)
+card.ZIndex = 21
+card.Parent = perkView
+do
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 12)
+	c.Parent = card
+end
+local cardStroke = Instance.new("UIStroke")
+cardStroke.Thickness = 3
+cardStroke.Color = UiKit.Theme.Accents.Gold.Main
+cardStroke.Parent = card
+local cardTitle = UiKit.Text(card, "Title", "", { _Style = "Heading", _MaxTextSize = 24, Position = UDim2.fromOffset(10, 10), Size = UDim2.new(1, -20, 0, 30), ZIndex = 22 })
+local cardLevel = UiKit.Text(card, "Level", "", { _Style = "Number", _MaxTextSize = 18, Position = UDim2.fromOffset(10, 44), Size = UDim2.new(1, -20, 0, 22), ZIndex = 22 })
+local cardText = UiKit.Text(card, "Text", "", { _Style = "Body", _MaxTextSize = 20, Position = UDim2.fromOffset(10, 72), Size = UDim2.new(1, -20, 0, 90), ZIndex = 22 })
+cardText.TextWrapped = true
+local cardBuy = UiKit.Button(card, "Buy", "BUY", "Green", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -10), Size = UDim2.new(1, -20, 0, 50), ZIndex = 22 })
+
+local perkNodes = {} -- [perkId] = { Button, Icon, Level, Def, IsFinal }
+local perkLines = {}
+
+local function perkPct(v) return tostring(math.floor((v or 0) * 1000 + 0.5) / 10) end
+local function perkText(def, value)
+	local text = tr(def.Text or "")
+	return (text:gsub("{v}", perkPct(value)))
+end
+
+local function renderPerks()
+	local island = perkIsland and Config.IslandPerks.Islands[perkIsland]
+	if not island then return end
+	for perkId, node in perkNodes do
+		local st = perkState[perkId] or { Level = 0, MaxLevel = node.IsFinal and 1 or (node.Def.MaxLevel or 10), Locked = true }
+		local maxed = st.Level >= st.MaxLevel
+		local color = node.IsFinal and UiKit.Theme.Accents.Gold.Main or Color3.fromRGB(110, 190, 255)
+		node.Button.BackgroundColor3 = st.Locked and Color3.fromRGB(60, 62, 74) or (maxed and color or color:Lerp(Color3.fromRGB(30, 34, 48), 0.45))
+		node.Stroke.Color = perkSelected == perkId and Color3.new(1, 1, 1) or Color3.fromRGB(12, 14, 22)
+		node.Stroke.Thickness = perkSelected == perkId and 4 or 3
+		node.Level.Text = st.Locked and (node.IsFinal and tr("LOCKED") or "") or (maxed and "MAX" or (st.Level .. "/" .. st.MaxLevel))
+		node.Level.TextColor3 = (not st.Locked and not maxed and st.CanAfford) and Color3.fromRGB(108, 255, 126) or Color3.fromRGB(240, 240, 245)
+	end
+	for _, line in perkLines do
+		local st = perkState[line.From]
+		local done = st and st.Level >= st.MaxLevel
+		line.Frame.BackgroundColor3 = done and UiKit.Theme.Accents.Gold.Main or Color3.fromRGB(80, 84, 98)
+	end
+	local node = perkSelected and perkNodes[perkSelected]
+	if not node then return end
+	local def = node.Def
+	local st = perkState[perkSelected] or { Level = 0, MaxLevel = node.IsFinal and 1 or (def.MaxLevel or 10), Value = 0, Locked = true }
+	local maxed = st.Level >= st.MaxLevel
+	cardTitle.Text = (def.Icon or "") .. " " .. tr(def.Title or perkSelected)
+	cardLevel.Text = node.IsFinal and (maxed and tr("OWNED") or tr("FINAL UPGRADE")) or (tr("Level") .. " " .. st.Level .. " / " .. st.MaxLevel)
+	if node.IsFinal then
+		cardText.Text = tr(def.Text or "")
+	elseif maxed then
+		cardText.Text = perkText(def, st.Value)
+	else
+		cardText.Text = perkText(def, st.Value) .. '\n<font color="#6CFF7E">' .. tr("Next") .. ": +" .. perkPct(st.NextValue) .. "%</font>"
+	end
+	local caption = cardBuy:FindFirstChild("Caption")
+	if maxed then
+		UiKit.SetButtonVariant(cardBuy, "Dark")
+		if caption then caption.Text = tr("MAX") end
+	elseif st.Locked then
+		UiKit.SetButtonVariant(cardBuy, "Dark")
+		if caption then caption.Text = node.IsFinal and tr("Max both stars") or tr("Buy the island") end
+	elseif perkBusy then
+		if caption then caption.Text = "..." end
+	else
+		UiKit.SetButtonVariant(cardBuy, st.CanAfford and "Green" or "Red")
+		if caption then caption.Text = tr("BUY") .. "  $" .. NumberFormatMod.abbreviate(st.Cost or 0) end
+	end
+end
+
+local function fetchPerks()
+	if not perkRemote then return end
+	task.spawn(function()
+		local okCall, _, _, state = pcall(perkRemote.InvokeServer, perkRemote, "Get")
+		if okCall and type(state) == "table" then
+			perkState = state
+			renderPerks()
+		end
+	end)
+end
+
+local function makePerkNode(perkId, def, isFinal, center, size)
+	local button = Instance.new("TextButton")
+	button.Name = "Perk_" .. perkId
+	button.Text = ""
+	button.AutoButtonColor = false
+	button.AnchorPoint = Vector2.new(0.5, 0.5)
+	button.Position = center
+	button.Size = UDim2.fromOffset(size, size)
+	button.Rotation = isFinal and 0 or 45
+	button.ZIndex = 23
+	button.Parent = nodeArea
+	local c = Instance.new("UICorner")
+	c.CornerRadius = isFinal and UDim.new(1, 0) or UDim.new(0, 12)
+	c.Parent = button
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 3
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = button
+	local icon = UiKit.Text(nodeArea, "Icon_" .. perkId, def.Icon or "★", {
+		_Style = "Heading", AnchorPoint = Vector2.new(0.5, 0.5), Position = center,
+		Size = UDim2.fromOffset(size * 0.6, size * 0.6), ZIndex = 25,
+	})
+	icon.Active = false
+	local level = UiKit.Text(nodeArea, "Level_" .. perkId, "", {
+		_Style = "Number", _MaxTextSize = 18, AnchorPoint = Vector2.new(0.5, 0),
+		Position = center + UDim2.fromOffset(0, size * 0.72 + 4), Size = UDim2.fromOffset(110, 20), ZIndex = 25,
+	})
+	local name = UiKit.Text(nodeArea, "Name_" .. perkId, tr(def.Title or perkId), {
+		_Style = "Small", _MaxTextSize = 15, AnchorPoint = Vector2.new(0.5, 1),
+		Position = center - UDim2.fromOffset(0, size * 0.72 + 2), Size = UDim2.fromOffset(140, 18), ZIndex = 25,
+	})
+	name.TextColor3 = Color3.fromRGB(200, 205, 220)
+	button.Activated:Connect(function()
+		perkSelected = perkId
+		playSfx("UiButtonClick")
+		renderPerks()
+	end)
+	perkNodes[perkId] = { Button = button, Stroke = stroke, Level = level, Def = def, IsFinal = isFinal }
+end
+
+local function connect(fromId, a, b)
+	local delta = b - a
+	local line = Instance.new("Frame")
+	line.Name = "Line_" .. fromId
+	line.BorderSizePixel = 0
+	line.AnchorPoint = Vector2.new(0.5, 0.5)
+	line.Position = UDim2.fromOffset((a.X + b.X) / 2, (a.Y + b.Y) / 2)
+	line.Size = UDim2.fromOffset(delta.Magnitude, 6)
+	line.Rotation = math.deg(math.atan2(delta.Y, delta.X))
+	line.ZIndex = 22
+	line.Parent = nodeArea
+	table.insert(perkLines, { From = fromId, Frame = line })
+end
+
+local function buildPerkTree(islandId)
+	for _, child in nodeArea:GetChildren() do child:Destroy() end
+	table.clear(perkNodes)
+	table.clear(perkLines)
+	local island = Config.IslandPerks.Islands[islandId]
+	if not island then return end
+	local w = math.max(300, nodeArea.AbsoluteSize.X / math.max(panelScale.Scale, 0.01))
+	local h = math.max(240, nodeArea.AbsoluteSize.Y / math.max(panelScale.Scale, 0.01))
+	local stars = island.Stars or {}
+	local finalPos = Vector2.new(w * 0.74, h * 0.5)
+	for index, def in stars do
+		local pos = Vector2.new(w * 0.26, h * (#stars == 1 and 0.5 or (index == 1 and 0.27 or 0.73)))
+		if island.Final then connect(def.Id, pos, finalPos) end
+		makePerkNode(def.Id, def, false, UDim2.fromOffset(pos.X, pos.Y), 58)
+	end
+	if island.Final then
+		makePerkNode(island.Final.Id, island.Final, true, UDim2.fromOffset(finalPos.X, finalPos.Y), 84)
+	end
+	perkSelected = stars[1] and stars[1].Id or (island.Final and island.Final.Id)
+end
+
+local function openPerks(islandId)
+	perkIsland = islandId
+	local entry = islandInfo(islandId)
+	perkTitle.Text = tr((entry and entry.DisplayName) or islandId):upper() .. " " .. tr("UPGRADES")
+	perkView.Visible = true
+	task.defer(function()
+		buildPerkTree(islandId)
+		renderPerks()
+	end)
+	fetchPerks()
+end
+local function closePerks()
+	perkView.Visible = false
+	perkIsland = nil
+end
+closePerksView = closePerks
+
+perksButton.Activated:Connect(function()
+	if selectedId then
+		playSfx("UiButtonClick")
+		openPerks(selectedId)
+	end
+end)
+perkBack.Activated:Connect(function()
+	playSfx("UiCancel")
+	closePerks()
+end)
+cardBuy.Activated:Connect(function()
+	local id = perkSelected
+	local st = id and perkState[id]
+	if not (id and perkRemote) or perkBusy or (st and (st.Locked or st.Level >= st.MaxLevel)) then return end
+	perkBusy = true
+	renderPerks()
+	task.spawn(function()
+		local okCall, ok, reason, state = pcall(perkRemote.InvokeServer, perkRemote, "Buy", id)
+		perkBusy = false
+		if okCall then
+			if type(state) == "table" then perkState = state end
+			playSfx(ok and "Upgrade" or "UiError")
+			if not ok and reason then
+				toast.Text = tr(reason)
+				toast.TextTransparency = 0
+				task.delay(2, function() toast.TextTransparency = 1 end)
+			end
+		end
+		renderPerks()
+	end)
+end)
+-- пока дерево открыто - раз в 2 с освежаем цены (деньги меняются)
+task.spawn(function()
+	while true do
+		task.wait(2)
+		if perkView.Visible and gui.Enabled then fetchPerks() end
+	end
 end)
 
 local toastToken = 0

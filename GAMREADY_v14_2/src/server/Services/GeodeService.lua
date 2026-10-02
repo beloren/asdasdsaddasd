@@ -588,6 +588,13 @@ function GeodeService:OpenGeode(player, geodeType, requestedCount)
 			or data.GeodeOpenPity >= Config.Geodes.OpenPity)
 		local row = DropTables.Pick(dropTable.Rows, forceOre and isCrystalRow or nil)
 			or DropTables.Pick(dropTable.Rows, isCrystalRow)
+		-- v20.140: звезда острова «Keen Eye» - шанс заменить не-кристалл кристаллом
+		if row and row.Kind ~= "Crystal" and row.Kind ~= "Heart" and Services.IslandPerkService then
+			local chance = Services.IslandPerkService:Bonus(player, "CrystalChance")
+			if chance > 0 and math.random() < chance then
+				row = DropTables.Pick(dropTable.Rows, isCrystalRow) or row
+			end
+		end
 		local junk = row.Kind == "Junk" and Config.RollJunk and (function()
 			-- вид мусора — по весам Config.Junk.Items (шанс «мусор ли» уже в строке)
 			local total = 0
@@ -712,6 +719,11 @@ function GeodeService:OpenGeode(player, geodeType, requestedCount)
 	for geodeIndex = 1, openCount do
 		-- v18: СЕРДЦЕ ЖЕОДЫ — эта жеода даёт сразу Heart.Rewards наград.
 		local count = rewardCount
+		-- v20.140: «Lucky Strike» / «Master Anvil» - шанс доп. награды
+		if Services.IslandPerkService then
+			local extra = Services.IslandPerkService:Bonus(player, "ExtraReward")
+			if extra > 0 and math.random() < extra then count += 1 end
+		end
 		local heartUsed = false
 		if (tonumber(data.GeodeHearts) or 0) > 0 then
 			data.GeodeHearts -= 1

@@ -1927,6 +1927,8 @@ function CombatService:_swing(player)
 	end
 	local tierConfig = Config.PickaxeTiers[pickaxeTier]
 	local damage = tierConfig.Damage * (Services.MonetizationService and Services.MonetizationService:GetDamageMultiplier(player) or 1)
+	-- v20.140: звезда «Strength» из дерева прокачки
+	if Services.UpgradeStatService then damage *= 1 + Services.UpgradeStatService:Bonus(player, "Damage") end
 	-- Мелкий бафф от надетого СКИНА кирки (см. Config.PickaxeSkinBuffs) —
 	-- добавка в долях (0.05 = +5%), намеренно маленькая, чтобы скин не
 	-- обгонял реальный апгрейд тира.

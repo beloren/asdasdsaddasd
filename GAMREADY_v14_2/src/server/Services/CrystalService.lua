@@ -535,6 +535,9 @@ function CrystalService:RarityWeightsFor(miner, tier, luckBonus)
 		local ok, stat = pcall(Services.PrestigeService.Stat, Services.PrestigeService, miner, "Luck")
 		if ok and stat then luck += stat end
 	end
+	if Services.UpgradeStatService then
+		luck += Services.UpgradeStatService:Bonus(miner, "Luck")
+	end
 	if Services.MonetizationService and Services.MonetizationService.GetLuckBoost then
 		local ok, oreBoost = pcall(Services.MonetizationService.GetLuckBoost, Services.MonetizationService, miner)
 		if ok and oreBoost then luck += oreBoost end
@@ -560,6 +563,11 @@ function CrystalService:Create(tier, miner, luckBonus, source)
 	if miner and Services.PrestigeService then
 		local ok, stat = pcall(Services.PrestigeService.Stat, Services.PrestigeService, miner, "Luck")
 		if ok and stat and stat ~= 0 then luckBonus = math.max(0, (luckBonus or 0) + stat) end
+	end
+	-- v20.140: звезда «Lucky Eye» из дерева прокачки
+	if miner and Services.UpgradeStatService then
+		local starLuck = Services.UpgradeStatService:Bonus(miner, "Luck")
+		if starLuck > 0 then luckBonus = (luckBonus or 0) + starLuck end
 	end
 	-- v10: удача за Robux (пасс 2x Luck, зелье, удача сервера).
 	local paidOreLuck, paidMutation = 0, 1

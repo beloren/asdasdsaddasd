@@ -1986,6 +1986,8 @@ function RockService:_strike(player, value)
 	-- (слоу-мо) и только потом ломает валун.
 	local power = (cfg.GradePower and cfg.GradePower[grade]) or 1
 	local gain = (1 / session.Need) * power * math.max(0.3, 1 + statFor(player, "Boulder"))
+	-- v20.140: звезда «Strength» из дерева прокачки
+	if Services.UpgradeStatService then gain *= 1 + Services.UpgradeStatService:Bonus(player, "Damage") end
 	if grade == "Perfect" then
 		session.Streak = (session.Streak or 0) + 1
 	elseif grade == "Miss" then

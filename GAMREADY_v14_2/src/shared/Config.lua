@@ -4284,6 +4284,73 @@ Config.Compass = {
 	CenterOffset = Vector3.new(0, 0, 18),
 }
 
+-- v20.140: МЕЛКИЕ УЛУЧШЕНИЯ («звёзды» в дереве прокачки у Experienced Miner).
+-- Каждый уровень даёт чуть-чуть (PerLevel), уровней много; цена =
+-- CostBase × CostGrowth^уровень × CaveScale^(пещера-1). Сброс при престиже.
+Config.UpgradeStats = {
+	CaveScale = 1.32,
+	Order = { "Damage", "Luck", "Speed", "Sell" },
+	Types = {
+		Damage = { Title = "Strength",  Icon = "💪", Text = "+{v}% pickaxe damage", PerLevel = 0.03, MaxLevel = 25, CostBase = 120, CostGrowth = 1.24, Color = Color3.fromRGB(255, 110, 90) },
+		Luck   = { Title = "Lucky Eye", Icon = "🍀", Text = "+{v}% ore luck",       PerLevel = 0.02, MaxLevel = 25, CostBase = 160, CostGrowth = 1.26, Color = Color3.fromRGB(110, 230, 120) },
+		Speed  = { Title = "Quick Feet",Icon = "👟", Text = "+{v}% walk speed",     PerLevel = 0.01, MaxLevel = 20, CostBase = 100, CostGrowth = 1.22, Color = Color3.fromRGB(110, 180, 255) },
+		Sell   = { Title = "Haggler",   Icon = "💰", Text = "+{v}% sell price",     PerLevel = 0.02, MaxLevel = 25, CostBase = 200, CostGrowth = 1.27, Color = Color3.fromRGB(255, 210, 80) },
+	},
+}
+
+-- v20.140: МИНИ-ДЕРЕВЬЯ ОСТРОВОВ (у Island Keeper → остров → UPGRADES).
+-- У каждого острова две «звезды» с уровнями; когда обе на максимуме,
+-- открывается финальный узел. Effect - что усиливает (несколько узлов с
+-- одним Effect складываются). Не сбрасываются при престиже.
+--   CrystalChance - шанс, что вместо денег/мусора из жеоды выпадет кристалл
+--   ExtraReward   - шанс доп. награды из жеоды
+--   IncomeRate    - доход кристалла на подиуме
+--   SafeCap       - вместимость сейфа
+--   SmeltSpeed    - плавка быстрее (доля времени, максимум 60%)
+--   IngotValue    - цена слитка (+доля); IngotMultiplier - прибавка к x10
+Config.IslandPerks = {
+	Order = { "Anvil", "Income", "Smelter" },
+	Islands = {
+		Anvil = {
+			Stars = {
+				{ Id = "AnvilCrystal", Effect = "CrystalChance", Title = "Keen Eye", Icon = "💎", Text = "+{v}% crystal chance from geodes", PerLevel = 0.03, MaxLevel = 10, CostBase = 1500, CostGrowth = 1.45 },
+				{ Id = "AnvilExtra", Effect = "ExtraReward", Title = "Lucky Strike", Icon = "✨", Text = "{v}% chance of a bonus geode reward", PerLevel = 0.02, MaxLevel = 10, CostBase = 2500, CostGrowth = 1.5 },
+			},
+			Final = { Id = "AnvilFinal", Effect = "ExtraReward", Title = "Master Anvil", Icon = "⚒", Text = "+15% bonus geode reward chance", Value = 0.15, Cost = 400000 },
+		},
+		Income = {
+			Stars = {
+				{ Id = "IncomeRate", Effect = "IncomeRate", Title = "Polished Crystal", Icon = "💰", Text = "+{v}% crystal income", PerLevel = 0.05, MaxLevel = 10, CostBase = 4000, CostGrowth = 1.45 },
+				{ Id = "IncomeSafe", Effect = "SafeCap", Title = "Bigger Safe", Icon = "🏦", Text = "+{v}% safe capacity", PerLevel = 0.1, MaxLevel = 10, CostBase = 3000, CostGrowth = 1.4 },
+			},
+			Final = { Id = "IncomeFinal", Effect = "IncomeRate", Title = "Golden Podium", Icon = "👑", Text = "+25% crystal income", Value = 0.25, Cost = 900000 },
+		},
+		Smelter = {
+			Stars = {
+				{ Id = "SmeltSpeed", Effect = "SmeltSpeed", Title = "Hot Coals", Icon = "🔥", Text = "{v}% faster smelting", PerLevel = 0.04, MaxLevel = 10, CostBase = 8000, CostGrowth = 1.45 },
+				{ Id = "SmeltValue", Effect = "IngotValue", Title = "Pure Metal", Icon = "🪙", Text = "+{v}% ingot price", PerLevel = 0.02, MaxLevel = 10, CostBase = 10000, CostGrowth = 1.5 },
+			},
+			Final = { Id = "SmelterFinal", Effect = "IngotMultiplier", Title = "Star Forge", Icon = "⭐", Text = "Ingots x12 instead of x10", Value = 2, Cost = 2500000 },
+		},
+	},
+}
+
+-- v20.140: ДЕРЕВО ПРОКАЧКИ вместо сетки карточек в окне Experienced Miner:
+-- дорожки тиров (пещера, рюкзак, кирка) + «звёзды» мелких улучшений.
+Config.UpgradeTree = {
+	Enabled = true,
+	NodeSize = 46,
+	NodeGap = 22,
+	ShowLockedAhead = 3,   -- сколько закрытых тиров видно после следующего
+	-- к какой дорожке прикреплена какая звезда
+	Rows = {
+		{ Kind = "Mine",    Title = "CAVE",     Icon = "⛰", Star = "Luck",   Color = Color3.fromRGB(255, 160, 70) },
+		{ Kind = "Cart",    Title = "BACKPACK", Icon = "🎒", Star = "Sell",   Color = Color3.fromRGB(120, 200, 255) },
+		{ Kind = "Pickaxe", Title = "PICKAXE",  Icon = "⛏", Star = "Damage", Color = Color3.fromRGB(255, 110, 110) },
+		{ Kind = "Supplies",Title = "SUPPLIES", Icon = "🧨", Star = "Speed",  Color = Color3.fromRGB(200, 140, 255) },
+	},
+}
+
 -- v20.131: чёрная обводка (Highlight) на каждом игроке
 Config.PlayerOutline = {
 	Enabled = true,

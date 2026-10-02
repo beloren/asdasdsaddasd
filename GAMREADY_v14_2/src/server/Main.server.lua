@@ -120,6 +120,8 @@ local ORDER = {
 	-- v14: тотемы/декор/реликвии на базе (к остальным сервисам — только в рантайме).
 	"BaseDecorService",
 	"UpgradeService",
+	"UpgradeStatService", -- v20.140: мелкие улучшения-«звёзды» (Config.UpgradeStats)
+	"IslandPerkService", -- v20.140: мини-деревья островов (Config.IslandPerks)
 	"ShopNpcService", -- НПС магазина (Robux) — как и UpgradeService, настраивается PlotService:AssignPlot на каждом участке
 	"CombatService",
 	"HudService",

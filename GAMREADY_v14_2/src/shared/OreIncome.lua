@@ -158,7 +158,9 @@ function OreIncome.PerMinuteForPlayer(player, key, level)
 	-- v4: геймпасс «2x Safe Income» (атрибут Owns_DoubleSafe ставит MonetizationService).
 	local pass = (player and player:GetAttribute("Owns_DoubleSafe") == true)
 		and (tonumber(Config.GamePasses.DoubleSafe and Config.GamePasses.DoubleSafe.Multiplier) or 2) or 1
-	return OreIncome.PerMinute(key, level) * (1 + perk) * pass
+	-- v20.140: перки острова дохода (IslandPerkService публикует IslandPerk_IncomeRate)
+	local island = player and tonumber(player:GetAttribute("IslandPerk_IncomeRate")) or 0
+	return OreIncome.PerMinute(key, level) * (1 + perk) * pass * (1 + island)
 end
 
 return OreIncome

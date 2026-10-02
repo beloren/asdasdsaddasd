@@ -265,6 +265,10 @@ function PassiveIncomeService:GetSafeCap(player, rate)
 		end
 	end
 	if not capped or capped <= 0 then return nil end
+	-- v20.140: звезда острова «Bigger Safe»
+	if Services.IslandPerkService then
+		capped *= 1 + Services.IslandPerkService:Bonus(player, "SafeCap")
+	end
 	return math.min(capped, Config.Economy.MaxCurrency)
 end
 

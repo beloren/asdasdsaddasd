@@ -1001,6 +1001,10 @@ function MonetizationService:GetCashMultiplier(player)
 	if Services.LikeGoalService then
 		multiplier *= Services.LikeGoalService:GetEventMultiplier("Money")
 	end
+	-- v20.140: звезда «Haggler» из дерева прокачки
+	if player and Services.UpgradeStatService then
+		multiplier *= 1 + Services.UpgradeStatService:Bonus(player, "Sell")
+	end
 	return multiplier
 end
 

@@ -121,12 +121,23 @@ local function markFastSmelter(player, data)
 	end
 end
 
+-- v20.140: итоговый множитель цены слитка с перками острова плавильни.
+local function ingotMultiplier(data)
+	local base = SMELT.ValueMultiplier or 10
+	local perks = Services and Services.IslandPerkService
+	if not (perks and data) then return base end
+	return (base + perks.BonusData(data, "IngotMultiplier")) * (1 + perks.BonusData(data, "IngotValue"))
+end
+
 local function smeltDuration(oreKey, data)
 	local index = oreIndex[oreKey] or 1
 	local alpha = ORE_COUNT > 1 and (index - 1) / (ORE_COUNT - 1) or 0
 	alpha = alpha ^ math.max(0.1, tonumber(SMELT.TimeCurve) or 1)
 	local base = SMELT.MinSeconds + (SMELT.MaxSeconds - SMELT.MinSeconds) * alpha
 	local info = smelterLevelInfo(data)
+	-- v20.140: звезда острова «Hot Coals»
+	local perkSpeed = Services and Services.IslandPerkService and Services.IslandPerkService.BonusData(data, "SmeltSpeed") or 0
+	base *= 1 - math.clamp(perkSpeed, 0, 0.6)
 	return math.max(10, math.floor(base * (info.SpeedMultiplier or 1) + 0.5))
 end
 
@@ -748,7 +759,7 @@ function IslandService:_updateSmelter(player)
 	local used = #slots
 	-- При одном слоте счётчик "1/1" ничего не сообщает — не показываем.
 	local capacitySuffix = info.Slots > 1 and ("  •  %d/%d"):format(used, info.Slots) or ""
-	local multiplierText = ("x%s"):format(tostring(SMELT.ValueMultiplier))
+	local multiplierText = ("x%s"):format(tostring(math.floor(ingotMultiplier(data) * 10 + 0.5) / 10))
 	local recentlyEjected = os.clock() - (smelter.LastEjectAt or 0) < READY_BANNER_SECONDS
 	if readyCount > 0 then
 		smelter.Title.Text = SMELT.ReadyText
@@ -846,7 +857,7 @@ function IslandService:_spitIngot(player, slot)
 		restoreReadySlot(data, slot)
 		return
 	end
-	local value = math.floor((tonumber(slot.Value) or 0) * (SMELT.ValueMultiplier or 20) + 0.5)
+	local value = math.floor((tonumber(slot.Value) or 0) * ingotMultiplier(data) + 0.5)
 	-- Слиток — та же руда с теми же мутациями; модель — Assets/Ingot_<Руда>
 	-- (см. PlaceholderFactory.OreIngot), цена уже умножена.
 	local ok, crystal = pcall(function()
@@ -1283,7 +1294,7 @@ function IslandService:BuildState(player)
 			NextSpeed = nextInfo and nextInfo.SpeedMultiplier or nil,
 			NextCostText = nextInfo and costText(nextInfo.Cost or 0) or nil,
 			CanAfford = nextInfo and not BigNum.lt(money, nextInfo.Cost or 0) or false,
-			Multiplier = SMELT.ValueMultiplier,
+			Multiplier = math.floor(ingotMultiplier(data) * 10 + 0.5) / 10,
 		}
 	end
 	return {

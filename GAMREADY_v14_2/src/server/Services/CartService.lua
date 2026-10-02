@@ -433,6 +433,10 @@ local function recomputeWalkSpeed(player)
 	if Services.PrestigeService then
 		baseWithGamepass *= (1 + Services.PrestigeService:PerkBonus(player, "Speed"))
 	end
+	-- v20.140: звезда «Quick Feet» из дерева прокачки
+	if Services.UpgradeStatService then
+		baseWithGamepass *= (1 + Services.UpgradeStatService:Bonus(player, "Speed"))
+	end
 	local rebirthBonus = Services.DataService:GetRebirths(player) * Config.Rebirth.SpeedBonusPerRebirth
 	local normalSpeed = baseWithGamepass + rebirthBonus -- обычная ходьба БЕЗ тележки — полный бонус ребёртов, как раньше
 

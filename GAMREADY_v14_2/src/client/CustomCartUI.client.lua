@@ -3476,7 +3476,510 @@ end
 		applyCard(visual, kind, nil)
 	end
 
+	-- v20.140: ДЕРЕВО ПРОКАЧКИ (Config.UpgradeTree) вместо сетки карточек.
+	-- Каждая строка - дорожка тиров одной ветки (пещера, рюкзак, кирка,
+	-- динамит): кружки слева направо, купленные - цветные, следующий -
+	-- пульсирует с ценой. В конце строки - «звезда» мелкого улучшения
+	-- (Config.UpgradeStats: урон, удача, скорость, продажа) с окном покупки.
+	-- Канвас тянется мышкой/пальцем, колесо и щипок - зум.
+	local treeCfg = Config.UpgradeTree or {}
+	local statCfg = Config.UpgradeStats or { Order = {}, Types = {} }
+	local statRemote = ReplicatedStorage.Shared:WaitForChild("UpgradeStatRequest", 10)
+	local treeEnabled = treeCfg.Enabled ~= false
+	local treeTargets = {}   -- [kind] = кружок, на который показывает обучение
+	local statState = {}
+	local refreshTree = function() end
+	local requestStats = function() end
+	local openStarPopup
+	if treeEnabled then
+		local TutorialTargetMod = require(ReplicatedStorage.Shared.TutorialTarget)
+		local CollectionService = game:GetService("CollectionService")
+		local UserInputService = game:GetService("UserInputService")
+		local FONT_H = UiKit.Theme.Fonts.Heading
+		local FONT_N = UiKit.Theme.Fonts.Number
+		local CHAINS = { Mine = Config.MineChain or {}, Cart = Config.CartChain or {}, Pickaxe = Config.PickaxeChain or {} }
+		local NODE = treeCfg.NodeSize or 46
+		local GAP = treeCfg.NodeGap or 22
+		local ROW_H = NODE + 40
+		local LABEL_W = 116
+		local PAD = 14
+
+		row.Visible = false
+		gridHint.Visible = false
+
+		local function corner(parent, radius)
+			local c = Instance.new("UICorner")
+			c.CornerRadius = radius or UDim.new(1, 0)
+			c.Parent = parent
+			return c
+		end
+		local function stroke(parent, color, thickness)
+			local s = Instance.new("UIStroke")
+			s.Color = color or COLORS.Outline
+			s.Thickness = thickness or 2.5
+			s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			s.Parent = parent
+			return s
+		end
+		local function label(parent, name, text, font, size, color)
+			local t = Instance.new("TextLabel")
+			t.Name = name
+			t.BackgroundTransparency = 1
+			t.FontFace = font or FONT_H
+			t.TextScaled = true
+			t.RichText = true
+			t.Text = text or ""
+			t.TextColor3 = color or COLORS.Text
+			t.Size = size or UDim2.fromScale(1, 1)
+			t.ZIndex = (parent:IsA("GuiObject") and parent.ZIndex or 5) + 1
+			local ts = Instance.new("UIStroke")
+			ts.Name = "TextStroke"
+			ts.Color = COLORS.Outline
+			ts.Thickness = 1.6
+			ts.Parent = t
+			t.Parent = parent
+			return t
+		end
+
+		local viewport = Instance.new("Frame")
+		viewport.Name = "TreeView"
+		viewport.BackgroundTransparency = 1
+		viewport.Size = UDim2.new(1, 0, 1, -30)
+		viewport.ClipsDescendants = true
+		viewport.Active = true
+		viewport.ZIndex = 4
+		viewport.Parent = gridView
+		local canvas = Instance.new("Frame")
+		canvas.Name = "Canvas"
+		canvas.BackgroundTransparency = 1
+		canvas.ZIndex = 4
+		canvas.Parent = viewport
+		local zoom = Instance.new("UIScale")
+		zoom.Parent = canvas
+
+		local rowsCfg = treeCfg.Rows or {}
+		local rowsUi = {}
+		local maxWidth = 0
+		for rowIndex, rowCfg in rowsCfg do
+			local kind = rowCfg.Kind
+			local y = PAD + (rowIndex - 1) * ROW_H
+			local entry = { Kind = kind, Nodes = {}, Lines = {} }
+			-- плашка ветки слева (клик - подробности ветки)
+			local tag = Instance.new("TextButton")
+			tag.Name = "Tag_" .. kind
+			tag.Text = ""
+			tag.AutoButtonColor = false
+			tag.BackgroundColor3 = rowCfg.Color or COLORS.Panel
+			tag.Position = UDim2.fromOffset(PAD, y)
+			tag.Size = UDim2.fromOffset(LABEL_W, NODE)
+			tag.ZIndex = 6
+			corner(tag, UDim.new(0, 10))
+			stroke(tag)
+			tag.Parent = canvas
+			local tagText = label(tag, "Title", rowCfg.Icon .. " " .. tr(rowCfg.Title), FONT_H)
+			tagText.Size = UDim2.new(1, -10, 0.6, 0)
+			tagText.Position = UDim2.fromOffset(5, 3)
+			entry.TagSub = label(tag, "Sub", "", FONT_N, UDim2.new(1, -10, 0.34, 0), Color3.fromRGB(255, 245, 210))
+			entry.TagSub.Position = UDim2.new(0, 5, 0.62, -2)
+			tag.Activated:Connect(function()
+				if not dialogOpen then return end
+				if kind == "Supplies" then selectedSupply = selectedSupply or "Dynamite" end
+				showDetail(kind)
+			end)
+			entry.Tag = tag
+
+			-- кружки тиров (или виды динамита)
+			local list = {}
+			if kind == "Supplies" then
+				for _, key in Config.Dynamite.Order do table.insert(list, key) end
+			elseif CHAINS[kind] then
+				for tier = 1, 1 + #CHAINS[kind] do table.insert(list, tier) end
+			end
+			local x = PAD + LABEL_W + GAP
+			for index, value in list do
+				if index > 1 then
+					local line = Instance.new("Frame")
+					line.Name = "Line" .. index
+					line.BorderSizePixel = 0
+					line.BackgroundColor3 = COLORS.Grey
+					line.Position = UDim2.fromOffset(x - GAP - 2, y + NODE / 2 - 3)
+					line.Size = UDim2.fromOffset(GAP + 4, 6)
+					line.ZIndex = 5
+					line.Parent = canvas
+					entry.Lines[index] = line
+				end
+				local node = Instance.new("TextButton")
+				node.Name = "Node_" .. tostring(value)
+				node.Text = ""
+				node.AutoButtonColor = false
+				node.BackgroundColor3 = COLORS.Grey
+				node.Position = UDim2.fromOffset(x, y)
+				node.Size = UDim2.fromOffset(NODE, NODE)
+				node.ZIndex = 6
+				corner(node)
+				local nodeStroke = stroke(node, COLORS.Outline, 3)
+				node.Parent = canvas
+				local caption = label(node, "Caption", kind == "Supplies"
+					and ((Config.Dynamite.Types[value] or {}).ShortName or tostring(value))
+					or tostring(value), FONT_N, UDim2.new(0.8, 0, 0.5, 0))
+				caption.AnchorPoint = Vector2.new(0.5, 0.5)
+				caption.Position = UDim2.fromScale(0.5, 0.5)
+				local price = label(canvas, "Price_" .. kind .. "_" .. tostring(value), "", FONT_N, UDim2.fromOffset(NODE + GAP, 16))
+				price.Position = UDim2.fromOffset(x - GAP / 2, y + NODE + 3)
+				price.ZIndex = 7
+				node.Activated:Connect(function()
+					if not dialogOpen then return end
+					if kind == "Supplies" then selectedSupply = value end
+					showDetail(kind)
+				end)
+				node.MouseEnter:Connect(function() TweenService:Create(node, TweenInfo.new(0.1), { Size = UDim2.fromOffset(NODE + 6, NODE + 6), Position = UDim2.fromOffset(node.Position.X.Offset - 3, y - 3) }):Play() end)
+				node.MouseLeave:Connect(function() TweenService:Create(node, TweenInfo.new(0.1), { Size = UDim2.fromOffset(NODE, NODE), Position = UDim2.fromOffset(entry.Nodes[index].X, y) }):Play() end)
+				entry.Nodes[index] = { Value = value, Button = node, Stroke = nodeStroke, Caption = caption, Price = price, X = x }
+				x += NODE + GAP
+			end
+
+			-- звезда мелкого улучшения
+			local starId = rowCfg.Star
+			local starDef = starId and statCfg.Types[starId]
+			if starDef then
+				local dash = Instance.new("Frame")
+				dash.Name = "StarLine"
+				dash.BorderSizePixel = 0
+				dash.BackgroundColor3 = starDef.Color or COLORS.Gold
+				dash.BackgroundTransparency = 0.35
+				dash.Position = UDim2.fromOffset(x - GAP, y + NODE / 2 - 2)
+				dash.Size = UDim2.fromOffset(GAP * 1.6, 4)
+				dash.ZIndex = 5
+				dash.Parent = canvas
+				x += GAP * 0.6
+				local star = Instance.new("TextButton")
+				star.Name = "Star_" .. starId
+				star.Text = ""
+				star.AutoButtonColor = false
+				star.BackgroundColor3 = starDef.Color or COLORS.Gold
+				star.Position = UDim2.fromOffset(x, y - 4)
+				star.Size = UDim2.fromOffset(NODE + 8, NODE + 8)
+				star.Rotation = 45
+				star.ZIndex = 6
+				corner(star, UDim.new(0, 10))
+				stroke(star, COLORS.Outline, 3)
+				star.Parent = canvas
+				local icon = label(canvas, "StarIcon_" .. starId, starDef.Icon or "★", FONT_H, UDim2.fromOffset(NODE - 8, NODE - 8))
+				icon.Position = UDim2.fromOffset(x + 8, y)
+				icon.ZIndex = 8
+				local level = label(canvas, "StarLevel_" .. starId, "", FONT_N, UDim2.fromOffset(NODE + 30, 16))
+				level.Position = UDim2.fromOffset(x - 11, y + NODE + 3)
+				level.ZIndex = 8
+				star.Activated:Connect(function()
+					if dialogOpen then openStarPopup(starId) end
+				end)
+				entry.Star = { Id = starId, Button = star, Level = level }
+				x += NODE + 8 + PAD
+			end
+			maxWidth = math.max(maxWidth, x + PAD)
+			rowsUi[rowIndex] = entry
+		end
+		local canvasHeight = PAD * 2 + #rowsCfg * ROW_H
+		canvas.Size = UDim2.fromOffset(maxWidth, canvasHeight)
+
+		-- ОКНО ЗВЕЗДЫ
+		local popup = Instance.new("Frame")
+		popup.Name = "StarPopup"
+		popup.AnchorPoint = Vector2.new(0.5, 0.5)
+		popup.Position = UDim2.fromScale(0.5, 0.5)
+		popup.Size = UDim2.fromOffset(300, 196)
+		popup.BackgroundColor3 = COLORS.Panel
+		popup.Visible = false
+		popup.ZIndex = 20
+		corner(popup, UDim.new(0, 14))
+		local popupStroke = stroke(popup, COLORS.Gold, 3)
+		popup.Parent = gridView
+		local popupTitle = label(popup, "Title", "", FONT_H, UDim2.new(1, -60, 0, 30))
+		popupTitle.Position = UDim2.fromOffset(14, 10)
+		popupTitle.TextXAlignment = Enum.TextXAlignment.Left
+		popupTitle.ZIndex = 22
+		local popupLevel = label(popup, "Level", "", FONT_N, UDim2.new(1, -28, 0, 20), COLORS.Muted)
+		popupLevel.Position = UDim2.fromOffset(14, 44)
+		popupLevel.TextXAlignment = Enum.TextXAlignment.Left
+		popupLevel.ZIndex = 22
+		local popupText = label(popup, "Text", "", FONT_H, UDim2.new(1, -28, 0, 44))
+		popupText.Position = UDim2.fromOffset(14, 68)
+		popupText.TextXAlignment = Enum.TextXAlignment.Left
+		popupText.ZIndex = 22
+		local buyButton = Instance.new("TextButton")
+		buyButton.Name = "Buy"
+		buyButton.Text = ""
+		buyButton.AutoButtonColor = true
+		buyButton.AnchorPoint = Vector2.new(0.5, 1)
+		buyButton.Position = UDim2.new(0.5, 0, 1, -12)
+		buyButton.Size = UDim2.new(1, -28, 0, 46)
+		buyButton.BackgroundColor3 = COLORS.Buy
+		buyButton.ZIndex = 22
+		corner(buyButton, UDim.new(0, 10))
+		stroke(buyButton)
+		buyButton.Parent = popup
+		local buyCaption = label(buyButton, "Caption", "", FONT_N, UDim2.new(1, -16, 0.7, 0))
+		buyCaption.AnchorPoint = Vector2.new(0.5, 0.5)
+		buyCaption.Position = UDim2.fromScale(0.5, 0.5)
+		buyCaption.ZIndex = 23
+		local closeStar = Instance.new("TextButton")
+		closeStar.Name = "Close"
+		closeStar.Text = ""
+		closeStar.AnchorPoint = Vector2.new(1, 0)
+		closeStar.Position = UDim2.new(1, -10, 0, 10)
+		closeStar.Size = UDim2.fromOffset(34, 34)
+		closeStar.BackgroundColor3 = COLORS.Close
+		closeStar.ZIndex = 22
+		corner(closeStar, UDim.new(0, 8))
+		stroke(closeStar)
+		closeStar.Parent = popup
+		local closeX = label(closeStar, "X", "X", FONT_H, UDim2.fromScale(0.7, 0.7))
+		closeX.AnchorPoint = Vector2.new(0.5, 0.5)
+		closeX.Position = UDim2.fromScale(0.5, 0.5)
+		closeX.ZIndex = 23
+
+		local popupId = nil
+		local buying = false
+		local treeToastToken = 0
+		local function treeToast(text, good)
+			if not toast then return end
+			treeToastToken += 1
+			local token = treeToastToken
+			toast.Text = text
+			toast.TextColor3 = good and Color3.fromRGB(120, 255, 160) or Color3.fromRGB(255, 120, 120)
+			toast.TextTransparency = 0
+			task.delay(2.2, function()
+				if treeToastToken == token then
+					TweenService:Create(toast, TweenInfo.new(0.3), { TextTransparency = 1 }):Play()
+				end
+			end)
+		end
+		local function pct(v) return tostring(math.floor((v or 0) * 1000 + 0.5) / 10) end
+		local function renderPopup()
+			local def = popupId and statCfg.Types[popupId]
+			if not def then popup.Visible = false return end
+			local st = statState[popupId] or { Level = 0, MaxLevel = def.MaxLevel or 25, Bonus = 0, NextBonus = def.PerLevel }
+			popupStroke.Color = def.Color or COLORS.Gold
+			popupTitle.Text = (def.Icon or "") .. " " .. tr(def.Title or popupId)
+			popupLevel.Text = tr("Level") .. " " .. st.Level .. " / " .. st.MaxLevel
+			local maxed = st.Level >= st.MaxLevel
+			local now = (def.Text or "+{v}%"):gsub("{v}", pct(st.Bonus))
+			if maxed then
+				popupText.Text = now
+			else
+				local nextText = ("+%s%%"):format(pct(st.NextBonus))
+				popupText.Text = now .. '  <font color="#6CFF7E">→ ' .. nextText .. "</font>"
+			end
+			if maxed then
+				buyButton.BackgroundColor3 = COLORS.Grey
+				buyCaption.Text = tr("MAX")
+			elseif buying then
+				buyCaption.Text = "..."
+			else
+				buyButton.BackgroundColor3 = st.CanAfford and COLORS.Buy or COLORS.Poor
+				buyCaption.Text = tr("BUY") .. "  " .. money(st.Cost or 0)
+			end
+		end
+		openStarPopup = function(id)
+			popupId = id
+			playUiClick()
+			popup.Visible = true
+			popup.Size = UDim2.fromOffset(270, 176)
+			TweenService:Create(popup, TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(300, 196) }):Play()
+			renderPopup()
+		end
+		local function closePopup()
+			popupId = nil
+			popup.Visible = false
+		end
+		closeStar.Activated:Connect(function() playUiClick("UiMenuClose") closePopup() end)
+
+		local function applyStats(state)
+			if type(state) == "table" then statState = state end
+			refreshTree()
+		end
+		requestStats = function()
+			if not statRemote then return end
+			task.spawn(function()
+				local okCall, _, _, state = pcall(statRemote.InvokeServer, statRemote, "Get")
+				if okCall then applyStats(state) end
+			end)
+		end
+		buyButton.Activated:Connect(function()
+			if not (popupId and statRemote) or buying then return end
+			local st = statState[popupId]
+			if st and st.Level >= st.MaxLevel then return end
+			buying = true
+			renderPopup()
+			local id = popupId
+			task.spawn(function()
+				local okCall, ok, reason, state = pcall(statRemote.InvokeServer, statRemote, "Buy", id)
+				buying = false
+				if okCall then
+					applyStats(state)
+					if ok then
+						playUiClick("Upgrade")
+						treeToast(tr(statCfg.Types[id].Title or id) .. " +1", true)
+					else
+						playUiClick("UiError")
+						treeToast(tr(reason or "Can't buy"), false)
+					end
+				end
+				renderPopup()
+			end)
+		end)
+
+		-- ПЕРЕТАСКИВАНИЕ И ЗУМ
+		local pan = Vector2.new(0, 0)
+		local function clampPan()
+			local scale = zoom.Scale
+			local vs = viewport.AbsoluteSize / math.max(panelScale.Scale, 0.01)
+			local cs = Vector2.new(maxWidth, canvasHeight) * scale
+			local minX = math.min(0, vs.X - cs.X)
+			local minY = math.min(0, vs.Y - cs.Y)
+			local cx = cs.X < vs.X and (vs.X - cs.X) / 2 or math.clamp(pan.X, minX, 0)
+			local cy = cs.Y < vs.Y and (vs.Y - cs.Y) / 2 or math.clamp(pan.Y, minY, 0)
+			pan = Vector2.new(cx, cy)
+			canvas.Position = UDim2.fromOffset(pan.X, pan.Y)
+		end
+		local dragging, dragStart, panStart, dragInput = false, nil, nil, nil
+		viewport.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				if dragging then return end
+				dragging, dragStart, panStart, dragInput = true, input.Position, pan, input
+			end
+		end)
+		UserInputService.InputChanged:Connect(function(input)
+			if dragging and (input == dragInput or input.UserInputType == Enum.UserInputType.MouseMovement) then
+				local delta = Vector2.new(input.Position.X - dragStart.X, input.Position.Y - dragStart.Y) / math.max(panelScale.Scale, 0.01)
+				pan = panStart + delta
+				clampPan()
+			end
+		end)
+		UserInputService.InputEnded:Connect(function(input)
+			if input == dragInput or input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+		end)
+		local function setZoom(value)
+			zoom.Scale = math.clamp(value, 0.6, 1.4)
+			clampPan()
+		end
+		viewport.InputChanged:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseWheel then
+				setZoom(zoom.Scale + input.Position.Z * 0.08)
+			end
+		end)
+		UserInputService.TouchPinch:Connect(function(_, scale, _, state)
+			if not (dialogOpen and gridView.Visible) then return end
+			if state == Enum.UserInputState.Begin then viewport:SetAttribute("PinchBase", zoom.Scale) end
+			setZoom((viewport:GetAttribute("PinchBase") or zoom.Scale) * scale)
+		end)
+		viewport:GetPropertyChangedSignal("AbsoluteSize"):Connect(clampPan)
+
+		-- ПЕРЕКРАСКА ПО СТАТУСАМ
+		local function unmark(gui)
+			if gui:GetAttribute(TutorialTargetMod.ATTR) then
+				gui:SetAttribute(TutorialTargetMod.ATTR, nil)
+				CollectionService:RemoveTag(gui, TutorialTargetMod.TAG)
+			end
+		end
+		local pulseT = 0
+		refreshTree = function()
+			for _, entry in rowsUi do
+				local kind = entry.Kind
+				local status = latestStatuses[kind]
+				local target = nil
+				if kind == "Supplies" then
+					entry.TagSub.Text = tr("Explosives")
+					for _, n in entry.Nodes do
+						local locked = supplyLockedCave(n.Value)
+						local info = Config.Dynamite.Types[n.Value] or {}
+						local count = gearStates[n.Value] and gearStates[n.Value].Count or 0
+						n.Button.BackgroundColor3 = locked and COLORS.Grey or (info.Color or COLORS.Gold)
+						n.Stroke.Color = COLORS.Outline
+						n.Price.Text = locked and ('<font color="#AAB0C4">' .. tr("Cave") .. " " .. locked .. "</font>") or ("x" .. count)
+						if not locked then target = target or n.Button end
+					end
+				else
+					local tier = status and tonumber(status.Tier) or 1
+					local cap = status and status.State == "NeedRebirth"
+					local maxedAll = status and status.State == "Maxed"
+					entry.TagSub.Text = tr("Tier") .. " " .. tier .. " / " .. #entry.Nodes
+					for index, n in entry.Nodes do
+						local t = n.Value
+						local owned = t <= tier
+						local isNext = t == tier + 1 and not maxedAll
+						local line = entry.Lines[index]
+						if line then line.BackgroundColor3 = owned and COLORS.Gold or COLORS.Grey end
+						if owned then
+							n.Button.BackgroundColor3 = KIND_VIEW[kind] and KIND_VIEW[kind].Color or COLORS.Gold
+							n.Stroke.Color = COLORS.Outline
+							n.Caption.Text = tostring(t)
+							n.Price.Text = ""
+						elseif isNext then
+							n.Stroke.Color = COLORS.Gold
+							n.Caption.Text = tostring(t)
+							if cap then
+								n.Button.BackgroundColor3 = Color3.fromRGB(70, 110, 170)
+								n.Price.Text = '<font color="#8CD2FF">' .. tr("PRESTIGE") .. "</font>"
+							elseif status and status.Cost then
+								n.Button.BackgroundColor3 = status.CanAfford and COLORS.Buy or Color3.fromRGB(120, 60, 60)
+								n.Price.Text = highlightCost(status.Cost, status.CanAfford == true)
+							else
+								n.Button.BackgroundColor3 = COLORS.Buy
+								n.Price.Text = ""
+							end
+							target = n.Button
+						else
+							n.Button.BackgroundColor3 = Color3.fromRGB(48, 52, 66)
+							n.Stroke.Color = COLORS.Outline
+							n.Caption.Text = '<font color="#7A8096">' .. tostring(t) .. "</font>"
+							n.Price.Text = ""
+						end
+					end
+				end
+				-- метка обучения ровно на следующем кружке
+				target = target or entry.Tag
+				for _, n in entry.Nodes do if n.Button ~= target then unmark(n.Button) end end
+				if entry.Tag ~= target then unmark(entry.Tag) end
+				TutorialTargetMod.Mark(target, "UpgradeCard:" .. kind)
+				treeTargets[kind] = target
+				if entry.Star then
+					local st = statState[entry.Star.Id]
+					local def = statCfg.Types[entry.Star.Id]
+					local lvl = st and st.Level or 0
+					local maxL = st and st.MaxLevel or (def and def.MaxLevel) or 25
+					entry.Star.Level.Text = lvl >= maxL and '<font color="#FFD75A">MAX</font>'
+						or ((st and st.CanAfford) and ('<font color="#6CFF7E">' .. lvl .. "/" .. maxL .. "</font>") or (lvl .. "/" .. maxL))
+				end
+			end
+			-- старые карточки сетки больше не цели обучения
+			for _, visual in gridCards do unmark(visual.Card) end
+			renderPopup()
+			clampPan()
+		end
+		RunService.Heartbeat:Connect(function(dt)
+			if not (dialogOpen and gridView.Visible) then return end
+			pulseT += dt
+			local s = 1 + math.sin(pulseT * 5) * 0.06
+			for kind, target in treeTargets do
+				local status = latestStatuses[kind]
+				if target:IsA("TextButton") and target.Name:sub(1, 5) == "Node_" and kind ~= "Supplies" and status and status.State == "Buyable" then
+					local stroke = target:FindFirstChildOfClass("UIStroke")
+					if stroke then stroke.Thickness = 3 + (s - 1) * 30 end
+				end
+			end
+			for _, entry in rowsUi do
+				if entry.Star then
+					local st = statState[entry.Star.Id]
+					entry.Star.Button.Rotation = 45 + ((st and st.CanAfford and st.Level < st.MaxLevel) and math.sin(pulseT * 4) * 6 or 0)
+				end
+			end
+		end)
+		clampPan()
+	end
+
 	local function renderAll()
+		refreshTree()
 		for kind, visual in gridCards do
 			applyCard(visual, kind, latestStatuses[kind])
 		end
@@ -3525,7 +4028,7 @@ end
 		end
 		RunService.RenderStepped:Connect(function(dt)
 			local kind = dialogOpen and gridView.Visible and targetKind() or nil
-			local visual = kind and gridCards[kind]
+			local visual = kind and (treeTargets[kind] and { Card = treeTargets[kind] } or gridCards[kind])
 			if not visual then
 				rays.Visible = false
 				return
@@ -3637,6 +4140,7 @@ end
 
 		showGrid(false)
 		if gearRemote then gearRemote:FireServer("GetState") end
+		requestStats()
 		renderAll()
 		fitScale()
 		local target = panelScale.Scale
@@ -3660,6 +4164,7 @@ end
 				task.wait(2)
 				if dialogOpen and pollToken == myToken then
 					shopRemoteEvent:FireServer("Open")
+					requestStats()
 				end
 			end
 		end)

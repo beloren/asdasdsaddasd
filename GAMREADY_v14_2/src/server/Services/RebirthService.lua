@@ -469,6 +469,10 @@ function RebirthService:_tryRebirth(player)
 			end)
 		end
 	end
+	-- v20.140: звёзды дерева прокачки сбрасываются вместе с тирами
+	if Services.UpgradeStatService then
+		pcall(Services.UpgradeStatService.ResetForPrestige, Services.UpgradeStatService, player)
+	end
 	-- v20.138: купленные руды шахты сбрасываются (их снова покупают у торговца)
 	if Services.OreUnlockService and Services.OreUnlockService.ResetForPrestige then
 		pcall(Services.OreUnlockService.ResetForPrestige, Services.OreUnlockService, player)
