@@ -4394,7 +4394,7 @@ Config.TreeIcons = {
 		-- тиры (кружки с цифрой): Mine_2, Cart_3, Pickaxe_4 ...
 	},
 	IslandTreeUi = {    -- Island Keeper
-		Root = 0,                        -- центр 🏝 (иконки нет)
+		Root = 120412550545685,          -- центр: корона
 		Island_Anvil = 105165638797505,  -- остров наковальни (вместо эмодзи)
 		Island_Income = 82555521921482,  -- остров сейфа
 		Island_Smelter = 139816834734038, -- остров печи
