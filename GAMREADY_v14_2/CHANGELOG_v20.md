@@ -1124,3 +1124,6 @@
 
 ## v20.153
 - **Анимация появления деревьев прокачки на ~28% быстрее** (Experienced Miner, Island Keeper, престиж): центр, затемнение, пузырьки, линии и кнопки окна (`Config.TreeReveal`).
+
+## v20.154
+- **Кнопки раскола жеоды (AUTO и SKIP) можно заменить.** Раньше AUTO создавалась кодом, а у SKIP картинка стиралась при каждом запуске. Теперь: своя картинка - `Config.GeodeCutscene.AutoImageId` / `SkipImageId`; или своя кнопка в `StarterGui/GeodeUi` → окно раскола (`Opening`): `SkipButton` (поставь ей Image) и `AutoHammerButton` (положи свою ImageButton/TextButton с TextLabel внутри для надписи). С картинкой фон кнопки прозрачный, надпись (AUTO ON/OFF, цена, SKIP) остаётся.

@@ -2131,7 +2131,50 @@ end
 -- растёт); нет - предложение купить. Выбор запоминается до выхода из игры.
 --------------------------------------------------------------------------------
 Hit.AutoPass = Config.GamePasses.AutoHammer or {}
-Hit.AutoButton = button("AutoHammerButton", "AUTO", Color3.fromRGB(120, 80, 200))
+-- v20.154: СВОЯ КНОПКА AUTO. Положи в StarterGui/GeodeUi/.../Opening кнопку
+-- "AutoHammerButton" (ImageButton или TextButton, с TextLabel внутри для
+-- надписи) - игра возьмёт её вместо своей. Или просто картинку:
+-- Config.GeodeCutscene.AutoImageId (и SkipImageId для SKIP).
+local function imageId(id)
+	id = tonumber(id) or 0
+	return id > 0 and ("rbxassetid://" .. id) or nil
+end
+Hit.CustomAuto = opening:FindFirstChild("AutoHammerButton", true)
+Hit.AutoButton = Hit.CustomAuto or button("AutoHammerButton", "AUTO", Color3.fromRGB(120, 80, 200))
+-- картинка из Config на кнопке-тексте: ImageLabel "Icon" во всю кнопку
+local autoImage = imageId(Config.GeodeCutscene and Config.GeodeCutscene.AutoImageId)
+if autoImage then
+	if Hit.AutoButton:IsA("ImageButton") then
+		Hit.AutoButton.Image = autoImage
+	else
+		local icon = Hit.AutoButton:FindFirstChild("Icon") or Instance.new("ImageLabel")
+		icon.Name = "Icon"
+		icon.BackgroundTransparency = 1
+		icon.Size = UDim2.fromScale(1, 1)
+		icon.ScaleType = Enum.ScaleType.Fit
+		icon.Image = autoImage
+		icon.ZIndex = Hit.AutoButton.ZIndex
+		icon.Parent = Hit.AutoButton
+	end
+end
+-- своя картинка (Image у ImageButton или Config) - фон кнопки не красим
+Hit.AutoHasImage = autoImage ~= nil or (Hit.AutoButton:IsA("ImageButton") and Hit.AutoButton.Image ~= "")
+function Hit.SetAutoText(text)
+	local btn = Hit.AutoButton
+	if btn:IsA("TextButton") then
+		btn.Text = text
+	else
+		local caption = btn:FindFirstChildWhichIsA("TextLabel", true)
+		if caption then caption.Text = text end
+	end
+end
+function Hit.SetAutoColor(color)
+	if Hit.AutoHasImage then
+		Hit.AutoButton.BackgroundTransparency = 1
+	else
+		Hit.AutoButton.BackgroundColor3 = color
+	end
+end
 Hit.AutoButton.AnchorPoint = Vector2.new(1, 1)
 Hit.AutoButton.Position = UDim2.new(1, -20, 1, -100)
 Hit.AutoButton.Size = UDim2.fromOffset(150, 56)
@@ -2159,11 +2202,11 @@ end
 
 function Hit.RefreshAuto()
 	if Hit.OwnsAuto() then
-		Hit.AutoButton.Text = Hit.AutoOn and "AUTO\nON" or "AUTO\nOFF"
-		Hit.AutoButton.BackgroundColor3 = Hit.AutoOn and Color3.fromRGB(70, 190, 90) or Color3.fromRGB(110, 110, 125)
+		Hit.SetAutoText(Hit.AutoOn and "AUTO\nON" or "AUTO\nOFF")
+		Hit.SetAutoColor(Hit.AutoOn and Color3.fromRGB(70, 190, 90) or Color3.fromRGB(110, 110, 125))
 	else
-		Hit.AutoButton.Text = ("AUTO\nR$%d"):format(Hit.AutoPass.PriceRobux or 49)
-		Hit.AutoButton.BackgroundColor3 = Color3.fromRGB(120, 80, 200)
+		Hit.SetAutoText(("AUTO\nR$%d"):format(Hit.AutoPass.PriceRobux or 49))
+		Hit.SetAutoColor(Color3.fromRGB(120, 80, 200))
 	end
 end
 Hit.RefreshAuto()
@@ -2207,9 +2250,32 @@ local buttonSize = (Config.GeodeCutscene and Config.GeodeCutscene.ButtonSize) or
 Hit.Square(skipButton, -20)
 Hit.Square(Hit.AutoButton, -20 - buttonSize - 14)
 if skipButton and (skipButton:IsA("ImageButton") or skipButton:IsA("TextButton")) then
-	if skipButton:IsA("ImageButton") then skipButton.Image = "" end
-	skipButton.BackgroundTransparency = 0
-	skipButton.BackgroundColor3 = Color3.fromRGB(235, 160, 40)
+	-- v20.154: своя картинка SKIP - Image у кнопки в StarterGui/GeodeUi или
+	-- Config.GeodeCutscene.SkipImageId; тогда фон прозрачный. Нет - оранжевая.
+	local skipImage = imageId(Config.GeodeCutscene and Config.GeodeCutscene.SkipImageId)
+	if skipImage and skipButton:IsA("ImageButton") then skipButton.Image = skipImage end
+	-- картинка своя, если она не совпадает с подложкой темы (атрибут UiSkin)
+	local skinKey = skipButton:GetAttribute("UiSkin")
+	local themeSkin = skinKey and require(ReplicatedStorage.Shared.UiKit).Theme.Skins[skinKey]
+	local hasImage = skipButton:IsA("ImageButton") and skipButton.Image ~= ""
+		and skipButton.Image ~= (themeSkin and themeSkin.Image or "")
+	if skipImage and skipButton:IsA("TextButton") then
+		local icon = skipButton:FindFirstChild("Icon") or Instance.new("ImageLabel")
+		icon.Name = "Icon"
+		icon.BackgroundTransparency = 1
+		icon.Size = UDim2.fromScale(1, 1)
+		icon.ScaleType = Enum.ScaleType.Fit
+		icon.Image = skipImage
+		icon.Parent = skipButton
+		hasImage = true
+	end
+	if hasImage or skipImage then
+		skipButton.BackgroundTransparency = 1
+	else
+		if skipButton:IsA("ImageButton") then skipButton.Image = "" end
+		skipButton.BackgroundTransparency = 0
+		skipButton.BackgroundColor3 = Color3.fromRGB(235, 160, 40)
+	end
 end
 
 Hit.AutoButton.Activated:Connect(function()
