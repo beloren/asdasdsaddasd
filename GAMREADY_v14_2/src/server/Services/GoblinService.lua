@@ -265,6 +265,13 @@ local function beginGoblinAttack(goblin, targetHumanoid, targetRoot)
 		if targetPlayer and targetPlayer:GetAttribute("Protected") == true then return end
 		if targetHumanoid.Health > 0 then
 			local damage = GoblinStats.Damage(goblin.Type, goblin.MineTier) * (goblin.DamageMultiplier or 1)
+			-- v20.178: ЗОЛОТОЙ КОРОЛЬ НЕ УБИВАЕТ - смертельный удар подбрасывает
+			-- игрока и выкидывает на его базу (Config.Goblins.GoldenEject)
+			if goblin.Type == "Golden" and targetPlayer and targetHumanoid.Health - damage <= 1 then
+				Sfx.play("GoblinAttackHit", targetRoot)
+				GoblinService:_ejectToBase(targetPlayer, targetHumanoid, targetRoot, root.Position)
+				return
+			end
 			targetHumanoid:TakeDamage(damage)
 			Sfx.play("GoblinAttackHit", targetRoot)
 		end
@@ -2602,7 +2609,11 @@ function GoblinService:SpawnEliteForBoulder(owner, position, tier, contributors)
 					if Services.MutationBookService then
 						Services.MutationBookService:RecordMobFound(participant, goblin.Type)
 					end
-					local drops = Services.RockService:GrantBoulderRewards(participant, tier, participantPosition, true)
+					-- v20.178: убить золотого короля очень тяжело - и награда как с
+					-- золотого валуна (x5 деньги, +роллы) плюс дорогой бонус
+					local drops = Services.RockService:GrantBoulderRewards(participant, tier, participantPosition, true, nil, { Golden = true })
+					drops = type(drops) == "table" and drops or {}
+					pcall(self._goldenKingBonus, self, participant, tier, participantPosition, drops)
 					self:SpawnBoulderRewardChest(participant, participantPosition, tier, drops)
 				end
 			end
@@ -2610,6 +2621,77 @@ function GoblinService:SpawnEliteForBoulder(owner, position, tier, contributors)
 		end)
 	end
 	return true
+end
+
+-- v20.178: ДОРОГАЯ НАГРАДА за золотого короля (Config.Goblins.GoldenReward)
+function GoblinService:_goldenKingBonus(player, tier, position, drops)
+	local cfg = Config.Goblins.GoldenReward or {}
+	-- деньги: столько-то полных рюкзаков пещеры этого тира
+	local cave = Config.CaveForNineTier(tier)
+	local cartValue = Config.CartValue(cave, Config.NaturalCartTierForCave(cave))
+	local money = math.max(1, math.floor(cartValue * (cfg.MoneyCarts or 8) + 0.5))
+	Services.DataService:AddMoney(player, money, position, true)
+	table.insert(drops, "MONEY: $" .. NumberFormat.abbreviate(money))
+	-- сундуки
+	if Services.GearService and (cfg.ChestCount or 0) > 0 then
+		Services.GearService:GrantChest(player, cfg.Chest or "Legendary", cfg.ChestCount, true)
+		table.insert(drops, ("%s CHEST x%d"):format(string.upper(cfg.Chest or "Legendary"), cfg.ChestCount))
+	end
+	-- лучшие жеоды для тира
+	if Services.GeodeService and (cfg.GeodeCount or 0) > 0 then
+		local order = Config.Geodes.Order
+		local geodeType = order[math.min(#order, tier + (cfg.GeodeTierBonus or 1))]
+		for _ = 1, cfg.GeodeCount do
+			pcall(Services.GeodeService.AddGeodeDirectly, Services.GeodeService, player, geodeType)
+		end
+		table.insert(drops, ("GEODE: %s x%d"):format(geodeType, cfg.GeodeCount))
+	end
+	-- очки престижа
+	if Services.PrestigeService and (cfg.PrestigePoints or 0) > 0 then
+		pcall(Services.PrestigeService.AddPoints, Services.PrestigeService, player, cfg.PrestigePoints)
+		table.insert(drops, ("+%d PRESTIGE POINT"):format(cfg.PrestigePoints))
+	end
+	if Services.NotifyService then
+		Services.NotifyService:Show(player, "👑 GOLDEN KING DEFEATED! Huge reward!", { Icon = "Reward", Duration = 5 })
+	end
+end
+
+-- v20.178: удар золотого короля - взлёт и приземление на своей базе вместо смерти
+local ejecting = {}
+function GoblinService:_ejectToBase(player, humanoid, root, fromPosition)
+	if ejecting[player] then return end
+	ejecting[player] = true
+	local cfg = Config.Goblins.GoldenEject or {}
+	humanoid.Health = math.max(1, humanoid.Health) -- удар не смертельный
+	local away = (root.Position - fromPosition) * Vector3.new(1, 0, 1)
+	away = away.Magnitude > 0.1 and away.Unit or Vector3.new(0, 0, 1)
+	pcall(function()
+		humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+		root.AssemblyLinearVelocity = away * (cfg.KnockSpeed or 70) + Vector3.new(0, cfg.KnockUp or 120, 0)
+		root.AssemblyAngularVelocity = Vector3.new(math.random(-8, 8), math.random(-8, 8), math.random(-8, 8))
+	end)
+	if Services.NotifyService then
+		Services.NotifyService:Show(player, cfg.Text or "THE GOLDEN KING THREW YOU HOME!", { Icon = "Goblin", Duration = 4 })
+	end
+	task.delay(cfg.FlightSeconds or 1.1, function()
+		ejecting[player] = nil
+		local character = player.Character
+		if not (character and character.Parent and humanoid.Parent) then return end
+		local target = Services.CompassService and Services.CompassService._raftCFrame
+			and Services.CompassService:_raftCFrame(player)
+		if target then
+			local look = target.LookVector
+			local position = target.Position + Vector3.new(0, 3.5, 0)
+			character:PivotTo(CFrame.lookAt(position, position + Vector3.new(look.X, 0, look.Z)))
+		end
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			hrp.AssemblyLinearVelocity = Vector3.zero
+			hrp.AssemblyAngularVelocity = Vector3.zero
+		end
+		pcall(function() humanoid:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+		humanoid.Health = math.max(humanoid.Health, humanoid.MaxHealth * (cfg.HealthAfter or 0.5))
+	end)
 end
 
 function GoblinService:SpawnBoulderRewardChest(player, position, tier, drops)
