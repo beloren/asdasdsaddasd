@@ -18,17 +18,18 @@
 --------------------------------------------------------------------------------
 
 -- Пусто = собрать всё. Пример: local ONLY = { "ShopUi", "QuestUi" }
--- v20.142: сейчас собираются ТОЛЬКО окна с ветками прокачки - остальные
--- экраны в StarterGui не трогаются (ни пересборка, ни удаление старых,
--- ни скрытие шаблонов). Чтобы собрать всё, сделай ONLY = {}.
-local ONLY = {
-	"UpgradeTreeUi",        -- Experienced Miner: дерево прокачки на весь экран (узлы, звёзды, карточка)
-	"UpgradeShopUi",        -- Experienced Miner: окно ветки (DETAILS) поверх дерева
-	"IslandTreeUi",         -- Island Keeper: дерево островов на весь экран
-	"IslandUi",             -- Island Keeper: старое окно островов (запасное)
-	"PrestigeTreeUi",       -- дерево престижа на весь экран (узлы, карточка, PERKS/SHRINES)
-	"PerkUi",               -- окно престижа: вкладка SHRINES (святилища)
-	"RebirthDialogButtons", -- окно престижа у Prestige Mayor
+-- Работает, только когда PARTS ниже пустой.
+local ONLY = {}
+
+-- v20.155: ТОЛЬКО ДЕТАЛИ. Окно целиком НЕ пересобирается: билдер собирает
+-- его в памяти, и в твой StarterGui.<окно> копируются только перечисленные
+-- элементы. Если такой элемент уже есть, он заменяется, всё остальное в
+-- окне остаётся как ты настроил. Если окна в StarterGui нет, оно ставится
+-- целиком. Чтобы вернуть обычную сборку, сделай PARTS = {}.
+-- Сейчас собираются: кнопки SKIP и AUTO при раскалывании жеоды и шаблон
+-- точки-шарика, по которой тыкают (CrackBallTemplate).
+local PARTS = {
+	GeodeUi = { "SkipButton", "AutoHammerButton", "CrackBallTemplate" },
 }
 
 -- true = НЕ трогать экраны, которые уже есть в StarterGui и собраны этой
@@ -46,6 +47,53 @@ assert(shared and shared:FindFirstChild("UiRegistry"), "[BuildAllUI] Нет Repl
 -- папки Shared (require у клона всегда читает актуальный код).
 local freshShared = shared:Clone()
 local UiRegistry = require(freshShared.UiRegistry)
+
+if next(PARTS) ~= nil then
+	local lines = {}
+	for guiName, names in PARTS do
+		local ok, built = pcall(UiRegistry.Build, guiName)
+		if not ok then
+			table.insert(lines, "✘ " .. guiName .. " - " .. tostring(built))
+			continue
+		end
+		local target = StarterGui:FindFirstChild(guiName)
+		if not target then
+			built.Parent = StarterGui
+			table.insert(lines, "✔ " .. guiName .. " - окна не было, поставлено целиком")
+			continue
+		end
+		for _, partName in names do
+			local fresh = built:FindFirstChild(partName, true)
+			if not fresh then
+				table.insert(lines, "✘ " .. guiName .. "." .. partName .. " - нет в билдере")
+				continue
+			end
+			-- куда класть: туда же, где лежит старый элемент, иначе в тот же
+			-- путь, что в билдере (например OpeningOverlay)
+			local old = target:FindFirstChild(partName, true)
+			local parent = old and old.Parent
+			if not parent then
+				parent = target
+				local path = {}
+				local node = fresh.Parent
+				while node and node ~= built do
+					table.insert(path, 1, node.Name)
+					node = node.Parent
+				end
+				for _, step in path do
+					parent = parent:FindFirstChild(step) or parent
+				end
+			end
+			if old then old:Destroy() end
+			fresh.Parent = parent
+			table.insert(lines, "✔ " .. guiName .. "." .. partName .. (old and " - заменён" or " - добавлен") .. " в " .. parent:GetFullName())
+		end
+		built:Destroy()
+	end
+	freshShared:Destroy()
+	print("[BuildAllUI] Только детали:\n  " .. table.concat(lines, "\n  "))
+	do return end
+end
 
 -- Устаревшие экраны прошлых версий (заменены новыми или больше не нужны).
 local LEGACY = {

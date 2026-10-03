@@ -8032,6 +8032,7 @@ Config.GeodeCutscene = {
 	ButtonSize = 104,             -- v20.106: квадратные кнопки AUTO и SKIP, пиксели
 	AutoImageId = 0,              -- v20.154: своя картинка кнопки AUTO (0 - цветная кнопка с текстом)
 	SkipImageId = 0,              -- v20.154: своя картинка кнопки SKIP
+	CrackBallImageId = 0,         -- v20.155: картинка точек-шариков, по которым тыкают (0 - как в CrackBallTemplate)
 	HitSquash = 0.32,             -- v20.121: на сколько жеода сплющивается по высоте от удара (доля; 0 - выкл)
 	HitSquashSeconds = 0.26,      -- длина сплющивания с пружинкой
 	HammerAsset = "GeodeHammer",

@@ -1127,3 +1127,16 @@
 
 ## v20.154
 - **Кнопки раскола жеоды (AUTO и SKIP) можно заменить.** Раньше AUTO создавалась кодом, а у SKIP картинка стиралась при каждом запуске. Теперь: своя картинка - `Config.GeodeCutscene.AutoImageId` / `SkipImageId`; или своя кнопка в `StarterGui/GeodeUi` → окно раскола (`Opening`): `SkipButton` (поставь ей Image) и `AutoHammerButton` (положи свою ImageButton/TextButton с TextLabel внутри для надписи). С картинкой фон кнопки прозрачный, надпись (AUTO ON/OFF, цена, SKIP) остаётся.
+
+## v20.155
+
+* **Точки-шарики раскалывания жеоды заменяемые.** Шарик клонируется из `StarterGui/GeodeUi/OpeningOverlay/CrackBallTemplate`:
+  размер берётся из его `Size` (Offset X), цвет, картинка (`Image`), обводка и т.п. тоже оттуда. Картинку можно
+  задать и через `Config.GeodeCutscene.CrackBallImageId`.
+* **Кнопка AUTO теперь есть в билдере** (`AutoHammerButton` рядом со `SkipButton`). Обе кнопки собираются с
+  атрибутом `KeepLayout = true`: игра их не двигает и не перекрашивает, как поставил в Studio, так и будет в игре.
+  У AUTO подложка меняется вариантом темы: ON зелёная, OFF тёмная, покупка фиолетовая (если своей картинки нет).
+  Старые кнопки без атрибута работают по-прежнему.
+* **BuildAllUI: режим «только детали» (`PARTS`).** Сейчас он ставит в твой `GeodeUi` только `SkipButton`,
+  `AutoHammerButton` и `CrackBallTemplate` (заменяет, если есть). Остальное окно не пересобирается.
+  `BuilderVersion` не поднят, поэтому игра сама окно тоже не пересоберёт.

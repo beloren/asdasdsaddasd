@@ -16,7 +16,8 @@
 --     (Name, IconBackground/Icon, Owned, BuyButton(Caption, ProductIcon));
 --   "PodiumPanel" — BankPodiumUiBuilder;
 --   ImageLabel "OpeningOverlay" → Flash, EggImage, ResultImage(DropOutline),
---     ResultText, CrackTapButton, ClickHint, SkipButton(Caption), Frame "ResultCards";
+--     ResultText, CrackTapButton, ClickHint, SkipButton(Caption), AutoHammerButton(Caption),
+--     CrackBallTemplate (точка-шарик для тыканья), Frame "ResultCards";
 --   ImageLabel "OpenCountMenu" → Title, TextButton "Open3"/"Open1"/"Open5";
 --   TextButton "CollectionContextBackdrop", ImageLabel "CollectionContextTemplate"
 --     → Title, Close, Install/Extract/Delete, ConfirmDelete/CancelDelete (Caption).
@@ -257,13 +258,34 @@ function Builder.Build()
 		Visible = false,
 		ZIndex = 22,
 	})
-	UiKit.Button(opening, "SkipButton", "SKIP >", "Purple", {
+	-- v20.155: SKIP и AUTO - квадратные кнопки внизу справа. Атрибут
+	-- KeepLayout = true: игра НЕ двигает и не перекрашивает их - как
+	-- поставишь/нарисуешь в Studio, так и будет в игре (поставь false,
+	-- чтобы вернуть раскладку из кода).
+	local skip = UiKit.Button(opening, "SkipButton", "SKIP >", "Yellow", {
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -20, 1, -20),
-		Size = UDim2.fromOffset(130, 46),
+		Size = UDim2.fromOffset(104, 104),
 		Visible = false,
 		ZIndex = 30,
 	})
+	skip:SetAttribute("KeepLayout", true)
+	local auto = UiKit.Button(opening, "AutoHammerButton", "AUTO", "Purple", {
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -138, 1, -20),
+		Size = UDim2.fromOffset(104, 104),
+		Visible = false,
+		ZIndex = 30,
+	})
+	auto:SetAttribute("KeepLayout", true)
+	for _, b in { skip, auto } do
+		local caption = b:FindFirstChild("Caption")
+		if caption then
+			caption.TextScaled = true
+			caption.TextWrapped = true
+			caption.ZIndex = 31
+		end
+	end
 	local resultCards = UiKit.Group(opening, "ResultCards", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
@@ -304,7 +326,8 @@ function Builder.Build()
 		Size = UDim2.new(1, -8, 0, 108),
 		ZIndex = 22,
 	})
-	-- Шарик «бей сюда» при вскрытии.
+	-- Шарик «бей сюда» при вскрытии (точка, по которой тыкают). Клиент
+	-- клонирует его в случайное место; размер, цвет, Image, обводка - отсюда.
 	local crackBall = UiKit.PlateButton(opening, "CrackBallTemplate", "Round", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Size = UDim2.fromOffset(92, 92),

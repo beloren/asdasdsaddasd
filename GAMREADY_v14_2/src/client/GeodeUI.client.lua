@@ -219,7 +219,7 @@ local skipButton = opening and opening:FindFirstChild("SkipButton")
 -- ДРУГОЙ ScreenGui с меньшим DisplayOrder, так что перекрыть эту кнопку не
 -- может). Позицию задаём в коде, чтобы она не зависела от того, как и кем
 -- пересобирался ассет.
-if skipButton and skipButton:IsA("GuiObject") then
+if skipButton and skipButton:IsA("GuiObject") and not skipButton:GetAttribute("KeepLayout") then
 	skipButton.AnchorPoint = Vector2.new(1, 1)
 	skipButton.Position = UDim2.new(1, -20, 1, -20)
 	-- Выше всего внутри оверлея: чтобы её саму ничем не перекрыло.
@@ -2158,7 +2158,13 @@ if autoImage then
 	end
 end
 -- своя картинка (Image у ImageButton или Config) - фон кнопки не красим
-Hit.AutoHasImage = autoImage ~= nil or (Hit.AutoButton:IsA("ImageButton") and Hit.AutoButton.Image ~= "")
+-- (подложка темы - атрибут UiSkin - своей картинкой не считается)
+do
+	local skinKey = Hit.AutoButton:GetAttribute("UiSkin")
+	local themeSkin = skinKey and require(ReplicatedStorage.Shared.UiKit).Theme.Skins[skinKey]
+	Hit.AutoHasImage = autoImage ~= nil or (Hit.AutoButton:IsA("ImageButton") and Hit.AutoButton.Image ~= ""
+		and Hit.AutoButton.Image ~= (themeSkin and themeSkin.Image or ""))
+end
 function Hit.SetAutoText(text)
 	local btn = Hit.AutoButton
 	if btn:IsA("TextButton") then
@@ -2168,13 +2174,21 @@ function Hit.SetAutoText(text)
 		if caption then caption.Text = text end
 	end
 end
-function Hit.SetAutoColor(color)
+function Hit.SetAutoColor(color, variant)
+	-- v20.155: кнопка из билдера (KeepLayout) красится вариантом темы
+	if Hit.AutoButton:GetAttribute("KeepLayout") then
+		if not Hit.AutoHasImage and variant and Hit.AutoButton:GetAttribute("ButtonVariant") then
+			require(ReplicatedStorage.Shared.UiKit).SetButtonVariant(Hit.AutoButton, variant)
+		end
+		return
+	end
 	if Hit.AutoHasImage then
 		Hit.AutoButton.BackgroundTransparency = 1
 	else
 		Hit.AutoButton.BackgroundColor3 = color
 	end
 end
+if not Hit.CustomAuto then
 Hit.AutoButton.AnchorPoint = Vector2.new(1, 1)
 Hit.AutoButton.Position = UDim2.new(1, -20, 1, -100)
 Hit.AutoButton.Size = UDim2.fromOffset(150, 56)
@@ -2195,6 +2209,7 @@ do
 	limit.MaxTextSize = 30
 	limit.Parent = Hit.AutoButton
 end
+end
 
 function Hit.OwnsAuto()
 	return player:GetAttribute("Owns_AutoHammer") == true
@@ -2203,10 +2218,10 @@ end
 function Hit.RefreshAuto()
 	if Hit.OwnsAuto() then
 		Hit.SetAutoText(Hit.AutoOn and "AUTO\nON" or "AUTO\nOFF")
-		Hit.SetAutoColor(Hit.AutoOn and Color3.fromRGB(70, 190, 90) or Color3.fromRGB(110, 110, 125))
+		Hit.SetAutoColor(Hit.AutoOn and Color3.fromRGB(70, 190, 90) or Color3.fromRGB(110, 110, 125), Hit.AutoOn and "Green" or "Dark")
 	else
 		Hit.SetAutoText(("AUTO\nR$%d"):format(Hit.AutoPass.PriceRobux or 49))
-		Hit.SetAutoColor(Color3.fromRGB(120, 80, 200))
+		Hit.SetAutoColor(Color3.fromRGB(120, 80, 200), "Purple")
 	end
 end
 Hit.RefreshAuto()
@@ -2215,7 +2230,7 @@ player:GetAttributeChangedSignal("Owns_AutoHammer"):Connect(Hit.RefreshAuto)
 -- v20.106: AUTO и SKIP - одинаковые КВАДРАТНЫЕ кнопки рядом внизу справа
 -- (Config.GeodeCutscene.ButtonSize).
 function Hit.Square(btn, rightOffset)
-	if not (btn and btn:IsA("GuiObject")) then return end
+	if not (btn and btn:IsA("GuiObject")) or btn:GetAttribute("KeepLayout") then return end
 	local size = (Config.GeodeCutscene and Config.GeodeCutscene.ButtonSize) or 104
 	btn.AnchorPoint = Vector2.new(1, 1)
 	btn.Size = UDim2.fromOffset(size, size)
@@ -2271,6 +2286,8 @@ if skipButton and (skipButton:IsA("ImageButton") or skipButton:IsA("TextButton")
 	end
 	if hasImage or skipImage then
 		skipButton.BackgroundTransparency = 1
+	elseif skipButton:GetAttribute("KeepLayout") then
+		-- v20.155: кнопка из билдера - цвет как в Studio
 	else
 		if skipButton:IsA("ImageButton") then skipButton.Image = "" end
 		skipButton.BackgroundTransparency = 0
@@ -2340,13 +2357,16 @@ spawnCrackBall = function()
 	end
 	ball.Name = "CrackBall"
 	ball.AnchorPoint = Vector2.new(0.5, 0.5)
-	local size = 92 * DROP_SCALE
+	-- v20.155: размер берётся из шаблона (Size.X.Offset), иначе 92
+	local baseSize = ballTemplate and ballTemplate.Size.X.Offset or 0
+	local size = (baseSize > 0 and baseSize or 92) * DROP_SCALE
 	ball.Size = UDim2.fromOffset(size, size)
 	local marginX, marginY = 0.16, 0.24
 	local x = marginX + math.random() * (1 - marginX * 2)
 	local y = marginY + math.random() * (1 - marginY * 2)
 	ball.Position = UDim2.fromScale(x, y)
-	local ballImage = imageUri(Config.Geodes.Images.CrackBall or 0)
+	local ballImage = imageUri((Config.GeodeCutscene and tonumber(Config.GeodeCutscene.CrackBallImageId) or 0) > 0
+		and Config.GeodeCutscene.CrackBallImageId or (Config.Geodes.Images.CrackBall or 0))
 	if ballImage ~= "" then ball.Image = ballImage end
 	ball.Parent = opening
 	ball.Activated:Connect(function() onCrackHit(false) end)
