@@ -135,7 +135,17 @@ local function show(offer)
 	subtitle.Text = require(game:GetService("ReplicatedStorage").Shared.TutorialColors).Paint(tr(tostring(offer.Text or ""))) .. (reward > 0 and ('  ·  <font color="#6CFF7E">+$' .. reward .. "</font>") or "")
 	banner.Visible = true
 	banner.Position = UDim2.new(0.5, 0, 0, -120)
-	TweenService:Create(banner, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = UDim2.new(0.5, 0, 0, 64) }):Play()
+	-- v20.180: плашка задания обучения сверху (TaskPlacement = "Top") - встаём под неё
+	local bannerY = 64
+	pcall(function()
+		local tutorialGui = player:FindFirstChildOfClass("PlayerGui"):FindFirstChild("TutorialUi")
+		local taskPlate = tutorialGui and tutorialGui:FindFirstChild("Task")
+		local cfgTutorial = require(game:GetService("ReplicatedStorage").Shared.Config).Tutorial or {}
+		if taskPlate and taskPlate.Visible and (cfgTutorial.TaskPlacement or "Top") == "Top" then
+			bannerY = math.max(bannerY, (cfgTutorial.TopOffset or 74) + taskPlate.AbsoluteSize.Y + 26)
+		end
+	end)
+	TweenService:Create(banner, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = UDim2.new(0.5, 0, 0, bannerY) }):Play()
 	sfx("QuestProgress")
 	local seconds = tonumber(offer.Seconds) or 10
 	bar.Size = UDim2.fromScale(1, 1)

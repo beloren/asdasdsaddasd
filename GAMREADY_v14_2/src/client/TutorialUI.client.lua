@@ -388,8 +388,45 @@ local function aboveHotbarOffset()
 	return -math.max(28, math.floor(gui.AbsoluteSize.Y - barTop + 8))
 end
 
+-- v20.180: ГДЕ СТОЯТ ПЛАШКА ЗАДАНИЯ И ДИАЛОГ (Config.Tutorial.TaskPlacement /
+-- DialogPlacement): "Bottom" - над хотбаром (как было), "Top" - сверху под
+-- топбаром, "Right" - справа посередине, "Left" - слева посередине.
+local LAYOUT = Config.Tutorial or {}
+local function placementOf(frame)
+	local value = frame == task_ and (LAYOUT.TaskPlacement or "Top") or (LAYOUT.DialogPlacement or "Bottom")
+	return tostring(value)
+end
 local function restingPosition(frame)
-	return UDim2.new(frame.Position.X.Scale, frame.Position.X.Offset, 1, aboveHotbarOffset())
+	local placement = placementOf(frame)
+	if placement == "Top" then
+		frame.AnchorPoint = Vector2.new(0.5, 0)
+		return UDim2.new(0.5, 0, 0, tonumber(LAYOUT.TopOffset) or 74)
+	elseif placement == "Right" then
+		frame.AnchorPoint = Vector2.new(1, 0.5)
+		return UDim2.new(1, -(tonumber(LAYOUT.SideMargin) or 16), tonumber(LAYOUT.SideHeight) or 0.62, 0)
+	elseif placement == "Left" then
+		frame.AnchorPoint = Vector2.new(0, 0.5)
+		return UDim2.new(0, tonumber(LAYOUT.SideMargin) or 16, tonumber(LAYOUT.SideHeight) or 0.62, 0)
+	end
+	frame.AnchorPoint = Vector2.new(0.5, 1)
+	return UDim2.new(0.5, 0, 1, aboveHotbarOffset())
+end
+-- куда окно уезжает, когда спрятано (за ближайший край экрана)
+local function hiddenPosition(frame)
+	local rest = restingPosition(frame)
+	local placement = placementOf(frame)
+	if placement == "Top" then
+		return UDim2.new(rest.X.Scale, rest.X.Offset, 0, -(frame.AbsoluteSize.Y + 60))
+	elseif placement == "Right" then
+		return UDim2.new(1, frame.AbsoluteSize.X + 60, rest.Y.Scale, rest.Y.Offset)
+	elseif placement == "Left" then
+		return UDim2.new(0, -(frame.AbsoluteSize.X + 60), rest.Y.Scale, rest.Y.Offset)
+	end
+	return UDim2.new(rest.X.Scale, rest.X.Offset, 1, 90)
+end
+local function nearPosition(a, b, tolerance)
+	return math.abs(a.X.Offset - b.X.Offset) < tolerance and math.abs(a.Y.Offset - b.Y.Offset) < tolerance
+		and math.abs(a.X.Scale - b.X.Scale) < 0.001 and math.abs(a.Y.Scale - b.Y.Scale) < 0.001
 end
 
 -- v20.118: ПОКА ГОВОРИТ НПС - остальной интерфейс уезжает к краям (кроме
@@ -449,7 +486,7 @@ local function slideIn(frame)
 		dialogEntrance()
 	end
 	local rest = restingPosition(frame)
-	frame.Position = UDim2.new(rest.X.Scale, rest.X.Offset, 1, 90)
+	frame.Position = hiddenPosition(frame)
 	frame.Visible = true
 	TweenService:Create(frame, ANIM_IN, { Position = rest }):Play()
 end
@@ -459,9 +496,8 @@ local function slideOut(frame)
 	if not frame.Visible then return end
 	frame:SetAttribute("_Shown", false)
 	if frame == dialog then dialogExit() end
-	local rest = restingPosition(frame)
 	local tween = TweenService:Create(frame, ANIM_OUT, {
-		Position = UDim2.new(rest.X.Scale, rest.X.Offset, 1, 90),
+		Position = hiddenPosition(frame),
 	})
 	tween:Play()
 	tween.Completed:Connect(function()
@@ -906,7 +942,7 @@ task.spawn(function()
 		for _, frame in { dialog, task_ } do
 			if frame.Visible and frame:GetAttribute("_Shown") == true then
 				local rest = restingPosition(frame)
-				if math.abs(frame.Position.Y.Offset - rest.Y.Offset) > 2 and math.abs(frame.Position.Y.Offset - rest.Y.Offset) < 400 then
+				if not nearPosition(frame.Position, rest, 2) and not nearPosition(frame.Position, hiddenPosition(frame), 2) then
 					TweenService:Create(frame, ANIM_OUT, { Position = rest }):Play()
 				end
 			end
@@ -1440,7 +1476,7 @@ RunService.RenderStepped:Connect(function()
 	end
 	if task_.Visible and not taskHiddenForUi and task_:GetAttribute("_Shown") == true then
 		local rest = restingPosition(task_)
-		if math.abs(task_.Position.Y.Offset - rest.Y.Offset) < 2 then
+		if nearPosition(task_.Position, rest, 2) then
 			plateRect = { Pos = task_.AbsolutePosition, Size = task_.AbsoluteSize }
 		end
 	end
@@ -1452,9 +1488,8 @@ RunService.RenderStepped:Connect(function()
 		clearSince = nil
 		if task_.Visible and not taskHiddenForUi then
 			taskHiddenForUi = true
-			local rest = restingPosition(task_)
 			local out = TweenService:Create(task_, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-				Position = UDim2.new(rest.X.Scale, rest.X.Offset, 1, 90),
+				Position = hiddenPosition(task_),
 			})
 			out:Play()
 			out.Completed:Connect(function()
@@ -1468,7 +1503,7 @@ RunService.RenderStepped:Connect(function()
 			clearSince = nil
 			if task_:GetAttribute("_Shown") == true then
 				local rest = restingPosition(task_)
-				task_.Position = UDim2.new(rest.X.Scale, rest.X.Offset, 1, 90)
+				task_.Position = hiddenPosition(task_)
 				task_.Visible = true
 				TweenService:Create(task_, ANIM_IN, { Position = rest }):Play()
 			end
