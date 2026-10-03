@@ -1412,7 +1412,7 @@ function RockService:Damage(state, player, damage)
 	local playerTier = Services.DataService:GetBranchTier(player, "Pickaxe")
 	local difference = state.Tier - playerTier
 	if difference >= 3 then
-		Services.NotifyService:Show(player, ("Not strong enough - requires at least tier %d"):format(state.Tier - 2), { Icon = "Pickaxe" })
+		Services.NotifyService:Show(player, ("PICKAXE TOO WEAK! NEED TIER %d"):format(state.Tier - 2), { Icon = "Pickaxe" })
 		return 0
 	end
 	local multiplier = difference == 2 and Config.Boulders.GroupDamageMultiplier or 1
@@ -1886,7 +1886,7 @@ function RockService:OnPickaxeHit(state, player)
 	local pickaxeTier = equippedPickaxeTierFor(player)
 	local need = boulderHitsNeeded(state.Tier, pickaxeTier)
 	if not need then
-		Services.NotifyService:Show(player, ("Too tough for your pickaxe - use DYNAMITE (or pickaxe tier %d)"):format(state.Tier - Config.BoulderGame.MaxDiffWithPickaxe), { Icon = "Pickaxe" })
+		Services.NotifyService:Show(player, ("TOO HARD! USE DYNAMITE OR PICKAXE TIER %d"):format(state.Tier - Config.BoulderGame.MaxDiffWithPickaxe), { Icon = "Pickaxe" })
 		return
 	end
 	-- v10: 🎯 PERFECT STRIKE (микротранзакция) — валун сразу ломается на PERFECT.

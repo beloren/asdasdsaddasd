@@ -132,6 +132,11 @@ end
 boldFont(body)
 boldFont(taskBody)
 boldFont(taskTitle)
+-- v20.174: ключевые слова цветом (Shared.TutorialColors, Config.Tutorial.Keywords)
+local paint = require(game:GetService("ReplicatedStorage").Shared.TutorialColors).Paint
+body.RichText = true
+taskBody.RichText = true
+taskTitle.RichText = true
 
 -- v20.148: ПЕРСОНАЖ РЯДОМ С РЕПЛИКОЙ ПОКАЧИВАЕТСЯ: пока печатается текст -
 -- живо подпрыгивает («говорит»), потом - еле заметно дышит.
@@ -318,7 +323,7 @@ local function finishTyping()
 	-- переведённой, и сверка с исходным английским текстом означала бы,
 	-- что тап всегда считается "печать не закончена" и реплика никогда
 	-- не пролистывается.
-	local full = tr(current.Text)
+	local full = paint(tr(current.Text, current.TextArgs))
 	if body.Text == full and body.MaxVisibleGraphemes == -1 then return false end
 	typingToken += 1
 	body.Text = full
@@ -569,12 +574,70 @@ local function showDialog(payload)
 	-- безусловное Visible = true, и на телефоне портрет наезжал на текст.
 	portrait.Visible = false -- v20.110: вместо портрета - персонаж слева (Character)
 
-	typeText(body, tr(payload.Text or ""), function()
+	typeText(body, paint(tr(payload.Text or "", payload.TextArgs)), function()
 		task.wait(Config.Tutorial.AdvanceGuardSeconds or 0.25)
 		canAdvance = true
 		continueArrow.Visible = true
 		startAutoAdvance()
 	end)
+end
+
+-- v20.174: ПОЛОСКА ВРЕМЕНИ под плашкой задания главы (Config.Tutorial.
+-- ChapterTaskSeconds). Кончилась - сервер убирает подсказку до следующего
+-- подхода к механике. Вид - Frame "TimerBar" > "Fill" в Task (можно
+-- поправить в StarterGui), нет - создаётся здесь.
+local Timer = { Deadline = nil, Total = 1 }
+do
+	local bar = task_:FindFirstChild("TimerBar")
+	if not bar then
+		bar = Instance.new("Frame")
+		bar.Name = "TimerBar"
+		bar.AnchorPoint = Vector2.new(0.5, 0)
+		bar.Position = UDim2.new(0.5, 0, 1, 6)
+		bar.Size = UDim2.new(0.9, 0, 0, 8)
+		bar.BackgroundColor3 = Color3.fromRGB(20, 22, 30)
+		bar.BackgroundTransparency = 0.25
+		bar.BorderSizePixel = 0
+		bar.ZIndex = (task_.ZIndex or 2) + 1
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(1, 0)
+		corner.Parent = bar
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 2
+		stroke.Color = Color3.fromRGB(10, 10, 14)
+		stroke.Parent = bar
+		local fill = Instance.new("Frame")
+		fill.Name = "Fill"
+		fill.Size = UDim2.fromScale(1, 1)
+		fill.BackgroundColor3 = Color3.fromRGB(108, 255, 126)
+		fill.BorderSizePixel = 0
+		fill.ZIndex = bar.ZIndex + 1
+		local fillCorner = Instance.new("UICorner")
+		fillCorner.CornerRadius = UDim.new(1, 0)
+		fillCorner.Parent = fill
+		fill.Parent = bar
+		bar.Parent = task_
+	end
+	bar.Visible = false
+	Timer.Bar = bar
+	Timer.Fill = bar:FindFirstChild("Fill")
+	game:GetService("RunService").RenderStepped:Connect(function()
+		if not (Timer.Deadline and Timer.Bar.Visible and Timer.Fill) then return end
+		local k = math.clamp((Timer.Deadline - os.clock()) / math.max(Timer.Total, 1), 0, 1)
+		Timer.Fill.Size = UDim2.fromScale(k, 1)
+		Timer.Fill.BackgroundColor3 = k > 0.5 and Color3.fromRGB(108, 255, 126)
+			or (k > 0.2 and Color3.fromRGB(255, 205, 60) or Color3.fromRGB(255, 80, 70))
+	end)
+end
+function Timer.Apply(payload)
+	if payload and tonumber(payload.TimeLeft) and tonumber(payload.TimeTotal) then
+		Timer.Deadline = os.clock() + tonumber(payload.TimeLeft)
+		Timer.Total = tonumber(payload.TimeTotal)
+		Timer.Bar.Visible = true
+	else
+		Timer.Deadline = nil
+		Timer.Bar.Visible = false
+	end
 end
 
 local function showTask(payload)
@@ -591,12 +654,13 @@ local function showTask(payload)
 	lastStepIndex = payload.StepIndex
 	canAdvance = false
 
-	taskTitle.Text = tr(payload.Short or "")
-	local text = tr(payload.Task or "")
+	taskTitle.Text = paint(tr(payload.Short or ""))
+	local text = paint(tr(payload.Task or ""))
 	if payload.ShowProgress then
 		text = ("%s  (%d/%d)"):format(text, payload.Progress or 0, payload.ProgressTarget or 1)
 	end
 	taskBody.Text = text
+	Timer.Apply(payload) -- v20.174
 	-- v20.150: SKIP только после первого шага - на первом его жмут случайно
 	skipButton.Visible = payload.CanSkip ~= false and (tonumber(payload.StepIndex) or 1) > 1
 	-- Сервер переотправляет плашку каждые 2 сек (живая цель стрелки) —

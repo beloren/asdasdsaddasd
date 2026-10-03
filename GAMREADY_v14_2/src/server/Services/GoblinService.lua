@@ -2442,7 +2442,7 @@ function GoblinService:SpawnWave(player, count, tutorial, force)
 	player:SetAttribute("GoblinWaveActive", true)
 	player:SetAttribute("GoblinWaveTutorial", tutorial == true)
 	if Services.NotifyService then
-		Services.NotifyService:Show(player, tutorial and "A goblin appeared near your base - protect your cart!" or "Goblins appeared near your base - protect your cart!", { Icon = "Goblin" })
+		Services.NotifyService:Show(player, tutorial and "GOBLIN AT YOUR BASE! HIT IT!" or "GOBLINS AT YOUR BASE! FIGHT!", { Icon = "Goblin" })
 	end
 	Sfx.play("GoblinWaveWarning", folder:FindFirstChildWhichIsA("Model"))
 end

@@ -130,7 +130,9 @@ local function show(offer)
 	subtitle.Size = UDim2.new(1, isHint and -76 or -200, 0, 22)
 	title.Text = (isHint and "" or (tr("NEW") .. ": ")) .. tr(tostring(offer.Title or "")):upper()
 	local reward = tonumber(offer.Reward) or 0
-	subtitle.Text = tr(tostring(offer.Text or "")) .. (reward > 0 and ("  ·  +$" .. reward) or "")
+	-- v20.174: ключевые слова цветом
+	subtitle.RichText = true
+	subtitle.Text = require(game:GetService("ReplicatedStorage").Shared.TutorialColors).Paint(tr(tostring(offer.Text or ""))) .. (reward > 0 and ('  ·  <font color="#6CFF7E">+$' .. reward .. "</font>") or "")
 	banner.Visible = true
 	banner.Position = UDim2.new(0.5, 0, 0, -120)
 	TweenService:Create(banner, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = UDim2.new(0.5, 0, 0, 64) }):Play()

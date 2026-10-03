@@ -38,6 +38,7 @@ local bar = gui:WaitForChild("Bar")
 local tooltip = gui:WaitForChild("Tooltip")
 local tooltipTitle = tooltip:WaitForChild("Title")
 local tooltipBody = tooltip:WaitForChild("Body")
+tooltipBody.RichText = true -- v20.174: цветные мутации погоды
 local iconTemplate = gui:WaitForChild("Templates"):WaitForChild("IconTemplate")
 
 local shownFor = nil
@@ -342,6 +343,30 @@ local function weatherDisplayName(id)
 	return id
 end
 
+-- v20.174: строка «какие мутации чаще» для погоды, каждая мутация своим цветом
+local function hexOf(color)
+	return ("#%02X%02X%02X"):format(math.floor(color.R * 255 + 0.5), math.floor(color.G * 255 + 0.5), math.floor(color.B * 255 + 0.5))
+end
+local function weatherMutationsLine(id)
+	for _, event in (Config.WeatherEvents and Config.WeatherEvents.Events) or {} do
+		if event.Id == id and type(event.BoostedMutations) == "table" then
+			local parts = {}
+			for _, mutation in (Config.Mutations and Config.Mutations.Order) or {} do
+				local boost = event.BoostedMutations[mutation]
+				if boost then
+					local info = Config.Mutations[mutation] or {}
+					local color = typeof(info.Color) == "Color3" and hexOf(info.Color) or "#FFFFFF"
+					table.insert(parts, ('<font color="%s"><b>%s</b></font> <font color="#FFD75A">x%s</font>'):format(color, (info.DisplayName or mutation):upper(), tostring(boost)))
+				end
+			end
+			if #parts > 0 then
+				return '<font color="#AAB0C4">MUTATIONS MORE COMMON:</font>\n' .. table.concat(parts, "  ")
+			end
+		end
+	end
+	return nil
+end
+
 local function collectEffects()
 	local effects = {}
 
@@ -389,7 +414,8 @@ local function collectEffects()
 			-- в чат при старте события: он и есть готовое человеческое
 			-- описание "что это значит", отдельного текста заводить не
 			-- пришлось.
-			Description = weather.AnnounceText or "A weather event is active. It changes which ore and mutations you find.",
+			Description = (weatherMutationsLine(weather.Id) and (weatherMutationsLine(weather.Id) .. "\n" .. (weather.AnnounceText or "")))
+				or weather.AnnounceText or "A weather event is active. It changes which ore and mutations you find.",
 			IconText = "WX",
 			ImageId = Config.WeatherIconId and Config.WeatherIconId(weather.Id) or 0, -- v20.158
 			Color = WEATHER_COLORS[weather.Id] or Color3.fromRGB(150, 190, 255),

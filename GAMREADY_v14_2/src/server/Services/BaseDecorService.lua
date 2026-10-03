@@ -518,6 +518,7 @@ function BaseDecorService:UseJar(player, uid)
 	if not removed then return end
 	record.JarOre = copyOre(removed, 1)
 	self:_refreshJar(player, record)
+	if Services.TutorialService then pcall(Services.TutorialService.Count, Services.TutorialService, player, "JarFilled", 1) end -- v20.174
 end
 
 -- Сундук-хранилище: состояние для окна.
@@ -556,6 +557,7 @@ function BaseDecorService:OpenStorage(player, uid)
 	if not (record and decorFunction(record) == "Storage" and storageRemote) then return end
 	record.Storage = type(record.Storage) == "table" and record.Storage or {}
 	storageRemote:FireClient(player, "Open", self:_storageState(player, record))
+	if Services.TutorialService then pcall(Services.TutorialService.Count, Services.TutorialService, player, "StorageOpened", 1) end -- v20.174
 end
 
 -- Положить стопку рюкзака (целиком, сколько влезет) в сундук.

@@ -149,6 +149,28 @@ Config.Tutorial = {
 	AutoAdvanceBase = 3.4,         -- сек на любую реплику (v20.133: +2 с)
 	AutoAdvancePerChar = 0.045,    -- сек на каждую букву (короткая реплика листается быстрее)
 	DialogHudFocus = false,        -- v20.130: true - HUD уезжает к краям, пока говорит НПС
+	-- v20.174: ЦВЕТНЫЕ КЛЮЧЕВЫЕ СЛОВА в репликах, задании и плашках (Shared.TutorialColors).
+	-- Красится уже переведённый текст, так что слова - и английские, и русские.
+	-- Суммы «$150» всегда зелёные (MoneyColor). ColorKeywords = false - выключить.
+	ColorKeywords = true,
+	MoneyColor = Color3.fromRGB(108, 255, 126),
+	Keywords = {
+		{ Color = Color3.fromRGB(108, 255, 126), Words = { "money", "cash", "free", "sell", "sold", "SELL ALL", "деньги", "денег", "деньгами", "бесплатно", "продай", "продать", "продажи" } },
+		{ Color = Color3.fromRGB(255, 179, 71), Words = { "ore", "ores", "руда", "руду", "руды", "рудой", "руде" } },
+		{ Color = Color3.fromRGB(214, 170, 120), Words = { "boulder", "boulders", "rock", "rocks", "валун", "валуны", "валунов", "валунах", "камни" } },
+		{ Color = Color3.fromRGB(255, 107, 107), Words = { "pickaxe", "кирку", "кирка", "кирки" } },
+		{ Color = Color3.fromRGB(255, 165, 79), Words = { "mine", "cave", "dig", "mining", "шахта", "шахту", "шахте", "шахты", "копать" } },
+		{ Color = Color3.fromRGB(255, 215, 90), Words = { "upgrade", "upgrades", "bigger", "trader", "улучшение", "улучши", "торговец", "торговцу" } },
+		{ Color = Color3.fromRGB(90, 180, 255), Words = { "backpack", "рюкзак", "рюкзаке" } },
+		{ Color = Color3.fromRGB(192, 124, 255), Words = { "geode", "geodes", "жеода", "жеоду", "жеоды" } },
+		{ Color = Color3.fromRGB(111, 224, 255), Words = { "crystal", "crystals", "кристалл", "кристаллы" } },
+		{ Color = Color3.fromRGB(60, 220, 180), Words = { "island", "islands", "остров", "острова" } },
+		{ Color = Color3.fromRGB(255, 154, 213), Words = { "totem", "totems", "тотем", "тотемы" } },
+		{ Color = Color3.fromRGB(255, 207, 112), Words = { "jar", "chest", "decor", "decorations", "банка", "банку", "сундук", "декор" } },
+		{ Color = Color3.fromRGB(180, 130, 255), Words = { "prestige", "престиж" } },
+		{ Color = Color3.fromRGB(255, 120, 200), Words = { "any", "rare", "rarer", "more", "любая", "любую", "редкая", "больше" } },
+		{ Color = Color3.fromRGB(70, 200, 95), Words = { "GREEN", "зелёное", "зеленое" } },
+	},
 	Steps = {
 		-- v20.110: тексты - что сделать и зачем, коротко. UiTargets - какие
 		-- кнопки подсветить (Shared.TutorialTarget): экран вокруг темнеет,
@@ -171,7 +193,8 @@ Config.Tutorial = {
 			Goal = { Kind = "Counter", Key = "BaseBouldersBroken", Target = 2 },
 			KeepEarlyProgress = true,
 			Target = "BaseBoulder",
-			Done = { "Nice! Boulders drop ore and money" },
+			-- v20.174: валуны - любая руда и пока выгоднее шахты
+			Done = { "Nice! ANY ore can drop from boulders", "Boulders can earn you MORE money than your mine right now!" },
 		},
 		{
 			Id = "RepairMine",
@@ -239,6 +262,12 @@ Config.Tutorial = {
 	-- Шаги - как выше; Goal.Kind ещё "Near" (дойти до Target, Radius) и
 	-- "Check" (состояние игрока); SkipUnless - пропустить шаг, если нет условия.
 	ChapterGapSeconds = 8,   -- пауза между главами
+	-- v20.174: ТАЙМЕР задания главы (полоска под плашкой). Не успел - подсказка
+	-- пропадает и возвращается с того же шага, когда игрок снова подходит к
+	-- месту механики (ResumeRadius); шаги без места - через PausedRetrySeconds.
+	ChapterTaskSeconds = 120,
+	ResumeRadius = 30,
+	PausedRetrySeconds = 180,
 	-- v20.140: главы без Required = true НЕ стартуют сами: плашка «NEW: ...
 	-- SHOW ME» на GuideBannerSeconds секунд + запись в журнале квестов (GUIDES).
 	GuideBannerSeconds = 10,
@@ -322,9 +351,10 @@ Config.Tutorial = {
 				},
 				{
 					Id = "OpenBox",
-					Lines = { "Take the box from the hotbar", "Click to open it!" },
-					Short = "OPEN THE BOX", Task = "Take the box, click to open",
+					Lines = { "Your box is in slot 1 of the hotbar", "Take it and click to open it!" },
+					Short = "OPEN THE BOX", Task = "Take the box from slot 1, click to open",
 					Goal = { Kind = "Check", Check = "OreUnlockedAny" },
+					OnEnter = "OreBoxToSlot1", -- v20.174: ящик строго в 1-й слот хотбара
 					UiTargets = { "Hotbar:gear:OreBox_*" },
 				},
 				{
@@ -338,6 +368,7 @@ Config.Tutorial = {
 			},
 		},
 		{
+			BrokeHint = { "Bro, {name} costs {cost}!", "Go earn some more money and come back!" }, -- v20.174: подошёл без денег
 			Id = "AnvilIsland", Title = "Anvil Island", RewardMoney = 150, After = { "NewOre" }, Near = { Target = "World:IslandKeeper", Radius = 30 }, -- v20.149: стартует, когда игрок рядом
 			When = { Check = "CanAffordIsland", Arg = "Anvil" }, SkipIf = { Check = "IslandOwned", Arg = "Anvil" },
 			Steps = {
@@ -366,6 +397,7 @@ Config.Tutorial = {
 			},
 		},
 		{
+			BrokeHint = { "Bro, {name} costs {cost}!", "Go earn some more money and come back!" }, -- v20.174: подошёл без денег
 			Id = "IncomeIsland", Title = "Income Island", RewardMoney = 300, After = { "AnvilIsland" }, Near = { Target = "World:IslandKeeper", Radius = 30 }, -- v20.149: стартует, когда игрок рядом
 			When = { Check = "CanAffordIsland", Arg = "Income" }, SkipIf = { Check = "IslandOwned", Arg = "Income" },
 			Steps = {
@@ -395,6 +427,7 @@ Config.Tutorial = {
 			},
 		},
 		{
+			BrokeHint = { "Bro, {name} costs {cost}!", "Go earn some more money and come back!" }, -- v20.174: подошёл без денег
 			Id = "SmelterIsland", Title = "Smelter", RewardMoney = 500, After = { "IncomeIsland" }, Near = { Target = "World:IslandKeeper", Radius = 30 }, -- v20.149: стартует, когда игрок рядом
 			When = { Check = "CanAffordIsland", Arg = "Smelter" }, SkipIf = { Check = "IslandOwned", Arg = "Smelter" },
 			Steps = {
@@ -418,6 +451,103 @@ Config.Tutorial = {
 					Goal = { Kind = "Counter", Key = "OresSmelted", Target = 1 },
 					Target = "Smelter",
 					Done = { "Ingots keep mutations. Sell them!" },
+				},
+			},
+		},
+		-- v20.174: ТОТЕМЫ - когда открылась 3-я пещера. Деньги на тотем выдаются
+		-- (GrantItem), так что этапа хватает целиком.
+		{
+			Id = "TotemsGuide", Title = "Totems", RewardMoney = 200, Required = true,
+			When = { Check = "MineLevelAtLeast", Arg = 3 }, SkipIf = { Check = "TotemPlacedAny" },
+			Steps = {
+				{
+					Id = "TotemsGoMerchant",
+					Lines = { "Time for TOTEMS!", "A totem on your base gives a bonus forever" },
+					Short = "GO TO THE MERCHANT", Task = "Press TRAVEL, pick Ore Merchant",
+					Goal = { Kind = "Near", Radius = 30 },
+					Target = "World:BankMerchant",
+					UiTargets = { "Compass:Center", "Compass" },
+				},
+				{
+					Id = "BuyTotem",
+					Lines = { "Here's money for a Luck Totem!", "Open TOTEMS and buy it" },
+					Short = "BUY A TOTEM", Task = "TOTEMS tab, buy the Luck Totem",
+					Goal = { Kind = "Check", Check = "GearOrPlaced", Arg = "Totem_" },
+					OnEnter = "GrantItemPrice", GrantItem = "Totem_Fortune_T1",
+					Target = "World:BankMerchant",
+					UiTargets = { "MerchantBuy:P_Totem_Fortune_T1", "MerchantRow:P_Totem_Fortune_T1", "MerchantTab:Totems" },
+				},
+				{
+					Id = "PlaceTotem",
+					Lines = { "Go home and take the totem from the hotbar", "Click your base to place it" },
+					Short = "PLACE THE TOTEM", Task = "Take the totem, click your base",
+					Goal = { Kind = "Check", Check = "TotemPlacedAny" },
+					UiTargets = { "Hotbar:gear:Totem_*" },
+					Done = { "The totem works while it stands on your base!", "More totems = more bonus" },
+				},
+			},
+		},
+		-- v20.174: ДЕКОР - когда открылась 4-я пещера: банка и сундук для руды
+		-- (обязательно), как ими пользоваться. Деньги на обе покупки выдаются.
+		{
+			Id = "DecorGuide", Title = "Decorations", RewardMoney = 300, Required = true, After = { "TotemsGuide" },
+			When = { Check = "MineLevelAtLeast", Arg = 4 }, SkipIf = { Check = "Placed", Arg = "Decor_StorageChest" },
+			Steps = {
+				{
+					Id = "DecorGoMerchant",
+					Lines = { "You can decorate your base now!", "Let's get an Ore Jar and a Storage Chest" },
+					Short = "GO TO THE MERCHANT", Task = "Press TRAVEL, pick Ore Merchant",
+					Goal = { Kind = "Near", Radius = 30 },
+					Target = "World:BankMerchant",
+					UiTargets = { "Compass:Center", "Compass" },
+				},
+				{
+					Id = "BuyJar",
+					Lines = { "Here's money for the jar!", "Open DECOR and buy the Ore Jar" },
+					Short = "BUY THE JAR", Task = "DECOR tab, buy the Ore Jar",
+					Goal = { Kind = "Check", Check = "GearOrPlaced", Arg = "Decor_OreJar" },
+					OnEnter = "GrantItemPrice", GrantItem = "Decor_OreJar",
+					Target = "World:BankMerchant",
+					UiTargets = { "MerchantBuy:P_Decor_OreJar", "MerchantRow:P_Decor_OreJar", "MerchantTab:Decor" },
+				},
+				{
+					Id = "BuyChest",
+					Lines = { "And money for the chest!", "Buy the Storage Chest" },
+					Short = "BUY THE CHEST", Task = "DECOR tab, buy the Storage Chest",
+					Goal = { Kind = "Check", Check = "GearOrPlaced", Arg = "Decor_StorageChest" },
+					OnEnter = "GrantItemPrice", GrantItem = "Decor_StorageChest",
+					Target = "World:BankMerchant",
+					UiTargets = { "MerchantBuy:P_Decor_StorageChest", "MerchantRow:P_Decor_StorageChest", "MerchantTab:Decor" },
+				},
+				{
+					Id = "PlaceJar",
+					Lines = { "Go home and take the jar from the hotbar", "Click your base to place it" },
+					Short = "PLACE THE JAR", Task = "Take the jar, click your base",
+					Goal = { Kind = "Check", Check = "Placed", Arg = "Decor_OreJar" },
+					UiTargets = { "Hotbar:gear:Decor_OreJar" },
+				},
+				{
+					Id = "FillJar",
+					Lines = { "The jar shows off your best ore", "Hold an ore and press PUT ORE at the jar" },
+					Short = "PUT ORE IN THE JAR", Task = "Hold an ore, press PUT ORE at the jar",
+					Goal = { Kind = "Counter", Key = "JarFilled", Target = 1 },
+					Target = "Decor:Decor_OreJar",
+					Done = { "Press the jar again to take the ore back" },
+				},
+				{
+					Id = "PlaceChest",
+					Lines = { "Now place the Storage Chest" },
+					Short = "PLACE THE CHEST", Task = "Take the chest, click your base",
+					Goal = { Kind = "Check", Check = "Placed", Arg = "Decor_StorageChest" },
+					UiTargets = { "Hotbar:gear:Decor_StorageChest" },
+				},
+				{
+					Id = "OpenChest",
+					Lines = { "The chest keeps 10 stacks of ore", "Ore in the chest is SAFE even if you get knocked out", "Press OPEN at the chest" },
+					Short = "OPEN THE CHEST", Task = "Press OPEN at the chest",
+					Goal = { Kind = "Counter", Key = "StorageOpened", Target = 1 },
+					Target = "Decor:Decor_StorageChest",
+					Done = { "Tap ore to move it in or out", "Decorate your base however you like!" },
 				},
 			},
 		},

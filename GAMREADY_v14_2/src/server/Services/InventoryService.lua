@@ -1165,6 +1165,33 @@ function InventoryService:OnGearChanged(player, key, added)
 	self:Sync(player)
 end
 
+-- v20.174: снаряжение строго в слот slotIndex (обучение: первый ящик руды
+-- в 1-й слот). Что там лежало - переезжает на место предмета или в первый
+-- свободный слот.
+function InventoryService:PutGearInSlot(player, key, slotIndex)
+	local data = Services.DataService:GetGeodeData(player)
+	if not (data and typeof(key) == "string") then return false end
+	slotIndex = math.clamp(tonumber(slotIndex) or 1, 1, Config.Inventory.HotbarSlots)
+	local uid = GEAR_PREFIX .. key
+	local hotbar = hotbarOf(data)
+	local from = nil
+	for i, assigned in hotbar do
+		if assigned == uid then from = i break end
+	end
+	if from == slotIndex then return true end
+	local displaced = hotbar[slotIndex]
+	hotbar[slotIndex] = uid
+	if from then
+		hotbar[from] = displaced or ""
+	elseif displaced and displaced ~= "" then
+		for i = 1, Config.Inventory.HotbarSlots do
+			if hotbar[i] == "" then hotbar[i] = displaced break end
+		end
+	end
+	self:Sync(player)
+	return true
+end
+
 function InventoryService:Sync(player)
 	if not (inventoryRemote and player and player.Parent) then return end
 	local data = Services.DataService:GetGeodeData(player)
