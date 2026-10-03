@@ -217,7 +217,7 @@ local function makeIcon(id, spec, order)
 		Scale = 1,
 	}):Play()
 
-	local entry = { Button = button, Timer = timer, Glyph = glyph, Image = image, Spec = spec }
+	local entry = { Button = button, Timer = timer, Glyph = glyph, Image = image, Spec = spec, TemplateImage = image and image.Image }
 	bindTooltip(button, function()
 		return entry.Spec.DisplayName or id
 	end, function()
@@ -295,6 +295,7 @@ local function collectEffects()
 			IconText = info.IconText,
 			Color = info.Color,
 			SecondsLeft = entry.SecondsLeft,
+			ImageId = ((Config.BuffBarIcons or {})[entry.Kind] or 0) ~= 0 and Config.BuffBarIcons[entry.Kind] or info.ImageId, -- v20.159
 		})
 	end
 
@@ -308,6 +309,7 @@ local function collectEffects()
 			Description = "You are protected here. Other players cannot attack you or steal your cart inside a safe zone.",
 			IconText = "SZ",
 			Color = Color3.fromRGB(120, 220, 160),
+			ImageId = (Config.BuffBarIcons or {}).SafeZone, -- v20.159
 		})
 	end
 
@@ -355,9 +357,18 @@ local function refresh()
 		entry.Timer.Text = effect.SecondsLeft and formatSeconds(effect.SecondsLeft) or ""
 		-- Ассет подставлен — прячем запасную подпись, иначе буквы
 		-- просвечивали бы поверх картинки.
-		-- v20.158: своя картинка эффекта (погода: IconImageId)
-		if entry.Image and (tonumber(effect.ImageId) or 0) ~= 0 then
-			entry.Image.Image = "rbxassetid://" .. tostring(effect.ImageId)
+		-- v20.159: своя картинка = вся иконка целиком (фон + рисунок), поверх
+		-- только таймер; буквы прячутся. Без картинки - буквы, как раньше.
+		if entry.Image then
+			local imageId = tonumber(effect.ImageId) or 0
+			if imageId ~= 0 then
+				entry.Image.Image = "rbxassetid://" .. imageId
+				entry.Image.ImageTransparency = 0
+				entry.Image.BackgroundTransparency = 1
+			elseif entry.CustomImage then
+				entry.Image.Image = entry.TemplateImage or ""
+			end
+			entry.CustomImage = imageId ~= 0
 		end
 		entry.Glyph.Visible = not (entry.Image and entry.Image.Image ~= "")
 		-- Подсказка открыта прямо сейчас — обновляем и её, иначе таймер в

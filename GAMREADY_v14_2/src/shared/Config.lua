@@ -5282,6 +5282,19 @@ Config.Buffs = {
 	},
 }
 
+-- v20.159: ИКОНКИ ПАНЕЛИ ЭФФЕКТОВ (справа, BuffBar). Картинка = вся иконка
+-- целиком (фон + рисунок), поверх неё игра пишет только таймер. 0 - буквы.
+--   • баффы (Luck, Money, Speed, Damage, MutationPotion) - ImageId в Config.Buffs выше
+--   • погода - IconImageId в Config.WeatherEvents.Events
+--   • сейф-зона и всё остальное - здесь (ключ = Kind баффа или SafeZone)
+Config.BuffBarIcons = {
+	SafeZone = 0,       -- сейф-зона
+	DoubleHaul = 0,     -- баффы амулетов (их нет в Config.Buffs)
+	MidasTouch = 0,
+	MutationMagnet = 0,
+	-- можно вписать и Luck/Money/Speed/Damage/MutationPotion - это перебьёт ImageId из Config.Buffs
+}
+
 Config.Boulders = {
 	--------------------------------------------------------------------------
 	-- ВАЛУНЫ НА СВОЕЙ БАЗЕ (см. RockService:SetupPlot).
