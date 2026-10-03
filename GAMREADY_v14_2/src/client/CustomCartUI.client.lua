@@ -5786,9 +5786,16 @@ local function setupShopUi()
 				if iconEmoji then
 					iconEmoji.Text = item.Emoji or (emojiText ~= "" and emojiText) or TAB_FALLBACK_EMOJI[tabName] or "🛒"
 				end
-				local titleLabel = slot:FindFirstChild("Title", true)
-				if titleLabel then
-					titleLabel.Text = plainTitle
+				-- v20.173: заголовок карточки - прямой ребёнок карточки (раньше поиск
+				-- вглубь мог взять чужой "Title"); без автоперевода Roblox (он мог
+				-- подменять текст пустым), всегда влезает в рамку
+				local titleLabel = slot:FindFirstChild("Title") or slot:FindFirstChild("Title", true)
+				if titleLabel and titleLabel:IsA("TextLabel") then
+					titleLabel.AutoLocalize = false
+					titleLabel.TextScaled = true
+					titleLabel.TextTransparency = 0
+					titleLabel.Visible = true
+					titleLabel.Text = plainTitle ~= "" and plainTitle or (item.Title or "")
 					local gradient = titleLabel:FindFirstChild("TextGradient")
 					if gradient then
 						gradient.Color = ColorSequence.new(accent.Light, accent.Main)

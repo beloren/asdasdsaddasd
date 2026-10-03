@@ -14,8 +14,12 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local groupPending = Config.GroupReward and Config.GroupReward.Enabled and (tonumber(Config.GroupReward.GroupId) or 0) ~= 0
-local favoritePending = Config.LikeReward and Config.LikeReward.Enabled
+-- v20.173: до ответа сервера кнопку не показываем - иначе она висела у тех,
+-- кто уже всё забрал (состояние приходило раньше, чем мы начинали слушать)
+local groupEnabled = Config.GroupReward and Config.GroupReward.Enabled and (tonumber(Config.GroupReward.GroupId) or 0) ~= 0
+local favoriteEnabled = Config.LikeReward and Config.LikeReward.Enabled
+local groupPending = false
+local favoritePending = false
 
 -- v20: вид — Shared.UiBuilders.SocialHudUi (StarterGui/SocialHud).
 local gui = require(ReplicatedStorage.Shared.UiRegistry).Get("SocialHud")
@@ -64,15 +68,24 @@ button.Activated:Connect(function()
 end)
 
 -- Слушаем те же State, что и окна наград.
+local gotGroupState, gotLikeState = false, false
 task.spawn(function()
 	local groupRemote = ReplicatedStorage.Shared:WaitForChild("GroupRewardRequest", 60)
 	if groupRemote then
 		groupRemote.OnClientEvent:Connect(function(action, payload)
 			if action == "State" and type(payload) == "table" then
-				groupPending = not (payload.Claimed and payload.Member)
+				gotGroupState = true
+				-- забрал награду - кнопку больше не показываем
+				groupPending = groupEnabled and payload.Claimed ~= true
 				refresh()
 			end
 		end)
+		-- сами просим состояние (сервер может ещё грузить профиль - повторяем)
+		for _, delaySeconds in { 0, 2, 5, 10, 20 } do
+			task.wait(delaySeconds)
+			if gotGroupState then break end
+			groupRemote:FireServer("RequestState")
+		end
 	end
 end)
 task.spawn(function()
@@ -80,9 +93,15 @@ task.spawn(function()
 	if likeRemote then
 		likeRemote.OnClientEvent:Connect(function(action, payload)
 			if action == "State" and type(payload) == "table" then
-				favoritePending = payload.Claimed ~= true
+				gotLikeState = true
+				favoritePending = favoriteEnabled and payload.Claimed ~= true
 				refresh()
 			end
 		end)
+		for _, delaySeconds in { 0, 2, 5, 10, 20 } do
+			task.wait(delaySeconds)
+			if gotLikeState then break end
+			likeRemote:FireServer("RequestState")
+		end
 	end
 end)
