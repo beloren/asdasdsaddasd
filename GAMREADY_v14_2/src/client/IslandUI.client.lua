@@ -194,6 +194,8 @@ local currentState = nil
 local selectedId = nil
 local isOpen = false
 local pendingAction = false
+-- v20.168: анимация улучшения узла дерева после покупки острова/печи
+local islandTreeBump = { Id = nil, Fn = nil }
 
 local function islandInfo(id)
 	for _, entry in (currentState and currentState.Islands) or {} do
@@ -1091,6 +1093,9 @@ do
 		treeGui.ResetOnSpawn = false
 		treeGui.Enabled = false
 		local view = SkillTreeView.new(treeGui, { LockName = "IslandTree", OnClose = function() close() end })
+		islandTreeBump.Fn = function(id)
+			if view:IsOpen() then view:Bump(id) end
+		end
 		local GREY = Color3.fromRGB(70, 74, 88)
 		local DIM = Color3.fromRGB(44, 48, 62)
 		local FIRST = 210
@@ -1297,6 +1302,7 @@ do
 							pendingAction = true
 							playSfx("UiConfirm")
 							remote:FireServer("Buy", info.Island)
+							islandTreeBump.Id = id
 							showCard(id)
 							task.delay(3, function()
 								if pendingAction then pendingAction = false; refresh() end
@@ -1330,6 +1336,7 @@ do
 							playSfx("UiConfirm")
 							if captureSmelterSnapshot then captureSmelterSnapshot() end
 							remote:FireServer("UpgradeSmelter")
+							islandTreeBump.Id = id
 							showCard(id)
 							task.delay(3, function()
 								if pendingAction then pendingAction = false; refresh() end
@@ -1425,6 +1432,9 @@ remote.OnClientEvent:Connect(function(command, a, b, c, d)
 			showToast(tr(tostring(reason or "Something went wrong")), false)
 		end
 		if isOpen and currentState then render(currentState) end
+		local bumpId = islandTreeBump.Id
+		islandTreeBump.Id = nil
+		if success and bumpId and islandTreeBump.Fn then islandTreeBump.Fn(bumpId) end
 	elseif command == "Rise" then
 		task.spawn(playRiseCinematic, a, b, c, d)
 	elseif command == "SmelterUpgraded" then

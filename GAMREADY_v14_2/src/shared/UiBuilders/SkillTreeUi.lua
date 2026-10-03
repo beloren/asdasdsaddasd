@@ -132,6 +132,22 @@ local function build(name, title, accentColor, withTabs)
 	TreeParts.Star(templates, "StarNode", 92, { WithName = true, Color = Theme.Accents.Gold.Main })
 	TreeParts.Star(templates, "FinalNode", 104, { WithName = true, Round = true, Color = Theme.Accents.Gold.Main })
 	TreeParts.Line(templates, "Link", 8)
+	-- v20.168: узлы под картинки-подложки (Config.TreePlates): у формы нет
+	-- скругления и обводки, не повёрнута, во весь узел, пиксельная.
+	for _, nodeName in { "RootNode", "TierNode", "StarNode", "FinalNode" } do
+		local node = templates:FindFirstChild(nodeName)
+		local shape = node and node:FindFirstChild("Shape")
+		if shape then
+			for _, d in shape:GetChildren() do
+				if d:IsA("UICorner") or d:IsA("UIStroke") or d:IsA("UIGradient") then d:Destroy() end
+			end
+			shape.Rotation = 0
+			shape.Size = UDim2.fromScale(1, 1)
+			shape.BackgroundTransparency = 1
+			shape.ScaleType = Enum.ScaleType.Fit
+			shape.ResampleMode = Enum.ResamplerMode.Pixelated
+		end
+	end
 	UiKit.HideTemplates(gui)
 	return gui
 end

@@ -421,7 +421,8 @@ local function refresh()
 		if entry.Image then
 			local imageId = tonumber(effect.ImageId) or 0
 			if imageId ~= 0 then
-				entry.Image.Image = "rbxassetid://" .. imageId
+				entry.Image.Image = Config.ImageUri and Config.ImageUri(imageId) or ("rbxassetid://" .. imageId)
+				entry.Image.ResampleMode = Enum.ResamplerMode.Pixelated -- v20.168
 				entry.Image.ImageTransparency = 0
 				entry.Image.BackgroundTransparency = 1
 			elseif entry.CustomImage then

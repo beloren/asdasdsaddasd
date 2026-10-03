@@ -3023,6 +3023,7 @@ end
 	local selectedKind = nil
 	local dialogOpen = false
 	local pendingBuy = false
+	local treeBumpId = nil -- v20.168: узел дерева, купленный из карточки (анимация до катсцены)
 
 	local function money(value)
 		return "$" .. NumberFormat.abbreviate(value)
@@ -3698,6 +3699,7 @@ end
 								if pendingBuy then return end
 								if requestUpgradePurchase(shopRemoteEvent, kind) then
 									pendingBuy = true
+									treeBumpId = id
 									showNodeCard(id)
 									task.delay(3, function()
 										if pendingBuy then
@@ -4147,7 +4149,16 @@ end
 		elseif action == "BuyResult" then
 			local kind, ok, reason = a, b, c
 			pendingBuy = false
-			if ok then
+			local bumpId = treeBumpId
+			treeBumpId = nil
+			if ok and bumpId and treeView and treeView:IsOpen() then
+				-- v20.168: сначала в дереве узел трясётся, сжимается и выскакивает
+				-- купленным, и только потом камера-катсцена улучшения
+				treeView:HideCard()
+				refreshTree()
+				treeView:Bump(bumpId)
+				task.delay(1.15, function() playUpgradeRevealCamera(kind, closeDialog) end)
+			elseif ok then
 				playUpgradeRevealCamera(kind, closeDialog)
 			else
 				cancelPendingUpgradeReveal(kind)
@@ -5621,7 +5632,8 @@ local function setupShopUi()
 			if not icon then return end
 			local emoji = icon:FindFirstChild("Emoji")
 			if imageId and imageId ~= 0 then
-				icon.Image = "rbxassetid://" .. tostring(imageId)
+				icon.Image = Config.ImageUri and Config.ImageUri(imageId) or ("rbxassetid://" .. tostring(imageId))
+				icon.ResampleMode = Enum.ResamplerMode.Pixelated -- v20.168
 				if emoji then emoji.Visible = false end
 			else
 				icon.Image = ""

@@ -19,18 +19,19 @@
 
 -- Пусто = собрать всё. Пример: local ONLY = { "ShopUi", "QuestUi" }
 -- Работает, только когда PARTS ниже пустой.
-local ONLY = {}
+local ONLY = {
+	"UpgradeTreeUi",  -- v20.168: дерево Experienced Miner
+	"IslandTreeUi",   -- дерево островов Island Keeper
+	"PrestigeTreeUi", -- дерево престижа
+}
 
 -- v20.155: ТОЛЬКО ДЕТАЛИ. Окно целиком НЕ пересобирается: билдер собирает
 -- его в памяти, и в твой StarterGui.<окно> копируются только перечисленные
 -- элементы. Если такой элемент уже есть, он заменяется, всё остальное в
 -- окне остаётся как ты настроил. Если окна в StarterGui нет, оно ставится
 -- целиком. Чтобы вернуть обычную сборку, сделай PARTS = {}.
--- Сейчас собираются: кнопки SKIP и AUTO при раскалывании жеоды и шаблон
--- точки-шарика, по которой тыкают (CrackBallTemplate).
-local PARTS = {
-	GeodeUi = { "SkipButton", "AutoHammerButton", "CrackBallTemplate" },
-}
+-- Пример: local PARTS = { GeodeUi = { "SkipButton", "AutoHammerButton", "CrackBallTemplate" } }
+local PARTS = {} -- v20.168: сейчас собираются только деревья (ONLY выше)
 
 -- true = НЕ трогать экраны, которые уже есть в StarterGui и собраны этой
 -- версией билдера (UiKitVersion совпадает). Удобно, чтобы добавить новые

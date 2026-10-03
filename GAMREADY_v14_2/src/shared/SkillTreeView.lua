@@ -459,7 +459,7 @@ function SkillTreeView:_plateFor(entry, props)
 		id = plates[state]
 	end
 	id = tonumber(id) or 0
-	return id > 0 and ("rbxassetid://" .. id) or nil
+	return id > 0 and Config.ImageUri(id) or nil
 end
 
 function SkillTreeView:_setPlate(entry, image)
@@ -480,6 +480,7 @@ function SkillTreeView:_setPlate(entry, image)
 		shape.ImageTransparency = 0
 		shape.BackgroundTransparency = 1
 		shape.ScaleType = Enum.ScaleType.Fit
+		shape.ResampleMode = Enum.ResamplerMode.Pixelated -- v20.168: пиксель-арт без размытия
 		shape.Rotation = 0
 		entry.BaseRotation = 0
 		for _, d in shape:GetChildren() do
@@ -544,11 +545,16 @@ end
 -- Картинка встаёт на место надписи Icon (у узлов-тиров - на место Caption),
 -- надпись прячется. Нет картинки - эмодзи, как раньше.
 local function toImage(value)
-	if type(value) == "number" then return value > 0 and ("rbxassetid://" .. value) or nil end
+	-- v20.168: через Config.ImageUri - декали идут миниатюрой rbxthumb
+	local Config = require(ReplicatedStorage.Shared.Config)
+	if type(value) == "number" then
+		local uri = value > 0 and Config.ImageUri(value) or ""
+		return uri ~= "" and uri or nil
+	end
 	if type(value) == "string" then
 		if value:match("^rbxassetid://") or value:match("^rbxthumb://") then return value end
 		local n = tonumber(value)
-		if n and n > 0 and #value >= 6 then return "rbxassetid://" .. value end
+		if n and n > 0 and #value >= 6 then return Config.ImageUri(n) end
 	end
 	return nil
 end
@@ -572,6 +578,7 @@ function SkillTreeView:_paintIcon(entry, props)
 			pic.Name = "IconImage"
 			pic.BackgroundTransparency = 1
 			pic.ScaleType = Enum.ScaleType.Fit
+			pic.ResampleMode = Enum.ResamplerMode.Pixelated -- v20.168
 			if slot and slot:IsA("GuiObject") then
 				pic.AnchorPoint = slot.AnchorPoint
 				pic.Position = slot.Position

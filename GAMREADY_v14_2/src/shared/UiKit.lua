@@ -55,6 +55,11 @@ function UiKit.ImageUri(id)
 	if id == nil or id == 0 or id == "" then
 		return ""
 	end
+	-- v20.168: декали (Config.DecalAssets) - миниатюрой rbxthumb
+	local okCfg, Config = pcall(require, script.Parent:FindFirstChild("Config"))
+	if okCfg and type(Config) == "table" and Config.ImageUri and (type(id) == "number" or tostring(id):match("^%d+$")) then
+		return Config.ImageUri(tonumber(id))
+	end
 	if type(id) == "number" then
 		return "rbxassetid://" .. tostring(id)
 	end

@@ -4429,6 +4429,58 @@ Config.TreeIcons = {
 	},
 }
 
+-- v20.168: ID КАРТИНОК -> ССЫЛКА. Roblox для части присланных ID отвечает
+-- «Decal» (тип 13), а не «Image» (тип 1); декаль в ImageLabel по rbxassetid
+-- не показывается. Такие ID перечислены в DecalAssets и выводятся через
+-- миниатюру rbxthumb (работает и для декалей). Если перезальёшь их как
+-- Image и впишешь новые ID - просто убери их из списка.
+Config.DecalAssets = {
+	[80336192342889] = true, -- anvil stal'noy  
+	[105165638797505] = true, -- anvil   
+	[76787611812750] = true, -- backpack vetka  
+	[140301426268045] = true, -- backpack   
+	[90457461250816] = true, -- bloodmoon   
+	[102703635057741] = true, -- boots   
+	[113782610802572] = true, -- cave vetka  
+	[120412550545685] = true, -- crown   
+	[133782798222422] = true, -- dlya vseh zvezh 
+	[118039347990491] = true, -- dnk   
+	[106251260439225] = true, -- dynamite v1  
+	[109137786282064] = true, -- dynamite v2  
+	[96566669809156] = true, -- dynamite v3  
+	[78369437721487] = true, -- dynamite vetka  
+	[134886091072836] = true, -- eclipse weather  
+	[132054176349699] = true, -- economy   
+	[139816834734038] = true, -- fire   
+	[116110756721441] = true, -- fortune   
+	[133011325337913] = true, -- furnaceeee   
+	[130679377432042] = true, -- gems   
+	[87736484115360] = true, -- geodes   
+	[79800765195339] = true, -- glavnay miner  
+	[129194380615227] = true, -- gold chest  
+	[90393326146892] = true, -- goldchestv2   
+	[136645908287928] = true, -- island keeper glavnaya vetka
+	[80951353553659] = true, -- luck buff  
+	[105730199768575] = true, -- luck   
+	[75749225946580] = true, -- magnet buff  
+	[111884645410481] = true, -- mastery   
+	[125627885342101] = true, -- midas touch  
+	[100801924043514] = true, -- mine buff  
+	[126259239770035] = true, -- mine buff2  
+}
+function Config.ImageUri(id)
+	if type(id) == "string" then
+		if id:match("^rbx") then return id end
+		id = tonumber(id)
+	end
+	id = tonumber(id) or 0
+	if id <= 0 then return "" end
+	if Config.DecalAssets[id] then
+		return "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420"
+	end
+	return "rbxassetid://" .. id
+end
+
 -- v20.164: ГОТОВЫЕ ЦВЕТНЫЕ ПОДЛОЖКИ УЗЛОВ (ставятся как есть, без перекраски).
 -- Не купленные узлы - по состоянию (Buy / NoMoney / Locked / Prestige),
 -- купленные - фон своей ветки. 0 - старый вид (форма из шаблона + цвет).
@@ -7434,7 +7486,7 @@ Config.Notify = {
 -- v20.158: иконки уведомлений о погоде - ключи "Weather_<Id>" из IconImageId
 for _, event in (Config.WeatherEvents and Config.WeatherEvents.Events) or {} do
 	if (tonumber(event.IconImageId) or 0) ~= 0 then
-		Config.Notify.Icons["Weather_" .. event.Id] = event.IconImageId
+		Config.Notify.Icons["Weather_" .. event.Id] = Config.ImageUri and Config.ImageUri(event.IconImageId) or event.IconImageId
 	end
 end
 
