@@ -2264,9 +2264,8 @@ function Hit.Square(btn, rightOffset)
 		limit.Parent = text
 	end
 end
-local buttonSize = (Config.GeodeCutscene and Config.GeodeCutscene.ButtonSize) or 104
 Hit.Square(skipButton, -20)
-Hit.Square(Hit.AutoButton, -20 - buttonSize - 14)
+Hit.Square(Hit.AutoButton, -20) -- v20.157: SKIP убран, AUTO в углу
 if skipButton and (skipButton:IsA("ImageButton") or skipButton:IsA("TextButton")) then
 	-- v20.154: своя картинка SKIP - Image у кнопки в StarterGui/GeodeUi или
 	-- Config.GeodeCutscene.SkipImageId; тогда фон прозрачный. Нет - оранжевая.
@@ -2425,13 +2424,9 @@ beginCrack = function()
 	spawnCrackBall()
 	crackSequenceActive = true
 	clickHint.Visible = true
-	-- v10: кнопка «скип» доступна СРАЗУ — она просто дотапывает жеоду за тебя.
-	skipButton.Visible = true
-	if skipButton:IsA("TextButton") then
-		skipButton.Text = "SKIP >"
-	elseif skipButtonLabel then
-		skipButtonLabel.Text = "SKIP"
-	end
+	-- v20.157: SKIP при раскалывании убран (по прямому запросу) - только AUTO.
+	-- Сама кнопка осталась для "CLICK TO CLOSE" у гоблинской награды.
+	skipButton.Visible = false
 
 	-- 3D-ПОСТАНОВКА (по прямому запросу — "камера отдаётся и вращается
 	-- вокруг игрока медленно, игрок сам не может двигаться, может только

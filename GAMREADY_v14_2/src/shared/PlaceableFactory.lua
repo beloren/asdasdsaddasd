@@ -773,8 +773,11 @@ function PlaceableFactory.BuildChest(rarity)
 	local model = PlaceableFactory.BuildChestModel_(rarity)
 	if model then
 		model:SetAttribute("PreviewUpright", true)
-		model:SetAttribute("PreviewYaw", 20)
+		model:SetAttribute("PreviewYaw", tonumber(Config.Chests and Config.Chests.PreviewYaw) or 20)
 		model:SetAttribute("PreviewPitch", tonumber(Config.Chests and Config.Chests.PreviewPitch) or 0)
+		-- v20.157: в инвентаре сохраняется собственный поворот модели, как в
+		-- магазине (раньше он сбрасывался, и своя модель лежала криво)
+		model:SetAttribute("PreviewKeepRotation", true)
 	end
 	return model
 end

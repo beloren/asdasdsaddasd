@@ -348,9 +348,15 @@ local ITEMS = {
 	{ Key = "Shop", Label = "SHOP", Icon = "ShopMenuIconId" },
 	{ Key = "Skins", Label = "SKINS", Icon = "SkinsMenuIconId" },
 	{ Key = "Settings", Label = "SETTINGS", Icon = "SettingsMenuIconId" },
-	{ Key = "Codes", Label = "CODES", Icon = "CodesMenuIconId" }, -- v20.139: ввод промокодов
 	{ Key = "Mutations", Label = "MUTATIONS", Icon = "MutationsMenuIconId" },
 }
+
+-- v20.157: CODES убран из меню - промокоды вводятся в SETTINGS. Строку,
+-- добавленную прошлыми версиями (или собранную в Studio), тоже удаляем.
+do
+	local codesRow = list:FindFirstChild("CodesRow")
+	if codesRow then codesRow:Destroy() end
+end
 
 -- Пункт SETTINGS убран вместе с окном настроек (Config.UI.
 -- SettingsMenuEnabled = false): кнопка, которая ничего не открывает, хуже,

@@ -272,7 +272,7 @@ function Builder.Build()
 	skip:SetAttribute("KeepLayout", true)
 	local auto = UiKit.Button(opening, "AutoHammerButton", "AUTO", "Purple", {
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -138, 1, -20),
+		Position = UDim2.new(1, -20, 1, -20), -- v20.157: SKIP при раскалывании не показывается
 		Size = UDim2.fromOffset(104, 104),
 		Visible = false,
 		ZIndex = 30,

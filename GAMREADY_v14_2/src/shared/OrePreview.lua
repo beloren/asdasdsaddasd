@@ -233,8 +233,9 @@ function OrePreview.MountModel(container, model, key)
 	-- тонкой осью оказывалась высота, и в превью было видно дно)
 	if #corners > 0 and model:GetAttribute("PreviewUpright") then
 		local p = model:GetPivot()
+		local keep = model:GetAttribute("PreviewKeepRotation") and p.Rotation or CFrame.identity
 		model:PivotTo(CFrame.new(p.Position) * CFrame.Angles(0, math.rad(tonumber(model:GetAttribute("PreviewYaw")) or 0), 0)
-			* CFrame.Angles(math.rad(tonumber(model:GetAttribute("PreviewPitch")) or 0), 0, 0))
+			* CFrame.Angles(math.rad(tonumber(model:GetAttribute("PreviewPitch")) or 0), 0, 0) * keep)
 	elseif #corners > 0 then
 		local depthDir, best = candidates[1], math.huge
 		for _, dir in candidates do
