@@ -233,15 +233,50 @@ end)
 local cameraActive = false
 local cameraRestoreType = Enum.CameraType.Custom
 
+-- v20.176: ПЛАВНЫЙ ВОЗВРАТ КАМЕРЫ. При входе в катсцену запоминаем, где
+-- камера стояла относительно игрока (её поворот и отступ от фокуса).
+-- Обычная камера Roblox после катсцены возвращается ровно в этот ракурс,
+-- поэтому сначала плавно подводим туда, и только потом отдаём управление.
+-- Иначе камера резко перескакивала из общего плана к игроку.
+local cameraRestore = { CFrame = nil, Offset = nil, Tween = nil, Token = 0 }
+
+local function cameraFocusPoint()
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	return root and (root.Position + Vector3.new(0, 1.5, 0)) or nil
+end
+
 local function beginCameraControl()
+	cameraRestore.Token += 1
+	if cameraRestore.Tween then cameraRestore.Tween:Cancel(); cameraRestore.Tween = nil end
 	if cameraActive then return end
 	cameraActive = true
 	cameraRestoreType = camera.CameraType
+	local focus = cameraFocusPoint()
+	cameraRestore.CFrame = camera.CFrame
+	cameraRestore.Offset = focus and (camera.CFrame.Position - focus) or nil
 	camera.CameraType = Enum.CameraType.Scriptable
 end
 
-local function endCameraControl()
+local function endCameraControl(smoothSeconds)
 	if not cameraActive then return end
+	local focus = cameraFocusPoint()
+	local seconds = tonumber(smoothSeconds) or 0
+	if seconds > 0 and focus and cameraRestore.Offset and cameraRestore.CFrame then
+		local target = CFrame.new(focus + cameraRestore.Offset) * cameraRestore.CFrame.Rotation
+		cameraRestore.Token += 1
+		local token = cameraRestore.Token
+		local tween = TweenService:Create(camera, TweenInfo.new(seconds, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { CFrame = target })
+		cameraRestore.Tween = tween
+		tween.Completed:Connect(function()
+			if token ~= cameraRestore.Token then return end
+			cameraRestore.Tween = nil
+			cameraActive = false
+			camera.CameraType = cameraRestoreType
+		end)
+		tween:Play()
+		return
+	end
 	cameraActive = false
 	camera.CameraType = cameraRestoreType
 end
@@ -1984,15 +2019,16 @@ stateRemote.OnClientEvent:Connect(function(stage, data)
 		stopEjectFit()
 		cinematicMode:Fire(false, "Mine") -- катсцена кончилась — возвращаем HUD
 		fovTo(BASE_FOV, 0.5)
+		-- v20.176: камера плавно подлетает к игроку (MineExpedition.CameraReturnSeconds)
+		endCameraControl((Config.MineExpedition and Config.MineExpedition.CameraReturnSeconds) or 1.1)
 		task.delay(0.5, function()
-			endCameraControl()
 			ProximityPromptService.Enabled = true
 			stopArcVisual()
 		end)
 	elseif stage == "Cancelled" then
 		stopEjectFit()
 		stopArcVisual()
-		endCameraControl()
+		endCameraControl(0.6)
 		ProximityPromptService.Enabled = true
 	end
 end)
