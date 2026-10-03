@@ -4435,7 +4435,6 @@ Config.TreeIcons = {
 -- миниатюру rbxthumb (работает и для декалей). Если перезальёшь их как
 -- Image и впишешь новые ID - просто убери их из списка.
 Config.DecalAssets = {
-	[126259239770035] = true, -- mine buff2  
 }
 -- v20.169: ГОТОВЫЕ ПАРЫ «ID декали -> ID картинки». Сервер сам находит
 -- их при старте (src/server/DecalImageResolver) и печатает в Output - вставь
@@ -5413,7 +5412,7 @@ Config.Buffs = {
 --   • сейф-зона и всё остальное - здесь (ключ = Kind баффа или SafeZone)
 Config.BuffBarIcons = {
 	SafeZone = 137175235410002,       -- сейф-зона (щит с галочкой)
-	DoubleHaul = 126259239770035,     -- баффы амулетов (их нет в Config.Buffs)
+	DoubleHaul = 76573223966975,     -- баффы амулетов (их нет в Config.Buffs)
 	MidasTouch = 92097193265072,
 	MutationMagnet = 123299111387110,
 	-- можно вписать и Luck/Money/Speed/Damage/MutationPotion - это перебьёт ImageId из Config.Buffs

@@ -1281,3 +1281,8 @@
   dynamite vetka, economy, dnk, фон звёзд, bloodmoon, boots, crown, cave vetka, backpack, backpack vetka,
   anvil, anvil stal'noy, mine buff. Все проверены через API Roblox (тип Image, названия совпадают).
   С ID декали осталась только «mine buff2» (бафф DoubleHaul).
+
+## v20.172
+
+* Бафф DoubleHaul («mine buff2»): ID из Images `76573223966975`. Список `Config.DecalAssets` теперь пуст, все картинки
+  стоят на ID Images.
