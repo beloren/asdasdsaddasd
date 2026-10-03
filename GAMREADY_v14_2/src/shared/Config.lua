@@ -4370,6 +4370,60 @@ Config.UpgradeTree = {
 	},
 }
 
+-- v20.160: КАРТИНКИ ВМЕСТО ЭМОДЗИ В ДЕРЕВЬЯХ ПРОКАЧКИ (Experienced Miner,
+-- Island Keeper, престиж). Три способа, любой на выбор:
+--  1) Прямо в конфиге вместо эмодзи вписать ID картинки числом:
+--     Icon = "🍀"  ->  Icon = 1234567890
+--     (Config.UpgradeStats.Types[*].Icon, Config.IslandPerks...Icon,
+--      Config.Prestige.Perks[*].Icon, Config.UpgradeTree.Rows[*].Icon -
+--      у веток Rows число просто убирает эмодзи из подписи ветки).
+--  2) Картинка конкретного узла по его id (ниже, по окнам). Узлы-тиры
+--     (кружки с цифрой) тоже можно - картинка встанет вместо цифры.
+--  3) ByEmoji - одна картинка на ВСЕ узлы с этим эмодзи во всех деревьях.
+-- 0 / нет записи - эмодзи как раньше.
+Config.TreeIcons = {
+	UpgradeTreeUi = {   -- Experienced Miner
+		Root = 0,          -- центр ⛏
+		Star_Damage = 0,   -- 💪
+		Star_Luck = 0,     -- 🍀
+		Star_Speed = 0,    -- 👟
+		Star_Sell = 0,     -- 💰
+		-- тиры (кружки с цифрой): Mine_2, Cart_3, Pickaxe_4 ...; динамит: Supplies_<ключ>
+	},
+	IslandTreeUi = {    -- Island Keeper
+		Root = 0,          -- центр 🏝
+		Island_Anvil = 0, Island_Income = 0, Island_Smelter = 0, -- кружки островов (вместо надписи)
+		AnvilCrystal = 0,  -- 💎
+		AnvilExtra = 0,    -- ✨
+		AnvilFinal = 0,    -- ⚒
+		IncomeRate = 0,    -- 💰
+		IncomeSafe = 0,    -- 🏦
+		IncomeFinal = 0,   -- 👑
+		SmeltSpeed = 0,    -- 🔥
+		SmeltValue = 0,    -- 🪙
+		SmelterFinal = 0,  -- ⭐
+	},
+	PrestigeTreeUi = {  -- дерево престижа
+		Root = 0,          -- центр (Starter ⛏)
+		Money = 0,         -- 💰
+		Luck = 0,          -- 🍀
+		Mutation = 0,      -- 🧬
+		CartSpace = 0,     -- 🎒
+		Speed = 0,         -- 👟
+		Passive = 0,       -- 🏦
+		GeodeLuck = 0,     -- 🪨
+		ChestLuck = 0,     -- 🎁
+		Dynamite = 0,      -- 🧨
+		HeadStart = 0,     -- 🚀
+		PointsBonus = 0,   -- 💎
+		StartCash = 0,     -- 💵
+		BoxDiscount = 0,   -- 📦
+	},
+	ByEmoji = {
+		-- ["🍀"] = 1234567890,
+	},
+}
+
 -- v20.144: АНИМАЦИЯ ПОЯВЛЕНИЯ ДЕРЕВЬЕВ (Experienced Miner, Island Keeper,
 -- престиж): сначала центральный узел, затем затемнение, затем узлы по
 -- очереди пузырьками (купленные, потом доступные). Новый узел после покупки

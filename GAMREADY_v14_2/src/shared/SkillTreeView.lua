@@ -404,7 +404,7 @@ function SkillTreeView:Paint(id, props)
 	setText(entry.Holder, "Price", props.Price)
 	setText(entry.Holder, "Level", props.Level)
 	setText(entry.Holder, "Name", props.Name)
-	setText(entry.Holder, "Icon", props.Icon)
+	self:_paintIcon(entry, props)
 	entry.Pulse = props.Pulse == true
 	self:_paintSelection(entry)
 	if not self.SyncQueued then
@@ -413,6 +413,67 @@ function SkillTreeView:Paint(id, props)
 			self.SyncQueued = false
 			self:_syncVisibility()
 		end)
+	end
+end
+
+-- v20.160: КАРТИНКА ВМЕСТО ЭМОДЗИ. Порядок поиска:
+--   1) Config.TreeIcons[<имя окна>][<id узла>]  - картинка конкретного узла;
+--   2) props.Icon - число (ID картинки) или "rbxassetid://..." прямо в конфиге
+--      вместо эмодзи (Icon = 123456 у перка/улучшения);
+--   3) Config.TreeIcons.ByEmoji[<эмодзи>] - одна картинка на все узлы с этим эмодзи.
+-- Картинка встаёт на место надписи Icon (у узлов-тиров - на место Caption),
+-- надпись прячется. Нет картинки - эмодзи, как раньше.
+local function toImage(value)
+	if type(value) == "number" then return value > 0 and ("rbxassetid://" .. value) or nil end
+	if type(value) == "string" then
+		if value:match("^rbxassetid://") or value:match("^rbxthumb://") then return value end
+		local n = tonumber(value)
+		if n and n > 0 and #value >= 6 then return "rbxassetid://" .. value end
+	end
+	return nil
+end
+
+function SkillTreeView:_paintIcon(entry, props)
+	local Config = require(ReplicatedStorage.Shared.Config)
+	local icons = Config.TreeIcons or {}
+	local perGui = icons[self.Gui.Name]
+	local image = toImage(perGui and perGui[entry.Id])
+	if not image and props.Icon ~= nil then
+		image = toImage(props.Icon) or toImage((icons.ByEmoji or {})[props.Icon])
+	end
+	local holder = entry.Holder
+	local label = holder:FindFirstChild("Icon")
+	if not (label and label:IsA("TextLabel")) then label = nil end
+	if image then
+		local slot = label or holder:FindFirstChild("Caption")
+		local pic = holder:FindFirstChild("IconImage")
+		if not pic then
+			pic = Instance.new("ImageLabel")
+			pic.Name = "IconImage"
+			pic.BackgroundTransparency = 1
+			pic.ScaleType = Enum.ScaleType.Fit
+			if slot and slot:IsA("GuiObject") then
+				pic.AnchorPoint = slot.AnchorPoint
+				pic.Position = slot.Position
+				pic.Size = slot.Size
+				pic.ZIndex = slot.ZIndex
+			else
+				pic.AnchorPoint = Vector2.new(0.5, 0.5)
+				pic.Position = UDim2.fromScale(0.5, 0.5)
+				pic.Size = UDim2.fromScale(0.6, 0.6)
+				pic.ZIndex = 7
+			end
+			pic.Parent = holder
+		end
+		pic.Image = image
+		pic.Visible = true
+		if slot and slot:IsA("TextLabel") then slot.Visible = false end
+		entry.IconSlot = slot
+	else
+		local pic = holder:FindFirstChild("IconImage")
+		if pic then pic.Visible = false end
+		if entry.IconSlot then entry.IconSlot.Visible = true; entry.IconSlot = nil end
+		if label and props.Icon ~= nil then label.Text = tostring(props.Icon) end
 	end
 end
 

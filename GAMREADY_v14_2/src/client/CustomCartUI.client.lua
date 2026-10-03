@@ -3746,7 +3746,7 @@ end
 						Color = locked and GREY or (dyn.Color or COLORS.Gold),
 						Caption = dyn.ShortName or tostring(key),
 						Price = locked and ('<font color="#AAB0C4">' .. tr("Cave") .. " " .. locked .. "</font>") or ("x" .. count),
-						Name = info.Index == 1 and (info.Row.Icon .. " " .. tr(info.Row.Title)) or "",
+						Name = info.Index == 1 and (((type(info.Row.Icon) == "string" and not tonumber(info.Row.Icon)) and (info.Row.Icon .. " ") or "") .. tr(info.Row.Title)) or "",
 						Hidden = locked ~= nil, -- v20.144: закрытый динамит не виден, пока не откроется пещера
 						Late = count == 0,
 					})
@@ -3756,7 +3756,7 @@ end
 					local line = rowLinks[kind] and rowLinks[kind][info.Index]
 					if line then line.BackgroundColor3 = state == "Owned" and COLORS.Gold or GREY end
 					local props = {
-						Caption = tostring(tier), Name = info.Index == 1 and (info.Row.Icon .. " " .. tr(info.Row.Title)) or "",
+						Caption = tostring(tier), Name = info.Index == 1 and (((type(info.Row.Icon) == "string" and not tonumber(info.Row.Icon)) and (info.Row.Icon .. " ") or "") .. tr(info.Row.Title)) or "",
 						Hidden = state == "Locked", -- v20.144: видно купленное + следующий
 						Late = state == "Next",
 					}
