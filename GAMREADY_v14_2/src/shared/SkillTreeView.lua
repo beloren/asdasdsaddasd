@@ -63,6 +63,23 @@ function SkillTreeView.new(gui, opts)
 	self.LockName = opts.LockName or gui.Name
 	self.Selected = nil
 	self.Bounds = { Min = Vector2.new(-300, -300), Max = Vector2.new(300, 300) }
+	-- v20.169: сервер дорешал ID картинок из декалей (ImageIdMap) - перерисовать
+	task.spawn(function()
+		local map = ReplicatedStorage:WaitForChild("ImageIdMap", 60)
+		if not map then return end
+		map.AttributeChanged:Connect(function()
+			if self.RepaintQueued then return end
+			self.RepaintQueued = true
+			task.delay(0.2, function()
+				self.RepaintQueued = false
+				for _, entry in self.Nodes do
+					if entry.State and not entry.Morphing then
+						pcall(self._applyPaint, self, entry, entry.State)
+					end
+				end
+			end)
+		end)
+	end)
 
 	self.Canvas.AnchorPoint = Vector2.new(0.5, 0.5)
 	self.Canvas.Size = UDim2.fromOffset(CANVAS, CANVAS)

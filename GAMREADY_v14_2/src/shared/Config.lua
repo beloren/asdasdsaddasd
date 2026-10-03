@@ -4468,6 +4468,12 @@ Config.DecalAssets = {
 	[100801924043514] = true, -- mine buff  
 	[126259239770035] = true, -- mine buff2  
 }
+-- v20.169: ГОТОВЫЕ ПАРЫ «ID декали -> ID картинки». Сервер сам находит
+-- их при старте (src/server/DecalImageResolver) и печатает в Output - вставь
+-- сюда, тогда игра сразу берёт правильный ID.
+Config.ImageIdOverrides = {
+}
+
 function Config.ImageUri(id)
 	if type(id) == "string" then
 		if id:match("^rbx") then return id end
@@ -4476,7 +4482,14 @@ function Config.ImageUri(id)
 	id = tonumber(id) or 0
 	if id <= 0 then return "" end
 	if Config.DecalAssets[id] then
-		return "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420"
+		local real = Config.ImageIdOverrides[id]
+		if not real then
+			pcall(function()
+				local map = game:GetService("ReplicatedStorage"):FindFirstChild("ImageIdMap")
+				real = map and tonumber(map:GetAttribute(tostring(id)))
+			end)
+		end
+		if real then return "rbxassetid://" .. real end
 	end
 	return "rbxassetid://" .. id
 end

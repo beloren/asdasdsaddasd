@@ -462,6 +462,11 @@ task.spawn(function()
 end)
 
 player:GetAttributeChangedSignal("InSafeZone"):Connect(refresh)
+-- v20.169: сервер дорешал ID картинок из декалей - перерисовать иконки
+task.spawn(function()
+	local map = ReplicatedStorage:WaitForChild("ImageIdMap", 60)
+	if map then map.AttributeChanged:Connect(function() refresh() end) end
+end)
 
 -- Погода: тот же канал, что слушает WeatherFX. Payload может быть таблицей
 -- с описанием события либо nil (ясно) — приводим к имени события.

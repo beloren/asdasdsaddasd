@@ -1259,3 +1259,12 @@
   при покупке острова и улучшении печи (раньше была только у звёзд).
 * **Билдер деревьев.** В `SkillTreeUi` у формы узлов (`Shape`) удалены UICorner, UIStroke и UIGradient, поворот 0,
   во весь узел, Pixelated. BuildAllUI теперь собирает только `UpgradeTreeUi`, `IslandTreeUi`, `PrestigeTreeUi`.
+
+## v20.169
+
+* **Декали → настоящие картинки.** `rbxthumb` для декалей отдавал заглушку, поэтому фоны и иконки оставались пустыми.
+  Теперь сервер при старте (`src/server/DecalImageResolver.server.lua`) открывает каждую декаль из `Config.DecalAssets`
+  через `InsertService:LoadAsset`, достаёт ID картинки и кладёт его в `ReplicatedStorage.ImageIdMap`.
+  `Config.ImageUri` берёт ID оттуда или из `Config.ImageIdOverrides`. Деревья и панель эффектов перерисовываются,
+  как только ID найден. Готовый список печатается в Output.
+* `tools/ResolveDecalIds.lua` — скрипт для Command Bar, печатает `Config.ImageIdOverrides`, чтобы вписать ID навсегда.
