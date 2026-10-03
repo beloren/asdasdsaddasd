@@ -394,6 +394,21 @@ end
 function SkillTreeView:Paint(id, props)
 	local entry = self.Nodes[id]
 	if not entry then return end
+	-- v20.161: пока узел «перерождается» (тряска -> сжатие), новый вид
+	-- копится и применяется в момент, когда узел выскакивает обратно.
+	if entry.Morphing then
+		entry.Pending = entry.Pending or {}
+		for k, v in props do entry.Pending[k] = v end
+		return
+	end
+	local prev = entry.State or {}
+	local merged = table.clone(prev)
+	for k, v in props do merged[k] = v end
+	entry.PrevState, entry.State, entry.PaintedAt = prev, merged, os.clock()
+	self:_applyPaint(entry, props)
+end
+
+function SkillTreeView:_applyPaint(entry, props)
 	if props.Hidden ~= nil then entry.Hidden = props.Hidden == true end
 	if props.Late ~= nil then entry.Late = props.Late == true end
 	local shape = entry.Shape
@@ -487,27 +502,75 @@ end
 
 -- v20.148: «улучшил» - узел раздувается и пружинит обратно, линия к нему
 -- на миг становится толще (Config.TreeReveal.BumpScale).
+-- v20.161: «УЛУЧШИЛ» - узел трясётся, сжимается и выскакивает уже в
+-- новом виде (цвет/уровень своей ветки), линия к нему на миг толще.
+-- Если новое состояние пришло с сервера раньше клика-анимации, узел на
+-- время тряски показывается в прежнем виде.
 function SkillTreeView:Bump(id)
 	local entry = self.Nodes[id]
-	if not (entry and entry.Revealed) then return end
+	if not (entry and entry.Revealed) or entry.Morphing then return end
 	local node = entry.Holder
 	local base = entry.BaseSize
-	local k = tonumber((require(ReplicatedStorage.Shared.Config).TreeReveal or {}).BumpScale) or 1.35
-	local big = UDim2.new(base.X.Scale * k, base.X.Offset * k, base.Y.Scale * k, base.Y.Offset * k)
-	local grow = TweenService:Create(node, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = big })
-	grow.Completed:Connect(function()
-		TweenService:Create(node, TweenInfo.new(0.45, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Size = base }):Play()
-	end)
-	grow:Play()
-	for _, link in self.Links do
-		if link.To == id and link.Shown then
-			local line = link.Line
-			local thick = line.Size.Y.Offset
-			line.Size = UDim2.fromOffset(line.Size.X.Offset, thick * 2)
-			TweenService:Create(line, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(line.Size.X.Offset, thick) }):Play()
-		end
+	local cfg = require(ReplicatedStorage.Shared.Config).TreeReveal or {}
+	local function scaled(k)
+		return UDim2.new(base.X.Scale * k, base.X.Offset * k, base.Y.Scale * k, base.Y.Offset * k)
 	end
-	pcall(function() require(ReplicatedStorage.Shared.UiSfx).play("Upgrade") end)
+	-- новый вид уже нарисован (ответ сервера пришёл раньше) - временно вернуть прежний
+	if entry.PrevState and entry.PaintedAt and os.clock() - entry.PaintedAt < 1.5 and next(entry.PrevState) then
+		local current = entry.State
+		self:_applyPaint(entry, entry.PrevState)
+		entry.Pending = table.clone(current)
+		entry.State = entry.PrevState
+	end
+	entry.Morphing = true
+	local token = (entry.MorphToken or 0) + 1
+	entry.MorphToken = token
+	task.spawn(function()
+		local baseRotation = node.Rotation
+		-- 1) тряска
+		local shakeTime = tonumber(cfg.UpgradeShakeSeconds) or 0.28
+		local started = os.clock()
+		while os.clock() - started < shakeTime do
+			if entry.MorphToken ~= token or not node.Parent then return end
+			local t = (os.clock() - started) / shakeTime
+			node.Rotation = baseRotation + math.sin(t * math.pi * 10) * 9 * (1 - t * 0.5)
+			task.wait()
+		end
+		node.Rotation = baseRotation
+		-- 2) сжатие
+		local shrink = TweenService:Create(node, TweenInfo.new(0.14, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Size = scaled(0.15) })
+		shrink:Play()
+		shrink.Completed:Wait()
+		if entry.MorphToken ~= token then return end
+		-- ответ сервера может ещё не прийти - ждём его чуть-чуть в сжатом виде
+		local waited = 0
+		while not entry.Pending and waited < 0.6 do
+			waited += task.wait()
+		end
+		entry.Morphing = false
+		local pending = entry.Pending
+		entry.Pending = nil
+		if pending then self:Paint(id, pending) end
+		-- 3) выскакивает новый
+		node.Size = scaled(0.15)
+		local k = tonumber(cfg.BumpScale) or 1.35
+		local pop = TweenService:Create(node, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = scaled(k) })
+		pop.Completed:Connect(function()
+			if entry.MorphToken == token then
+				TweenService:Create(node, TweenInfo.new(0.45, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Size = base }):Play()
+			end
+		end)
+		pop:Play()
+		pcall(function() require(ReplicatedStorage.Shared.UiSfx).play("Upgrade") end)
+		for _, link in self.Links do
+			if link.To == id and link.Shown then
+				local line = link.Line
+				local thick = line.Size.Y.Offset
+				line.Size = UDim2.fromOffset(line.Size.X.Offset, thick * 2)
+				TweenService:Create(line, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(line.Size.X.Offset, thick) }):Play()
+			end
+		end
+	end)
 end
 
 function SkillTreeView:Select(id)

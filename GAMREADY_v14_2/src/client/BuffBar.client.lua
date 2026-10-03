@@ -210,12 +210,41 @@ local function makeIcon(id, spec, order)
 
 	-- Появление: "выпрыгивает" из точки. Позицию в сетке задаёт
 	-- UIGridLayout, двигать Position бесполезно — поэтому анимируем масштаб.
+	-- v20.161: выпрыгивает из нуля с перелётом (1.3 -> 1), докручивается
+	-- с наклона и проявляется; картинка коротко вспыхивает белым.
 	local popScale = Instance.new("UIScale")
-	popScale.Scale = 0.2
+	popScale.Scale = 0
 	popScale.Parent = button
-	TweenService:Create(popScale, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Scale = 1,
-	}):Play()
+	button.Rotation = -20
+	local grow = TweenService:Create(popScale, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1.3 })
+	grow.Completed:Connect(function()
+		if popScale.Parent then
+			TweenService:Create(popScale, TweenInfo.new(0.35, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		end
+	end)
+	grow:Play()
+	TweenService:Create(button, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Rotation = 0 }):Play()
+	if image and image:IsA("ImageLabel") then
+		local baseTransparency = image.ImageTransparency
+		image.ImageTransparency = 1
+		TweenService:Create(image, TweenInfo.new(0.2), { ImageTransparency = baseTransparency }):Play()
+		local flash = Instance.new("Frame")
+		flash.Name = "PopFlash"
+		flash.BackgroundColor3 = Color3.new(1, 1, 1)
+		flash.BackgroundTransparency = 0.2
+		flash.BorderSizePixel = 0
+		flash.Size = image.Size
+		flash.Position = image.Position
+		flash.AnchorPoint = image.AnchorPoint
+		flash.ZIndex = image.ZIndex + 1
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.2, 0)
+		corner.Parent = flash
+		flash.Parent = button
+		local fade = TweenService:Create(flash, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1 })
+		fade.Completed:Connect(function() flash:Destroy() end)
+		fade:Play()
+	end
 
 	local entry = { Button = button, Timer = timer, Glyph = glyph, Image = image, Spec = spec, TemplateImage = image and image.Image }
 	bindTooltip(button, function()
@@ -233,13 +262,17 @@ local function removeIcon(id)
 	icons[id] = nil
 	entry.Button:SetAttribute("Removing", true) -- MouseEnter во время сжатия не откроет подсказку снова
 	if shownFor == entry.Button then fadeOutTooltip() end
-	local tween = TweenService:Create(entry.Button, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+	local tween = TweenService:Create(entry.Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 		ImageTransparency = 1,
 		BackgroundTransparency = 1,
 	})
 	local popScale = entry.Button:FindFirstChildOfClass("UIScale")
 	if popScale then
-		TweenService:Create(popScale, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.2 }):Play()
+		-- v20.161: чуть раздувается и схлопывается
+		TweenService:Create(popScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0 }):Play()
+	end
+	if entry.Image then
+		TweenService:Create(entry.Image, TweenInfo.new(0.2), { ImageTransparency = 1 }):Play()
 	end
 	tween.Completed:Connect(function()
 		if entry.Button.Parent then entry.Button:Destroy() end
