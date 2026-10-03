@@ -1268,3 +1268,9 @@
   `Config.ImageUri` берёт ID оттуда или из `Config.ImageIdOverrides`. Деревья и панель эффектов перерисовываются,
   как только ID найден. Готовый список печатается в Output.
 * `tools/ResolveDecalIds.lua` — скрипт для Command Bar, печатает `Config.ImageIdOverrides`, чтобы вписать ID навсегда.
+
+## v20.170
+
+* Подставлены ID из списка Images (тип 1) вместо ID из списка Decals для 11 картинок: midas touch, mastery,
+  luck buff, magnet buff, центр Island Keeper, luck, geodes, центр Miner, gold chest, gold chest v2, fortune.
+  Осталась 21 картинка с ID декалей (список в `Config.DecalAssets`).
