@@ -193,6 +193,10 @@ local icons = {}
 
 local function makeIcon(id, spec, order)
 	local button = iconTemplate:Clone()
+	button:SetAttribute("DisableGlobalHover", true) -- v20.166: своё наведение ниже
+	for _, child in button:GetChildren() do
+		if child:IsA("UIScale") then child:Destroy() end
+	end
 	button.Visible = true -- шаблоны в Templates скрыты
 	button.Name = "Buff_" .. id
 	button.LayoutOrder = order
@@ -245,6 +249,28 @@ local function makeIcon(id, spec, order)
 		fade.Completed:Connect(function() flash:Destroy() end)
 		fade:Play()
 	end
+
+	-- v20.166: наведение/нажатие - иконка чуть подрастает и возвращается
+	local hovered, pressed = false, false
+	local function hoverTo()
+		if button:GetAttribute("Removing") then return end
+		local target = pressed and 0.92 or (hovered and 1.15 or 1)
+		TweenService:Create(popScale, TweenInfo.new(pressed and 0.07 or 0.16, (hovered and not pressed) and Enum.EasingStyle.Back or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = target }):Play()
+	end
+	button.MouseEnter:Connect(function() hovered = true; hoverTo() end)
+	button.MouseLeave:Connect(function() hovered, pressed = false, false; hoverTo() end)
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			pressed = true; hoverTo()
+		end
+	end)
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			pressed = false
+			if input.UserInputType == Enum.UserInputType.Touch then hovered = false end
+			hoverTo()
+		end
+	end)
 
 	local entry = { Button = button, Timer = timer, Glyph = glyph, Image = image, Spec = spec, TemplateImage = image and image.Image }
 	bindTooltip(button, function()

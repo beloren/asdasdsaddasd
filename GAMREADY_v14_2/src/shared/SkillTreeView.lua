@@ -195,6 +195,11 @@ function SkillTreeView:Node(id, kind, pos, onClick)
 	local template = self.Templates:FindFirstChild(kind .. "Node") or self.Templates:WaitForChild("TierNode")
 	local node = template:Clone()
 	node.Name = "Node_" .. id
+	-- v20.166: своё наведение (HoverScale ниже) вместо общего GlobalUiHover
+	node:SetAttribute("DisableGlobalHover", true)
+	for _, child in node:GetChildren() do
+		if child:IsA("UIScale") then child:Destroy() end
+	end
 	node.Visible = true
 	node.AnchorPoint = Vector2.new(0.5, 0.5)
 	node.Position = UDim2.fromOffset(ORIGIN + pos.X, ORIGIN + pos.Y)
@@ -216,11 +221,39 @@ function SkillTreeView:Node(id, kind, pos, onClick)
 			if self.DragMoved then return end
 			if onClick then onClick(id) end
 		end)
+		-- v20.166: наведение - узел плавно подрастает, нажатие - чуть
+		-- проседает, ушёл курсор/отпустил палец - возвращается. Отдельный
+		-- UIScale, чтобы не спорить с анимациями размера (появление, улучшение).
+		local hoverScale = Instance.new("UIScale")
+		hoverScale.Name = "HoverScale"
+		hoverScale.Parent = node
+		local hovered, pressed = false, false
+		local function refreshScale()
+			local target = pressed and 0.92 or (hovered and 1.15 or 1)
+			local style = (hovered and not pressed) and Enum.EasingStyle.Back or Enum.EasingStyle.Quad
+			TweenService:Create(hoverScale, TweenInfo.new(pressed and 0.07 or 0.16, style, Enum.EasingDirection.Out), { Scale = target }):Play()
+		end
 		node.MouseEnter:Connect(function()
-			TweenService:Create(node, TweenInfo.new(0.1), { Size = UDim2.fromOffset(entry.BaseSize.X.Offset * 1.08, entry.BaseSize.Y.Offset * 1.08) }):Play()
+			hovered = true
+			refreshScale()
 		end)
 		node.MouseLeave:Connect(function()
-			TweenService:Create(node, TweenInfo.new(0.1), { Size = entry.BaseSize }):Play()
+			hovered, pressed = false, false
+			refreshScale()
+		end)
+		node.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				pressed = true
+				refreshScale()
+			end
+		end)
+		node.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				pressed = false
+				-- на телефоне наведения нет: после тапа узел возвращается к 1
+				if input.UserInputType == Enum.UserInputType.Touch then hovered = false end
+				refreshScale()
+			end
 		end)
 	end
 	return node, entry
