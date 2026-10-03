@@ -472,8 +472,10 @@ applyEvent = function(event)
 		-- 3.5-4 сек у большинства тостов) — это целое предложение, не
 		-- короткая транзакционная строка, нужно время прочитать.
 		if Services.NotifyService then
+			-- v20.158: своя иконка погоды, если задан IconImageId
+			local icon = Config.Notify.Icons["Weather_" .. tostring(event.Id)] and ("Weather_" .. event.Id) or "Quest"
 			for _, player in Players:GetPlayers() do
-				Services.NotifyService:Show(player, event.AnnounceText, { Icon = "Quest", Duration = 8 })
+				Services.NotifyService:Show(player, event.AnnounceText, { Icon = icon, Duration = 8 })
 			end
 		end
 	end

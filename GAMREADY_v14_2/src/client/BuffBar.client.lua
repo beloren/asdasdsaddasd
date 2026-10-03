@@ -330,6 +330,7 @@ local function collectEffects()
 			-- пришлось.
 			Description = weather.AnnounceText or "A weather event is active. It changes which ore and mutations you find.",
 			IconText = "WX",
+			ImageId = Config.WeatherIconId and Config.WeatherIconId(weather.Id) or 0, -- v20.158
 			Color = WEATHER_COLORS[weather.Id] or Color3.fromRGB(150, 190, 255),
 			SecondsLeft = secondsLeft,
 		})
@@ -354,6 +355,10 @@ local function refresh()
 		entry.Timer.Text = effect.SecondsLeft and formatSeconds(effect.SecondsLeft) or ""
 		-- Ассет подставлен — прячем запасную подпись, иначе буквы
 		-- просвечивали бы поверх картинки.
+		-- v20.158: своя картинка эффекта (погода: IconImageId)
+		if entry.Image and (tonumber(effect.ImageId) or 0) ~= 0 then
+			entry.Image.Image = "rbxassetid://" .. tostring(effect.ImageId)
+		end
 		entry.Glyph.Visible = not (entry.Image and entry.Image.Image ~= "")
 		-- Подсказка открыта прямо сейчас — обновляем и её, иначе таймер в
 		-- ней замер бы до закрытия.

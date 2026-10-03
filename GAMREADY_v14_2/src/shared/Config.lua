@@ -3982,6 +3982,7 @@ Config.WeatherEvents = {
 	Events = {
 		{
 			Id = "Night",
+			IconImageId = 0, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
 			DisplayName = "Nightfall",
 			Chance = 0.135, -- по прямому запросу — все 5 ивентов вместе теперь дают 40%, чистое небо 60%
 			-- IsDark — для скайбокса (см. WeatherService:_applySky ниже):
@@ -4050,6 +4051,7 @@ Config.WeatherEvents = {
 		},
 		{
 			Id = "Rain",
+			IconImageId = 0, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
 			DisplayName = "Rainstorm",
 			Chance = 0.162, -- по прямому запросу — все 5 ивентов вместе теперь дают 40%, чистое небо 60%
 			IsDark = false,
@@ -4079,6 +4081,7 @@ Config.WeatherEvents = {
 		},
 		{
 			Id = "Thunderstorm",
+			IconImageId = 0, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
 			DisplayName = "Thunderstorm",
 			Chance = 0.068, -- по прямому запросу — все 5 ивентов вместе теперь дают 40%, чистое небо 60%
 			IsDark = false,
@@ -4111,6 +4114,7 @@ Config.WeatherEvents = {
 		},
 		{
 			Id = "BloodMoon",
+			IconImageId = 0, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
 			DisplayName = "Blood Moon",
 			Chance = 0.027, -- по прямому запросу — все 5 ивентов вместе теперь дают 40%, чистое небо 60%
 			IsDark = true,
@@ -4151,6 +4155,7 @@ Config.WeatherEvents = {
 		},
 		{
 			Id = "SolarEclipse",
+			IconImageId = 0, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
 			DisplayName = "Solar Eclipse",
 			Chance = 0.008, -- по прямому запросу — все 5 ивентов вместе теперь дают 40%, чистое небо 60%, но всё ещё САМОЕ РЕДКОЕ
 			IsDark = true,
@@ -6668,6 +6673,15 @@ local function cashLabel(amount)
 	return "$" .. ("%d"):format(amount) .. " Cash"
 end
 
+
+-- v20.158: иконка погодного события (Config.WeatherEvents.Events[].IconImageId)
+function Config.WeatherIconId(id)
+	for _, event in (Config.WeatherEvents and Config.WeatherEvents.Events) or {} do
+		if event.Id == id then return tonumber(event.IconImageId) or 0 end
+	end
+	return 0
+end
+
 Config.Shop = {
 	-- КАТЕГОРИИ МАГАЗИНА (по прямому запросу — "все геймпассы раздели по
 	-- категориям, условно продукты, геймпассы"). Порядок здесь = порядок
@@ -6750,11 +6764,11 @@ Config.Shop = {
 		-- РАЗОВЫЕ ПОКУПКИ — деньги/расходники (см. Config.DevProducts/Config.Protection).
 		-- ПОГОДНЫЕ ИВЕНТЫ — по прямому запросу поставлены самыми первыми
 		-- среди Deals (см. Config.DevProducts.Weather* выше).
-		{ Id = "WeatherNightDeal", Tab = "Weather", Title = "🌙 Nightfall", PriceRobux = Config.DevProducts.WeatherNight.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherNight.Id },
-		{ Id = "WeatherRainDeal", Tab = "Weather", Title = "🌧 Rainstorm", PriceRobux = Config.DevProducts.WeatherRain.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherRain.Id },
-		{ Id = "WeatherThunderstormDeal", Tab = "Weather", Title = "⛈ Thunderstorm", PriceRobux = Config.DevProducts.WeatherThunderstorm.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherThunderstorm.Id },
-		{ Id = "WeatherBloodMoonDeal", Tab = "Weather", Title = "🩸 Blood Moon", PriceRobux = Config.DevProducts.WeatherBloodMoon.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherBloodMoon.Id },
-		{ Id = "WeatherSolarEclipseDeal", Tab = "Weather", Title = "🌑 Solar Eclipse", PriceRobux = Config.DevProducts.WeatherSolarEclipse.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherSolarEclipse.Id },
+		{ Id = "WeatherNightDeal", Tab = "Weather", Title = "🌙 Nightfall", PriceRobux = Config.DevProducts.WeatherNight.PriceRobux, ImageId = Config.WeatherIconId("Night"), ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherNight.Id },
+		{ Id = "WeatherRainDeal", Tab = "Weather", Title = "🌧 Rainstorm", PriceRobux = Config.DevProducts.WeatherRain.PriceRobux, ImageId = Config.WeatherIconId("Rain"), ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherRain.Id },
+		{ Id = "WeatherThunderstormDeal", Tab = "Weather", Title = "⛈ Thunderstorm", PriceRobux = Config.DevProducts.WeatherThunderstorm.PriceRobux, ImageId = Config.WeatherIconId("Thunderstorm"), ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherThunderstorm.Id },
+		{ Id = "WeatherBloodMoonDeal", Tab = "Weather", Title = "🩸 Blood Moon", PriceRobux = Config.DevProducts.WeatherBloodMoon.PriceRobux, ImageId = Config.WeatherIconId("BloodMoon"), ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherBloodMoon.Id },
+		{ Id = "WeatherSolarEclipseDeal", Tab = "Weather", Title = "🌑 Solar Eclipse", PriceRobux = Config.DevProducts.WeatherSolarEclipse.PriceRobux, ImageId = Config.WeatherIconId("SolarEclipse"), ProductType = "DevProduct", ProductId = Config.DevProducts.WeatherSolarEclipse.Id },
 		{ Id = "MoneyPackSmallDeal", Tab = "Cash", Title = ("💵 %d Min Cash"):format(Config.DevProducts.MoneyPackSmall.Minutes), PriceRobux = Config.DevProducts.MoneyPackSmall.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackSmall.Id },
 		{ Id = "MoneyPackMediumDeal", Tab = "Cash", Title = ("💰 %d Min Cash"):format(Config.DevProducts.MoneyPackMedium.Minutes), PriceRobux = Config.DevProducts.MoneyPackMedium.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackMedium.Id },
 		{ Id = "MoneyPackLargeDeal", Tab = "Cash", Title = ("🏦 %d Min Cash"):format(Config.DevProducts.MoneyPackLarge.Minutes), PriceRobux = Config.DevProducts.MoneyPackLarge.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackLarge.Id },
@@ -7308,6 +7322,12 @@ Config.Notify = {
 		Skin = 107935543416033,
 	},
 }
+-- v20.158: иконки уведомлений о погоде - ключи "Weather_<Id>" из IconImageId
+for _, event in (Config.WeatherEvents and Config.WeatherEvents.Events) or {} do
+	if (tonumber(event.IconImageId) or 0) ~= 0 then
+		Config.Notify.Icons["Weather_" .. event.Id] = event.IconImageId
+	end
+end
 
 --------------------------------------------------------------------------------
 -- ХВАТ ЗА ТЕЛЕЖКУ (R6 IK) — пока держит тележку, руки визуально "прилипают"
