@@ -1260,14 +1260,6 @@ local function findCardAsset(rarity)
 			d.CastShadow = false
 		elseif d:IsA("BaseScript") then
 			d:Destroy()
-		elseif d:IsA("Light") then
-			-- v20.162: свет внутри карточек приглушён - в ленте их 16 рядом,
-			-- и лампочки складывались в пересвет (Config.MineExpedition.RarityCard.CardLightScale)
-			local k = tonumber((Config.MineExpedition.RarityCard or {}).CardLightScale) or 0.25
-			d.Brightness *= k
-			if d:IsA("PointLight") or d:IsA("SpotLight") or d:IsA("SurfaceLight") then d.Range *= 0.7 end
-		elseif d:IsA("SurfaceGui") then
-			d.Brightness = math.min(d.Brightness, 1)
 		end
 	end
 	return copy
@@ -1414,7 +1406,15 @@ local function playRarityCard(data)
 		local targetRank = table.find(order, rarity) or 1
 		local screenH = math.abs(faceAlign.RightVector.Y) * size.X + math.abs(faceAlign.UpVector.Y) * size.Y + math.abs(faceAlign.LookVector.Y) * size.Z
 		local spacing = screenH * (1 + (reelCfg.Gap3D or 0.5))
-		reel = { Cards = {}, Target = targetIndex, Spacing = spacing, Seconds = reelCfg.Seconds or 3.4, LastTick = nil }
+		reel = { Cards = {}, Target = targetIndex, Spacing = spacing, Seconds = reelCfg.Seconds or 3.4, LastTick = nil, Lights = {} }
+		-- v20.163: пока лента крутится, свет выпавшей карточки выключен (иначе
+		-- пересвет); как только встала - светит в полную силу, как в модели
+		for _, d in model:GetDescendants() do
+			if d:IsA("Light") and d.Enabled then
+				d.Enabled = false
+				table.insert(reel.Lights, d)
+			end
+		end
 		reel.Start = (targetIndex - 1) * spacing + visible() * 0.6
 		for i = 1, count do
 			if i ~= targetIndex then
@@ -1502,6 +1502,12 @@ local function playRarityCard(data)
 		local t = os.clock() - started
 		local vy, bob, roll, yaw = 0, 0, 0, 0
 		local reelY = 0
+		if reel and t >= inSeconds and reel.Lights then
+			for _, light in reel.Lights do
+				if light.Parent then light.Enabled = true end
+			end
+			reel.Lights = nil
+		end
 		if reel and t < inSeconds then
 			-- остаток пути ленты: замедление (quint), затем перелёт вниз и возврат
 			if t < reel.Seconds then

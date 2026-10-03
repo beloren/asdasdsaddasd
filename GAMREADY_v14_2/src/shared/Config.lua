@@ -1151,7 +1151,6 @@ Config.MineExpedition = {
 		Weights = { Common = 50, Uncommon = 26, Rare = 13, Epic = 7, Legendary = 3, Mythic = 1 },
 	},
 	RarityCard = {
-		CardLightScale = 0.25, -- v20.162: яркость PointLight/SurfaceLight внутри своих карточек (1 = как в модели)
 		Distance = 10,       -- стадов перед камерой (карточка — 3D-объект в мире)
 		ScreenWidth = 0.29,  -- ширина карточки, доля экрана (v20.67: 0.18 → 0.29, +60%)
 		-- v20.62: лицом к камере всегда САМАЯ ШИРОКАЯ грань главной детали
