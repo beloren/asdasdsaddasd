@@ -285,6 +285,10 @@ Config.Tutorial = {
 	Cursor3D = true,
 	Pointer3DSize = 3.5,                 -- размер 3D-курсора в стадах
 	FarDistance = 160,                   -- дальше этого - курсор тапает в кнопку компаса
+	-- v20.177: курсор на кнопке TRAVEL медленно растёт, если её долго не жмут
+	TravelGrowDelay = 4,     -- сек тапания до начала роста
+	TravelGrowSeconds = 12,  -- за сколько сек дорастает до максимума
+	TravelGrowMax = 2,       -- максимум (x2 от обычного размера)
 	-- Пока говорит НПС обучения - эти экраны остаются, остальное уезжает к краям.
 	DialogFocusKeep = { "HotbarUi", "TutorialUi", "TutorialCursor" },
 	PointerTapSeconds = 1.3,             -- один цикл «подлёт - нажатие - отход» (v20.118: мягче)

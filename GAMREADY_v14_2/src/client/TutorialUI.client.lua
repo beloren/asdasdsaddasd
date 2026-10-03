@@ -1046,10 +1046,29 @@ local cursorSwitchAt = 0
 local pausedUntil = 0
 local lastCycle = -1
 
+-- v20.177: КУРСОР НА КНОПКЕ TRAVEL РАСТЁТ. Если игрок долго не жмёт TRAVEL
+-- (курсор тапает в кнопку компаса), курсор медленно увеличивается - через
+-- TravelGrowDelay с за TravelGrowSeconds с до TravelGrowMax (x2), не больше.
+local TravelGrow = { Since = nil, Pointing = false, Boost = 1 }
+function TravelGrow.Update(pointingCompass)
+	if not pointingCompass then
+		TravelGrow.Since = nil
+		TravelGrow.Boost = 1
+		return
+	end
+	local now = os.clock()
+	TravelGrow.Since = TravelGrow.Since or now
+	local delaySeconds = tonumber(TUT.TravelGrowDelay) or 4
+	local growSeconds = math.max(0.1, tonumber(TUT.TravelGrowSeconds) or 12)
+	local k = math.clamp((now - TravelGrow.Since - delaySeconds) / growSeconds, 0, 1)
+	k = k * k * (3 - 2 * k) -- плавно
+	TravelGrow.Boost = 1 + ((tonumber(TUT.TravelGrowMax) or 2) - 1) * k
+end
+
 local function cursorSize()
 	local base = tonumber(TUT.PointerSize) or 0
 	if base <= 0 then base = isNarrow() and 52 or 64 end
-	return base * (1 + nudgeBoost * 0.35)
+	return base * (1 + nudgeBoost * 0.35) * TravelGrow.Boost
 end
 
 local function playRipple(at)
@@ -1251,7 +1270,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local active = gui.Enabled and current ~= nil and gateOpen() and current.Phase == "Task"
 	nudgeBoost = math.max(0, nudgeBoost - dt * 0.4)
 	if not active and current == nil and gateOpen() and player:GetAttribute("NeedsTutorial") ~= true
-		and os.clock() >= pausedUntil and uiHintStep() then
+		and os.clock() >= pausedUntil and (TravelGrow.Update(false) or true) and uiHintStep() then
 		hide3D()
 		uiPointerActive = false
 		return
@@ -1260,6 +1279,7 @@ RunService.RenderStepped:Connect(function(dt)
 		hideCursor()
 		hide3D()
 		uiPointerActive = false
+		TravelGrow.Update(false)
 		return
 	end
 	-- цель интерфейса (переискиваем 4 раза в секунду)
@@ -1285,6 +1305,7 @@ RunService.RenderStepped:Connect(function(dt)
 			-- открыто нужное меню: курсор в интерфейсе, над НПС ничего
 			uiPointerActive = true
 			hide3D()
+			TravelGrow.Update(TutorialTarget.Matches(uiTarget:GetAttribute(TutorialTarget.ATTR), "Compass") == true) -- v20.177
 			tapAt(point, 0)
 			return
 		end
@@ -1316,16 +1337,19 @@ RunService.RenderStepped:Connect(function(dt)
 				end
 			end
 		end
+		local onButton = compass == nil -- тапаем в саму кнопку TRAVEL, а не в место на карте
 		compass = compass or TutorialTarget.Find({ "Compass" })
 		if compass and TutorialTarget.Shown(compass) then
 			local okPoint, point = pcall(uiPoint, compass)
 			if okPoint and point then
 				hide3D()
+				TravelGrow.Update(onButton) -- v20.177
 				tapAt(point, 0)
 				return
 			end
 		end
 	end
+	TravelGrow.Update(false)
 	local screen = camera:WorldToViewportPoint(position + Vector3.new(0, 3.5, 0))
 	local view = camera.ViewportSize
 	local margin = 70
