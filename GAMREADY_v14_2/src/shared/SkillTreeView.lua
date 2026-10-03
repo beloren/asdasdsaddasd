@@ -483,13 +483,24 @@ function SkillTreeView:_setPlate(entry, image)
 		shape.Rotation = 0
 		entry.BaseRotation = 0
 		for _, d in shape:GetChildren() do
-			if d:IsA("UIStroke") or d:IsA("UICorner") or d:IsA("UIGradient") then d.Enabled = false end
+			if d:IsA("UIStroke") or d:IsA("UIGradient") then
+				d.Enabled = false
+			elseif d:IsA("UICorner") then
+				-- у UICorner нет Enabled: обнуляем радиус, исходный храним в атрибуте
+				if d:GetAttribute("PlateRadius") == nil then d:SetAttribute("PlateRadius", d.CornerRadius) end
+				d.CornerRadius = UDim.new(0, 0)
+			end
 		end
 	elseif entry.PlateOn and entry.PlateBackup then
 		for k, v in entry.PlateBackup do shape[k] = v end
 		entry.BaseRotation = entry.PlateBackup.Rotation
 		for _, d in shape:GetChildren() do
-			if d:IsA("UIStroke") or d:IsA("UICorner") or d:IsA("UIGradient") then d.Enabled = true end
+			if d:IsA("UIStroke") or d:IsA("UIGradient") then
+				d.Enabled = true
+			elseif d:IsA("UICorner") and typeof(d:GetAttribute("PlateRadius")) == "UDim" then
+				d.CornerRadius = d:GetAttribute("PlateRadius")
+				d:SetAttribute("PlateRadius", nil)
+			end
 		end
 		entry.PlateOn = false
 	end
@@ -503,9 +514,10 @@ function SkillTreeView:_applyPaint(entry, props)
 	-- есть, без перекраски; нет подложки - старое поведение (тинт цветом).
 	local plate = self:_plateFor(entry, props)
 	if shape and plate then
-		self:_setPlate(entry, plate)
+		local ok, err = pcall(self._setPlate, self, entry, plate)
+		if not ok then warn("[SkillTreeView] plate:", err) end
 	elseif shape and props.Color then
-		if entry.PlateOn then self:_setPlate(entry, nil) end
+		if entry.PlateOn then pcall(self._setPlate, self, entry, nil) end
 		if shape.Image ~= "" then shape.ImageColor3 = props.Color else shape.BackgroundColor3 = props.Color end
 	end
 	setText(entry.Holder, "Caption", props.Caption)
