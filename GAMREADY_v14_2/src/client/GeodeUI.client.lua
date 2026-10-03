@@ -1871,7 +1871,10 @@ local function shakeGeodeForTap(token, finalTap)
 		local prop = activeGeodeProp
 		local base = prop and (prop:IsA("Model") and prop:GetPivot() or prop.CFrame)
 		for _, step in { { -12, 0.25 }, { 10, 0.1 }, { -6, 0.05 }, { 0, 0 } } do
-			if token ~= crackTapToken or not prop or not prop.Parent or prop ~= activeGeodeProp then return end
+			if token ~= crackTapToken then return end
+			-- v20.156: жеоды нет (не успела появиться / уже раскололась) - тряску
+			-- пропускаем, но запрос на открытие ниже всё равно уходит
+			if not prop or not prop.Parent or prop ~= activeGeodeProp then break end
 			pcall(function()
 				local cf = base * CFrame.new(0, step[2], 0) * CFrame.Angles(math.rad(step[1] * 0.4), 0, math.rad(step[1]))
 				if prop:IsA("Model") then prop:PivotTo(cf) else prop.CFrame = cf end
@@ -2412,6 +2415,7 @@ beginCrack = function()
 	crackTapBusy = false
 	crackTapToken += 1
 	tapSequenceCompleted = false
+	animationSeen = false -- v20.156: флаг прошлого открытия
 	Hit.Finalizing = false
 	Hit.Combo = 0
 	Hit.ShowCombo(0)
@@ -2990,6 +2994,14 @@ function closeAll()
 	Hit.ShowCombo(0)
 	crackTapBusy = false
 	crackTapCount = 0
+	-- v20.156: полный сброс раскола - иначе после выхода посреди удара
+	-- (скип, OpenFailed, сторож) кнопки оставались "занятыми"
+	Hit.Finalizing = false
+	if not tapSequenceCompleted then openRequestActive = false end
+	tapSequenceCompleted = false
+	animationSeen = false
+	crackButton.Active = true
+	skipButton.Visible = false
 	podiumRequestPending = false
 	opening.Visible = false
 	resultCards.Visible = false
@@ -3297,7 +3309,12 @@ podiumPanel.CloseButton.Activated:Connect(closeAll)
 -- закрывает окно результата, как раньше.
 local skipBusy = false
 skipButton.Activated:Connect(function()
-	if animationSeen or goblinResultActive then
+	-- v20.156: во время раскола SKIP ВСЕГДА дотапывает жеоду. Раньше флаг
+	-- animationSeen оставался true после ПЕРВОГО открытия навсегда, и на
+	-- втором SKIP просто закрывал окно: награды нет, openRequestActive
+	-- застревал, кнопка открытия больше не нажималась.
+	local cracking = crackSequenceActive and openRequestActive and not tapSequenceCompleted
+	if not cracking and (animationSeen or goblinResultActive) then
 		closeAll()
 		return
 	end
@@ -3389,7 +3406,16 @@ remote.OnClientEvent:Connect(function(command, payload, newState)
 			showResult(payload, state)
 	elseif command == "OpenFailed" then
 		openRequestActive = false
+		tapSequenceCompleted = false
+		lastCloseAllAt = 0 -- v20.156: закрыть обязательно, даже сразу после другого closeAll
 		closeAll()
+		-- x3/x5 без пасса: предлагаем купить вместо молчаливого выхода
+		if payload == "PassRequired" then
+			local pass = Config.GamePasses.GeodeMaster
+			if pass and (tonumber(pass.Id) or 0) ~= 0 then
+				pcall(function() MarketplaceService:PromptGamePassPurchase(player, pass.Id) end)
+			end
+		end
 	end
 end)
 

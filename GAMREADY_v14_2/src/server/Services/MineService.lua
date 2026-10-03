@@ -630,7 +630,9 @@ function MineService:Init(services)
 	skipRemote.Parent = ReplicatedStorage.Shared
 	skipRemote.OnServerEvent:Connect(function(player)
 		local expedition = expeditions[player]
-		if expedition and expedition.CutscenePhase then
+		-- v20.156: первые 1.2 с ленты скип не принимается - тапы, оставшиеся
+		-- от мини-игры, обрывали ленту, и сразу показывалась редкость
+		if expedition and expedition.CutscenePhase and os.clock() - (expedition.CutsceneStartedAt or 0) >= 1.2 then
 			expedition.SkipRequested = true
 		end
 	end)
@@ -1973,6 +1975,7 @@ end
 
 function MineService:_showRarityCard(player, expedition)
 	expedition.CutscenePhase = true
+	expedition.CutsceneStartedAt = os.clock()
 	local card = Config.MineExpedition.RarityCard or {}
 	local rarity = Config.AverageRarityForTier(expedition.Tier, expedition.LuckBonus)
 	local reel = Config.MineExpedition.RarityReel
@@ -1981,16 +1984,16 @@ function MineService:_showRarityCard(player, expedition)
 		-- v20.109: лента редкостей как в кейсах - стоп на лучшей руде пачки
 		local order = Config.RarityOrder
 		local best = 1
-		local ok = pcall(function()
+		local ok, err = pcall(function()
 			for _, entry in self:_preRoll(player, expedition) do
 				local r = entry.Crystal:GetAttribute("CrystalRarity")
 				best = math.max(best, table.find(order, r) or 1)
 			end
 		end)
-		if ok then
-			rarity = order[best]
-			reelSeconds = (reel.Seconds or 3.4) + (reel.HoldSeconds or 0.5)
-		end
+		if not ok then warn("[MineService] reel preRoll:", err) end
+		-- v20.156: лента крутится всегда (раньше при ошибке её не было вовсе)
+		rarity = order[best] or rarity
+		reelSeconds = (reel.Seconds or 3.4) + (reel.HoldSeconds or 0.5)
 	end
 	-- v20.138: карточки ленты крутятся по ШАНСАМ ЭТОГО ИГРОКА (удача, купленные
 	-- руды), а не по общей таблице - видно, что удача и покупки работают
@@ -2801,8 +2804,24 @@ function MineService:_preRoll(player, expedition)
 	if expedition.PreRolled then return expedition.PreRolled end
 	local tier = expedition.Tier
 	local tierInfo = Config.MineTiers[math.clamp(tier, 1, #Config.MineTiers)]
+	-- v20.156: пачка сохраняется СРАЗУ и каждый кусок роллится отдельно под
+	-- pcall. Раньше одна ошибка посреди цикла роняла весь pcall в
+	-- _showRarityCard: ленты не было (сразу карточка средней редкости), а
+	-- уже созданные куски терялись - "ничего не выпало".
 	local rolled = {}
-	for _ = 1, self:_yieldFor(player, expedition) do
+	expedition.PreRolled = rolled
+	local yieldCount = 1
+	pcall(function() yieldCount = self:_yieldFor(player, expedition) end)
+	local function addCrystal()
+		local ok, crystal = pcall(Services.CrystalService.Create, Services.CrystalService, tier, player, expedition.LuckBonus)
+		if ok and crystal then
+			local oreInfo = Config.OreByKey[crystal:GetAttribute("CrystalOre")] or tierInfo
+			table.insert(rolled, { Crystal = crystal, OreInfo = oreInfo })
+		elseif not ok then
+			warn("[MineService] preRoll: CrystalService:Create failed:", crystal)
+		end
+	end
+	for _ = 1, math.max(1, yieldCount) do
 		local wentToGeode = false
 		if Config.NoCarts and Services.GeodeService then
 			local ok, spawned = pcall(function()
@@ -2810,13 +2829,10 @@ function MineService:_preRoll(player, expedition)
 			end)
 			wentToGeode = ok and spawned == true
 		end
-		if not wentToGeode then
-			local crystal = Services.CrystalService:Create(tier, player, expedition.LuckBonus)
-			local oreInfo = Config.OreByKey[crystal:GetAttribute("CrystalOre")] or tierInfo
-			table.insert(rolled, { Crystal = crystal, OreInfo = oreInfo })
-		end
+		if not wentToGeode then addCrystal() end
 	end
-	expedition.PreRolled = rolled
+	-- хотя бы одна руда всегда (раньше всё могло уйти в жеоды - пусто)
+	if #rolled == 0 then addCrystal() end
 	return rolled
 end
 

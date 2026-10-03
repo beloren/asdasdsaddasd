@@ -1802,7 +1802,7 @@ end
 skipButton.MouseEnter:Connect(function() skipButton.TextTransparency = 0 end)
 skipButton.MouseLeave:Connect(function() skipButton.TextTransparency = 0.15 end)
 skipButton.Activated:Connect(function()
-	if os.clock() - skipShownAt < 0.3 then return end -- случайный двойной тап
+	if os.clock() - skipShownAt < 1.2 then return end -- v20.156: тапы от мини-игры не обрывают ленту
 	UiSfx.play("UiButtonClick")
 	showSkip(false)
 	if skipRemote then skipRemote:FireServer() end
@@ -1897,7 +1897,20 @@ stateRemote.OnClientEvent:Connect(function(stage, data)
 		if data.Reel and (Config.MineExpedition.RarityReel or {}).Mode ~= "2D" then
 			-- v20.118: лента из самих 3D-карточек (сверху вниз), стоп на выпавшей
 			data.Reel3D = true
-			playRarityCard(data)
+			-- v20.156: сбой 3D-ленты (нет моделей карточек и т.п.) - плоская
+			-- лента, а не пустой экран
+			local ok, err = pcall(playRarityCard, data)
+			if not ok then
+				warn("[MineExpeditionUI] 3D reel failed:", err)
+				data.Reel3D = nil
+				if activeCard then pcall(function() activeCard:Destroy() end); activeCard = nil end
+				task.spawn(function()
+					local ok2 = pcall(require(ReplicatedStorage.Shared.RarityReel).Play, data.Rarity, function()
+						playRarityCard(data)
+					end)
+					if not ok2 then pcall(playRarityCard, data) end
+				end)
+			end
 		elseif data.Reel then
 			-- v20.109: сначала лента редкостей, потом карточка как раньше
 			task.spawn(function()

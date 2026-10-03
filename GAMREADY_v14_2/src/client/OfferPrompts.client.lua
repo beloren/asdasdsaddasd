@@ -54,7 +54,7 @@ if workspace.CurrentCamera then workspace.CurrentCamera:GetPropertyChangedSignal
 -- КУПОНЫ
 --------------------------------------------------------------------------------
 local OFFERS = {
-	Shield = { Order = 1, Icon = "🛡", Text = "Shield now", ProductId = Config.Protection.PaidProductId, Price = Config.Protection.PriceRobux },
+	-- v20.156: "Shield now" (покупка щита по времени) убран из предложений
 	GetUp = { Order = 2, Icon = micro.GetUp and micro.GetUp.Icon, Text = "Get up now", Micro = "GetUp" },
 	Revenge = { Order = 3, Icon = micro.Revenge and micro.Revenge.Icon, Text = "Get back", Micro = "Revenge" },
 	MineRush = { Order = 4, Icon = micro.MineRush and micro.MineRush.Icon, Text = "x2 ore · 3 digs", Micro = "MineRush" },

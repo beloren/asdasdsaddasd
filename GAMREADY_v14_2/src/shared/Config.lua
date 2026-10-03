@@ -3041,8 +3041,12 @@ Config.GamePasses = {
 	DemolitionExpert = { -- 🧨 откат динамита ×0.5 + 1 бесплатный динамит своего уровня в день
 		Id = 1998819611, PriceRobux = 79, CooldownMultiplier = 0.5, DailyFreeSeconds = 20 * 3600,
 	},
+	-- v20.156: CartGuard снят с продажи (тележек больше нет) - купившим
+	-- выдаётся Ore Magnet (GrantsTo). Поля щита оставлены: старый эффект
+	-- у владельцев тоже сохраняется.
 	CartGuard = {    -- 🛡 щит тележки дольше, откат щита короче, золотая обводка
 		Id = 1966819564, PriceRobux = 59, Duration = 60, Cooldown = 90,
+		Legacy = true, GrantsTo = { "OreMagnet" },
 		OutlineColor = Color3.fromRGB(255, 215, 60),
 	},
 	FastSmelter = {  -- ⚡ печь ×2 быстрее, +1 слот
@@ -3068,9 +3072,9 @@ Config.GamePasses = {
 	----------------------------------------------------------------------------
 	QuadCash = { Id = 1968313301, Legacy = true, GrantsTo = { "DoubleCash", "DoubleLuck" } },
 	OctupleCash = { Id = 1969483065, Legacy = true, GrantsTo = { "DoubleCash", "DoubleLuck" } },
-	GoldenShield = { Id = 1968217308, Legacy = true, GrantsTo = { "CartGuard" } },
-	SpeedBoost = { Id = 1968685101, Legacy = true, GrantsTo = { "CartGuard" } },
-	DoubleDamage = { Id = 1966268777, Legacy = true, GrantsTo = { "CartGuard" } },
+	GoldenShield = { Id = 1968217308, Legacy = true, GrantsTo = { "CartGuard", "OreMagnet" } },
+	SpeedBoost = { Id = 1968685101, Legacy = true, GrantsTo = { "CartGuard", "OreMagnet" } },
+	DoubleDamage = { Id = 1966268777, Legacy = true, GrantsTo = { "CartGuard", "OreMagnet" } },
 	TripleGeodeOpen = { Id = 1969119088, Legacy = true, GrantsTo = { "GeodeMaster" } },
 	-- v20.112: SextupleCash / DoubleHealth / FastMining / FiveGeodeOpen убраны -
 	-- их Id теперь у новых пассов DoubleLuck / CartGuard / FastSmelter / GeodeMaster.
@@ -6724,7 +6728,6 @@ Config.Shop = {
 		{ Id = "ExtraPouchPass", Tab = "Passes", Title = "🎒 Mega Backpack", PriceRobux = Config.GamePasses.ExtraPouch.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.ExtraPouch.Id, PassKey = "ExtraPouch" },
 		{ Id = "GeodeMasterPass", Tab = "Passes", Title = "🪨 Geode Master", PriceRobux = Config.GamePasses.GeodeMaster.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.GeodeMaster.Id, PassKey = "GeodeMaster" },
 		{ Id = "DemolitionExpertPass", Tab = "Passes", Title = "🧨 Demolition Expert", PriceRobux = Config.GamePasses.DemolitionExpert.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.DemolitionExpert.Id, PassKey = "DemolitionExpert" },
-		{ Id = "CartGuardPass", Tab = "Passes", Title = "🛡 Cart Guard", PriceRobux = Config.GamePasses.CartGuard.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.CartGuard.Id, PassKey = "CartGuard" },
 		{ Id = "FastSmelterPass", Tab = "Passes", Title = "⚡ Fast Smelter", PriceRobux = Config.GamePasses.FastSmelter.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.FastSmelter.Id, PassKey = "FastSmelter" },
 		{ Id = "RocketPickaxePass", Tab = "Passes", Title = "🚀 Rocket Pickaxe", PriceRobux = Config.GamePasses.RocketPickaxe.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.RocketPickaxe.Id, PassKey = "RocketPickaxe" },
 		{ Id = "AutoHammerPass", Tab = "Passes", Title = "🔨 Auto Hammer", PriceRobux = Config.GamePasses.AutoHammer.PriceRobux, ImageId = 0, ProductType = "GamePass", ProductId = Config.GamePasses.AutoHammer.Id, PassKey = "AutoHammer" },
@@ -6755,7 +6758,6 @@ Config.Shop = {
 		{ Id = "MoneyPackSmallDeal", Tab = "Cash", Title = ("💵 %d Min Cash"):format(Config.DevProducts.MoneyPackSmall.Minutes), PriceRobux = Config.DevProducts.MoneyPackSmall.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackSmall.Id },
 		{ Id = "MoneyPackMediumDeal", Tab = "Cash", Title = ("💰 %d Min Cash"):format(Config.DevProducts.MoneyPackMedium.Minutes), PriceRobux = Config.DevProducts.MoneyPackMedium.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackMedium.Id },
 		{ Id = "MoneyPackLargeDeal", Tab = "Cash", Title = ("🏦 %d Min Cash"):format(Config.DevProducts.MoneyPackLarge.Minutes), PriceRobux = Config.DevProducts.MoneyPackLarge.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.MoneyPackLarge.Id },
-		{ Id = "ShieldExtensionDeal", Tab = "Deals", Title = ("🛡 Shield +%ds"):format(Config.Protection.PaidDuration), PriceRobux = Config.Protection.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.Protection.PaidProductId },
 		-- Geodes are also available from the normal donation shop. The same
 		-- ProductIds are handled by MonetizationService's durable geode branch.
 		{ Id = "StoneGeodeDeal", Tab = "Geodes", Title = "🪨 Stone Geode", PriceRobux = Config.DevProducts.GeodePacks.Stone.PriceRobux, ImageId = 0, ProductType = "DevProduct", ProductId = Config.DevProducts.GeodePacks.Stone.Id },
@@ -6872,7 +6874,6 @@ Config.QuickBar = {
 		{ Key = "ExtraPouch", Emoji = "🎒", ImageId = 0 },
 		{ Key = "GeodeMaster", Emoji = "🪨", ImageId = 0 },
 		{ Key = "DemolitionExpert", Emoji = "🧨", ImageId = 0 },
-		{ Key = "CartGuard", Emoji = "🛡️", ImageId = 0 },
 		{ Key = "FastSmelter", Emoji = "⚡", ImageId = 0 },
 		{ Key = "RocketPickaxe", Emoji = "🚀", ImageId = 0 },
 		{ Key = "DoubleSafe", Emoji = "🏦", ImageId = 0 },
