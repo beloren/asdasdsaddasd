@@ -272,6 +272,7 @@ local function placeStatue(stand, userId)
 	local keys = Config.Leaderboards.StatueAnimations or { "BankMerchant", "IslandKeeperNPC" }
 	local key = stand.AnimKey or keys[1]
 	if key then
+		rig:SetAttribute("NoHeadLook", true) -- v20.152: статуи лидеров на игрока не смотрят
 		pcall(function() require(ReplicatedStorage.Shared.NpcIdle).Play(rig, key) end)
 	end
 end

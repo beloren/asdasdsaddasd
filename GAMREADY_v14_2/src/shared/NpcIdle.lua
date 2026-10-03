@@ -69,6 +69,10 @@ end
 -- key - имя в Config.NpcIdleAnimations. Возвращает трек или nil.
 function NpcIdle.Play(model, key)
 	if not model then return nil end
+	-- v20.152: НПС смотрит на игрока головой (NpcHeadLook.client.lua)
+	if model:GetAttribute("NoHeadLook") ~= true then
+		pcall(function() game:GetService("CollectionService"):AddTag(model, "NpcHeadLook") end)
+	end
 	local anim = model:FindFirstChild("IdleAnimation")
 	if not (anim and anim:IsA("Animation") and anim.AnimationId ~= "") then
 		local id = uri(Config.NpcIdleAnimations and Config.NpcIdleAnimations[key])

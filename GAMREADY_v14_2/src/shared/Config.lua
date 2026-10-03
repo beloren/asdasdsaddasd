@@ -4247,6 +4247,19 @@ Config.Compass = {
 	CenterOffset = Vector3.new(0, 0, 18),
 }
 
+-- v20.152: НПС ПОВОРАЧИВАЮТ ГОЛОВУ К ИГРОКУ (NpcHeadLook.client.lua): подошёл
+-- ближе Distance - смотрит на тебя (поворот до MaxYaw, наклон до MaxPitch).
+-- Работает у моделей-ригов с суставом Neck (R15 и R6).
+Config.NpcHeadLook = {
+	Enabled = true,
+	Distance = 18,   -- студов
+	MaxYaw = 70,     -- градусов влево/вправо
+	MaxPitch = 25,   -- градусов вверх/вниз
+	GiveUpYaw = 120, -- игрок дальше за спиной - голова возвращается прямо
+	TurnSpeed = 6,   -- плавность (больше - быстрее)
+	Names = { "MinerNPC", "UpgradeShopNPC", "RebirthNPC", "ShopNPC", "BankMerchant", "IslandKeeperNPC", "GamepassNPC" },
+}
+
 -- v20.150: КОНФЕТТИ НА ЭКРАНЕ (ScreenConfetti.client.lua): шаг обучения -
 -- маленький залп из центра, глава / обучение / подсказка с наградой - большой
 -- из нижних углов.
