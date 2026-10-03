@@ -2015,10 +2015,16 @@ function MineService:_showRarityCard(player, expedition)
 	if reelSeconds > 0 and reel.Mode ~= "2D" then
 		-- v20.118: 3D-лента = вылет карточки (прокрутка + доводка 0.45 с)
 		skippableWait(expedition, (reel.Seconds or 3.4) + 0.45 + (card.HoldSeconds or 0.42) + extra + (card.OutSeconds or 0.3) + 0.05)
-		return
+	else
+		skippableWait(expedition, reelSeconds)
+		skippableWait(expedition, (card.InSeconds or 0.34) + (card.HoldSeconds or 0.42) + extra + (card.OutSeconds or 0.3) + 0.05)
 	end
-	skippableWait(expedition, reelSeconds)
-	skippableWait(expedition, (card.InSeconds or 0.34) + (card.HoldSeconds or 0.42) + extra + (card.OutSeconds or 0.3) + 0.05)
+	-- v20.179: скипнули ленту - клиент показывает выпавшую редкость, руда
+	-- сыплется после этой паузы (RarityCard.SkipHoldSeconds + уход карточки)
+	if expedition.SkipRequested and not expedition.SkipRevealShown then
+		expedition.SkipRevealShown = true
+		task.wait((tonumber(card.SkipHoldSeconds) or 1.2) + (card.OutSeconds or 0.3))
+	end
 end
 
 --------------------------------------------------------------------------------

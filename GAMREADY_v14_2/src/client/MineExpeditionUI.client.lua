@@ -1392,6 +1392,9 @@ local function prepareCard(rarity, color, cfg, distance)
 end
 
 local activeCard = nil
+-- v20.179: SKIP во время ленты - лента сразу встаёт на выпавшую редкость,
+-- карточка коротко показывается (RarityCard.SkipHoldSeconds), потом руда
+local RarityCardSkip = { Requested = false }
 
 local function playRarityCard(data)
 	local cfg = Config.MineExpedition.RarityCard or {}
@@ -1508,6 +1511,7 @@ local function playRarityCard(data)
 	local sway = math.rad(cfg.SwayDegrees or 7)
 	local startVy, endVy = -1.7, 1.8
 	local started = os.clock()
+	RarityCardSkip.Requested = false
 	local reachedCenter, burstAt = false, 0
 	local rainbowHue = 0
 
@@ -1533,6 +1537,14 @@ local function playRarityCard(data)
 			conn:Disconnect()
 			if reel then for _, card in reel.Cards do card.Model:Destroy() end end
 			return
+		end
+		-- v20.179: скип - перескакиваем к моменту, когда карточка встала
+		if RarityCardSkip.Requested then
+			RarityCardSkip.Requested = false
+			if os.clock() - started < inSeconds then
+				started = os.clock() - inSeconds
+				holdSeconds = math.min(holdSeconds, tonumber(cfg.SkipHoldSeconds) or 1.2)
+			end
 		end
 		local t = os.clock() - started
 		local vy, bob, roll, yaw = 0, 0, 0, 0
@@ -1859,11 +1871,8 @@ skipButton.Activated:Connect(function()
 	UiSfx.play("UiButtonClick")
 	showSkip(false)
 	if skipRemote then skipRemote:FireServer() end
-	-- лента/карточка редкости - убрать сразу
-	if activeCard then
-		pcall(function() activeCard:Destroy() end)
-		activeCard = nil
-	end
+	-- v20.179: лента не пропадает, а сразу показывает выпавшую редкость
+	if activeCard then RarityCardSkip.Requested = true end
 end)
 RunService.RenderStepped:Connect(function()
 	if skipGui.Enabled then skipPulse.Scale = 1 + 0.04 * math.sin(os.clock() * 4) end
