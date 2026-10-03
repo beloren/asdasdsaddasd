@@ -1274,3 +1274,10 @@
 * Подставлены ID из списка Images (тип 1) вместо ID из списка Decals для 11 картинок: midas touch, mastery,
   luck buff, magnet buff, центр Island Keeper, luck, geodes, центр Miner, gold chest, gold chest v2, fortune.
   Осталась 21 картинка с ID декалей (список в `Config.DecalAssets`).
+
+## v20.171
+
+* Подставлены ID из списка Images для ещё 20 картинок: gems, furnace, fire, eclipse, dynamite v1/v2/v3,
+  dynamite vetka, economy, dnk, фон звёзд, bloodmoon, boots, crown, cave vetka, backpack, backpack vetka,
+  anvil, anvil stal'noy, mine buff. Все проверены через API Roblox (тип Image, названия совпадают).
+  С ID декали осталась только «mine buff2» (бафф DoubleHaul).
