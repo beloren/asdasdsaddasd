@@ -408,11 +408,71 @@ function SkillTreeView:Paint(id, props)
 	self:_applyPaint(entry, props)
 end
 
+-- v20.164: ПОДЛОЖКИ ПО СОСТОЯНИЮ И ВЕТКЕ (Config.TreePlates).
+-- props.PlateState: "Owned" (куплено - фон своей ветки props.Branch),
+-- "Star" (звезда-улучшение), "Buy" (можно купить), "NoMoney" (не хватает),
+-- "Locked" (закрыто), "Prestige" (нужен престиж).
+function SkillTreeView:_plateFor(entry, props)
+	local state = props.PlateState
+	if state == nil then return nil end
+	local Config = require(ReplicatedStorage.Shared.Config)
+	local plates = Config.TreePlates or {}
+	local id
+	if state == "Owned" then
+		local perGui = plates[self.Gui.Name]
+		id = perGui and perGui[props.Branch or ""]
+		if (tonumber(id) or 0) == 0 and entry.Kind == "Star" then id = plates.Star end
+	else
+		id = plates[state]
+	end
+	id = tonumber(id) or 0
+	return id > 0 and ("rbxassetid://" .. id) or nil
+end
+
+function SkillTreeView:_setPlate(entry, image)
+	local shape = entry.Shape
+	if not shape then return end
+	if image then
+		if not entry.PlateOn then
+			-- запоминаем исходный вид шаблона, чтобы вернуть без картинки
+			entry.PlateBackup = {
+				Image = shape.Image, Rotation = shape.Rotation,
+				BackgroundTransparency = shape.BackgroundTransparency, ImageColor3 = shape.ImageColor3,
+				ScaleType = shape.ScaleType,
+			}
+			entry.PlateOn = true
+		end
+		shape.Image = image
+		shape.ImageColor3 = Color3.new(1, 1, 1)
+		shape.ImageTransparency = 0
+		shape.BackgroundTransparency = 1
+		shape.ScaleType = Enum.ScaleType.Fit
+		shape.Rotation = 0
+		entry.BaseRotation = 0
+		for _, d in shape:GetChildren() do
+			if d:IsA("UIStroke") or d:IsA("UICorner") or d:IsA("UIGradient") then d.Enabled = false end
+		end
+	elseif entry.PlateOn and entry.PlateBackup then
+		for k, v in entry.PlateBackup do shape[k] = v end
+		entry.BaseRotation = entry.PlateBackup.Rotation
+		for _, d in shape:GetChildren() do
+			if d:IsA("UIStroke") or d:IsA("UICorner") or d:IsA("UIGradient") then d.Enabled = true end
+		end
+		entry.PlateOn = false
+	end
+end
+
 function SkillTreeView:_applyPaint(entry, props)
 	if props.Hidden ~= nil then entry.Hidden = props.Hidden == true end
 	if props.Late ~= nil then entry.Late = props.Late == true end
 	local shape = entry.Shape
-	if shape and props.Color then
+	-- v20.164: готовая цветная подложка (Config.TreePlates) - ставится как
+	-- есть, без перекраски; нет подложки - старое поведение (тинт цветом).
+	local plate = self:_plateFor(entry, props)
+	if shape and plate then
+		self:_setPlate(entry, plate)
+	elseif shape and props.Color then
+		if entry.PlateOn then self:_setPlate(entry, nil) end
 		if shape.Image ~= "" then shape.ImageColor3 = props.Color else shape.BackgroundColor3 = props.Color end
 	end
 	setText(entry.Holder, "Caption", props.Caption)
@@ -594,7 +654,14 @@ end
 function SkillTreeView:Step(t)
 	if not self.Gui.Enabled then return end
 	for _, entry in self.Nodes do
-		if entry.Stroke and self.Selected ~= entry.Id then
+		-- v20.164: у картинки-подложки рамки нет - «можно купить» мерцает яркостью
+		if entry.PlateOn and entry.Shape then
+			local selected = self.Selected == entry.Id
+			local k = entry.Pulse and (0.82 + (math.sin(t * 5) + 1) * 0.09) or 1
+			if selected then k = 1 end
+			entry.Shape.ImageColor3 = Color3.new(k, k, k)
+		end
+		if entry.Stroke and self.Selected ~= entry.Id and not entry.PlateOn then
 			entry.Stroke.Thickness = entry.Pulse and (3 + (math.sin(t * 5) + 1) * 1.5) or 3
 			entry.Stroke.Color = entry.Pulse and Color3.fromRGB(110, 255, 140) or INK
 		end

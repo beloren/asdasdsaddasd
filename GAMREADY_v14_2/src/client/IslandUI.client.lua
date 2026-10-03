@@ -1189,7 +1189,7 @@ do
 
 		local function refresh()
 			if not built then build() end
-			view:Paint("Root", { Color = Color3.fromRGB(120, 220, 255), Icon = "🏝", Name = tr(currentState and currentState.KeeperName or "Island Keeper") })
+			view:Paint("Root", { Color = Color3.fromRGB(120, 220, 255), Icon = "🏝", Name = tr(currentState and currentState.KeeperName or "Island Keeper"), PlateState = "Owned", Branch = "Root" })
 			local sm = currentState and currentState.Smelter
 			for id, info in nodeInfo do
 				if info.Kind == "Island" then
@@ -1199,14 +1199,18 @@ do
 					-- v20.144: видно купленное и доступное к покупке, остальное скрыто
 					props.Hidden = not (entry.Owned or entry.RequiresMet)
 					props.Late = not entry.Owned
+					props.Branch = info.Island -- v20.164: фон ветки острова (Config.TreePlates)
 					if entry.Owned then
 						props.Color = color
 						props.Price = '<font color="#9CFFB4">' .. tr("OWNED") .. "</font>"
+						props.PlateState = "Owned"
 					elseif entry.RequiresMet then
+						props.PlateState = entry.CanAfford and "Buy" or "NoMoney"
 						props.Color = entry.CanAfford and Color3.fromRGB(70, 200, 95) or Color3.fromRGB(140, 60, 60)
 						props.Price = '<font color="' .. (entry.CanAfford and "#6CFF7E" or "#FF5A5A") .. '">' .. tostring(entry.CostText or "") .. "</font>"
 						props.Pulse = entry.CanAfford == true
 					else
+						props.PlateState = "Locked"
 						props.Color = DIM
 						props.Price = '<font color="#AAB0C4">' .. tr("Needs {name}", { name = tr(entry.RequiresName or "") }) .. "</font>"
 					end
@@ -1220,14 +1224,18 @@ do
 						Hidden = not (sm and info.Level <= sm.Level + 1),
 						Late = not (sm and info.Level <= sm.Level),
 					}
+					props.Branch = "Smelter" -- v20.164
 					if sm and info.Level <= sm.Level then
 						props.Color = Color3.fromRGB(255, 140, 60)
 						props.Price = ""
+						props.PlateState = "Owned"
 					elseif sm and info.Level == sm.Level + 1 then
+						props.PlateState = sm.CanAfford and "Buy" or "NoMoney"
 						props.Color = sm.CanAfford and Color3.fromRGB(70, 200, 95) or Color3.fromRGB(140, 60, 60)
 						props.Price = '<font color="' .. (sm.CanAfford and "#6CFF7E" or "#FF5A5A") .. '">' .. tostring(sm.NextCostText or "") .. "</font>"
 						props.Pulse = sm.CanAfford == true
 					else
+						props.PlateState = "Locked"
 						props.Color = DIM
 						props.Price = ""
 					end
@@ -1245,6 +1253,7 @@ do
 						-- звёзды видны, когда куплен остров; финал - когда обе звезды на максимуме
 						Hidden = info.Final and st.Locked or not st.Owned,
 						Late = st.Level == 0,
+						PlateState = st.Locked and "Locked" or "Star", -- v20.164
 					})
 				end
 			end

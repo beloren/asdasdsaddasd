@@ -1247,11 +1247,12 @@ if cfg.TreeStyle ~= false and cfg.TreeLayout then
 				view:Paint("Root", {
 					Color = maxed and Color3.fromRGB(190, 120, 255) or Color3.fromRGB(150, 90, 230),
 					Icon = rootPerk.Icon or "⛏", Name = tr(rootPerk.Title),
+					PlateState = "Owned", Branch = "Root", -- v20.164
 					Level = maxed and "" or levelText(info, rootPerk),
 					Pulse = not maxed and state.Points >= (info.Cost or math.huge),
 				})
 			else
-				view:Paint("Root", { Color = Color3.fromRGB(150, 90, 230), Icon = "✦", Name = tr("START"), Level = "" })
+				view:Paint("Root", { Color = Color3.fromRGB(150, 90, 230), Icon = "✦", Name = tr("START"), Level = "", PlateState = "Owned", Branch = "Root" })
 			end
 			for id, entry in nodeInfo do
 				if not entry.Root then
@@ -1268,6 +1269,10 @@ if cfg.TreeStyle ~= false and cfg.TreeLayout then
 						-- закрытые узлы не видны, пока не куплен предыдущий
 						Hidden = info.Locked == true and cfg.HideLocked ~= false,
 						Late = info.Level == 0,
+						-- v20.164: фон по состоянию; купленный - фон своей ветки
+						PlateState = info.Locked and "Locked" or (info.Level > 0 and "Owned")
+							or (state.Points >= (info.Cost or math.huge) and "Buy" or "NoMoney"),
+						Branch = entry.Branch and entry.Branch.Id,
 					})
 				end
 			end

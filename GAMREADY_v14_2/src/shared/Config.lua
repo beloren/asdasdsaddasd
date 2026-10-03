@@ -3982,7 +3982,7 @@ Config.WeatherEvents = {
 	Events = {
 		{
 			Id = "Night",
-			IconImageId = 0, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
+			IconImageId = 101409290464098, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
 			DisplayName = "Nightfall",
 			Chance = 0.135, -- по прямому запросу — все 5 ивентов вместе теперь дают 40%, чистое небо 60%
 			-- IsDark — для скайбокса (см. WeatherService:_applySky ниже):
@@ -4051,7 +4051,7 @@ Config.WeatherEvents = {
 		},
 		{
 			Id = "Rain",
-			IconImageId = 0, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
+			IconImageId = 77096421176290, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
 			DisplayName = "Rainstorm",
 			Chance = 0.162, -- по прямому запросу — все 5 ивентов вместе теперь дают 40%, чистое небо 60%
 			IsDark = false,
@@ -4081,7 +4081,7 @@ Config.WeatherEvents = {
 		},
 		{
 			Id = "Thunderstorm",
-			IconImageId = 0, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
+			IconImageId = 132759010163887, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
 			DisplayName = "Thunderstorm",
 			Chance = 0.068, -- по прямому запросу — все 5 ивентов вместе теперь дают 40%, чистое небо 60%
 			IsDark = false,
@@ -4114,7 +4114,7 @@ Config.WeatherEvents = {
 		},
 		{
 			Id = "BloodMoon",
-			IconImageId = 0, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
+			IconImageId = 90457461250816, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
 			DisplayName = "Blood Moon",
 			Chance = 0.027, -- по прямому запросу — все 5 ивентов вместе теперь дают 40%, чистое небо 60%
 			IsDark = true,
@@ -4155,7 +4155,7 @@ Config.WeatherEvents = {
 		},
 		{
 			Id = "SolarEclipse",
-			IconImageId = 0, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
+			IconImageId = 134886091072836, -- v20.158: иконка погоды (панель эффектов, уведомление, магазин); 0 - буквы WX / эмодзи
 			DisplayName = "Solar Eclipse",
 			Chance = 0.008, -- по прямому запросу — все 5 ивентов вместе теперь дают 40%, чистое небо 60%, но всё ещё САМОЕ РЕДКОЕ
 			IsDark = true,
@@ -4383,44 +4383,80 @@ Config.UpgradeTree = {
 -- 0 / нет записи - эмодзи как раньше.
 Config.TreeIcons = {
 	UpgradeTreeUi = {   -- Experienced Miner
-		Root = 0,          -- центр ⛏
-		Star_Damage = 0,   -- 💪
-		Star_Luck = 0,     -- 🍀
-		Star_Speed = 0,    -- 👟
-		Star_Sell = 0,     -- 💰
-		-- тиры (кружки с цифрой): Mine_2, Cart_3, Pickaxe_4 ...; динамит: Supplies_<ключ>
+		Root = 104503368727126,          -- центр: главная кирка
+		Star_Damage = 83565475651138,    -- мускул
+		Star_Luck = 105730199768575,     -- клевер
+		Star_Speed = 102703635057741,    -- ботинок
+		Star_Sell = 106797840322088,     -- денежный мешок
+		Supplies_Dynamite = 106251260439225,        -- динамит 1 тир (вместо SMALL)
+		Supplies_Dynamite_Medium = 109137786282064, -- динамит 2 тир (вместо MEDIUM)
+		Supplies_Dynamite_Mega = 96566669809156,    -- динамит 3 тир (вместо LARGE)
+		-- тиры (кружки с цифрой): Mine_2, Cart_3, Pickaxe_4 ...
 	},
 	IslandTreeUi = {    -- Island Keeper
-		Root = 0,          -- центр 🏝
-		Island_Anvil = 0, Island_Income = 0, Island_Smelter = 0, -- кружки островов (вместо надписи)
-		AnvilCrystal = 0,  -- 💎
-		AnvilExtra = 0,    -- ✨
-		AnvilFinal = 0,    -- ⚒
-		IncomeRate = 0,    -- 💰
-		IncomeSafe = 0,    -- 🏦
-		IncomeFinal = 0,   -- 👑
-		SmeltSpeed = 0,    -- 🔥
-		SmeltValue = 0,    -- 🪙
-		SmelterFinal = 0,  -- ⭐
+		Root = 0,                        -- центр 🏝 (иконки нет)
+		Island_Anvil = 105165638797505,  -- остров наковальни (вместо эмодзи)
+		Island_Income = 82555521921482,  -- остров сейфа
+		Island_Smelter = 139816834734038, -- остров печи
+		AnvilCrystal = 130679377432042,  -- синий кристалл
+		AnvilExtra = 76877328423757,     -- искры
+		AnvilFinal = 105165638797505,    -- наковальня
+		IncomeRate = 135095450666347,    -- деньги (вариант 1)
+		IncomeSafe = 82555521921482,     -- сейф
+		IncomeFinal = 120412550545685,   -- корона
+		SmeltSpeed = 139816834734038,    -- огонь
+		SmeltValue = 139030016406826,    -- монетки
+		SmelterFinal = 118288740616463,  -- звёздочки
 	},
 	PrestigeTreeUi = {  -- дерево престижа
-		Root = 0,          -- центр (Starter ⛏)
-		Money = 0,         -- 💰
-		Luck = 0,          -- 🍀
-		Mutation = 0,      -- 🧬
-		CartSpace = 0,     -- 🎒
-		Speed = 0,         -- 👟
-		Passive = 0,       -- 🏦
-		GeodeLuck = 0,     -- 🪨
-		ChestLuck = 0,     -- 🎁
-		Dynamite = 0,      -- 🧨
-		HeadStart = 0,     -- 🚀
-		PointsBonus = 0,   -- 💎
-		StartCash = 0,     -- 💵
-		BoxDiscount = 0,   -- 📦
+		Root = 104503368727126,          -- центр (Starter): кирка
+		Money = 126163866136592,         -- деньги (вариант 2)
+		Luck = 105730199768575,          -- клевер
+		Mutation = 118039347990491,      -- ДНК
+		CartSpace = 140301426268045,     -- рюкзак
+		Speed = 102703635057741,         -- ботинок
+		Passive = 82555521921482,        -- сейф
+		GeodeLuck = 87736484115360,      -- жеода
+		ChestLuck = 129194380615227,     -- золотой сундук
+		Dynamite = 106251260439225,      -- динамит
+		HeadStart = 106666144781456,     -- ракета
+		PointsBonus = 130679377432042,   -- кристалл
+		StartCash = 127645011861923,     -- деньги (вариант 3)
+		BoxDiscount = 90393326146892,    -- сундук (вариант 2) - своей иконки коробки нет
 	},
 	ByEmoji = {
 		-- ["🍀"] = 1234567890,
+	},
+}
+
+-- v20.164: ГОТОВЫЕ ЦВЕТНЫЕ ПОДЛОЖКИ УЗЛОВ (ставятся как есть, без перекраски).
+-- Не купленные узлы - по состоянию (Buy / NoMoney / Locked / Prestige),
+-- купленные - фон своей ветки. 0 - старый вид (форма из шаблона + цвет).
+Config.TreePlates = {
+	Buy = 113393450582356,        -- можно купить
+	NoMoney = 88831914288169,     -- не хватает денег / очков
+	Locked = 116715082410207,     -- закрыто
+	Prestige = 113921082399343,   -- нужен престиж (Experienced Miner)
+	Star = 133782798222422,       -- все звёзды-улучшения (Miner и острова)
+	UpgradeTreeUi = {             -- Experienced Miner, купленные
+		Root = 79800765195339,
+		Mine = 113782610802572,   -- CAVE
+		Cart = 76787611812750,    -- BACKPACK
+		Pickaxe = 134060966926921,
+		Supplies = 78369437721487, -- динамит
+	},
+	IslandTreeUi = {              -- Island Keeper, купленные
+		Root = 136645908287928,
+		Anvil = 80336192342889,
+		Income = 88838065280253,
+		Smelter = 133011325337913,
+	},
+	PrestigeTreeUi = {            -- престиж, купленные
+		Root = 109618501380753,
+		Economy = 132054176349699,
+		Fortune = 116110756721441,
+		Utility = 128358988412232,
+		Mastery = 111884645410481,
 	},
 }
 
@@ -5288,7 +5324,7 @@ Config.Buffs = {
 		DisplayName = "2X DAMAGE",
 		Amount = 1.0,
 		Rarity = "Rare",
-		ImageId = 0,
+		ImageId = 100801924043514,
 		IconText = "DMG",
 		Color = Color3.fromRGB(255, 90, 70),
 		Description = "Doubles your pickaxe damage.",
@@ -5299,7 +5335,7 @@ Config.Buffs = {
 		DisplayName = "LUCK",
 		Amount = 0.05,
 		Rarity = "Epic",
-		ImageId = 0,
+		ImageId = 80951353553659,
 		IconText = "LK",
 		Color = Color3.fromRGB(120, 235, 140),
 		Description = "Increases luck: ore rolls land on rarer slots of the tier more often.",
@@ -5311,7 +5347,7 @@ Config.Buffs = {
 		-- мутации перестали бы быть событием.
 		Amount = 2.5,
 		Rarity = "Legendary",
-		ImageId = 0,
+		ImageId = 79479754028121,
 		IconText = "MU",
 		Color = Color3.fromRGB(215, 130, 255),
 		Description = "Mutation potion: mined ore is far more likely to roll a mutation.",
@@ -5320,7 +5356,7 @@ Config.Buffs = {
 		DisplayName = "2X MONEY",
 		Amount = 1.0,
 		Rarity = "Epic",
-		ImageId = 0,
+		ImageId = 129676793218469,
 		IconText = "$",
 		Color = Color3.fromRGB(255, 215, 110),
 		Description = "Doubles the money you earn from selling ore.",
@@ -5329,7 +5365,7 @@ Config.Buffs = {
 		DisplayName = "+25% SPEED",
 		Amount = 0.25, -- v20.104: было x2 - слишком быстро
 		Rarity = "Rare",
-		ImageId = 0,
+		ImageId = 81261427786564,
 		IconText = "SP",
 		Color = Color3.fromRGB(120, 200, 255),
 		Description = "+25% movement speed.",
@@ -5342,10 +5378,10 @@ Config.Buffs = {
 --   • погода - IconImageId в Config.WeatherEvents.Events
 --   • сейф-зона и всё остальное - здесь (ключ = Kind баффа или SafeZone)
 Config.BuffBarIcons = {
-	SafeZone = 0,       -- сейф-зона
-	DoubleHaul = 0,     -- баффы амулетов (их нет в Config.Buffs)
-	MidasTouch = 0,
-	MutationMagnet = 0,
+	SafeZone = 137175235410002,       -- сейф-зона (щит с галочкой)
+	DoubleHaul = 126259239770035,     -- баффы амулетов (их нет в Config.Buffs)
+	MidasTouch = 125627885342101,
+	MutationMagnet = 75749225946580,
 	-- можно вписать и Luck/Money/Speed/Damage/MutationPotion - это перебьёт ImageId из Config.Buffs
 }
 

@@ -3735,7 +3735,7 @@ end
 		refreshTree = function()
 			if not next(nodeInfo) then buildTree() end
 			treeView:SetMoney("")
-			treeView:Paint("Root", { Color = Color3.fromRGB(255, 190, 70), Icon = "⛏", Name = tr("EXPERIENCED MINER") })
+			treeView:Paint("Root", { Color = Color3.fromRGB(255, 190, 70), Icon = "⛏", Name = tr("EXPERIENCED MINER"), PlateState = "Owned", Branch = "Root" })
 			for id, info in nodeInfo do
 				if info.Kind == "Supplies" then
 					local key = info.Value
@@ -3749,6 +3749,7 @@ end
 						Name = info.Index == 1 and (((type(info.Row.Icon) == "string" and not tonumber(info.Row.Icon)) and (info.Row.Icon .. " ") or "") .. tr(info.Row.Title)) or "",
 						Hidden = locked ~= nil, -- v20.144: закрытый динамит не виден, пока не откроется пещера
 						Late = count == 0,
+						PlateState = locked and "Locked" or (count > 0 and "Owned" or "Buy"), Branch = "Supplies", -- v20.164
 					})
 				elseif CHAINS[info.Kind] then
 					local kind, tier = info.Kind, info.Value
@@ -3760,22 +3761,28 @@ end
 						Hidden = state == "Locked", -- v20.144: видно купленное + следующий
 						Late = state == "Next",
 					}
+					props.Branch = kind -- v20.164: фон ветки (Config.TreePlates)
 					if state == "Owned" then
 						props.Color = (KIND_VIEW[kind] and KIND_VIEW[kind].Color) or COLORS.Gold
 						props.Price = ""
+						props.PlateState = "Owned"
 					elseif state == "Next" then
 						if status and status.State == "NeedRebirth" then
+							props.PlateState = "Prestige"
 							props.Color = Color3.fromRGB(70, 110, 170)
 							props.Price = '<font color="#8CD2FF">' .. tr("PRESTIGE") .. "</font>"
 						elseif status and status.Cost then
 							props.Color = status.CanAfford and COLORS.Buy or Color3.fromRGB(140, 60, 60)
+							props.PlateState = status.CanAfford and "Buy" or "NoMoney"
 							props.Price = highlightCost(status.Cost, status.CanAfford == true)
 							props.Pulse = status.State == "Buyable" and status.CanAfford == true
 						else
 							props.Color = COLORS.Buy
 							props.Price = ""
+							props.PlateState = "Buy"
 						end
 					else
+						props.PlateState = "Locked"
 						props.Color = Color3.fromRGB(44, 48, 62)
 						props.Caption = '<font color="#7A8096">' .. tostring(tier) .. "</font>"
 						props.Price = ""
@@ -3794,6 +3801,7 @@ end
 						Pulse = st and st.CanAfford and lvl < maxL or false,
 						Hidden = false,
 						Late = lvl == 0,
+						PlateState = "Star", -- v20.164
 					})
 				end
 			end
