@@ -171,7 +171,12 @@ function TutorialService:Start()
 				-- v20.41: авто-листание реплик — на клиенте (TutorialUI), чтобы
 				-- отсчёт начинался после катсцены, когда текст реально виден.
 				-- v20.174: не успел за ChapterTaskSeconds - глава на паузу
-				if player.Parent and state.Phase == PHASE_TASK and state.TaskDeadline and os.clock() > state.TaskDeadline then
+				local stayStep = stepOf(state, state.Step)
+				if player.Parent and state.Chapter and stayStep and stayStep.StayIf and not self:_check(player, stayStep.StayIf) then
+					-- v20.175: условие шага пропало (не хватает денег на остров) - глава
+					-- на паузу, вернётся, когда условие снова выполнится
+					pcall(self._pauseChapter, self, player)
+				elseif player.Parent and state.Phase == PHASE_TASK and state.TaskDeadline and os.clock() > state.TaskDeadline then
 					pcall(self._pauseChapter, self, player)
 				elseif player.Parent and state.Phase == PHASE_TASK then
 					local ok, err = pcall(function() self:_checkGoal(player) end)
@@ -1277,8 +1282,19 @@ function TutorialService:_tickPaused(player, done)
 	local radius = Config.Tutorial.ResumeRadius or 30
 	for id, info in paused do
 		local chapter = chapterById(id)
+		local step = chapter and type(info) == "table" and chapter.Steps[math.clamp(tonumber(info.Step) or 1, 1, #chapter.Steps)]
 		if not chapter or done[id] or type(info) ~= "table" then
 			paused[id] = nil
+		elseif chapter.SkipIf and self:_check(player, chapter.SkipIf) then
+			paused[id] = nil
+			done[id] = true
+			self:_publishGuides(player)
+		elseif step and step.StayIf and not self:_check(player, step.StayIf) then
+			-- v20.175: шаг пока невыполним (денег мало) - у механики только «бро, иди подзаработай»
+			if info.Target and self:_resolveTarget(player, info.Target) then
+				local near = self:_isNear(player, { Target = info.Target, Radius = radius })
+				if self:_brokeHint(player, chapter, near) then return true end
+			end
 		elseif info.Target and self:_resolveTarget(player, info.Target) then
 			local near = self:_isNear(player, { Target = info.Target, Radius = radius })
 			if not near then
@@ -1339,6 +1355,16 @@ function TutorialService:_tickChapters(player)
 	local active = data and data.TutorialChapterActive
 	if type(active) == "table" and active.Id and not done[active.Id] then
 		local chapter = chapterById(active.Id)
+		local resumeStep = chapter and chapter.Steps[math.clamp(tonumber(active.Step) or 1, 1, #chapter.Steps)]
+		if resumeStep and resumeStep.StayIf and not self:_check(player, resumeStep.StayIf) then
+			-- v20.175: шаг сейчас невыполним (денег не хватает) - не восстанавливаем
+			local paused = self:_paused(player)
+			if paused then
+				paused[active.Id] = { Step = tonumber(active.Step) or 1, Target = resumeStep.Target, At = os.time(), Left = false }
+			end
+			if data then data.TutorialChapterActive = nil end
+			chapter = nil
+		end
 		if chapter then
 			self:_startChapter(player, chapter, math.clamp(tonumber(active.Step) or 1, 1, #chapter.Steps))
 			return

@@ -374,6 +374,7 @@ Config.Tutorial = {
 			Steps = {
 				{
 					Id = "BuyAnvil",
+					StayIf = { Check = "CanAffordIsland", Arg = "Anvil" }, -- v20.175: денег не хватает - глава на паузу
 					Lines = { "Islands unlock new things", "Anvil Island opens geodes" },
 					Short = "ANVIL ISLAND", Task = "Buy Anvil Island at the Island Keeper",
 					Goal = { Kind = "Check", Check = "IslandOwned", Arg = "Anvil" },
@@ -403,6 +404,7 @@ Config.Tutorial = {
 			Steps = {
 				{
 					Id = "BuyIncome",
+					StayIf = { Check = "CanAffordIsland", Arg = "Income" }, -- v20.175: денег не хватает - глава на паузу
 					Lines = { "Income Island makes money even offline", "Buy it at the Island Keeper" },
 					Short = "INCOME ISLAND", Task = "Buy Income Island at the Island Keeper",
 					Goal = { Kind = "Check", Check = "IslandOwned", Arg = "Income" },
@@ -433,6 +435,7 @@ Config.Tutorial = {
 			Steps = {
 				{
 					Id = "BuySmelter",
+					StayIf = { Check = "CanAffordIsland", Arg = "Smelter" }, -- v20.175: денег не хватает - глава на паузу
 					Lines = { "The Smelter makes ingots worth x10", "Buy it at the Island Keeper" },
 					Short = "SMELTER", Task = "Buy Smelter Island at the Island Keeper",
 					Goal = { Kind = "Check", Check = "IslandOwned", Arg = "Smelter" },
