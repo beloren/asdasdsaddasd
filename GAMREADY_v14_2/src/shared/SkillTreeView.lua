@@ -523,6 +523,9 @@ function SkillTreeView:Bump(id)
 		entry.State = entry.PrevState
 	end
 	entry.Morphing = true
+	local function sfx(name)
+		pcall(function() require(ReplicatedStorage.Shared.UiSfx).play(name) end)
+	end
 	local token = (entry.MorphToken or 0) + 1
 	entry.MorphToken = token
 	task.spawn(function()
@@ -530,7 +533,14 @@ function SkillTreeView:Bump(id)
 		-- 1) тряска
 		local shakeTime = tonumber(cfg.UpgradeShakeSeconds) or 0.28
 		local started = os.clock()
+		local ticks = 0
 		while os.clock() - started < shakeTime do
+			-- v20.162: три щелчка за тряску
+			local due = math.floor((os.clock() - started) / shakeTime * 3)
+			if due >= ticks and ticks < 3 then
+				ticks += 1
+				sfx("TreeShakeTick")
+			end
 			if entry.MorphToken ~= token or not node.Parent then return end
 			local t = (os.clock() - started) / shakeTime
 			node.Rotation = baseRotation + math.sin(t * math.pi * 10) * 9 * (1 - t * 0.5)
@@ -539,6 +549,7 @@ function SkillTreeView:Bump(id)
 		node.Rotation = baseRotation
 		-- 2) сжатие
 		local shrink = TweenService:Create(node, TweenInfo.new(0.14, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Size = scaled(0.15) })
+		sfx("TreeShrink")
 		shrink:Play()
 		shrink.Completed:Wait()
 		if entry.MorphToken ~= token then return end
@@ -561,7 +572,8 @@ function SkillTreeView:Bump(id)
 			end
 		end)
 		pop:Play()
-		pcall(function() require(ReplicatedStorage.Shared.UiSfx).play("Upgrade") end)
+		sfx("TreePop")
+		task.delay(0.08, sfx, "TreeChime")
 		for _, link in self.Links do
 			if link.To == id and link.Shown then
 				local line = link.Line

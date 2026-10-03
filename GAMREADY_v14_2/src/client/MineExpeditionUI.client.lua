@@ -1260,6 +1260,14 @@ local function findCardAsset(rarity)
 			d.CastShadow = false
 		elseif d:IsA("BaseScript") then
 			d:Destroy()
+		elseif d:IsA("Light") then
+			-- v20.162: свет внутри карточек приглушён - в ленте их 16 рядом,
+			-- и лампочки складывались в пересвет (Config.MineExpedition.RarityCard.CardLightScale)
+			local k = tonumber((Config.MineExpedition.RarityCard or {}).CardLightScale) or 0.25
+			d.Brightness *= k
+			if d:IsA("PointLight") or d:IsA("SpotLight") or d:IsA("SurfaceLight") then d.Range *= 0.7 end
+		elseif d:IsA("SurfaceGui") then
+			d.Brightness = math.min(d.Brightness, 1)
 		end
 	end
 	return copy
@@ -1416,6 +1424,10 @@ local function playRarityCard(data)
 				end
 				local okCard, m, _, po, rot = pcall(prepareCard, r, Config.RarityColors[r] or Color3.new(1, 1, 1), cfg, distance)
 				if okCard and m then
+					-- v20.162: у карточек-«прокрутки» свет выключен совсем, светит только выпавшая
+					for _, d in m:GetDescendants() do
+						if d:IsA("Light") then d.Enabled = false end
+					end
 					table.insert(reel.Cards, { Model = m, PivotOffset = po, Rotation = rot, Index = i })
 				end
 			end

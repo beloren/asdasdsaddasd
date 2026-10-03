@@ -1151,6 +1151,7 @@ Config.MineExpedition = {
 		Weights = { Common = 50, Uncommon = 26, Rare = 13, Epic = 7, Legendary = 3, Mythic = 1 },
 	},
 	RarityCard = {
+		CardLightScale = 0.25, -- v20.162: яркость PointLight/SurfaceLight внутри своих карточек (1 = как в модели)
 		Distance = 10,       -- стадов перед камерой (карточка — 3D-объект в мире)
 		ScreenWidth = 0.29,  -- ширина карточки, доля экрана (v20.67: 0.18 → 0.29, +60%)
 		-- v20.62: лицом к камере всегда САМАЯ ШИРОКАЯ грань главной детали
@@ -6243,6 +6244,12 @@ Config.Sounds = {
 	MineHitGood = { Id = "rbxassetid://83234417221359", PitchJitter = 0.08, Volume = 0.7 },
 	MineHitMiss = { Id = "rbxasset://sounds/swordlunge.wav", Pitch = 0.75, Volume = 0.55 },
 	MineModifierReveal = { Id = "rbxassetid://121730389428662", Volume = 0.5 },                                -- успешный клик по ритм-кнопке во время добычи (см. MineService/Config.MiningRhythm)
+	-- v20.162: улучшение узла в деревьях прокачки (тряска -> сжатие -> выскакивает).
+	-- Сейчас стоят звуки, которые уже есть в игре; замени Id на свои.
+	TreeShakeTick = { Id = "rbxassetid://86256838181683", Volume = 0.35, Pitch = 1.2, PitchJitter = 0.12 }, -- 3 щелчка во время тряски
+	TreeShrink = { Id = "rbxassetid://113414336923621", Volume = 0.45, Pitch = 1.5 },   -- «втягивание»
+	TreePop = { Id = "rbxassetid://121730389428662", Volume = 0.7, Pitch = 1.1 },       -- выскочил новый
+	TreeChime = { Id = "rbxassetid://129867367137419", Variants = { "rbxassetid://99359825575585", "rbxassetid://91926972747239" }, Volume = 0.45, Pitch = 1.25 }, -- звон поверх
 	UpgradeFail = { Id = "rbxassetid://85783678067324", Volume = 0.7 },        -- недостаточно денег / угнана
 	Rebirth = { Id = "rbxassetid://121730389428662", Volume = 0.6 },            -- ребёрт
 	ComboActivate = { Id = "rbxassetid://121730389428662", Volume = 0.8 },      -- комбо-множитель включился (5+ кристаллов)
